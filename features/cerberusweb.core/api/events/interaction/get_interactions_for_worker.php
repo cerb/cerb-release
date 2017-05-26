@@ -112,7 +112,7 @@ class Event_GetInteractionsForWorker extends Extension_DevblocksEvent {
 		foreach($bots as $bot) { /* @var $bot Model_Bot */
 			$bot_menu = new DevblocksMenuItemPlaceholder();
 			$bot_menu->label = $bot->name;
-			$bot_menu->image = $url_writer->write(sprintf('c=avatars&context=bot&context_id=%d{/devblocks_url}?v=%s', $bot->id, $bot->updated_at));
+			$bot_menu->image = $url_writer->write(sprintf('c=avatars&context=bot&context_id=%d', $bot->id)) . '?v=' . $bot->updated_at;
 			$bot_menu->children = [];
 			
 			$interactions_menu[$bot->id] = $bot_menu;
@@ -308,6 +308,7 @@ class Event_GetInteractionsForWorker extends Extension_DevblocksEvent {
 			
 		switch($token) {
 			case 'return_interaction':
+				$tpl->assign('event_point', Event_NewInteractionChatWorker::ID);
 				$tpl->display('devblocks:cerberusweb.core::events/interaction/action_return_interaction.tpl');
 				break;
 		}
