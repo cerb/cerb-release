@@ -18,6 +18,12 @@
 class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 	const ID = 'event.message.chat.worker';
 
+	function renderEventParams(Model_TriggerEvent $trigger=null) {
+		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl->assign('trigger', $trigger);
+		$tpl->display('devblocks:cerberusweb.core::events/record/params_macro_default.tpl');
+	}
+	
 	/**
 	 *
 	 * @param Model_TriggerEvent $trigger
@@ -163,11 +169,11 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 				'context' => CerberusContexts::CONTEXT_BEHAVIOR,
 			),
 			'behavior_bot_id' => array(
-				'label' => 'Behavior',
+				'label' => 'Bot',
 				'context' => CerberusContexts::CONTEXT_BOT,
 			),
 			'interaction_behavior_id' => array(
-				'label' => 'Behavior',
+				'label' => 'Interaction Behavior',
 				'context' => CerberusContexts::CONTEXT_BEHAVIOR,
 			),
 			'worker_id' => array(
@@ -262,7 +268,13 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 	function getActionExtensions(Model_TriggerEvent $trigger) {
 		$actions =
 			array(
+				'create_comment' => array('label' =>'Create comment'),
+				'create_notification' => array('label' =>'Create notification'),
+				'create_task' => array('label' =>'Create task'),
+				'create_ticket' => array('label' =>'Create ticket'),
+
 				'prompt_buttons' => array('label' => 'Prompt with buttons'),
+				'prompt_images' => array('label' => 'Prompt with images'),
 				'prompt_text' => array('label' => 'Prompt with text input'),
 				'prompt_wait' => array('label' => 'Prompt with wait'),
 				'send_message' => array('label' => 'Respond with message'),
@@ -287,8 +299,28 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 		$tpl->assign('token_labels', $labels);
 			
 		switch($token) {
+			case 'create_comment':
+				DevblocksEventHelper::renderActionCreateComment($trigger);
+				break;
+				
+			case 'create_notification':
+				DevblocksEventHelper::renderActionCreateNotification($trigger);
+				break;
+				
+			case 'create_task':
+				DevblocksEventHelper::renderActionCreateTask($trigger);
+				break;
+				
+			case 'create_ticket':
+				DevblocksEventHelper::renderActionCreateTicket($trigger);
+				break;
+			
 			case 'prompt_buttons':
 				$tpl->display('devblocks:cerberusweb.core::events/pm/action_prompt_buttons.tpl');
+				break;
+				
+			case 'prompt_images':
+				$tpl->display('devblocks:cerberusweb.core::events/pm/action_prompt_images.tpl');
 				break;
 				
 			case 'prompt_text':
@@ -329,6 +361,22 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 	
 	function simulateActionExtension($token, $trigger, $params, DevblocksDictionaryDelegate $dict) {
 		switch($token) {
+			case 'create_comment':
+				return DevblocksEventHelper::simulateActionCreateComment($params, $dict, 'worker_id');
+				break;
+				
+			case 'create_notification':
+				return DevblocksEventHelper::simulateActionCreateNotification($params, $dict, 'worker_id');
+				break;
+				
+			case 'create_task':
+				return DevblocksEventHelper::simulateActionCreateTask($params, $dict, 'worker_id');
+				break;
+				
+			case 'create_ticket':
+				return DevblocksEventHelper::simulateActionCreateTicket($params, $dict, 'worker_id');
+				break;
+			
 			case 'prompt_buttons':
 				$tpl_builder = DevblocksPlatform::getTemplateBuilder();
 				$options = $tpl_builder->build($params['options'], $dict);
@@ -336,6 +384,13 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 				$out = sprintf(">>> Prompting with buttons:\n".
 					"%s\n",
 					$options
+				);
+				break;
+				
+			case 'prompt_images':
+				$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+				
+				$out = sprintf(">>> Prompting with buttons:\n"
 				);
 				break;
 				
@@ -405,6 +460,22 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 	
 	function runActionExtension($token, $trigger, $params, DevblocksDictionaryDelegate $dict) {
 		switch($token) {
+			case 'create_comment':
+				DevblocksEventHelper::runActionCreateComment($params, $dict, 'worker_id');
+				break;
+				
+			case 'create_notification':
+				DevblocksEventHelper::runActionCreateNotification($params, $dict, 'worker_id');
+				break;
+				
+			case 'create_task':
+				DevblocksEventHelper::runActionCreateTask($params, $dict, 'worker_id');
+				break;
+
+			case 'create_ticket':
+				DevblocksEventHelper::runActionCreateTicket($params, $dict, 'worker_id');
+				break;
+			
 			case 'prompt_buttons':
 				$actions =& $dict->_actions;
 				
@@ -417,6 +488,22 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 					'_trigger_id' => $trigger->id,
 					'options' => DevblocksPlatform::parseCrlfString($options),
 					'style' => $style,
+				);
+				
+				$dict->__exit = 'suspend';
+				break;
+				
+			case 'prompt_images':
+				$actions =& $dict->_actions;
+				
+				$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+				$images = $params['images'];
+				$labels = $params['labels'];
+				$actions[] = array(
+					'_action' => 'prompt.images',
+					'_trigger_id' => $trigger->id,
+					'images' => $images,
+					'labels' => $labels,
 				);
 				
 				$dict->__exit = 'suspend';

@@ -57,6 +57,17 @@ class ChInternalController extends DevblocksControllerExtension {
 		}
 	}
 	
+	function getBotInteractionsMenuAction() {
+		$tpl = DevblocksPlatform::getTemplateService();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('global', [], $active_worker);
+		$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
+		$tpl->assign('interactions_menu', $interactions_menu);
+		
+		$tpl->display('devblocks:cerberusweb.core::console/bot_interactions_menu.tpl');
+	}
+	
 	function startBotInteractionAction() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		$tpl = DevblocksPlatform::getTemplateService();
@@ -374,6 +385,19 @@ class ChInternalController extends DevblocksControllerExtension {
 					$tpl->assign('style', $style);
 					$tpl->assign('delay_ms', 0);
 					$tpl->display('devblocks:cerberusweb.core::console/prompt_buttons.tpl');
+					break;
+					
+				case 'prompt.images':
+					@$images = $params['images'];
+					@$labels = $params['labels'];
+					
+					if(!is_array($images) || !is_array($images))
+						break;
+					
+					$tpl->assign('images', $images);
+					$tpl->assign('labels', $labels);
+					$tpl->assign('delay_ms', 0);
+					$tpl->display('devblocks:cerberusweb.core::console/prompt_images.tpl');
 					break;
 					
 				case 'prompt.text':
@@ -4002,9 +4026,8 @@ class ChInternalController extends DevblocksControllerExtension {
 		
 		$tpl->assign('seq', uniqid());
 		
-		// Contexts that can show up in VA vars
-		$list_contexts = Extension_DevblocksContext::getAll(false, 'va_variable');
-		$tpl->assign('list_contexts', $list_contexts);
+		$variable_types = DAO_TriggerEvent::getVariableTypes();
+		$tpl->assign('variable_types', $variable_types);
 
 		// New variable
 		$var = array(
@@ -4275,7 +4298,7 @@ class ChInternalController extends DevblocksControllerExtension {
 
 		if(isset($values)) {
 			// Try to build the template
-			if(false === ($out = $tpl_builder->build($content, $values))) {
+			if(!$content || !is_string($content) || false === ($out = $tpl_builder->build($content, $values))) {
 				// If we failed, show the compile errors
 				$errors = $tpl_builder->getErrors();
 				$success = false;
