@@ -84,6 +84,7 @@ class _DevblocksTemplateBuilder {
 				'split_crlf',
 				'split_csv',
 				'truncate',
+				'unescape',
 				'url_decode',
 				
 				'abs',
@@ -130,6 +131,7 @@ class _DevblocksTemplateBuilder {
 				'jsonpath_set',
 				'random_string',
 				'regexp_match_all',
+				'shuffle',
 				'validate_email',
 				'validate_number',
 				'xml_decode',
@@ -620,6 +622,7 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 			new Twig_SimpleFunction('jsonpath_set', [$this, 'function_jsonpath_set']),
 			new Twig_SimpleFunction('random_string', [$this, 'function_random_string']),
 			new Twig_SimpleFunction('regexp_match_all', [$this, 'function_regexp_match_all']),
+			new Twig_SimpleFunction('shuffle', [$this, 'function_shuffle']),
 			new Twig_SimpleFunction('validate_email', [$this, 'function_validate_email']),
 			new Twig_SimpleFunction('validate_number', [$this, 'function_validate_number']),
 			new Twig_SimpleFunction('xml_decode', [$this, 'function_xml_decode']),
@@ -810,6 +813,15 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 		return $result;
 	}
 	
+	function function_shuffle($array) {
+		if(!is_array($array))
+			return false;
+		
+		shuffle($array);
+		
+		return $array;
+	}
+	
 	function function_validate_email($string) {
 		if(!is_string($string))
 			return false;
@@ -851,6 +863,7 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 			new Twig_SimpleFilter('split_crlf', [$this, 'filter_split_crlf']),
 			new Twig_SimpleFilter('split_csv', [$this, 'filter_split_csv']),
 			new Twig_SimpleFilter('truncate', [$this, 'filter_truncate']),
+			new Twig_SimpleFilter('unescape', [$this, 'filter_unescape']),
 			new Twig_SimpleFilter('url_decode', [$this, 'filter_url_decode']),
 		);
 	}
@@ -1005,6 +1018,13 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 			return mb_substr($value, 0, $length, LANG_CHARSET_CODE) . $separator;
 		}
 		return $value;
+	}
+	
+	function filter_unescape($string, $mode='html', $flags=null) {
+		if(!is_string($string))
+			$string = strval($string);
+		
+		return html_entity_decode($string, ENT_HTML401 | ENT_QUOTES); // $flags, LANG_CHARSET_CODE
 	}
 	
 	function filter_url_decode($string, $as='') {
