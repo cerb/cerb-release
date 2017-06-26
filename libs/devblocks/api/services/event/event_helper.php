@@ -445,7 +445,7 @@ class DevblocksEventHelper {
 					break;
 				}
 				
-				$possible_values = array_map('strtolower', $custom_field->params['options']);
+				$possible_values = array_map('mb_strtolower', $custom_field->params['options']);
 				
 				if(false !== ($value_idx = array_search(DevblocksPlatform::strLower($value), $possible_values))) {
 					$value = $custom_field->params['options'][$value_idx];
@@ -532,11 +532,11 @@ class DevblocksEventHelper {
 				
 				if(!empty($value_key)) {
 					$key_to_set = $value_key.'_'.$field_id;
-					$dict->$key_to_set = $value;
+					$dict->$key_to_set = implode(', ', $opts);
 
 					$array =& $dict->$value_key;
 					if(is_array($array))
-						$array[$field_id] = $value;
+						$array[$field_id] = $opts;
 				}
 				
 				break;
@@ -641,7 +641,7 @@ class DevblocksEventHelper {
 				$builder = DevblocksPlatform::getTemplateBuilder();
 				$value = $builder->build($value, $dict);
 				
-				$possible_values = array_map('strtolower', $custom_field->params['options']);
+				$possible_values = array_map('mb_strtolower', $custom_field->params['options']);
 				
 				if(false === (DAO_CustomFieldValue::setFieldValue($context, $context_id, $field_id, $value)))
 					break;
@@ -703,11 +703,11 @@ class DevblocksEventHelper {
 
 				if(!empty($value_key)) {
 					$key_to_set = $value_key.'_'.$field_id;
-					$dict->$key_to_set = $value;
+					$dict->$key_to_set = implode(', ', $opts);
 
 					$array =& $dict->$value_key;
 					if(is_array($array))
-						$array[$field_id] = $value;
+						$array[$field_id] = $opts;
 				}
 				
 				break;
