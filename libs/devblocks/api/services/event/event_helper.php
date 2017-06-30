@@ -30,6 +30,12 @@ class DevblocksEventHelper {
 						'label' => '(variable) ' . $var['label'],
 						'context' => $ctx_id,
 					);
+					
+				} else if(Model_CustomField::TYPE_WORKER == $var['type']) {
+					$values_to_contexts[$var_key] = array(
+						'label' => '(variable) ' . $var['label'],
+						'context' => CerberusContexts::CONTEXT_WORKER,
+					);
 				}
 			}
 		}
@@ -90,6 +96,7 @@ class DevblocksEventHelper {
 		$event = $trigger->getEvent();
 		$values_to_contexts = $event->getValuesContexts($trigger);
 		
+		if(is_array($values_to_contexts))
 		foreach($values_to_contexts as $val_key => $context_data) {
 			if($context_data['context'] == CerberusContexts::CONTEXT_WORKER && !@$context_data['is_multiple']) {
 				$values[$val_key] = [
@@ -99,6 +106,7 @@ class DevblocksEventHelper {
 			}
 		}
 		
+		if(is_array($trigger->variables))
 		foreach($trigger->variables as $var_key => $var_data) {
 			if($var_data['type'] != Model_CustomField::TYPE_WORKER)
 				continue;
