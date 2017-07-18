@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2017071701);
-define("APP_VERSION", '8.0.3');
+define("APP_BUILD", 2017071801);
+define("APP_VERSION", '8.0.4');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -558,8 +558,10 @@ class CerberusApplication extends DevblocksApplication {
 	 * @return a unique ticket mask as a string
 	 */
 	static function generateTicketMask($pattern = null) {
+		$pattern = trim($pattern);
+		
 		if(empty($pattern))
-			$pattern = DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::TICKET_MASK_FORMAT);
+			$pattern = trim(DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::TICKET_MASK_FORMAT));
 		if(empty($pattern))
 			$pattern = CerberusSettingsDefaults::TICKET_MASK_FORMAT;
 
@@ -620,6 +622,10 @@ class CerberusApplication extends DevblocksApplication {
 				$mask = DevblocksPlatform::strUpper(DevblocksPlatform::strAlphaNum($mask,'\-'));
 			}
 		} while(null != DAO_Ticket::getTicketIdByMask($mask));
+		
+		if(empty($mask)) {
+			return self::generateTicketMask(CerberusSettingsDefaults::TICKET_MASK_FORMAT);
+		}
 
 		return $mask;
 	}
