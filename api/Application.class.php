@@ -39,7 +39,7 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2017071801);
+define("APP_BUILD", 2017072501);
 define("APP_VERSION", '8.0.4');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
@@ -2129,7 +2129,14 @@ class CerberusContexts {
 					$dont_notify_on_activities = WorkerPrefs::getDontNotifyOnActivities($watcher_id);
 					if(in_array($activity_point, $dont_notify_on_activities))
 						continue;
-
+					
+					// Ignore link notifications for custom fieldsets
+					if(
+						in_array($activity_point, ['connection.link', 'connection.unlink'])
+						&& $target_context == CerberusContexts::CONTEXT_CUSTOM_FIELDSET
+						)
+						continue;
+					
 					// If yes, send it
 					DAO_Notification::create(array(
 						DAO_Notification::CONTEXT => $target_context,
