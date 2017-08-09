@@ -654,6 +654,7 @@ class CerberusParser {
 				
 			case 'message/rfc822':
 				$do_recurse = false;
+				break;
 		}
 		
 		if(!$do_ignore)
@@ -828,6 +829,22 @@ class CerberusParser {
 			
 			if(empty($content_filename))
 				$content_filename = sprintf("unnamed_attachment_%s", uniqid());
+			
+			// If the filename already exists, make it unique
+			if(isset($message->files[$content_filename])) {
+				$file_parts = pathinfo($content_filename);
+				$counter = 1;
+				
+				do {
+					$content_filename = sprintf("%s-%d%s%s",
+						$file_parts['filename'],
+						$counter++,
+						!empty($file_parts['extension']) ? '.' : '',
+						$file_parts['extension']
+					);
+					
+				} while(isset($message->files[$content_filename]));
+			}
 			
 			$message->files[$content_filename] = $attach;
 		}
@@ -1277,8 +1294,20 @@ class CerberusParser {
 			DAO_Message::WORKER_ID => $model->isSenderWorker() ? $model->getSenderWorkerModel()->id : 0,
 		);
 		
-		if(isset($message->headers['message-id']))
-			$fields[DAO_Message::HASH_HEADER_MESSAGE_ID] = sha1($message->headers['message-id']);
+		if(!isset($message->headers['message-id'])) {
+			$new_message_id = sprintf("<%s.%s@%s>", 
+				base_convert(microtime(true)*1000, 10, 36),
+				base_convert(bin2hex(openssl_random_pseudo_bytes(8)), 16, 36),
+				DevblocksPlatform::getHostname()
+			);
+			$message->headers['message-id'] = $new_message_id;
+			$message->raw_headers = sprintf("Message-Id: %s\r\n%s",
+				$new_message_id,
+				$message->raw_headers
+			);
+		}
+		
+		$fields[DAO_Message::HASH_HEADER_MESSAGE_ID] = sha1($message->headers['message-id']);
 		
 		$model->setMessageId(DAO_Message::create($fields));
 
@@ -1372,7 +1401,7 @@ class CerberusParser {
 				// Link
 				if($file_id) {
 					$file->parsed_attachment_id = $file_id;
-					DAO_Attachment::setLinks(CerberusContexts::CONTEXT_MESSAGE, $model->getMessageId(), $file_id);
+					DAO_Attachment::addLinks(CerberusContexts::CONTEXT_MESSAGE, $model->getMessageId(), $file_id);
 				}
 				
 				// Rewrite any inline content-id images in the HTML part
@@ -1405,7 +1434,7 @@ class CerberusParser {
 			
 			// Link the HTML part to the message
 			if(!empty($file_id)) {
-				DAO_Attachment::setLinks(CerberusContexts::CONTEXT_MESSAGE, $model->getMessageId(), $file_id);
+				DAO_Attachment::addLinks(CerberusContexts::CONTEXT_MESSAGE, $model->getMessageId(), $file_id);
 				
 				// This built-in field is faster than searching for the HTML part again in the attachments
 				DAO_Message::update($message_id, array(

@@ -81,6 +81,10 @@ if(empty($step)) $step = STEP_ENVIRONMENT;
 @mkdir(APP_TEMP_PATH . '/cache/');
 @chmod(APP_TEMP_PATH . '/cache/', 0770);
 
+if(!file_exists(APP_PATH . "/vendor/")) {
+	DevblocksPlatform::dieWithHttpError(APP_PATH . "/vendor/" ." doesn't exist. Did you run `composer install` first?", 500);
+}
+
 // Make sure the temporary directories of Devblocks are writeable.
 if(!is_writeable(APP_TEMP_PATH)) {
 	DevblocksPlatform::dieWithHttpError(APP_TEMP_PATH ." is not writeable by the webserver.  Please adjust permissions and reload this page.", 500);
@@ -139,6 +143,14 @@ switch($step) {
 			$results['php_version'] = PHP_VERSION;
 		} else {
 			$results['php_version'] = false;
+			$fails++;
+		}
+		
+		// Mailparse version
+		if(version_compare(phpversion('mailparse'),"3.0.2") >= 0) {
+			$results['mailparse_version'] = phpversion('mailparse');
+		} else {
+			$results['mailparse_version'] = false;
 			$fails++;
 		}
 		

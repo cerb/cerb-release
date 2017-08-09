@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2017072501);
-define("APP_VERSION", '8.0.4');
+define("APP_BUILD", 2017080801);
+define("APP_VERSION", '8.0.5');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -304,6 +304,10 @@ class CerberusApplication extends DevblocksApplication {
 			@mkdir(APP_SMARTY_COMPILE_PATH);
 		}
 
+		if(!file_exists(APP_PATH . "/vendor/")) {
+			$errors[] = APP_PATH . "/vendor/" ." doesn't exist. Did you run `composer install` first?";
+		}
+
 		if(!is_writeable(APP_SMARTY_COMPILE_PATH)) {
 			$errors[] = APP_SMARTY_COMPILE_PATH . " is not writeable by the webserver.  Please adjust permissions and reload this page.";
 		}
@@ -335,7 +339,7 @@ class CerberusApplication extends DevblocksApplication {
 		if(!is_writeable(APP_STORAGE_PATH . "/mail/fail/")) {
 			$errors[] = APP_STORAGE_PATH . "/mail/fail/" ." is not writeable by the webserver.  Please adjust permissions and reload this page.";
 		}
-
+		
 		// Requirements
 
 		// PHP Version
@@ -344,6 +348,15 @@ class CerberusApplication extends DevblocksApplication {
 			$errors[] = sprintf("Cerb %s requires PHP 7.0 or later. Your server PHP version is %s",
 				APP_VERSION,
 				PHP_VERSION
+			);
+		}
+		
+		// Mailparse version
+		if(version_compare(phpversion('mailparse'),"3.0.2") >=0) {
+		} else {
+			$errors[] = sprintf("Cerb %s requires mailparse 3.0.2 or later. Your mailparse extension version is %s",
+				APP_VERSION,
+				phpversion('mailparse')
 			);
 		}
 

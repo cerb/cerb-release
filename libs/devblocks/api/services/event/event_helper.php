@@ -769,6 +769,7 @@ class DevblocksEventHelper {
 		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
 		
 		$workers = DAO_Worker::getAll();
+		$custom_fieldsets = DAO_CustomFieldset::getAll();
 		$custom_fields = DAO_CustomField::getAll();
 		$custom_field_values = DevblocksEventHelper::getCustomFieldValuesFromParams($params);
 		
@@ -786,6 +787,14 @@ class DevblocksEventHelper {
 				$val = implode('; ', $val);
 			
 			switch($custom_fields[$cf_id]->type) {
+				case Model_CustomField::TYPE_CHECKBOX:
+					if($val) {
+						$val = DevblocksPlatform::translate('common.yes', DevblocksPlatform::TRANSLATE_LOWER);
+					} else {
+						$val = DevblocksPlatform::translate('common.no', DevblocksPlatform::TRANSLATE_LOWER);
+					}
+					break;
+					
 				case Model_CustomField::TYPE_WORKER:
 					if(!empty($val) && !is_numeric($val)) {
 						if(isset($dict->$val)) {
@@ -821,7 +830,11 @@ class DevblocksEventHelper {
 					break;
 			}
 			
-			$out .= $custom_fields[$cf_id]->name . ': ' . $val . "\n";
+			$field = $custom_fields[$cf_id];
+			$fieldset = $field->custom_fieldset_id ? @$custom_fieldsets[$field->custom_fieldset_id] : null;
+			$label = ($fieldset ? ($fieldset->name . ' ') : '') . $field->name;
+			
+			$out .= $label . ': ' . $val . "\n";
 		}
 		
 		return $out;
