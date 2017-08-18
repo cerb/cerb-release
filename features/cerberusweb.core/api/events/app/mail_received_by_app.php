@@ -98,7 +98,8 @@ class Event_MailReceivedByApp extends Extension_DevblocksEvent {
 		
 		$prefix = 'Message ';
 
-		$values['headers'] = array();
+		$labels['headers'] = $prefix.'headers';
+		$values['headers'] = [];
 		
 		$labels['body'] = $prefix.'body';
 		$values['body'] = '';
@@ -139,6 +140,26 @@ class Event_MailReceivedByApp extends Extension_DevblocksEvent {
 			'Sender ',
 			$sender_labels,
 			$sender_values,
+			$labels,
+			$values
+		);
+		
+		/**
+		 * Parent Ticket
+		 */
+		
+		$ticket = !empty($parser_model) ? $parser_model->getTicketModel() : null;
+		
+		$ticket_labels = array();
+		$ticket_values = array();
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_TICKET, $ticket, $ticket_labels, $ticket_values, null, true);
+
+		// Merge
+		CerberusContexts::merge(
+			'parent_ticket_',
+			'Parent ',
+			$ticket_labels,
+			$ticket_values,
 			$labels,
 			$values
 		);
@@ -218,6 +239,13 @@ class Event_MailReceivedByApp extends Extension_DevblocksEvent {
 			$tpl->assign('namePrefix','condition'.$seq);
 		
 		switch($as_token) {
+			case 'attachment_name':
+			case 'attachment_mimetype':
+				$tpl->display('devblocks:cerberusweb.core::internal/decisions/conditions/_string.tpl');
+				break;
+			case 'attachment_size':
+				$tpl->display('devblocks:cerberusweb.core::internal/decisions/conditions/_number.tpl');
+				break;
 			// [TODO] Internalize
 			case 'header':
 				$tpl->display('devblocks:cerberusweb.core::events/mail_received_by_group/condition_header.tpl');
