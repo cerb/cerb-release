@@ -50,7 +50,7 @@ $request = DevblocksPlatform::readRequest();
 DevblocksPlatform::init();
 DevblocksPlatform::setHandlerSession('Cerb_DevblocksSessionHandler');
 
-$tpl = DevblocksPlatform::getTemplateService();
+$tpl = DevblocksPlatform::services()->template();
 
 DevblocksPlatform::setStateless(in_array(@$request->path[0], ['cron','portal','resource']));
 
@@ -58,12 +58,12 @@ if(DevblocksPlatform::isStateless()) {
 	$_SESSION = [];
 	
 } else {
-	$session = DevblocksPlatform::getSessionService();
+	$session = DevblocksPlatform::services()->session();
 	$tpl->assign('session', $_SESSION);
 	$tpl->assign('visit', $session->getVisit());
 }
 
-$settings = DevblocksPlatform::getPluginSettingsService();
+$settings = DevblocksPlatform::services()->pluginSettings();
 $worker = CerberusApplication::getActiveWorker();
 
 // Localization

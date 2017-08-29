@@ -1,5 +1,5 @@
 <?php
-include_once(APP_PATH . '/vendor/autoload.php');
+@include_once(APP_PATH . '/vendor/autoload.php');
 
 include_once(DEVBLOCKS_PATH . "api/Model.php");
 include_once(DEVBLOCKS_PATH . "api/DAO.php");
@@ -176,7 +176,7 @@ abstract class DevblocksEngine {
 			return $manifest;
 
 		// If the database is empty, return
-		if(null == ($db = DevblocksPlatform::getDatabaseService()) || DevblocksPlatform::isDatabaseEmpty())
+		if(null == ($db = DevblocksPlatform::services()->database()) || DevblocksPlatform::isDatabaseEmpty())
 			return $manifest;
 
 		list($columns, $indexes) = $db->metaTable($prefix . 'plugin');
@@ -486,7 +486,7 @@ abstract class DevblocksEngine {
 	 * @return DevblocksHttpRequest
 	 */
 	static function readRequest() {
-		$url = DevblocksPlatform::getUrlService();
+		$url = DevblocksPlatform::services()->url();
 
 		$location = self::getWebPath();
 

@@ -17,9 +17,9 @@
 
 class ChReportTopTicketsByContact extends Extension_Report {
 	function render() {
-		$db = DevblocksPlatform::getDatabaseService();
-		$tpl = DevblocksPlatform::getTemplateService();
-		$date = DevblocksPlatform::getDateService();
+		$db = DevblocksPlatform::services()->database();
+		$tpl = DevblocksPlatform::services()->template();
+		$date = DevblocksPlatform::services()->date();
 		
 		// Use the worker's timezone for MySQL date functions
 		$db->ExecuteSlave(sprintf("SET time_zone = %s", $db->qstr($date->formatTime('P', time()))));

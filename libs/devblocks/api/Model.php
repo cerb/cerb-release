@@ -1292,7 +1292,7 @@ class DevblocksSearchCriteria {
 		if(isset($this->where_sql))
 			return $this->where_sql;
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$where = '';
 		
 		if(!isset($fields[$this->field]))
@@ -1640,7 +1640,7 @@ class DevblocksSearchCriteria {
 	}
 	
 	static protected function _escapeSearchParam(DevblocksSearchCriteria $param, $fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$field = $fields[$param->field];
 		$where_value = null;
 
@@ -1876,7 +1876,7 @@ class DevblocksPluginManifest {
 	}
 	
 	function purge() {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$prefix = (APP_DB_PREFIX != '') ? APP_DB_PREFIX.'_' : ''; // [TODO] Cleanup
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM %splugin WHERE id = %s",
@@ -1961,9 +1961,9 @@ class DevblocksExtensionManifest {
 
 		$class_file = $plugin->getStoragePath() . '/' . $this->file;
 		$class_name = $this->class;
-
-		DevblocksPlatform::registerClasses($class_file,array($class_name));
-
+		
+		DevblocksPlatform::registerClasses($class_file, [$class_name]);
+		
 		if(!class_exists($class_name, true)) {
 			return null;
 		}
@@ -1998,7 +1998,10 @@ class DevblocksExtensionManifest {
 	 * @return boolean
 	 */
 	function hasOption($key) {
-		if(!isset($this->params['options']) || !is_array($this->params['options']))
+		if(!isset($this->params['options']) || !is_array($this->params['options']) || empty($this->params['options']))
+			return false;
+		
+		if(!isset($this->params['options'][0]))
 			return false;
 		
 		$options = $this->params['options'][0];

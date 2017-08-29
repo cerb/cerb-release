@@ -17,9 +17,9 @@
 
 class ChReportSpamWords extends Extension_Report {
 	function render() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "SELECT spam, nonspam FROM bayes_stats";
 		if(null != ($row = $db->GetRowSlave($sql))) {

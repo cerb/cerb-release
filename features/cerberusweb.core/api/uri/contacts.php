@@ -31,7 +31,7 @@ class ChContactsPage extends CerberusPageExtension {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());
@@ -142,7 +142,7 @@ class ChContactsPage extends CerberusPageExtension {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());
@@ -219,7 +219,7 @@ class ChContactsPage extends CerberusPageExtension {
 	
 		$view_id = DevblocksPlatform::strAlphaNum($point, '\_');
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$view = C4_AbstractViewLoader::getView($view_id);
 		$ids = array();
 		
@@ -270,7 +270,7 @@ class ChContactsPage extends CerberusPageExtension {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string','');
 		@$org_ids = DevblocksPlatform::importGPC($_REQUEST['org_ids'],'string','');
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 
 		if(!empty($org_ids)) {
@@ -293,7 +293,7 @@ class ChContactsPage extends CerberusPageExtension {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string','');
 		@$org_ids = DevblocksPlatform::importGPC($_REQUEST['org_id'],'array',array());
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$translate = DevblocksPlatform::getTranslationService();
 		
 		$workers = DAO_Worker::getAll();
@@ -438,12 +438,12 @@ class ChContactsPage extends CerberusPageExtension {
 		@$org_ids = DevblocksPlatform::importGPC($_REQUEST['org_id'],'array',array());
 		@$properties = DevblocksPlatform::importGPC($_REQUEST['prop'],'array',array());
 		
-		$db = DevblocksPlatform::getDatabaseService();
-		$eventMgr = DevblocksPlatform::getEventService();
-		$date = DevblocksPlatform::getDateService();
+		$db = DevblocksPlatform::services()->database();
+		$eventMgr = DevblocksPlatform::services()->event();
+		$date = DevblocksPlatform::services()->date();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		if(!$active_worker->hasPriv('core.addybook.org.actions.merge'))
+		if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.org.merge'))
 			return false;
 		
 		// Sanitize
@@ -524,7 +524,7 @@ class ChContactsPage extends CerberusPageExtension {
 					if(!isset($custom_field_types[$cfield_id]))
 						break;
 					
-					$is_cfield_multival = $custom_field_types[$cfield_id]->type == Model_CustomField::TYPE_MULTI_CHECKBOX;
+					$is_cfield_multival = Model_CustomField::hasMultipleValues($custom_field_types[$cfield_id]->type);
 					
 					if(empty($v)) { // no org_id
 						// Handle aggregation of multi-value fields when blank
@@ -654,7 +654,7 @@ class ChContactsPage extends CerberusPageExtension {
 		@$starts_with = DevblocksPlatform::importGPC($_REQUEST['term'],'string','');
 		@$callback = DevblocksPlatform::importGPC($_REQUEST['callback'],'string','');
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("SELECT DISTINCT country AS country ".
 			"FROM contact_org ".

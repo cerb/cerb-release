@@ -62,7 +62,7 @@ class DefaultLoginModule extends Extension_LoginAuthenticator {
 	}
 	
 	function renderWorkerPrefs($worker) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('worker', $worker);
 		$tpl->display('devblocks:cerberusweb.core::login/auth/prefs.tpl');
 	}
@@ -70,7 +70,7 @@ class DefaultLoginModule extends Extension_LoginAuthenticator {
 	function saveWorkerPrefs($worker) {
 		@$reset_login = DevblocksPlatform::importGPC($_REQUEST['reset_login'], 'integer', 0);
 		
-		$session = DevblocksPlatform::getSessionService();
+		$session = DevblocksPlatform::services()->session();
 		$visit = CerberusApplication::getVisit();
 		$worker = CerberusApplication::getActiveWorker();
 		
@@ -89,7 +89,7 @@ class DefaultLoginModule extends Extension_LoginAuthenticator {
 	}
 	
 	private function _renderLoginForm($worker) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		@$error = DevblocksPlatform::importGPC($_REQUEST['error'], 'string', '');
 		$tpl->assign('error', $error);
@@ -106,7 +106,7 @@ class DefaultLoginModule extends Extension_LoginAuthenticator {
 	}
 	
 	private function _renderLoginSetupForm($worker) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		$tpl->assign('worker', $worker);
 		

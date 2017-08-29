@@ -18,13 +18,58 @@
 class DAO_ViewFiltersPreset extends Cerb_ORMHelper {
 	const ID = 'id';
 	const NAME = 'name';
-	const VIEW_CLASS = 'view_class';
-	const WORKER_ID = 'worker_id';
 	const PARAMS_JSON = 'params_json';
 	const SORT_JSON = 'sort_json';
+	const VIEW_CLASS = 'view_class';
+	const WORKER_ID = 'worker_id';
+	
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// varchar(128)
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setMaxLength(128)
+			->setRequired(true)
+			;
+		// text
+		$validation
+			->addField(self::PARAMS_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// text
+		$validation
+			->addField(self::SORT_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::VIEW_CLASS)
+			->string()
+			->setMaxLength(255)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::WORKER_ID)
+			->id()
+			;
+
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO view_filters_preset () ".
 			"VALUES ()"
@@ -53,7 +98,7 @@ class DAO_ViewFiltersPreset extends Cerb_ORMHelper {
 	 * @return Model_ViewFiltersPreset[]
 	 */
 	static function getWhere($where=null, $sortBy='name', $sortAsc=true, $limit=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -124,7 +169,7 @@ class DAO_ViewFiltersPreset extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -183,7 +228,7 @@ class DAO_ViewFiltersPreset extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);

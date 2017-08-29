@@ -1,3 +1,4 @@
+{$peek_context = CerberusContexts::CONTEXT_ROLE}
 {$form_id = uniqid()}
 <form action="{devblocks_url}{/devblocks_url}" method="post" id="{$form_id}">
 <input type="hidden" name="c" value="profiles">
@@ -5,7 +6,7 @@
 <input type="hidden" name="section" value="role">
 <input type="hidden" name="action" value="savePeekJson">
 <input type="hidden" name="view_id" value="{$view_id}">
-{if !empty($model) && !empty($model->id)}<input type="hidden" name="id" value="{$model->id}">{/if}
+{if !empty($model->id)}<input type="hidden" name="id" value="{$model->id}">{/if}
 <input type="hidden" name="do_delete" value="0">
 <input type="hidden" name="_csrf_token" value="{$session.csrf_token}">
 
@@ -21,7 +22,7 @@
 		<tr>
 			<td width="1%" nowrap="nowrap" valign="top"><b>Apply to:</b></td>
 			<td width="99%">
-				<label><input type="radio" name="who" value="all" {if empty($model) || $model->params.who=='all'}checked="checked"{/if}> {'common.everyone'|devblocks_translate|capitalize}</label><br>
+				<label><input type="radio" name="who" value="all" {if empty($model->id) || $model->params.who=='all'}checked="checked"{/if}> {'common.everyone'|devblocks_translate|capitalize}</label><br>
 				
 				{if !empty($groups)}
 					{$role_is_groups = $model->params.who=='groups'}
@@ -49,41 +50,117 @@
 			<td width="1%" nowrap="nowrap" valign="top"><b>{'common.privileges'|devblocks_translate|capitalize}:</b></td>
 			<td width="99%">
 				<label><input type="radio" name="what" value="all" {if $model->params.what=='all'}checked="checked"{/if} onclick="$('#configAclItemized').hide();"> {'common.all'|devblocks_translate|capitalize}</label>
-				<label><input type="radio" name="what" value="none" {if empty($model) || $model->params.what=='none'}checked="checked"{/if} onclick="$('#configAclItemized').hide();"> {'common.none'|devblocks_translate|capitalize}</label>
+				<label><input type="radio" name="what" value="none" {if empty($model->id) || $model->params.what=='none'}checked="checked"{/if} onclick="$('#configAclItemized').hide();"> {'common.none'|devblocks_translate|capitalize}</label>
 				<label><input type="radio" name="what" value="itemized" {if $model->params.what=='itemized'}checked="checked"{/if} onclick="$('#configAclItemized').show();"> Itemized:</label>
-			
-				<div id="configAclItemized" style="display:block;padding-top:5px;{if $model->params.what != 'itemized'}display:none;{/if}">
-				{foreach from=$plugins_acl item=plugin key=plugin_id}
-					{$plugin_priv = "plugin.{$plugin_id}"}
-					<fieldset class="peek">
-						<legend>
-							<label>
-							{if $plugin_id=="cerberusweb.core"}
-								<input type="hidden" name="acl_privs[]" value="plugin.cerberusweb.core">
-							{else}
-								<input type="checkbox" name="acl_privs[]" value="{$plugin_priv}" {if isset($role_privs.$plugin_priv)}checked="checked"{/if} onchange="toggleDiv('privs{$plugin_id}',(this.checked)?'block':'none');">
-							{/if}
-							{$plugin.label}
-							</label>
-						</legend>
-						
-						<div id="privs{$plugin_id}" style="padding-left:10px;margin-bottom:5px;display:{if $plugin_id=="cerberusweb.core" || isset($role_privs.$plugin_priv)}block{else}none{/if}">
-							<a href="javascript:;" style="font-size:90%;" onclick="checkAll('privs{$plugin_id}');">check all</a>
-							
-							<div style="margin-top:5px;margin-left:5px;">
-								{foreach from=$plugin.privs item=priv key=priv_id}
-									<label style=""><input type="checkbox" name="acl_privs[]" value="{$priv_id}" {if isset($role_privs.$priv_id)}checked{/if}> {$priv}</label><br>
-								{/foreach}
-							</div>
-						</div>
-					</fieldset>
-				{/foreach}
-				</div>
 			</td>
 		</tr>
 	</table>
-	
 </fieldset>
+
+<div id="configAclItemized" style="display:block;{if $model->params.what != 'itemized'}display:none;{/if}">
+	<ul>
+		<li><a href="#roleEditorPrivsGeneral">{'common.global'|devblocks_translate|capitalize}</a></li>
+		<li><a href="#roleEditorPrivsRecords">{'common.records'|devblocks_translate|capitalize}</a></li>
+		<li><a href="#roleEditorPrivsPlugins">{'common.plugins'|devblocks_translate|capitalize}</a></li>
+	</ul>
+	
+	<div id="roleEditorPrivsGeneral">
+		<div style="margin-bottom:10px;">
+			<a href="javascript:;" style="font-size:90%;" onclick="checkAll('roleEditorPrivsGeneral');">check all</a>
+		</div>
+		
+		{foreach from=$core_acl item=section}
+			{if empty($section.privs)}
+			{else}
+			{$container_id = uniqid()}
+			<fieldset class="peek black">
+				<legend onclick="checkAll('privs{$container_id}');">
+					<label>
+					{$section.label}
+					</label>
+				</legend>
+				
+				<div id="privs{$container_id}" style="padding-left:10px;">
+					{foreach from=$section.privs item=priv key=priv_id}
+						<label style=""><input type="checkbox" name="acl_privs[]" value="{$priv_id}" {if isset($role_privs.$priv_id)}checked{/if}> {$priv}</label><br>
+					{/foreach}
+				</div>
+			</fieldset>
+			{/if}
+		{/foreach}
+		
+		<div style="margin-top:5px;margin-left:5px;">
+			{foreach from=$core_acl.privs item=priv key=priv_id}
+				<label style=""><input type="checkbox" name="acl_privs[]" value="{$priv_id}" {if isset($role_privs.$priv_id)}checked{/if}> {$priv}</label><br>
+			{/foreach}
+		</div>
+	</div>
+	
+	<div id="roleEditorPrivsRecords">
+	<div style="margin-bottom:10px;">
+		<a href="javascript:;" style="font-size:90%;" onclick="checkAll('roleEditorPrivsRecords');">check all</a>
+	</div>
+	
+	{$priv_labels = []}
+	{$priv_labels['broadcast'] = 'common.broadcast'|devblocks_translate|capitalize}
+	{$priv_labels['comment'] = 'common.comment'|devblocks_translate|capitalize}
+	{$priv_labels['create'] = 'common.create'|devblocks_translate|capitalize}
+	{$priv_labels['delete'] = 'common.delete'|devblocks_translate|capitalize}
+	{$priv_labels['export'] = 'common.export'|devblocks_translate|capitalize}
+	{$priv_labels['import'] = 'common.import'|devblocks_translate|capitalize}
+	{$priv_labels['merge'] = 'common.merge'|devblocks_translate|capitalize}
+	{$priv_labels['update'] = 'common.update'|devblocks_translate|capitalize}
+	{$priv_labels['update.bulk'] = 'common.update.bulk'|devblocks_translate|capitalize}
+	{$priv_labels['watchers'] = 'common.watchers'|devblocks_translate|capitalize}
+	
+	{foreach from=$contexts item=context key=context_id}
+		{$priv_prefix = "contexts.{$context_id}"}
+		{$available_privs = $context->params.acl[0]}
+		
+		{if $available_privs}
+		<fieldset class="peek black">
+			<legend>
+				<label onclick="checkAll('contexts{$context_id}');">
+				{$aliases = Extension_DevblocksContext::getAliasesForContext($contexts[$context_id])}
+				{$aliases.plural|default:$context->name|capitalize}
+				</label>
+			</legend>
+			
+			<div id="contexts{$context_id}" style="padding-left:10px;">
+				{foreach from=$available_privs item=null key=priv}
+				{$priv_id = "{$priv_prefix}.{$priv}"}
+				<label><input type="checkbox" name="acl_privs[]" value="{$priv_prefix}.{$priv}" {if isset($role_privs.$priv_id)}checked{/if}> {$priv_labels.$priv}</label><br>
+				{/foreach}
+			</div>
+		</fieldset>
+		{/if}
+	{/foreach}
+	</div>
+	
+	<div id="roleEditorPrivsPlugins">
+	<div style="margin-bottom:10px;">
+		<a href="javascript:;" style="font-size:90%;" onclick="checkAll('roleEditorPrivsPlugins');">check all</a>
+	</div>
+	{foreach from=$plugins_acl item=plugin key=plugin_id}
+		{if empty($plugin.privs)}
+		{else}
+		<fieldset class="peek black">
+			<legend>
+				<label onclick="checkAll('privs{$plugin_id}');">
+				{$plugin.label}
+				</label>
+			</legend>
+			
+			<div id="privs{$plugin_id}" style="padding-left:10px">
+				{foreach from=$plugin.privs item=priv key=priv_id}
+					<label style=""><input type="checkbox" name="acl_privs[]" value="{$priv_id}" {if isset($role_privs.$priv_id)}checked{/if}> {$priv}</label><br>
+				{/foreach}
+			</div>
+		</fieldset>
+		{/if}
+	{/foreach}
+	</div>
+</div>
 
 {if !empty($custom_fields)}
 <fieldset class="peek">
@@ -92,7 +169,7 @@
 </fieldset>
 {/if}
 
-{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_ROLE context_id=$model->id}
+{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=$peek_context context_id=$model->id}
 
 {if !empty($model->id)}
 <fieldset style="display:none;" class="delete">
@@ -109,9 +186,10 @@
 
 <div class="status"></div>
 
-<div class="buttons">
-	<button type="button" class="submit"><span class="glyphicons glyphicons-circle-ok" style="color:rgb(0,180,0);"></span> {'common.save_changes'|devblocks_translate|capitalize}</button>
-	{if !empty($model->id)}<button type="button" onclick="$(this).parent().siblings('fieldset.delete').fadeIn();$(this).closest('div').fadeOut();"><span class="glyphicons glyphicons-circle-remove" style="color:rgb(200,0,0);"></span> {'common.delete'|devblocks_translate|capitalize}</button>{/if}
+<div class="buttons" style="margin-top:15px;">
+	<button type="button" class="submit"><span class="glyphicons glyphicons-circle-ok" style="color:rgb(0,180,0);"></span> {'common.save_and_close'|devblocks_translate|capitalize}</button>
+	<button type="button" class="continue"><span class="glyphicons glyphicons-circle-arrow-right" style="color:rgb(0,180,0);"></span> {'common.save_and_continue'|devblocks_translate|capitalize}</button>
+	{if !empty($model->id) && $active_worker->hasPriv("contexts.{$peek_context}.delete")}<button type="button" onclick="$(this).parent().siblings('fieldset.delete').fadeIn();$(this).closest('div').fadeOut();"><span class="glyphicons glyphicons-circle-remove" style="color:rgb(200,0,0);"></span> {'common.delete'|devblocks_translate|capitalize}</button>{/if}
 </div>
 
 </form>
@@ -126,12 +204,20 @@ $(function() {
 
 		// Buttons
 		$popup.find('button.submit').click(Devblocks.callbackPeekEditSave);
+		$popup.find('button.continue').click({ mode: 'continue' }, Devblocks.callbackPeekEditSave);
 		$popup.find('button.delete').click({ mode: 'delete' }, Devblocks.callbackPeekEditSave);
 		
 		// Radios
 		var $who = $frm.find('input:radio[name=who]');
 		var $who_groups = $('#configAclWhoGroups');
 		var $who_workers = $('#configAclWhoWorkers');
+		
+		// Tabs
+		var $tabs = $('#configAclItemized').tabs();
+		
+		$tabs.find('fieldset > legend').on('mousedown', function(e) {
+			e.preventDefault();
+		});
 		
 		$who.on('change', function(e) {
 			var $radio = $(this);

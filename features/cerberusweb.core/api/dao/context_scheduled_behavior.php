@@ -16,18 +16,70 @@
 ***********************************************************************/
 
 class DAO_ContextScheduledBehavior extends Cerb_ORMHelper {
-	const ID = 'id';
+	const BEHAVIOR_ID = 'behavior_id';
 	const CONTEXT = 'context';
 	const CONTEXT_ID = 'context_id';
-	const BEHAVIOR_ID = 'behavior_id';
-	const RUN_DATE = 'run_date';
-	const RUN_RELATIVE = 'run_relative';
-	const RUN_LITERAL = 'run_literal';
-	const VARIABLES_JSON = 'variables_json';
+	const ID = 'id';
 	const REPEAT_JSON = 'repeat_json';
+	const RUN_DATE = 'run_date';
+	const RUN_LITERAL = 'run_literal';
+	const RUN_RELATIVE = 'run_relative';
+	const VARIABLES_JSON = 'variables_json';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::BEHAVIOR_ID)
+			->id()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CONTEXT_ID)
+			->id()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::REPEAT_JSON)
+			->string()
+			->setMaxLength(16777215)
+			;
+		$validation
+			->addField(self::RUN_DATE)
+			->timestamp()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::RUN_LITERAL)
+			->string()
+			;
+		$validation
+			->addField(self::RUN_RELATIVE)
+			->string()
+			;
+		$validation
+			->addField(self::VARIABLES_JSON)
+			->string()
+			->setMaxLength(16777215)
+			;
+			
+		return $validation->getFields();
+	}
 
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$sql = "INSERT INTO context_scheduled_behavior () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -47,7 +99,7 @@ class DAO_ContextScheduledBehavior extends Cerb_ORMHelper {
 	}
 
 	static function updateRelativeSchedules($context, $context_ids) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($context_ids))
 			return;
@@ -75,7 +127,7 @@ class DAO_ContextScheduledBehavior extends Cerb_ORMHelper {
 			$event->setEvent($event_model, $macro);
 			$values = $event->getValues();
 			
-			$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			@$run_relative_timestamp = strtotime($tpl_builder->build(sprintf("{{%s|date}}",$object->run_relative), $values));
 			
 			if(empty($run_relative_timestamp))
@@ -97,7 +149,7 @@ class DAO_ContextScheduledBehavior extends Cerb_ORMHelper {
 	 * @return Model_ContextScheduledBehavior[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 
@@ -186,7 +238,7 @@ class DAO_ContextScheduledBehavior extends Cerb_ORMHelper {
 
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		if(empty($ids))
 			return;
@@ -207,7 +259,7 @@ class DAO_ContextScheduledBehavior extends Cerb_ORMHelper {
 		
 		$context_ids = DevblocksPlatform::sanitizeArray($context_ids, 'int');
 			
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM context_scheduled_behavior WHERE context = %s AND context_id IN (%s) ",
 			$db->qstr($context),
@@ -219,7 +271,7 @@ class DAO_ContextScheduledBehavior extends Cerb_ORMHelper {
 	
 	static function deleteByBehavior($behavior_ids, $only_context=null, $only_context_id=null) {
 		if(!is_array($behavior_ids)) $behavior_ids = array($behavior_ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($behavior_ids))
 			return;
@@ -316,7 +368,7 @@ class DAO_ContextScheduledBehavior extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -772,7 +824,7 @@ class View_ContextScheduledBehavior extends C4_AbstractView implements IAbstract
 	function render() {
 		$this->_sanitize();
 
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 		
@@ -785,7 +837,7 @@ class View_ContextScheduledBehavior extends C4_AbstractView implements IAbstract
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {

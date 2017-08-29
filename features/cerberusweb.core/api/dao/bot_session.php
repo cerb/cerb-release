@@ -1,11 +1,34 @@
 <?php
 class DAO_BotSession extends Cerb_ORMHelper {
-	const SESSION_ID = 'session_id';
 	const SESSION_DATA = 'session_data';
+	const SESSION_ID = 'session_id';
 	const UPDATED_AT = 'updated_at';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::SESSION_DATA)
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
+			->addField(self::SESSION_ID)
+			->string()
+			->setMaxLength(40)
+			;
+		$validation
+			->addField(self::UPDATED_AT)
+			->timestamp()
+			;
+		
+		return $validation->getFields();
+	}
 
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$session_id = sha1(json_encode($fields) . time() . uniqid(null, true));
 		
@@ -20,7 +43,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(!is_array($ids))
 			$ids = array($ids);
@@ -42,7 +65,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	 * @return Model_BotSession[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -69,7 +92,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	 * @return Model_BotSession[]
 	 */
 	static function getAll($nocache=false) {
-		//$cache = DevblocksPlatform::getCacheService();
+		//$cache = DevblocksPlatform::services()->cache();
 		//if($nocache || null === ($objects = $cache->load(self::_CACHE_ALL))) {
 			$objects = self::getWhere(null, DAO_BotSession::UPDATED_AT, true, null, Cerb_ORMHelper::OPT_GET_MASTER_ONLY);
 			
@@ -115,7 +138,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 		if(!method_exists(get_called_class(), 'getWhere'))
 			return array();
 
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$models = array();
 
@@ -166,7 +189,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -176,7 +199,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 		$db->ExecuteMaster(sprintf("DELETE FROM bot_session WHERE session_id IN (%s)", $ids_list));
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -191,7 +214,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	}
 	
 	public static function maint() {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("DELETE FROM bot_session WHERE updated_at < %d",
 			(time() - 86400) // 24 hours
@@ -252,7 +275,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);

@@ -1,17 +1,66 @@
 <?php
 class DAO_MailTransport extends Cerb_ORMHelper {
+	const CREATED_AT = 'created_at';
+	const EXTENSION_ID = 'extension_id';
+	const ID = 'id';
+	const IS_DEFAULT = 'is_default';
+	const NAME = 'name';
+	const PARAMS_JSON = 'params_json';
+	const UPDATED_AT = 'updated_at';
+	
 	const _CACHE_ALL = 'mail_transports_all';
 	
-	const ID = 'id';
-	const NAME = 'name';
-	const EXTENSION_ID = 'extension_id';
-	const IS_DEFAULT = 'is_default';
-	const CREATED_AT = 'created_at';
-	const UPDATED_AT = 'updated_at';
-	const PARAMS_JSON = 'params_json';
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// int(10) unsigned
+		$validation
+			->addField(self::CREATED_AT)
+			->timestamp()
+			;
+		// varchar(255)
+		$validation
+			->addField(self::EXTENSION_ID)
+			->string()
+			->setMaxLength(255)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// tinyint(3) unsigned
+		$validation
+			->addField(self::IS_DEFAULT)
+			->bit()
+			;
+		// varchar(255)
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setMaxLength(255)
+			->setRequired(true)
+			;
+		// text
+		$validation
+			->addField(self::PARAMS_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::UPDATED_AT)
+			->timestamp()
+			;
+
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO mail_transport () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -50,7 +99,7 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 			// Send events
 			if($check_deltas) {
 				// Trigger an event about the changes
-				$eventMgr = DevblocksPlatform::getEventService();
+				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
 					new Model_DevblocksEvent(
 						'dao.mail_transport.update',
@@ -81,7 +130,7 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 	 * @return Model_MailTransport[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -103,7 +152,7 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 	}
 	
 	static function getAll($nocache=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		if($nocache || null === ($mail_transports = $cache->load(self::_CACHE_ALL))) {
 			$mail_transports = DAO_MailTransport::getWhere(
 				null,
@@ -139,7 +188,7 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 	}
 	
 	static function setDefault($id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$db->ExecuteMaster(sprintf("UPDATE mail_transport SET is_default = IF(id=%d,1,0)", $id));
 		self::clearCache();
 	}
@@ -193,7 +242,7 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -209,7 +258,7 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 		DAO_AddressOutgoing::clearCache();
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -305,7 +354,7 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -359,7 +408,7 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 	}
 
 	static public function clearCache() {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::_CACHE_ALL);
 	}
 };
@@ -678,7 +727,7 @@ class View_MailTransport extends C4_AbstractView implements IAbstractView_Subtot
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -696,7 +745,7 @@ class View_MailTransport extends C4_AbstractView implements IAbstractView_Subtot
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -864,14 +913,14 @@ class Context_MailTransport extends Extension_DevblocksContext implements IDevbl
 		if(empty($context_id))
 			return '';
 	
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=mail_transport&id='.$context_id, true);
 		return $url;
 	}
 	
 	function getMeta($context_id) {
 		$mail_transport = DAO_MailTransport::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($mail_transport->name);
@@ -960,11 +1009,21 @@ class Context_MailTransport extends Extension_DevblocksContext implements IDevbl
 			$token_values = $this->_importModelCustomFieldsAsValues($mail_transport, $token_values);
 			
 			// URL
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=mail_transport&id=%d-%s",$mail_transport->id, DevblocksPlatform::strToPermalink($mail_transport->name)), true);
 		}
 		
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'created' => DAO_MailTransport::CREATED_AT,
+			'id' => DAO_MailTransport::ID,
+			'is_default' => DAO_MailTransport::IS_DEFAULT,
+			'name' => DAO_MailTransport::NAME,
+			'updated_at' => DAO_MailTransport::UPDATED_AT,
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1057,7 +1116,7 @@ class Context_MailTransport extends Extension_DevblocksContext implements IDevbl
 	}
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
 		if(!empty($context_id) && null != ($mail_transport = DAO_MailTransport::get($context_id))) {

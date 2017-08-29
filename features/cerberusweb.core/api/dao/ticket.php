@@ -16,33 +16,168 @@
 ***********************************************************************/
 
 class DAO_Ticket extends Cerb_ORMHelper {
-	const ID = 'id';
-	const MASK = 'mask';
-	const SUBJECT = 'subject';
-	const STATUS_ID = 'status_id';
-	const GROUP_ID = 'group_id';
 	const BUCKET_ID = 'bucket_id';
-	const ORG_ID = 'org_id';
-	const OWNER_ID = 'owner_id';
-	const IMPORTANCE = 'importance';
+	const CLOSED_AT = 'closed_at';
+	const CREATED_DATE = 'created_date';
+	const ELAPSED_RESOLUTION_FIRST = 'elapsed_resolution_first';
+	const ELAPSED_RESPONSE_FIRST = 'elapsed_response_first';
 	const FIRST_MESSAGE_ID = 'first_message_id';
 	const FIRST_OUTGOING_MESSAGE_ID = 'first_outgoing_message_id';
+	const FIRST_WROTE_ID = 'first_wrote_address_id';
+	const GROUP_ID = 'group_id';
+	const ID = 'id';
+	const IMPORTANCE = 'importance';
+	const INTERESTING_WORDS = 'interesting_words';
 	const LAST_MESSAGE_ID = 'last_message_id';
 	const LAST_WROTE_ID = 'last_wrote_address_id';
-	const FIRST_WROTE_ID = 'first_wrote_address_id';
-	const CREATED_DATE = 'created_date';
-	const UPDATED_DATE = 'updated_date';
-	const CLOSED_AT = 'closed_at';
-	const REOPEN_AT = 'reopen_at';
-	const SPAM_TRAINING = 'spam_training';
-	const SPAM_SCORE = 'spam_score';
-	const INTERESTING_WORDS = 'interesting_words';
+	const MASK = 'mask';
 	const NUM_MESSAGES = 'num_messages';
-	const ELAPSED_RESPONSE_FIRST = 'elapsed_response_first';
-	const ELAPSED_RESOLUTION_FIRST = 'elapsed_resolution_first';
+	const ORG_ID = 'org_id';
+	const OWNER_ID = 'owner_id';
+	const REOPEN_AT = 'reopen_at';
+	const SPAM_SCORE = 'spam_score';
+	const SPAM_TRAINING = 'spam_training';
+	const STATUS_ID = 'status_id';
+	const SUBJECT = 'subject';
+	const UPDATED_DATE = 'updated_date';
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::BUCKET_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_BUCKET))
+			;
+		$validation
+			->addField(self::CLOSED_AT)
+			->timestamp()
+			;
+		$validation
+			->addField(self::CREATED_DATE)
+			->timestamp()
+			;
+		$validation
+			->addField(self::ELAPSED_RESOLUTION_FIRST)
+			->uint(4)
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::ELAPSED_RESPONSE_FIRST)
+			->uint(4)
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::FIRST_MESSAGE_ID)
+			->id()
+			->setEditable(false)
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_MESSAGE))
+			;
+		$validation
+			->addField(self::FIRST_OUTGOING_MESSAGE_ID)
+			->id()
+			->setEditable(false)
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_MESSAGE))
+			;
+		$validation
+			->addField(self::FIRST_WROTE_ID)
+			->id()
+			->setEditable(false)
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS))
+			;
+		$validation
+			->addField(self::GROUP_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_GROUP))
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::IMPORTANCE)
+			->number()
+			->setMin(0)
+			->setMax(100)
+			;
+		$validation
+			->addField(self::INTERESTING_WORDS)
+			->string()
+			->setMaxLength(255)
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::LAST_MESSAGE_ID)
+			->id()
+			->setEditable(false)
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_MESSAGE))
+			;
+		$validation
+			->addField(self::LAST_WROTE_ID)
+			->id()
+			->setRequired(true)
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS))
+			;
+		$validation
+			->addField(self::MASK)
+			->string()
+			->setMaxLength(255)
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::NUM_MESSAGES)
+			->uint(4)
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::ORG_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ORG, true))
+			;
+		$validation
+			->addField(self::OWNER_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_WORKER, true))
+			;
+		$validation
+			->addField(self::REOPEN_AT)
+			->timestamp()
+			;
+		$validation
+			->addField(self::STATUS_ID)
+			->number()
+			->setMin(0)
+			->setMax(3)
+			;
+		$validation
+			->addField(self::SPAM_SCORE)
+			->float()
+			->setMin(0.0)
+			->setMax(1.0)
+			;
+		$validation
+			->addField(self::SPAM_TRAINING)
+			->string()
+			->setMaxLength(1)
+			->setPossibleValues(['','N','S'])
+			;
+		$validation
+			->addField(self::SUBJECT)
+			->string()
+			->setMaxLength(255)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::UPDATED_DATE)
+			->timestamp()
+			;
+
+		return $validation->getFields();
+	}
 	
 	static function authorizeByParticipantsAndMessages(array $participant_ids, array $message_ids) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($participant_ids) || empty($message_ids))
 			return false;
@@ -62,7 +197,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	 * @return integer
 	 */
 	static function getTicketIdByMask($mask) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("SELECT t.id FROM ticket t WHERE t.mask = %s",
 			$db->qstr($mask)
@@ -89,7 +224,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function getMergeParentByMask($old_mask) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("SELECT new_mask from ticket_mask_forward WHERE old_mask = %s",
 			$db->qstr($old_mask)
@@ -138,7 +273,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function getTicketByMessageIdHeader($raw_message_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("SELECT ticket_id, id as message_id ".
 			"FROM message ".
@@ -227,7 +362,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function getParticipants($ticket_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("SELECT %s AS context, address_id AS context_id, count(id) AS hits FROM message WHERE is_outgoing = 0 AND ticket_id = %d GROUP BY address_id ". 
 			"UNION ".
@@ -243,7 +378,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function countsByContactId($contact_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$counts = array(
 			'total' => 0,
@@ -285,7 +420,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function countsByBucketId($bucket_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$counts = array(
 			'total' => 0,
@@ -325,7 +460,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function countsByGroupId($group_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$counts = array(
 			'total' => 0,
@@ -365,7 +500,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function countsByOwnerId($worker_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$counts = array(
 			'total' => 0,
@@ -405,7 +540,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function countsByAddressId($address_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$counts = array(
 			'total' => 0,
@@ -446,7 +581,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function countsByOrgId($org_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$counts = array(
 			'total' => 0,
@@ -493,7 +628,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	 *
 	 */
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO ticket (created_date, updated_date) ".
 			"VALUES (%d,%d)",
@@ -510,8 +645,8 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 
 	static function maint() {
-		$db = DevblocksPlatform::getDatabaseService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$db = DevblocksPlatform::services()->database();
+		$logger = DevblocksPlatform::services()->log();
 		
 		// Fix missing owners
 		$sql = "UPDATE ticket SET owner_id = 0 WHERE owner_id != 0 AND owner_id NOT IN (SELECT id FROM worker)";
@@ -528,7 +663,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		$logger->info('[Maint] Fixed ' . $db->Affected_Rows() . ' tickets in missing buckets.');
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.maint',
@@ -546,7 +681,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			return false;
 		}
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 			
 		list($merged_tickets, $null) = DAO_Ticket::search(
 			array(),
@@ -742,7 +877,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			/*
 			 * Notify anything that wants to know when tickets merge.
 			 */
-			$eventMgr = DevblocksPlatform::getEventService();
+			$eventMgr = DevblocksPlatform::services()->event();
 			$eventMgr->trigger(
 				new Model_DevblocksEvent(
 					'ticket.action.merge',
@@ -761,7 +896,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		if(null == ($ticket = DAO_Ticket::get($id)))
 			return FALSE;
 
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$messages = $ticket->getMessages();
 		$first_message = reset($messages);
@@ -838,7 +973,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function getWhere($where=null, $sortBy='updated_date', $sortAsc=true, $limit=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -931,7 +1066,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				self::_processUpdateEvents($batch_ids, $fields);
 				
 				// Trigger an event about the changes
-				$eventMgr = DevblocksPlatform::getEventService();
+				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
 					new Model_DevblocksEvent(
 						'dao.ticket.update',
@@ -953,7 +1088,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	 * @return boolean
 	 */
 	static function bulkUpdate(Model_ContextBulkUpdate $update) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 
 		$do = $update->actions;
 		$ids = $update->context_ids;
@@ -1322,7 +1457,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function updateMessageCount($id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$db->ExecuteMaster(sprintf("UPDATE ticket ".
 			"SET num_messages = (SELECT count(id) FROM message WHERE message.ticket_id = ticket.id) ".
@@ -1337,7 +1472,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	 * @return Model_Address[]
 	 */
 	static function getRequestersByTicket($ticket_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$ids = array();
 		
@@ -1416,8 +1551,8 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function createRequester($raw_email, $ticket_id) {
-		$db = DevblocksPlatform::getDatabaseService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$db = DevblocksPlatform::services()->database();
+		$logger = DevblocksPlatform::services()->log();
 		
 		$replyto_addresses = DAO_AddressOutgoing::getAll();
 
@@ -1459,7 +1594,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		if(empty($id) || empty($address_id))
 			return;
 			
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$sql = sprintf("DELETE FROM requester WHERE ticket_id = %d AND address_id = %d",
 			$id,
@@ -1470,8 +1605,8 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function addParticipantIds($ticket_id, $address_ids) {
-		$db = DevblocksPlatform::getDatabaseService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$db = DevblocksPlatform::services()->database();
+		$logger = DevblocksPlatform::services()->log();
 		
 		$replyto_addresses = DAO_AddressOutgoing::getAll();
 		$exclude_list = DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::PARSER_AUTO_REQ_EXCLUDE, CerberusSettingsDefaults::PARSER_AUTO_REQ_EXCLUDE);
@@ -1533,7 +1668,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function removeParticipantIds($ticket_id, $address_ids) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ticket_id) || !is_array($address_ids))
 			return false;
@@ -1731,7 +1866,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	
 	// [TODO] Utilize Sphinx when it exists?
 	static function autocomplete($term, $as='models') {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$objects = array();
 		
 		$results = $db->GetArraySlave(sprintf("SELECT id ".
@@ -1764,7 +1899,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$fulltext_params = array();
 		
@@ -2678,7 +2813,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 	}
 	
 	private function _getSubtotalDataForBuckets() {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$fields = $this->getFields();
 		$columns = $this->view_columns;
@@ -2819,7 +2954,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 	}
 	
 	protected function _getSubtotalDataForStatus($dao_class, $field_key) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$fields = $this->getFields();
 		$columns = $this->view_columns;
@@ -3394,7 +3529,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -3453,12 +3588,12 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 	}
 	
 	function renderCustomizeOptions() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->display('devblocks:cerberusweb.core::internal/views/options/ticket.tpl');
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -4170,7 +4305,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		if(empty($context_id))
 			return '';
 		
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=ticket&id='.$context_id, true);
 		return $url;
 	}
@@ -4188,7 +4323,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		$friendly = DevblocksPlatform::strToPermalink($ticket->mask);
 		
 		if(!empty($friendly)) {
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			$url = $url_writer->writeNoProxy('c=profiles&type=ticket&mask='.$ticket->mask, true);
 			
 		} else {
@@ -4391,7 +4526,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			$token_values = $this->_importModelCustomFieldsAsValues($ticket, $token_values);
 			
 			// URL
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['url'] = $url_writer->writeNoProxy('c=profiles&type=ticket&id='.$ticket->mask,true);
 
 			// Group
@@ -4526,6 +4661,27 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		return true;
 	}
 	
+	function getKeyToDaoFieldMap() {
+		return [
+			'bucket_id' => DAO_Ticket::BUCKET_ID,
+			'closed' => DAO_Ticket::CLOSED_AT,
+			'created' => DAO_Ticket::CREATED_DATE,
+			'elapsed_response_first' => DAO_Ticket::ELAPSED_RESPONSE_FIRST,
+			'elapsed_resolution_first' => DAO_Ticket::ELAPSED_RESOLUTION_FIRST,
+			'group_id' => DAO_Ticket::GROUP_ID,
+			'id' => DAO_Ticket::ID,
+			'importance' => DAO_Ticket::IMPORTANCE,
+			'org_id' => DAO_Ticket::ORG_ID,
+			'owner_id' => DAO_Ticket::OWNER_ID,
+			'reopen_date' => DAO_Ticket::REOPEN_AT,
+			'spam_score' => DAO_Ticket::SPAM_SCORE,
+			'spam_training' => DAO_Ticket::SPAM_TRAINING,
+			'status_id' => DAO_Ticket::STATUS_ID,
+			'subject' => DAO_Ticket::SUBJECT,
+			'updated' => DAO_Ticket::UPDATED_DATE,
+		];
+	}
+	
 	function lazyLoadContextValues($token, $dictionary) {
 		if(!isset($dictionary['id']))
 			return;
@@ -4581,7 +4737,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 				break;
 				
 			case 'signature':
-				$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 				
 				if(false == ($active_worker = CerberusApplication::getActiveWorker()))
 					break;
@@ -4772,10 +4928,10 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		$visit = CerberusApplication::getVisit();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		if(!$active_worker->hasPriv('core.mail.send'))
+		if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.ticket.create'))
 			return;
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
 		// Groups
@@ -4890,7 +5046,11 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		// Custom fields
 		$custom_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_TICKET, false);
 		$tpl->assign('custom_fields', $custom_fields);
-
+		
+		// GPG
+		$gpg = DevblocksPlatform::services()->gpg();
+		$tpl->assign('gpg', $gpg);
+		
 		// HTML templates
 		$html_templates = DAO_MailHtmlTemplate::getAll();
 		$tpl->assign('html_templates', $html_templates);
@@ -4898,6 +5058,29 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		// Random popup ID
 		$random = uniqid();
 		$tpl->assign('popup_uniqid', $random);
+		
+		// UI bot behaviors
+		
+		if(null != $active_worker && class_exists('Event_MailBeforeUiComposeByWorker')) {
+			$actions = [];
+
+			$macros = DAO_TriggerEvent::getReadableByActor(
+				$active_worker,
+				Event_MailBeforeUiComposeByWorker::ID,
+				false
+			);
+			
+			$scope = $defaults;
+			$scope['form_id'] = 'frmComposePeek' . $random;
+			
+			if(is_array($macros))
+			foreach($macros as $macro)
+				Event_MailBeforeUiComposeByWorker::trigger($macro->id, $scope, $active_worker->id, $actions);
+			
+			if(isset($actions['jquery_scripts']) && is_array($actions['jquery_scripts'])) {
+				$tpl->assign('jquery_scripts', $actions['jquery_scripts']);
+			}
+		}
 		
 		// Interactions
 		$point_params = [
@@ -4915,7 +5098,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		@$msgid = DevblocksPlatform::importGPC($_REQUEST['msgid'],'integer',0);
 		@$edit_mode = DevblocksPlatform::importGPC($_REQUEST['edit'],'string',null);
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 
 		$context = CerberusContexts::CONTEXT_TICKET;
 		$active_worker = CerberusApplication::getActiveWorker();

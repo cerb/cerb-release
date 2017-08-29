@@ -17,7 +17,7 @@
 
 class PageSection_ProfilesBehavior extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$visit = CerberusApplication::getVisit();
 		$translate = DevblocksPlatform::getTranslationService();
 		$active_worker = CerberusApplication::getActiveWorker();
@@ -140,6 +140,9 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 				if(!Context_Bot::isWriteableByActor($bot, $active_worker))
 					throw new Exception_DevblocksAjaxValidationError("You don't have permission to delete this record.");
 				
+				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_BEHAVIOR)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
 				DAO_TriggerEvent::delete($id);
 				
 				echo json_encode(array(
@@ -228,7 +231,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 								
 							// If the worker hasn't been prompted, do that now
 							} else {
-								$tpl = DevblocksPlatform::getTemplateService();
+								$tpl = DevblocksPlatform::services()->template();
 								$tpl->assign('import_json', $import_json);
 								$tpl->assign('import_fields', $configure_fields);
 								$config_html = $tpl->fetch('devblocks:cerberusweb.core::internal/import/prompted/configure_json_import.tpl');
@@ -321,6 +324,9 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 						
 						// Create behavior
 						if(empty($id)) {
+							if(!$active_worker->hasPriv(sprintf("contexts.%s.create", CerberusContexts::CONTEXT_BEHAVIOR)))
+								throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.create'));
+							
 							@$bot_id = DevblocksPlatform::importGPC($_REQUEST['bot_id'], 'integer', 0);
 							@$event_point = DevblocksPlatform::importGPC($_REQUEST['event_point'],'string', '');
 							
@@ -341,9 +347,6 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 							if(null == ($ext = DevblocksPlatform::getExtension($event_point, true)))
 								throw new Exception_DevblocksAjaxValidationError("Invalid event.", 'event_point');
 							
-							if(empty($title))
-								throw new Exception_DevblocksAjaxValidationError("The 'Name' field is required.", 'title');
-							
 							if(!$bot->canUseEvent($event_point))
 								throw new Exception_DevblocksAjaxValidationError("The bot can't listen for the selected event.");
 							
@@ -351,7 +354,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 							if(false === $ext->prepareEventParams(null, $event_params, $error))
 								throw new Exception_DevblocksAjaxValidationError($error);
 							
-							$id = DAO_TriggerEvent::create(array(
+							$fields = [
 								DAO_TriggerEvent::BOT_ID => $bot_id,
 								DAO_TriggerEvent::EVENT_POINT => $event_point,
 								DAO_TriggerEvent::TITLE => $title,
@@ -361,13 +364,21 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 								DAO_TriggerEvent::EVENT_PARAMS_JSON => json_encode($event_params),
 								DAO_TriggerEvent::VARIABLES_JSON => json_encode($variables),
 								DAO_TriggerEvent::UPDATED_AT => time(),
-							));
+							];
+							
+							if(!DAO_TriggerEvent::validate($fields, $error))
+								throw new Exception_DevblocksAjaxValidationError($error);
+							
+							$id = DAO_TriggerEvent::create($fields);
 							
 							if(!empty($view_id) && !empty($id))
 								C4_AbstractView::setMarqueeContextCreated($view_id, CerberusContexts::CONTEXT_BEHAVIOR, $id);
 							
 						// Update trigger
 						} else {
+							if(!$active_worker->hasPriv(sprintf("contexts.%s.update", CerberusContexts::CONTEXT_BEHAVIOR)))
+								throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.edit'));
+							
 							if(false == ($behavior = DAO_TriggerEvent::get($id)))
 								throw new Exception_DevblocksAjaxValidationError("Invalid behavior.");
 								
@@ -377,9 +388,6 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 							if(!Context_Bot::isWriteableByActor($bot, $active_worker))
 								throw new Exception_DevblocksAjaxValidationError("You don't have permission to modify this record.");
 		
-							if(empty($title))
-								throw new Exception_DevblocksAjaxValidationError("The 'Name' field is required.", 'title');
-							
 							if(null == ($ext = $behavior->getEvent()))
 								throw new Exception_DevblocksAjaxValidationError("Invalid event.");
 							
@@ -395,7 +403,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 								}
 							}
 							
-							DAO_TriggerEvent::update($behavior->id, array(
+							$fields = [
 								DAO_TriggerEvent::TITLE => $title,
 								DAO_TriggerEvent::IS_DISABLED => !empty($is_disabled) ? 1 : 0,
 								DAO_TriggerEvent::IS_PRIVATE => !empty($is_private) ? 1 : 0,
@@ -403,7 +411,12 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 								DAO_TriggerEvent::EVENT_PARAMS_JSON => json_encode($event_params),
 								DAO_TriggerEvent::VARIABLES_JSON => json_encode($variables),
 								DAO_TriggerEvent::UPDATED_AT => time(),
-							));
+							];
+							
+							if(!DAO_TriggerEvent::validate($fields, $error, $behavior->id))
+								throw new Exception_DevblocksAjaxValidationError($error);
+							
+							DAO_TriggerEvent::update($behavior->id, $fields);
 						}
 						
 						if($id) {
@@ -448,7 +461,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 
 		if(empty($id))
 			return;
@@ -476,7 +489,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 			return;
 		}
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		// Get all events
 		$events = Extension_DevblocksEvent::getByContext($bot->owner_context, false);
@@ -604,7 +617,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 				
 			// If the worker hasn't been prompted, do that now
 			} else {
-				$tpl = DevblocksPlatform::getTemplateService();
+				$tpl = DevblocksPlatform::services()->template();
 				$tpl->assign('import_json', $behavior_json);
 				$tpl->assign('import_fields', $configure_fields);
 				$config_html = $tpl->fetch('devblocks:cerberusweb.core::internal/import/prompted/configure_json_import.tpl');
@@ -633,7 +646,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());

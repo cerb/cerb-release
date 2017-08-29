@@ -16,19 +16,72 @@
  ***********************************************************************/
 
 class DAO_MailToGroupRule extends Cerb_ORMHelper {
+	const ACTIONS_SER = 'actions_ser';
+	const CREATED = 'created';
+	const CRITERIA_SER = 'criteria_ser';
+	const ID = 'id';
+	const IS_STICKY = 'is_sticky';
+	const NAME = 'name';
+	const POS = 'pos';
+	const STICKY_ORDER = 'sticky_order';
+	
 	const _CACHE_ALL = 'cerb:dao:mail_to_group_rule:all';
 	
-	const ID = 'id';
-	const POS = 'pos';
-	const CREATED = 'created';
-	const NAME = 'name';
-	const CRITERIA_SER = 'criteria_ser';
-	const ACTIONS_SER = 'actions_ser';
-	const IS_STICKY = 'is_sticky';
-	const STICKY_ORDER = 'sticky_order';
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// mediumtext
+		$validation
+			->addField(self::ACTIONS_SER)
+			->string()
+			->setMaxLength(16777215)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::CREATED)
+			->timestamp()
+			;
+		// mediumtext
+		$validation
+			->addField(self::CRITERIA_SER)
+			->string()
+			->setMaxLength(16777215)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// tinyint(1) unsigned
+		$validation
+			->addField(self::IS_STICKY)
+			->bit()
+			;
+		// varchar(128)
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setMaxLength(128)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::POS)
+			->uint(4)
+			;
+		// tinyint(1) unsigned
+		$validation
+			->addField(self::STICKY_ORDER)
+			->uint(1)
+			;
+
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO mail_to_group_rule (created) ".
 			"VALUES (%d)",
@@ -49,7 +102,7 @@ class DAO_MailToGroupRule extends Cerb_ORMHelper {
 	}
 	
 	static function getAll($nocache=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		
 		if($nocache || null === ($results = $cache->load(self::_CACHE_ALL))) {
 			$results = self::getWhere(
@@ -74,7 +127,7 @@ class DAO_MailToGroupRule extends Cerb_ORMHelper {
 	 * @return Model_MailToGroupRule[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -149,7 +202,7 @@ class DAO_MailToGroupRule extends Cerb_ORMHelper {
 		if(empty($ids))
 			return;
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$ids_list = implode(',', $ids);
 		
@@ -166,7 +219,7 @@ class DAO_MailToGroupRule extends Cerb_ORMHelper {
 	 * @param integer $id
 	 */
 	static function increment($id, $by=1) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$db->ExecuteMaster(sprintf("UPDATE mail_to_group_rule SET pos = pos + %d WHERE id = %d",
 			$by,
 			$id
@@ -174,7 +227,7 @@ class DAO_MailToGroupRule extends Cerb_ORMHelper {
 	}
 	
 	static function clearCache() {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::_CACHE_ALL);
 	}
 };

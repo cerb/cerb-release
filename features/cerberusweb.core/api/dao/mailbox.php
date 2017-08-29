@@ -16,25 +16,120 @@
  ***********************************************************************/
 
 class DAO_Mailbox extends Cerb_ORMHelper {
-	const ID = 'id';
+	const AUTH_DISABLE_PLAIN = 'auth_disable_plain';
+	const CHECKED_AT = 'checked_at';
+	const DELAY_UNTIL = 'delay_until';
 	const ENABLED = 'enabled';
-	const NAME = 'name';
-	const PROTOCOL = 'protocol';
 	const HOST = 'host';
-	const USERNAME = 'username';
+	const ID = 'id';
+	const MAX_MSG_SIZE_KB = 'max_msg_size_kb';
+	const NAME = 'name';
+	const NUM_FAILS = 'num_fails';
 	const PASSWORD = 'password';
 	const PORT = 'port';
-	const NUM_FAILS = 'num_fails';
-	const DELAY_UNTIL = 'delay_until';
-	const TIMEOUT_SECS = 'timeout_secs';
-	const MAX_MSG_SIZE_KB = 'max_msg_size_kb';
+	const PROTOCOL = 'protocol';
 	const SSL_IGNORE_VALIDATION = 'ssl_ignore_validation';
-	const AUTH_DISABLE_PLAIN = 'auth_disable_plain';
+	const TIMEOUT_SECS = 'timeout_secs';
 	const UPDATED_AT = 'updated_at';
-	const CHECKED_AT = 'checked_at';
+	const USERNAME = 'username';
+	
+	private function __construct() {}
+
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// tinyint(3) unsigned
+		$validation
+			->addField(self::AUTH_DISABLE_PLAIN)
+			->bit()
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::CHECKED_AT)
+			->timestamp()
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::DELAY_UNTIL)
+			->timestamp()
+			;
+		// tinyint(1) unsigned
+		$validation
+			->addField(self::ENABLED)
+			->bit()
+			;
+		// varchar(128)
+		$validation
+			->addField(self::HOST)
+			->string()
+			->setMaxLength(128)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::MAX_MSG_SIZE_KB)
+			->uint(4)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setMaxLength(255)
+			;
+		// tinyint(4)
+		$validation
+			->addField(self::NUM_FAILS)
+			->uint(1)
+			;
+		// varchar(128)
+		$validation
+			->addField(self::PASSWORD)
+			->string()
+			->setMaxLength(128)
+			;
+		// smallint(5) unsigned
+		$validation
+			->addField(self::PORT)
+			->uint(2)
+			;
+		// varchar(32)
+		$validation
+			->addField(self::PROTOCOL)
+			->string()
+			->setMaxLength(32)
+			;
+		// tinyint(3) unsigned
+		$validation
+			->addField(self::SSL_IGNORE_VALIDATION)
+			->bit()
+			;
+		// mediumint(8) unsigned
+		$validation
+			->addField(self::TIMEOUT_SECS)
+			->uint(2)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::UPDATED_AT)
+			->timestamp()
+			;
+		// varchar(128)
+		$validation
+			->addField(self::USERNAME)
+			->string()
+			->setMaxLength(128)
+			;
+
+		return $validation->getFields();
+	}
 	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO mailbox () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -70,7 +165,7 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 			// Send events
 			if($check_deltas) {
 				// Trigger an event about the changes
-				$eventMgr = DevblocksPlatform::getEventService();
+				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
 					new Model_DevblocksEvent(
 						'dao.mailbox.update',
@@ -98,7 +193,7 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 	 * @return Model_Mailbox[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -163,7 +258,7 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 		if(!method_exists(get_called_class(), 'getWhere'))
 			return array();
 
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
 
@@ -233,7 +328,7 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -243,7 +338,7 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 		$db->ExecuteMaster(sprintf("DELETE FROM mailbox WHERE id IN (%s)", $ids_list));
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -357,7 +452,7 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -788,7 +883,7 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -801,7 +896,7 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -989,14 +1084,14 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 		if(empty($context_id))
 			return '';
 	
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=mailbox&id='.$context_id, true);
 		return $url;
 	}
 	
 	function getMeta($context_id) {
 		$mailbox = DAO_Mailbox::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($mailbox->name);
@@ -1083,11 +1178,20 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 			$token_values = $this->_importModelCustomFieldsAsValues($mailbox, $token_values);
 			
 			// URL
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=mailbox&id=%d-%s",$mailbox->id, DevblocksPlatform::strToPermalink($mailbox->name)), true);
 		}
 		
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'checked_at' => DAO_Mailbox::CHECKED_AT,
+			'id' => DAO_Mailbox::ID,
+			'name' => DAO_Mailbox::NAME,
+			'updated_at' => DAO_Mailbox::UPDATED_AT,
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1181,7 +1285,7 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 	}
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
 		if(!empty($context_id) && null != ($mailbox = DAO_Mailbox::get($context_id))) {

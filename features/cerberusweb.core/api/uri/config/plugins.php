@@ -20,7 +20,7 @@ class PageSection_SetupPlugins extends Extension_PageSection {
 	
 	function render() {
 		$visit = CerberusApplication::getVisit();
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$response = DevblocksPlatform::getHttpResponse();
 		
 		$stack = $response->path;
@@ -47,7 +47,7 @@ class PageSection_SetupPlugins extends Extension_PageSection {
 	}
 
 	function showTabAction() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		$defaults = C4_AbstractViewModel::loadFromClass('View_CerbPlugin');
 		$defaults->id = self::VIEW_PLUGINS;
@@ -79,7 +79,7 @@ class PageSection_SetupPlugins extends Extension_PageSection {
 			return;
 		}
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 
 		if(empty($plugin_id))
 			return;

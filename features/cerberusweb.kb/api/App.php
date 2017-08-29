@@ -55,7 +55,7 @@ class ChKbPage extends CerberusPageExtension {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());
@@ -129,7 +129,7 @@ class ChKbPage extends CerberusPageExtension {
 if (class_exists('Extension_WorkspaceTab')):
 class WorkspaceTab_KbBrowse extends Extension_WorkspaceTab {
 	public function renderTabConfig(Model_WorkspacePage $page, Model_WorkspaceTab $tab) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		$tpl->assign('workspace_page', $page);
 		$tpl->assign('workspace_tab', $tab);
@@ -175,7 +175,7 @@ class WorkspaceTab_KbBrowse extends Extension_WorkspaceTab {
 	}
 	
 	private function _renderCategory($category_id=0, $tab_id) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$visit = CerberusApplication::getVisit();
 		$translate = DevblocksPlatform::getTranslationService();
 
@@ -260,7 +260,7 @@ endif;
 if (class_exists('Extension_ReplyToolbarItem',true)):
 	class ChKbReplyToolbarButton extends Extension_ReplyToolbarItem {
 		function render(Model_Message $message) {
-			$tpl = DevblocksPlatform::getTemplateService();
+			$tpl = DevblocksPlatform::services()->template();
 			
 			$tpl->assign('div', 'replyToolbarOptions'.$message->id);
 			
@@ -306,13 +306,17 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 	
 	function showArticleEditPanelAction() {
 		$active_worker = CerberusApplication::getActiveWorker();
-		if(!$active_worker->hasPriv('core.kb.articles.modify'))
-			return;
 		
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id']);
 		@$root_id = DevblocksPlatform::importGPC($_REQUEST['root_id']);
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		if(!$id && !$active_worker->hasPriv('contexts.cerberusweb.contexts.kb_article.create'))
+			return;
+		
+		if($id && !$active_worker->hasPriv('contexts.cerberusweb.contexts.kb_article.update'))
+			return;
+		
+		$tpl = DevblocksPlatform::services()->template();
 
 		$tpl->assign('root_id', $root_id);
 		
@@ -347,8 +351,6 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 
 	function saveArticleEditPanelAction() {
 		$active_worker = CerberusApplication::getActiveWorker();
-		if(!$active_worker->hasPriv('core.kb.articles.modify'))
-			return;
 		
 		$translate = DevblocksPlatform::getTranslationService();
 		
@@ -372,6 +374,9 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 				$title = '(' . $translate->_('kb_article.title') . ')';
 			
 			if(empty($id)) { // create
+				if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.kb_article.create'))
+					return;
+				
 				$fields = array(
 					DAO_KbArticle::TITLE => $title,
 					DAO_KbArticle::FORMAT => $format,
@@ -386,6 +391,9 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 				}
 				
 			} else { // update
+				if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.kb_article.update'))
+					return;
+				
 				$fields = array(
 					DAO_KbArticle::TITLE => $title,
 					DAO_KbArticle::FORMAT => $format,
@@ -415,13 +423,17 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 	
 	function showKbCategoryEditPanelAction() {
 		$active_worker = CerberusApplication::getActiveWorker();
-		if(!$active_worker->hasPriv('core.kb.categories.modify'))
-			return;
 		
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id']);
 		@$root_id = DevblocksPlatform::importGPC($_REQUEST['root_id']);
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		if(!$id && !$active_worker->hasPriv('contexts.cerberusweb.contexts.kb_category.create'))
+			return;
+		
+		if($id && !$active_worker->hasPriv('contexts.cerberusweb.contexts.kb_category.update'))
+			return;
+		
+		$tpl = DevblocksPlatform::services()->template();
 		
 		$tpl->assign('root_id', $root_id);
 		
@@ -448,8 +460,6 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 		header('Content-type: application/json');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		if(!$active_worker->hasPriv('core.kb.categories.modify'))
-			return;
 		
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer',0);
 		@$name = DevblocksPlatform::importGPC($_REQUEST['name'],'string');
@@ -459,11 +469,17 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 		$refresh_id = 0;
 		
 		if(!empty($id) && !empty($delete)) {
+			if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.kb_category.delete'))
+				return;
+			
 			$ids = DAO_KbCategory::getDescendents($id);
 			DAO_KbCategory::delete($ids);
 			$refresh_id = $parent_id;
 			
 		} elseif(empty($id)) { // create
+			if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.kb_category.create'))
+				return;
+			
 			$fields = array(
 				DAO_KbCategory::NAME => $name,
 				DAO_KbCategory::PARENT_ID => $parent_id,
@@ -472,6 +488,9 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 			$refresh_id = $parent_id;
 			
 		} else { // update
+			if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.kb_category.update'))
+				return;
+			
 			$fields = array(
 				DAO_KbCategory::NAME => $name,
 				DAO_KbCategory::PARENT_ID => $parent_id,
@@ -488,7 +507,7 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 	function getArticleContentAction() {
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer',0);
 
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		// [TODO] ACL
 		// [TODO] Fetch article content from storage
@@ -503,14 +522,41 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 };
 
 class DAO_KbCategory extends Cerb_ORMHelper {
+	const ID = 'id';
+	const NAME = 'name';
+	const PARENT_ID = 'parent_id';
+	
 	const CACHE_ALL = 'ch_cache_kbcategories_all';
 	
-	const ID = 'id';
-	const PARENT_ID = 'parent_id';
-	const NAME = 'name';
+	private function __construct() {}
+
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// varchar(64)
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setMaxLength(64)
+			->setRequired(true)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::PARENT_ID)
+			->id()
+			;
+
+		return $validation->getFields();
+	}
 
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO kb_category () ".
 			"VALUES ()"
@@ -530,7 +576,7 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 	}
 	
 	static function getTreeMap($prune_empty=false) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$categories = self::getWhere();
 		$tree = array();
@@ -584,7 +630,7 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 	 * @return Model_KbCategory[]
 	 */
 	static function getAll($nocache=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		if($nocache || null === ($categories = $cache->load(self::CACHE_ALL))) {
 			$categories = self::getWhere(
 				null,
@@ -668,7 +714,7 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 	 * @return Model_KbCategory[]
 	 */
 	static function getWhere($where=null, $sortBy=DAO_KbCategory::NAME, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -732,7 +778,7 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -785,7 +831,7 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 	}
 	
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -833,7 +879,7 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 	}
 	
 	static public function clearCache() {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::CACHE_ALL);
 	}
 };
@@ -918,7 +964,7 @@ class Context_KbCategory extends Extension_DevblocksContext {
 	
 	function getMeta($context_id) {
 		$category = DAO_KbCategory::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		return array(
 			'id' => $category->id,
@@ -990,6 +1036,14 @@ class Context_KbCategory extends Extension_DevblocksContext {
 		}
 		
 		return TRUE;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'id' => DAO_KbCategory::ID,
+			'name' => DAO_KbCategory::NAME,
+			'parent_id' => DAO_KbCategory::PARENT_ID,
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {

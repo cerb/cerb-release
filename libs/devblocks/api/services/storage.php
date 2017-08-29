@@ -54,7 +54,7 @@ class DevblocksStorageEngineDisk extends Extension_DevblocksStorageEngine {
 	}
 	
 	function renderConfig(Model_DevblocksStorageProfile $profile) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		$tpl->assign('profile', $profile);
 		
@@ -219,7 +219,7 @@ class DevblocksStorageEngineDatabase extends Extension_DevblocksStorageEngine {
 		
 		// Use the existing local connection by default
 		if(empty($this->_options['host'])) {
-			$db = DevblocksPlatform::getDatabaseService();
+			$db = DevblocksPlatform::services()->database();
 			
 			if($is_master) {
 				$conn = $db->getMasterConnection();
@@ -279,7 +279,7 @@ class DevblocksStorageEngineDatabase extends Extension_DevblocksStorageEngine {
 	}
 	
 	function renderConfig(Model_DevblocksStorageProfile $profile) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('profile', $profile);
 		
 		$tpl->display("devblocks:devblocks.core::storage_engine/config/database.tpl");
@@ -554,7 +554,7 @@ class DevblocksStorageEngineS3 extends Extension_DevblocksStorageEngine {
 	}
 	
 	function renderConfig(Model_DevblocksStorageProfile $profile) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('profile', $profile);
 		
 		$tpl->display("devblocks:devblocks.core::storage_engine/config/s3.tpl");

@@ -16,16 +16,60 @@
 ***********************************************************************/
 
 class DAO_Comment extends Cerb_ORMHelper {
-	const ID = 'id';
+	const COMMENT = 'comment';
 	const CONTEXT = 'context';
 	const CONTEXT_ID = 'context_id';
 	const CREATED = 'created';
+	const ID = 'id';
 	const OWNER_CONTEXT = 'owner_context';
 	const OWNER_CONTEXT_ID = 'owner_context_id';
-	const COMMENT = 'comment';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::COMMENT)
+			->string()
+			->setMaxLength(65535)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CONTEXT_ID)
+			->id()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CREATED)
+			->timestamp()
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::OWNER_CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::OWNER_CONTEXT_ID)
+			->id()
+			->setRequired(true)
+			;
+			
+		return $validation->getFields();
+	}
 
 	static function create($fields, $also_notify_worker_ids=array(), $file_ids=array()) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$db->ExecuteMaster("INSERT INTO comment () VALUES ()");
 		$id = $db->LastInsertId();
@@ -44,7 +88,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 		 * Log the activity of a new comment being created
 		 */
 		
-		$context = DevblocksPlatform::getExtension($fields[self::CONTEXT], true); /* @var $context Extension_DevblocksContext */
+		$context = Extension_DevblocksContext::get($fields[self::CONTEXT]);
 		$meta = $context->getMeta($fields[self::CONTEXT_ID]);
 		
 		$entry = array(
@@ -65,7 +109,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 		 * Send a new comment event
 		 */
 		
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'comment.create',
@@ -117,7 +161,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 	 * @return Model_Comment[]
 	 */
 	static function getWhere($where=null, $sortBy='created', $sortAsc=false, $limit=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -135,7 +179,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 	
 	// [TODO] Cache
 	static function getContextIdsByContextAndIds($context, $ids) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(!is_array($ids))
 			$ids = array($ids);
@@ -219,7 +263,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 	}
 	
 	static public function count($from_context, $from_context_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		return $db->GetOneSlave(sprintf("SELECT count(*) FROM comment ".
 			"WHERE context = %s AND context_id = %d",
 			$db->qstr($from_context),
@@ -234,7 +278,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 		if(empty($context_ids))
 			return;
 			
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM comment WHERE context = %s AND context_id IN (%s) ",
 			$db->qstr($context),
@@ -246,7 +290,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -261,7 +305,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 		$search->delete($ids);
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -347,7 +391,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -401,8 +445,8 @@ class DAO_Comment extends Cerb_ORMHelper {
 	}
 
 	static function maint() {
-		$db = DevblocksPlatform::getDatabaseService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$db = DevblocksPlatform::services()->database();
+		$logger = DevblocksPlatform::services()->log();
 		$tables = DevblocksPlatform::getDatabaseTables();
 
 		// Search indexes
@@ -412,7 +456,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 		}
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.maint',
@@ -601,7 +645,7 @@ class Search_CommentContent extends Extension_DevblocksSearchSchema {
 	}
 	
 	public function index($stop_time=null) {
-		$logger = DevblocksPlatform::getConsoleLog();
+		$logger = DevblocksPlatform::services()->log();
 		
 		if(false == ($engine = $this->getEngine()))
 			return false;
@@ -971,7 +1015,7 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 		
@@ -1011,7 +1055,7 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -1188,7 +1232,7 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 			if($dict->author__context == $actor->_context && $dict->author_id == $actor->id)
 				if(false != (@$worker = $workers[$actor->id]))
 					// And they have permission to edit their own comments
-					if($worker->hasPriv('core.comment.actions.update.own'))
+					if($worker->hasPriv('contexts.cerberusweb.contexts.comment.update'))
 						$results[$id] = true;
 		}
 		
@@ -1207,14 +1251,14 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 		if(empty($context_id))
 			return '';
 	
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=comment&id='.$context_id, true);
 		return $url;
 	}
 	
 	function getMeta($context_id) {
 		$comment = DAO_Comment::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		
@@ -1298,6 +1342,18 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 		}
 		
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'author__context' => DAO_Comment::OWNER_CONTEXT,
+			'author_id' => DAO_Comment::OWNER_CONTEXT_ID,
+			'comment' => DAO_Comment::COMMENT,
+			'created' => DAO_Comment::CREATED,
+			'id' => DAO_Comment::ID,
+			'target__context' => DAO_Comment::CONTEXT,
+			'target_id' => DAO_Comment::CONTEXT_ID,
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1390,7 +1446,7 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 	}
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 
 		$active_worker = CerberusApplication::getActiveWorker();

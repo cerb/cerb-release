@@ -11,7 +11,7 @@
 	<!-- Plugin Dependencies -->
 	
 	<dependencies>
-		<require plugin_id="cerberusweb.core" version="8.0.0" />
+		<require plugin_id="cerberusweb.core" version="8.1.0" />
 	</dependencies>
 
 	<!-- Patches -->
@@ -64,8 +64,24 @@
 						<data key="links" />
 						<data key="search" />
 						<data key="snippets" />
+						<data key="watchers" />
 						<data key="workspace" />
 						<data key="va_variable" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<!--
+						<data key="broadcast" />
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="merge" />
+						<data key="update" />
+						<data key="update.bulk" />
+						-->
 					</value>
 				</param>
 			</params>

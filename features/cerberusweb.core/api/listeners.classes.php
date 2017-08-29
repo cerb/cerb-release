@@ -689,7 +689,7 @@ class EventListener_Triggers extends DevblocksEventListenerExtension {
 	 * @param Model_DevblocksEvent $event
 	 */
 	function handleEvent(Model_DevblocksEvent $event) {
-		$logger = DevblocksPlatform::getConsoleLog('Bot');
+		$logger = DevblocksPlatform::services()->log('Bot');
 		
 		$logger->info(sprintf("EVENT: %s",
 			$event->id
@@ -774,7 +774,7 @@ class EventListener_Triggers extends DevblocksEventListenerExtension {
 		$dict = null;
 		
 		// Registry (trigger variables, etc)
-		$registry = DevblocksPlatform::getRegistryService();
+		$registry = DevblocksPlatform::services()->registry();
 		
 		foreach($triggers as $trigger) { /* @var $trigger Model_TriggerEvent */
 			if(false == (@$trigger_va = $trigger_vas[$trigger->bot_id]))
@@ -925,8 +925,8 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 	}
 	
 	private function _handleContextMaint($event) {
-		$db = DevblocksPlatform::getDatabaseService();
-		$logger = DevblocksPlatform::getConsoleLog('Maint');
+		$db = DevblocksPlatform::services()->database();
+		$logger = DevblocksPlatform::services()->log('Maint');
 		
 		@$context = $event->params['context'];
 		@$context_table = $event->params['context_table'];
@@ -1073,6 +1073,7 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 		$this->_handleCronHeartbeatReopenTickets();
 		$this->_handleCronHeartbeatReopenTasks();
 		DAO_BotDatastore::maint();
+		DAO_BotInteractionProactive::maint();
 	}
 	
 	private function _handleCronHeartbeatReopenTickets() {

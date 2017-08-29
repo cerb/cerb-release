@@ -1,27 +1,128 @@
 <?php
 class DAO_Contact extends Cerb_ORMHelper {
-	const ID = 'id';
-	const PRIMARY_EMAIL_ID = 'primary_email_id';
-	const FIRST_NAME = 'first_name';
-	const LAST_NAME = 'last_name';
-	const TITLE = 'title';
-	const ORG_ID = 'org_id';
-	const USERNAME = 'username';
-	const GENDER = 'gender';
-	const DOB = 'dob';
-	const LOCATION = 'location';
-	const PHONE = 'phone';
-	const MOBILE = 'mobile';
-	const AUTH_SALT = 'auth_salt';
 	const AUTH_PASSWORD = 'auth_password';
+	const AUTH_SALT = 'auth_salt';
 	const CREATED_AT = 'created_at';
-	const UPDATED_AT = 'updated_at';
-	const LAST_LOGIN_AT = 'last_login_at';
+	const DOB = 'dob';
+	const FIRST_NAME = 'first_name';
+	const GENDER = 'gender';
+	const ID = 'id';
 	const LANGUAGE = 'language';
+	const LAST_LOGIN_AT = 'last_login_at';
+	const LAST_NAME = 'last_name';
+	const LOCATION = 'location';
+	const MOBILE = 'mobile';
+	const ORG_ID = 'org_id';
+	const PHONE = 'phone';
+	const PRIMARY_EMAIL_ID = 'primary_email_id';
 	const TIMEZONE = 'timezone';
-
+	const TITLE = 'title';
+	const UPDATED_AT = 'updated_at';
+	const USERNAME = 'username';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::AUTH_PASSWORD)
+			->string()
+			->setMaxLength(64)
+			;
+		$validation
+			->addField(self::AUTH_SALT)
+			->string()
+			->setMaxLength(64)
+			;
+		$validation
+			->addField(self::CREATED_AT)
+			->timestamp()
+			;
+		$validation
+			->addField(self::DOB)
+			->string() // [TODO] ->date()
+			;
+		$validation
+			->addField(self::FIRST_NAME)
+			->string()
+			->setMaxLength(128)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::GENDER)
+			->string()
+			->setMaxLength(1)
+			->setPossibleValues(['','F','M'])
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::LANGUAGE)
+			->string()
+			->setMaxLength(16)
+			;
+		$validation
+			->addField(self::LAST_LOGIN_AT)
+			->timestamp()
+			;
+		$validation
+			->addField(self::LAST_NAME)
+			->string()
+			->setMaxLength(128)
+			;
+		$validation
+			->addField(self::LOCATION)
+			->string()
+			;
+		$validation
+			->addField(self::MOBILE)
+			->string()
+			->setMaxLength(64)
+			;
+		$validation
+			->addField(self::ORG_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ORG, true))
+			;
+		$validation
+			->addField(self::PHONE)
+			->string()
+			->setMaxLength(64)
+			;
+		$validation
+			->addField(self::PRIMARY_EMAIL_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS, true))
+			;
+		$validation
+			->addField(self::TIMEZONE)
+			->string()
+			->setMaxLength(128)
+			;
+		$validation
+			->addField(self::TITLE)
+			->string()
+			->setMaxLength(255)
+			;
+		$validation
+			->addField(self::UPDATED_AT)
+			->timestamp()
+			;
+		$validation
+			->addField(self::USERNAME)
+			->string()
+			->setMaxLength(64)
+			;
+			
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(!isset($fields[self::CREATED_AT]))
 			$fields[self::CREATED_AT] = time();
@@ -60,7 +161,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 			// Send events
 			if($check_deltas) {
 				// Trigger an event about the changes
-				$eventMgr = DevblocksPlatform::getEventService();
+				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
 					new Model_DevblocksEvent(
 						'dao.contact.update',
@@ -85,7 +186,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 	 * @return boolean
 	 */
 	static function bulkUpdate(Model_ContextBulkUpdate $update) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 
 		$do = $update->actions;
 		$ids = $update->context_ids;
@@ -167,8 +268,8 @@ class DAO_Contact extends Cerb_ORMHelper {
 	}
 	
 	static function maint() {
-		$db = DevblocksPlatform::getDatabaseService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$db = DevblocksPlatform::services()->database();
+		$logger = DevblocksPlatform::services()->log();
 		$tables = DevblocksPlatform::getDatabaseTables();
 		
 		// Search indexes
@@ -178,7 +279,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 		}
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.maint',
@@ -199,7 +300,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 	 * @return Model_Contact[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -227,7 +328,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 []
 	 */
 	static function getAll($nocache=false) {
-		//$cache = DevblocksPlatform::getCacheService();
+		//$cache = DevblocksPlatform::services()->cache();
 		//if($nocache || null === ($objects = $cache->load(self::_CACHE_ALL))) {
 			$objects = self::getWhere(null, DAO_Contact::ID, true, null, Cerb_ORMHelper::OPT_GET_MASTER_ONLY);
 			
@@ -274,7 +375,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 		if(!method_exists(get_called_class(), 'getWhere'))
 			return array();
 
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
 
@@ -335,7 +436,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 	}
 	
 	static function countByOrgId($org_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("SELECT count(id) FROM contact WHERE org_id = %d",
 			$org_id
@@ -349,7 +450,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -366,7 +467,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 		$search->delete($ids);
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -477,7 +578,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 	}
 	
 	static function autocomplete($term, $as='models') {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$ids = array();
 		
 		$results = $db->GetArraySlave(sprintf("SELECT id ".
@@ -523,7 +624,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -785,7 +886,7 @@ class Search_Contact extends Extension_DevblocksSearchSchema {
 	}
 	
 	private function _indexDictionary($dict, $engine) {
-		$logger = DevblocksPlatform::getConsoleLog();
+		$logger = DevblocksPlatform::services()->log();
 
 		$id = $dict->id;
 		
@@ -837,7 +938,7 @@ class Search_Contact extends Extension_DevblocksSearchSchema {
 	}
 	
 	public function index($stop_time=null) {
-		$logger = DevblocksPlatform::getConsoleLog();
+		$logger = DevblocksPlatform::services()->log();
 		
 		if(false == ($engine = $this->getEngine()))
 			return false;
@@ -946,7 +1047,7 @@ class Model_Contact {
 	}
 	
 	function getImageUrl() {
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		return $url_writer->write(sprintf('c=avatars&type=contact&id=%d', $this->id)) . '?v=' . $this->updated_at;
 	}
 	
@@ -1169,7 +1270,7 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 	
 	function getQuickSearchFields() {
 		$search_fields = SearchFields_Contact::getFields();
-		$date = DevblocksPlatform::getDateService();
+		$date = DevblocksPlatform::services()->date();
 		
 		$timezones = $date->getTimezones();
 		
@@ -1350,7 +1451,7 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -1363,7 +1464,7 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -1619,14 +1720,14 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 		if(empty($context_id))
 			return '';
 	
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=contact&id='.$context_id, true);
 		return $url;
 	}
 	
 	function getMeta($context_id) {
 		$contact = DAO_Contact::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($contact->getName());
@@ -1656,7 +1757,7 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 	}
 	
 	function autocomplete($term, $query=null) {
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$list = array();
 		
 		$models = DAO_Contact::autocomplete($term);
@@ -1699,7 +1800,7 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 			$prefix = 'Contact:';
 		
 		$translate = DevblocksPlatform::getTranslationService();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_CONTACT);
 
 		// Polymorph
@@ -1832,7 +1933,26 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 		
 		return true;
 	}
-
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'email_id' => DAO_Contact::PRIMARY_EMAIL_ID,
+			'first_name' => DAO_Contact::FIRST_NAME,
+			'gender' => DAO_Contact::GENDER,
+			'id' => DAO_Contact::ID,
+			'language' => DAO_Contact::LANGUAGE,
+			'last_login_at' => DAO_Contact::LAST_LOGIN_AT,
+			'last_name' => DAO_Contact::LAST_NAME,
+			'location' => DAO_Contact::LOCATION,
+			'mobile' => DAO_Contact::MOBILE,
+			'org_id' => DAO_Contact::ORG_ID,
+			'phone' => DAO_Contact::PHONE,
+			'timezone' => DAO_Contact::TIMEZONE,
+			'title' => DAO_Contact::TITLE,
+			'username' => DAO_Contact::USERNAME,
+		];
+	}
+	
 	function lazyLoadContextValues($token, $dictionary) {
 		if(!isset($dictionary['id']))
 			return;
@@ -1939,7 +2059,7 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 		$context = CerberusContexts::CONTEXT_CONTACT;
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
 		if(!empty($context_id) && null != ($contact = DAO_Contact::get($context_id))) {
@@ -1964,7 +2084,7 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 		$tpl->assign('languages', $locales);
 		
 		// Timezones
-		$date = DevblocksPlatform::getDateService();
+		$date = DevblocksPlatform::services()->date();
 		$tpl->assign('timezones', $date->getTimezones());
 		
 		if(empty($context_id) || $edit) {

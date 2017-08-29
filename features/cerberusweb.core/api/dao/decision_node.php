@@ -16,19 +16,66 @@
 ***********************************************************************/
 
 class DAO_DecisionNode extends Cerb_ORMHelper {
-	const CACHE_ALL = 'cerberus_cache_decision_nodes_all';
-	
 	const ID = 'id';
-	const PARENT_ID = 'parent_id';
-	const TRIGGER_ID = 'trigger_id';
 	const NODE_TYPE = 'node_type';
-	const TITLE = 'title';
 	const PARAMS_JSON = 'params_json';
+	const PARENT_ID = 'parent_id';
 	const POS = 'pos';
 	const STATUS_ID = 'status_id';
+	const TITLE = 'title';
+	const TRIGGER_ID = 'trigger_id';
+	
+	const CACHE_ALL = 'cerberus_cache_decision_nodes_all';
+	
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::NODE_TYPE)
+			->string()
+			->setMaxLength(16)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::PARAMS_JSON)
+			->string()
+			->setMaxLength(4294967295)
+			;
+		$validation
+			->addField(self::PARENT_ID)
+			->id()
+			;
+		$validation
+			->addField(self::POS)
+			->uint(2)
+			;
+		$validation
+			->addField(self::STATUS_ID)
+			->uint(1)
+			;
+		$validation
+			->addField(self::TITLE)
+			->string()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::TRIGGER_ID)
+			->id()
+			->setRequired(true)
+			;
+			
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Automatically append to parent
 		if(!isset($fields[self::POS])
@@ -52,7 +99,7 @@ class DAO_DecisionNode extends Cerb_ORMHelper {
 	}
 	
 	static function duplicate($id, $new_parent_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO decision_node (parent_id, trigger_id, node_type, title, pos, status_id, params_json) ".
 			"SELECT %d, trigger_id, node_type, title, pos, status_id, params_json FROM decision_node WHERE id = %d",
@@ -82,7 +129,7 @@ class DAO_DecisionNode extends Cerb_ORMHelper {
 	 * @return Model_DecisionNode[]
 	 */
 	static function getAll($nocache=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		if($nocache || null === ($nodes = $cache->load(self::CACHE_ALL))) {
 			$nodes = self::getWhere(
 				array(),
@@ -142,7 +189,7 @@ class DAO_DecisionNode extends Cerb_ORMHelper {
 	 * @return Model_DecisionNode[]
 	 */
 	static function getWhere($where=null, $sortBy=DAO_DecisionNode::POS, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		if(empty($sortBy)) {
 			$sortBy = DAO_DecisionNode::POS;
@@ -202,7 +249,7 @@ class DAO_DecisionNode extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -312,7 +359,7 @@ class DAO_DecisionNode extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -366,7 +413,7 @@ class DAO_DecisionNode extends Cerb_ORMHelper {
 	}
 
 	static public function clearCache() {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::CACHE_ALL);
 	}
 };
@@ -508,7 +555,7 @@ class View_DecisionNode extends C4_AbstractView {
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -517,11 +564,11 @@ class View_DecisionNode extends C4_AbstractView {
 		//$tpl->assign('custom_fields', $custom_fields);
 
 		// [TODO] Set your template path
-		$tpl->display('devblocks:example.plugin::path/to/view.tpl');
+		//$tpl->display('devblocks:example.plugin::path/to/view.tpl');
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		// [TODO] Move the fields into the proper data type

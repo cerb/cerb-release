@@ -23,7 +23,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 		if(!isset($stack[2]))
 			return;
 
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$request = DevblocksPlatform::getHttpRequest();
 		
 		$context = CerberusContexts::CONTEXT_WORKER;
@@ -199,6 +199,9 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 			if(empty($first_name)) $first_name = "Anonymous";
 			
 			if(!empty($id) && !empty($delete)) {
+				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_WORKER)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
 				// Can't delete or disable self
 				if($active_worker->id == $id)
 					throw new Exception_DevblocksAjaxValidationError("You can't delete yourself.");
@@ -249,12 +252,6 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 				// ============================================
 				// Validation
 				
-				if(empty($first_name))
-					throw new Exception_DevblocksAjaxValidationError("The 'First Name' field is required.", 'first_name');
-				
-				if(empty($email_id))
-					throw new Exception_DevblocksAjaxValidationError("The 'Email' field is required.", 'email_id');
-				
 				if(!empty($dob) && false == ($dob_ts = strtotime($dob . ' 00:00 GMT')))
 					throw new Exception_DevblocksAjaxValidationError("The specified date of birth is invalid.", 'dob');
 				
@@ -289,7 +286,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 				}
 				
 				// Verify timezone is legit
-				$date = DevblocksPlatform::getDateService();
+				$date = DevblocksPlatform::services()->date();
 				$timezones = $date->getTimezones();
 				if(false === array_search($timezone, $timezones))
 						throw new Exception_DevblocksAjaxValidationError("The given timezone is invalid.", 'timezone');
@@ -304,11 +301,11 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 						// Creating new worker.  If password is empty, email it to them
 						$replyto_default = DAO_AddressOutgoing::getDefault();
 						$replyto_personal = $replyto_default->getReplyPersonal();
-						$url = DevblocksPlatform::getUrlService();
+						$url = DevblocksPlatform::services()->url();
 						$password = CerberusApplication::generatePassword(8);
 						
 						try {
-							$mail_service = DevblocksPlatform::getMailService();
+							$mail_service = DevblocksPlatform::services()->mail();
 							$mail = $mail_service->createMessage();
 							
 							$mail->setTo(array($worker_address->email => $first_name . ' ' . $last_name));
@@ -346,7 +343,6 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 						}
 					}
 					
-					// [TODO] Fix the redundancy here between create/update (unset common $fields)
 					$fields = array(
 						DAO_Worker::FIRST_NAME => $first_name,
 						DAO_Worker::LAST_NAME => $last_name,
@@ -365,6 +361,9 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 						DAO_Worker::MOBILE => $mobile,
 						DAO_Worker::PHONE => $phone,
 					);
+					
+					if(!DAO_Worker::validate($fields, $error))
+						throw new Exception_DevblocksAjaxValidationError($error);
 					
 					if(false == ($id = DAO_Worker::create($fields)))
 						return false;
@@ -429,6 +428,9 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 					DAO_Worker::PHONE => $phone,
 					DAO_Worker::CALENDAR_ID => $calendar_id,
 				);
+				
+				if(!DAO_Worker::validate($fields, $error, $id))
+					throw new Exception_DevblocksAjaxValidationError($error);
 				
 				// Update worker
 				DAO_Worker::update($id, $fields);
@@ -505,7 +507,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 		if(!$active_worker || !$active_worker->is_superuser)
 			DevblocksPlatform::dieWithHttpError("You don't have permission to edit this record.", 403);
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 
 		if(!empty($id_csv)) {
@@ -527,7 +529,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 		$tpl->assign('languages', $locales);
 		
 		// Timezones
-		$date = DevblocksPlatform::getDateService();
+		$date = DevblocksPlatform::services()->date();
 		$tpl->assign('timezones', $date->getTimezones());
 		
 		// Broadcast
@@ -600,7 +602,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 		$do = DAO_CustomFieldValue::handleBulkPost($do);
 		
 		// Broadcast: Compose
-		if($active_worker->hasPriv('context.worker.worklist.broadcast')) {
+		if($active_worker->hasPriv('contexts.cerberusweb.contexts.worker.broadcast')) {
 			@$do_broadcast = DevblocksPlatform::importGPC($_REQUEST['do_broadcast'],'string',null);
 			@$broadcast_group_id = DevblocksPlatform::importGPC($_REQUEST['broadcast_group_id'],'integer',0);
 			@$broadcast_subject = DevblocksPlatform::importGPC($_REQUEST['broadcast_subject'],'string',null);
@@ -692,7 +694,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());

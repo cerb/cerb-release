@@ -16,18 +16,61 @@
  ***********************************************************************/
 
 class DAO_CustomField extends Cerb_ORMHelper {
+	const CONTEXT = 'context';
+	const CUSTOM_FIELDSET_ID = 'custom_fieldset_id';
 	const ID = 'id';
 	const NAME = 'name';
-	const TYPE = 'type';
-	const CONTEXT = 'context';
-	const POS = 'pos';
 	const PARAMS_JSON = 'params_json';
-	const CUSTOM_FIELDSET_ID = 'custom_fieldset_id';
+	const POS = 'pos';
+	const TYPE = 'type';
 	
 	const CACHE_ALL = 'ch_customfields';
 	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CUSTOM_FIELDSET_ID)
+			->id()
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setMaxLength(128)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::PARAMS_JSON)
+			->string()
+			->setMaxLength(16777215)
+			;
+		$validation
+			->addField(self::POS)
+			->uint(2)
+			;
+		$validation
+			->addField(self::TYPE)
+			->string()
+			->setMaxLength(1)
+			;
+			
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO custom_field () ".
 			"VALUES ()"
@@ -106,10 +149,10 @@ class DAO_CustomField extends Cerb_ORMHelper {
 	 * @return Model_CustomField[]
 	 */
 	static function getAll($nocache=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		
 		if(null === ($objects = $cache->load(self::CACHE_ALL))) {
-			$db = DevblocksPlatform::getDatabaseService();
+			$db = DevblocksPlatform::services()->database();
 			$sql = "SELECT id, name, type, context, custom_fieldset_id, pos, params_json ".
 				"FROM custom_field ".
 				"ORDER BY custom_fieldset_id ASC, pos ASC "
@@ -171,7 +214,7 @@ class DAO_CustomField extends Cerb_ORMHelper {
 		if(empty($ids))
 			return;
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$id_string = implode(',', $ids);
 		
@@ -185,7 +228,7 @@ class DAO_CustomField extends Cerb_ORMHelper {
 		}
 
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -200,8 +243,8 @@ class DAO_CustomField extends Cerb_ORMHelper {
 	}
 	
 	public static function maint() {
-		$db = DevblocksPlatform::getDatabaseService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$db = DevblocksPlatform::services()->database();
+		$logger = DevblocksPlatform::services()->log();
 		
 		$db->ExecuteMaster("DELETE FROM custom_field WHERE custom_fieldset_id != 0 AND custom_fieldset_id NOT IN (SELECT id FROM custom_fieldset)");
 		$logger->info('[Maint] Purged ' . $db->Affected_Rows() . ' custom_field records.');
@@ -209,16 +252,45 @@ class DAO_CustomField extends Cerb_ORMHelper {
 	
 	public static function clearCache() {
 		// Invalidate cache on changes
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::CACHE_ALL);
 	}
 };
 
 class DAO_CustomFieldValue extends Cerb_ORMHelper {
-	const FIELD_ID = 'field_id';
 	const CONTEXT = 'context';
 	const CONTEXT_ID = 'context_id';
+	const FIELD_ID = 'field_id';
 	const FIELD_VALUE = 'field_value';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CONTEXT_ID)
+			->id()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::FIELD_ID)
+			->id()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::FIELD_VALUE)
+			->string()
+			->setRequired(true)
+			;
+		
+		return $validation->getFields();
+	}
 	
 	public static function getValueTableName($field_id) {
 		$field = DAO_CustomField::get($field_id);
@@ -228,6 +300,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 			// stringvalue
 			case Model_CustomField::TYPE_SINGLE_LINE:
 			case Model_CustomField::TYPE_DROPDOWN:
+			case Model_CustomField::TYPE_LIST:
 			case Model_CustomField::TYPE_MULTI_CHECKBOX:
 			case Model_CustomField::TYPE_URL:
 				$table = 'custom_field_stringvalue';
@@ -274,6 +347,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 					break;
 
 				case Model_CustomField::TYPE_MULTI_LINE:
+				case Model_CustomField::TYPE_LIST:
 					break;
 
 				case Model_CustomField::TYPE_DROPDOWN:
@@ -366,7 +440,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 				continue;
 
 			$field =& $fields[$field_id]; /* @var $field Model_CustomField */
-			$is_delta = ($field->type==Model_CustomField::TYPE_MULTI_CHECKBOX || $field->type==Model_CustomField::TYPE_FILES)
+			$is_delta = (Model_CustomField::hasMultipleValues($field->type))
 					? $delta
 					: false
 					;
@@ -390,9 +464,24 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 					$value = (strlen($value) > 255) ? substr($value,0,255) : $value;
 					self::setFieldValue($context, $context_id, $field_id, $value);
 					break;
-
+					
 				case Model_CustomField::TYPE_MULTI_LINE:
 					self::setFieldValue($context, $context_id, $field_id, $value);
+					break;
+
+				case Model_CustomField::TYPE_LIST:
+					if(!is_array($value))
+						$value = [$value];
+					
+					// Clear before inserting
+					self::unsetFieldValue($context, $context_id, $field_id);
+					
+					foreach($value as $v) {
+						if(empty($v))
+							continue;
+						
+						self::setFieldValue($context, $context_id, $field_id, $v, true);
+					}
 					break;
 
 				case Model_CustomField::TYPE_DROPDOWN:
@@ -524,7 +613,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 	public static function setFieldValue($context, $context_id, $field_id, $value, $delta=false) {
 		CerberusContexts::checkpointChanges($context, array($context_id));
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(null == ($field = DAO_CustomField::get($field_id)))
 			return FALSE;
@@ -599,7 +688,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 	public static function unsetFieldValue($context, $context_id, $field_id, $value=null) {
 		CerberusContexts::checkpointChanges($context, array($context_id));
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(null == ($field = DAO_CustomField::get($field_id)))
 			return FALSE;
@@ -657,6 +746,11 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 				case Model_CustomField::TYPE_SINGLE_LINE:
 				case Model_CustomField::TYPE_URL:
 					@$field_value = DevblocksPlatform::importGPC($_POST['field_'.$field_id],'string','');
+					$do['cf_'.$field_id] = array('value' => $field_value);
+					break;
+					
+				case Model_CustomField::TYPE_LIST:
+					@$field_value = DevblocksPlatform::importGPC($_POST['field_'.$field_id],'array',array());
 					$do['cf_'.$field_id] = array('value' => $field_value);
 					break;
 					
@@ -718,6 +812,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 			switch($fields[$field_id]->type) {
 				case Model_CustomField::TYPE_FILES:
 				case Model_CustomField::TYPE_MULTI_CHECKBOX:
+				case Model_CustomField::TYPE_LIST:
 					@$field_value = DevblocksPlatform::importGPC($_REQUEST['field_'.$field_id],'array',array());
 					break;
 					
@@ -824,7 +919,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 		if(empty($context_ids))
 			return array();
 			
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Only check the custom fields of this context
 		$fields = DAO_CustomField::getByContext($context);
@@ -903,18 +998,13 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 			$ptr =& $results[$context_id];
 			
 			// If multiple value type (multi-checkbox)
-			switch($fields[$field_id]->type) {
-				case Model_CustomField::TYPE_FILES:
-				case Model_CustomField::TYPE_MULTI_CHECKBOX:
-					if(!isset($ptr[$field_id]))
-						$ptr[$field_id] = array();
-						
-					$ptr[$field_id][$field_value] = $field_value;
-					break;
+			if(Model_CustomField::hasMultipleValues($fields[$field_id]->type)) {
+				if(!isset($ptr[$field_id]))
+					$ptr[$field_id] = [];
 					
-				default:
-					$ptr[$field_id] = $field_value;
-					break;
+				$ptr[$field_id][$field_value] = $field_value;
+			} else {
+				$ptr[$field_id] = $field_value;
 			}
 		}
 		
@@ -924,7 +1014,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 	}
 	
 	public static function deleteByContextIds($context, $context_ids) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(!is_array($context_ids)) $context_ids = array($context_ids);
 		$ids_list = implode(',', $context_ids);
@@ -944,7 +1034,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 	}
 	
 	public static function deleteByFieldId($field_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$tables = array('custom_field_stringvalue','custom_field_clobvalue','custom_field_numbervalue');
 
@@ -966,10 +1056,11 @@ class Model_CustomField {
 	const TYPE_FILE = 'F';
 	const TYPE_FILES = 'I';
 	const TYPE_LINK = 'L';
-	const TYPE_NUMBER = 'N';
-	const TYPE_SINGLE_LINE = 'S';
+	const TYPE_LIST = 'M';
 	const TYPE_MULTI_CHECKBOX = 'X';
 	const TYPE_MULTI_LINE = 'T';
+	const TYPE_NUMBER = 'N';
+	const TYPE_SINGLE_LINE = 'S';
 	const TYPE_URL = 'U';
 	const TYPE_WORKER = 'W';
 	
@@ -993,6 +1084,7 @@ class Model_CustomField {
 			self::TYPE_MULTI_CHECKBOX => 'Multiple Checkboxes',
 			self::TYPE_MULTI_LINE => 'Text: Multiple Lines',
 			self::TYPE_LINK => 'Record Link',
+			self::TYPE_LIST => 'List',
 			self::TYPE_NUMBER => 'Number',
 			self::TYPE_SINGLE_LINE => 'Text: Single Line',
 			self::TYPE_URL => 'URL',
@@ -1005,7 +1097,7 @@ class Model_CustomField {
 	}
 	
 	static function hasMultipleValues($type) {
-		$multiple_types = array(Model_CustomField::TYPE_MULTI_CHECKBOX, Model_CustomField::TYPE_FILES);
+		$multiple_types = [Model_CustomField::TYPE_MULTI_CHECKBOX, Model_CustomField::TYPE_FILES, Model_CustomField::TYPE_LIST];
 		return in_array($type, $multiple_types);
 	}
 };
@@ -1051,7 +1143,7 @@ class Context_CustomField extends Extension_DevblocksContext {
 	}
 	
 	function getMeta($context_id) {
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		$field = DAO_CustomField::get($context_id);
 		
@@ -1130,6 +1222,12 @@ class Context_CustomField extends Extension_DevblocksContext {
 		);
 		
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		// [TODO] No searchfields_ for custom fields
+		return [
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {

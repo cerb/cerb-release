@@ -31,7 +31,7 @@ class ChTicketsPage extends CerberusPageExtension {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());
@@ -105,7 +105,7 @@ class ChTicketsPage extends CerberusPageExtension {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());
@@ -159,7 +159,7 @@ class ChTicketsPage extends CerberusPageExtension {
 				$model->pos = $pos++;
 				$model->params = array(
 					'id' => $id,
-					'url' => $url_writer->writeNoProxy(sprintf("c=profiles&type=ticket&id=%s&show=message&msgid=%d", $row[SearchFields_Message::TICKET_MASK], $id), true),
+					'url' => $url_writer->writeNoProxy(sprintf("c=profiles&type=ticket&id=%d&show=message&msgid=%d", $row[SearchFields_Message::TICKET_ID], $id), true),
 				);
 				$models[] = $model;
 			}
@@ -214,7 +214,7 @@ class ChTicketsPage extends CerberusPageExtension {
 		if(!empty($fields))
 			DAO_Ticket::update($id, $fields);
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 
 		$visit = CerberusApplication::getVisit();
 		$view = C4_AbstractViewLoader::getView($view_id);
@@ -251,13 +251,12 @@ class ChTicketsPage extends CerberusPageExtension {
 			@$ticket_reopen = DevblocksPlatform::importGPC(@$_REQUEST['ticket_reopen'],'string','');
 			@$comment = DevblocksPlatform::importGPC(@$_REQUEST['comment'],'string','');
 			
+			if(!$active_worker->hasPriv(sprintf('contexts.%s.update', CerberusContexts::CONTEXT_TICKET)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.edit'));
+			
 			// Load the existing model so we can detect changes
 			if(false == ($ticket = DAO_Ticket::get($id)))
 				throw new Exception_DevblocksAjaxValidationError("There was an unexpected error when loading this record.");
-			
-			// Validation
-			if(empty($subject))
-				throw new Exception_DevblocksAjaxValidationError("The 'Subject' field is required.", 'subject');
 			
 			$fields = array(
 				DAO_Ticket::SUBJECT => $subject,
@@ -342,6 +341,9 @@ class ChTicketsPage extends CerberusPageExtension {
 			// Only update fields that changed
 			$fields = Cerb_ORMHelper::uniqueFields($fields, $ticket);
 			
+			if(!DAO_Ticket::validate($fields, $error, $id))
+				throw new Exception_DevblocksAjaxValidationError($error);
+			
 			// Do it
 			DAO_Ticket::update($id, $fields);
 			
@@ -391,11 +393,152 @@ class ChTicketsPage extends CerberusPageExtension {
 			
 		}
 	}
+	
+	function validateComposeJsonAction() {
+		header('Content-Type: application/json; charset=utf-8');
 		
+		try {
+			if(false == ($active_worker = CerberusApplication::getActiveWorker()))
+				throw new Exception_DevblocksAjaxValidationError("You are not logged in.");
+			
+			if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.ticket.create'))
+				throw new Exception_DevblocksAjaxValidationError("You do not have permission to send mail.");
+			
+			@$draft_id = DevblocksPlatform::importGPC($_POST['draft_id'],'integer');
+			@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
+	
+			// Destination
+			
+			@$group_id = DevblocksPlatform::importGPC($_POST['group_id'],'integer',0);
+			@$bucket_id = DevblocksPlatform::importGPC($_POST['bucket_id'],'integer',0);
+			
+			// Headers
+			
+			@$org_name = DevblocksPlatform::importGPC($_POST['org_name'],'string');
+			@$to = rtrim(DevblocksPlatform::importGPC($_POST['to'],'string'),' ,');
+			@$cc = rtrim(DevblocksPlatform::importGPC($_POST['cc'],'string',''),' ,;');
+			@$bcc = rtrim(DevblocksPlatform::importGPC($_POST['bcc'],'string',''),' ,;');
+			@$subject = DevblocksPlatform::importGPC($_POST['subject'],'string','(no subject)');
+			@$content = DevblocksPlatform::importGPC($_POST['content'],'string');
+			@$content_format = DevblocksPlatform::importGPC($_POST['format'],'string','');
+			@$html_template_id = DevblocksPlatform::importGPC($_POST['html_template_id'],'integer',0);
+	
+			// Properties
+			
+			@$status_id = DevblocksPlatform::importGPC($_POST['status_id'],'integer',0);
+			@$ticket_reopen = DevblocksPlatform::importGPC($_POST['ticket_reopen'],'string','');
+			@$owner_id = DevblocksPlatform::importGPC($_POST['owner_id'],'integer',0);
+			
+			// Options
+			
+			@$options_dont_send = DevblocksPlatform::importGPC($_POST['options_dont_send'],'integer',0);
+			@$options_gpg_encrypt = DevblocksPlatform::importGPC(@$_POST['options_gpg_encrypt'],'integer',0);
+			
+			// Attachments
+			
+			@$file_ids = DevblocksPlatform::importGPC($_POST['file_ids'],'array',array());
+			$file_ids = DevblocksPlatform::sanitizeArray($file_ids, 'integer', array('unique', 'nonzero'));
+			
+			// Org
+			
+			$org_id = 0;
+			if(!empty($org_name)) {
+				$org_id = DAO_ContactOrg::lookup($org_name, true);
+				
+			} else {
+				// If we weren't given an organization, use the first recipient
+				$to_addys = CerberusMail::parseRfcAddresses($to);
+				if(is_array($to_addys) && !empty($to_addys)) {
+					if(null != ($to_addy = DAO_Address::lookupAddress(key($to_addys), true))) {
+						if(!empty($to_addy->contact_org_id))
+							$org_id = $to_addy->contact_org_id;
+					}
+				}
+			}
+			
+			$properties = array(
+				'draft_id' => $draft_id,
+				'group_id' => intval($group_id),
+				'bucket_id' => intval($bucket_id),
+				'org_id' => intval($org_id),
+				'to' => $to,
+				'cc' => $cc,
+				'bcc' => $bcc,
+				'subject' => $subject,
+				'content' => $content,
+				'content_format' => $content_format,
+				'html_template_id' => $html_template_id,
+				'forward_files' => $file_ids,
+				'status_id' => $status_id,
+				'ticket_reopen' => $ticket_reopen,
+				'link_forward_files' => true,
+				'worker_id' => $active_worker->id,
+				'gpg_encrypt' => !empty($options_gpg_encrypt),
+			);
+			
+			if(!$properties['subject'])
+				throw new Exception_DevblocksAjaxValidationError("A 'Subject:' is required.");
+			
+			if(!$properties['to'] && ($properties['cc'] || $properties['bcc']))
+				throw new Exception_DevblocksAjaxValidationError("'To:' is required if you specify a 'Cc/Bcc:' recipient.");
+			
+			// Validate GPG if used (we need public keys for all recipients)
+			// [TODO] Share this between compose/reply
+			if($properties['gpg_encrypt']) {
+				if(false == ($gpg = DevblocksPlatform::services()->gpg()) || !$gpg->isEnabled())
+					throw new Exception_DevblocksAjaxValidationError("The 'gnupg' PHP extension is not installed.");
+				
+				$email_addresses = DevblocksPlatform::parseCsvString(sprintf("%s%s%s",
+					!empty($properties['to']) ? ($properties['to'] . ', ') : '',
+					!empty($properties['cc']) ? ($properties['cc'] . ', ') : '',
+					!empty($properties['bcc']) ? ($properties['bcc'] . ', ') : ''
+				));
+				
+				$email_models = DAO_Address::lookupAddresses($email_addresses, true);
+				$emails_to_check = array_flip(array_column(DevblocksPlatform::objectsToArrays($email_models), 'email'));
+				
+				foreach($email_models as $email_model) {
+					if(false == ($info = $gpg->keyinfo(sprintf("<%s>", $email_model->email))) || !is_array($info))
+						continue;
+					
+					foreach($info as $key) {
+						foreach($key['uids'] as $uid) {
+							unset($emails_to_check[$uid['email']]);
+						}
+					}
+				}
+				
+				if(!empty($emails_to_check)) {
+					throw new Exception_DevblocksAjaxValidationError("Can't send encrypted message. We don't have a GPG public key for: " . implode(', ', array_keys($emails_to_check)));
+				}
+			}
+			
+			//throw new Exception_DevblocksAjaxValidationError("Keep on keeping up.");
+			
+			// [TODO] Give bot behaviors a stab at it
+			
+			echo json_encode([
+				'status' => true,
+			]);
+			
+		} catch (Exception_DevblocksAjaxValidationError $e) {
+			echo json_encode([
+				'status' => false,
+				'message' => $e->getMessage(),
+			]);
+			
+		} catch (Exception $e) {
+			echo json_encode([
+				'status' => false,
+				'message' => 'An unexpected error occurred.',
+			]);
+		}
+	}
+	
 	function saveComposePeekAction() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		if(!$active_worker->hasPriv('core.mail.send'))
+		if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.ticket.create'))
 			return;
 		
 		@$draft_id = DevblocksPlatform::importGPC($_POST['draft_id'],'integer');
@@ -435,6 +578,7 @@ class ChTicketsPage extends CerberusPageExtension {
 		// Options
 		
 		@$options_dont_send = DevblocksPlatform::importGPC($_POST['options_dont_send'],'integer',0);
+		@$options_gpg_encrypt = DevblocksPlatform::importGPC(@$_POST['options_gpg_encrypt'],'integer',0);
 		
 		// Attachments
 		
@@ -474,6 +618,7 @@ class ChTicketsPage extends CerberusPageExtension {
 			'ticket_reopen' => $ticket_reopen,
 			'link_forward_files' => true,
 			'worker_id' => $active_worker->id,
+			'gpg_encrypt' => !empty($options_gpg_encrypt),
 		);
 
 		// #commands
@@ -735,7 +880,7 @@ class ChTicketsPage extends CerberusPageExtension {
 	function viewMergeTicketsPopupAction() {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		$tpl->display('devblocks:cerberusweb.core::tickets/ajax/merge_confirm.tpl');
 	}

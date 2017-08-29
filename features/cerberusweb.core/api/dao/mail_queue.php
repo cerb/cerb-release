@@ -16,21 +16,96 @@
 ***********************************************************************/
 
 class DAO_MailQueue extends Cerb_ORMHelper {
-	const ID = 'id';
-	const WORKER_ID = 'worker_id';
-	const UPDATED = 'updated';
-	const TYPE = 'type';
-	const TICKET_ID = 'ticket_id';
-	const HINT_TO = 'hint_to';
-	const SUBJECT = 'subject';
 	const BODY = 'body';
-	const PARAMS_JSON = 'params_json';
+	const HINT_TO = 'hint_to';
+	const ID = 'id';
 	const IS_QUEUED = 'is_queued';
-	const QUEUE_FAILS = 'queue_fails';
+	const PARAMS_JSON = 'params_json';
 	const QUEUE_DELIVERY_DATE = 'queue_delivery_date';
+	const QUEUE_FAILS = 'queue_fails';
+	const SUBJECT = 'subject';
+	const TICKET_ID = 'ticket_id';
+	const TYPE = 'type';
+	const UPDATED = 'updated';
+	const WORKER_ID = 'worker_id';
+	
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// longtext
+		$validation
+			->addField(self::BODY)
+			->string()
+			->setMaxLength(4294967295)
+			;
+		// text
+		$validation
+			->addField(self::HINT_TO)
+			->string()
+			->setMaxLength(65535)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// tinyint(3) unsigned
+		$validation
+			->addField(self::IS_QUEUED)
+			->uint(1)
+			;
+		// longtext
+		$validation
+			->addField(self::PARAMS_JSON)
+			->string()
+			->setMaxLength(4294967295)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::QUEUE_DELIVERY_DATE)
+			->uint(4)
+			;
+		// tinyint(3) unsigned
+		$validation
+			->addField(self::QUEUE_FAILS)
+			->uint(1)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::SUBJECT)
+			->string()
+			->setMaxLength(255)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::TICKET_ID)
+			->id()
+			;
+		// varchar(255)
+		$validation
+			->addField(self::TYPE)
+			->string()
+			->setMaxLength(255)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::UPDATED)
+			->timestamp()
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::WORKER_ID)
+			->id()
+			;
+
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO mail_queue () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -111,7 +186,7 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 	 * @return Model_MailQueue[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -230,7 +305,7 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -301,7 +376,7 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -833,7 +908,7 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
@@ -849,7 +924,7 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -1140,6 +1215,17 @@ class Context_Draft extends Extension_DevblocksContext {
 		);
 		
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'content' => DAO_MailQueue::BODY,
+			'id' => DAO_MailQueue::ID,
+			'subject' => DAO_MailQueue::SUBJECT,
+			'to' => DAO_MailQueue::HINT_TO,
+			'updated' => DAO_MailQueue::UPDATED,
+			'worker_id' => DAO_MailQueue::WORKER_ID,
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {

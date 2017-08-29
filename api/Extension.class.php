@@ -537,7 +537,7 @@ abstract class Extension_WorkspaceWidget extends DevblocksExtension {
 			$widget = null;
 		}
 		
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$is_cached = false;
 				
 		if($widget && $widget instanceof Model_WorkspaceWidget) {
@@ -546,7 +546,7 @@ abstract class Extension_WorkspaceWidget extends DevblocksExtension {
 			// Fetch and cache
 			if($nocache || empty($widget->cache_ttl) || null === ($widget_contents = $cache->load($cache_key))) {
 				if($autoload) {
-					$tpl = DevblocksPlatform::getTemplateService();
+					$tpl = DevblocksPlatform::services()->template();
 					$tpl->assign('widget', $widget);
 					
 					if(false !== ($widget_contents = $tpl->fetch('devblocks:cerberusweb.core::internal/workspaces/widgets/render.tpl')))

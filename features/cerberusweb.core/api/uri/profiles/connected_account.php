@@ -17,7 +17,7 @@
 
 class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$visit = CerberusApplication::getVisit();
 		$translate = DevblocksPlatform::getTranslationService();
 		$active_worker = CerberusApplication::getActiveWorker();
@@ -129,7 +129,7 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 		@$context_id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'], 'string', '');
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
 		if(!empty($context_id) && null != ($connected_account = DAO_ConnectedAccount::get($context_id))) {
@@ -151,6 +151,9 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
+				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_CONNECTED_ACCOUNT)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
 				DAO_ConnectedAccount::delete($id);
 				
 				echo json_encode(array(
@@ -169,15 +172,15 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 				$account->id = 0;
 				$account->extension_id = $extension_id;
 				
-				if(empty($name))
-					throw new Exception_DevblocksAjaxValidationError("The 'Name' field is required.", 'name');
-				
 				// Edit
 				if($id) {
+					if(!$active_worker->hasPriv(sprintf("contexts.%s.update", CerberusContexts::CONTEXT_CONNECTED_ACCOUNT)))
+						throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.edit'));
+					
 					if(false == ($account = DAO_ConnectedAccount::get($id))
 						|| !Context_ConnectedAccount::isWriteableByActor($account, $active_worker)
 						)
-						throw new Exception_DevblocksAjaxValidationError("You do not have permission to modify this record.");
+						throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.edit'));
 						
 					if(false == ($extension = $account->getExtension()))
 						throw new Exception_DevblocksAjaxValidationError("Invalid service provider.");
@@ -214,6 +217,9 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 				
 				// Create
 				} else {
+					if(!$active_worker->hasPriv(sprintf("contexts.%s.create", CerberusContexts::CONTEXT_CONNECTED_ACCOUNT)))
+						throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.create'));
+					
 					if(false == ($extension = Extension_ServiceProvider::get($extension_id)))
 						throw new Exception_DevblocksAjaxValidationError("Invalid service provider.");
 					
@@ -256,6 +262,9 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 					throw new Exception_DevblocksAjaxValidationError($result);
 				
 				if(empty($id)) {
+					if(!DAO_ConnectedAccount::validate($fields, $error))
+						throw new Exception_DevblocksAjaxValidationError($error);
+					
 					$id = DAO_ConnectedAccount::create($fields);
 					
 					if($view_id && $id) {
@@ -263,6 +272,9 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 					}
 					
 				} else {
+					if(!DAO_ConnectedAccount::validate($fields, $error, $id))
+						throw new Exception_DevblocksAjaxValidationError($error);
+					
 					DAO_ConnectedAccount::update($id, $fields);
 				}
 
@@ -305,7 +317,7 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());

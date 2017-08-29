@@ -1,16 +1,80 @@
 <?php
 class DAO_ContextSavedSearch extends Cerb_ORMHelper {
+	const CONTEXT = 'context';
 	const ID = 'id';
 	const NAME = 'name';
-	const CONTEXT = 'context';
-	const TAG = 'tag';
-	const QUERY = 'query';
 	const OWNER_CONTEXT = 'owner_context';
 	const OWNER_CONTEXT_ID = 'owner_context_id';
+	const QUERY = 'query';
+	const TAG = 'tag';
 	const UPDATED_AT = 'updated_at';
-
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setMaxLength(255)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::OWNER_CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::OWNER_CONTEXT_ID)
+			->id()
+			;
+		$validation
+			->addField(self::QUERY)
+			->string()
+			->setMaxLength(65535)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::TAG)
+			->string()
+			->setMaxLength(64)
+			->setNotEmpty(false)
+			->setUnique(get_class())
+			->addValidator(function($string, &$error=null) {
+				if(0 != strcasecmp($string, DevblocksPlatform::strAlphaNum($string, '-'))) {
+					$error = "may only contain letters, numbers, and dashes";
+					return false;
+				}
+					
+				if(strlen($string) > 64) {
+					$error = "must be shorter than 64 characters.";
+					return false;
+				}
+				
+				return true;
+			})
+			;
+		$validation
+			->addField(self::UPDATED_AT)
+			->timestamp()
+			;
+		
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO context_saved_search () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -25,6 +89,9 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
+		if(!isset($fields[self::UPDATED_AT]))
+			$fields[self::UPDATED_AT] = time();
+		
 		// Make a diff for the requested objects in batches
 		
 		$chunks = array_chunk($ids, 100, true);
@@ -34,7 +101,7 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 				
 			// Send events
 			if($check_deltas) {
-				//CerberusContexts::checkpointChanges(CerberusContexts::CONTEXT_, $batch_ids);
+				CerberusContexts::checkpointChanges(CerberusContexts::CONTEXT_SAVED_SEARCH, $batch_ids);
 			}
 			
 			// Make changes
@@ -43,7 +110,7 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 			// Send events
 			if($check_deltas) {
 				// Trigger an event about the changes
-				$eventMgr = DevblocksPlatform::getEventService();
+				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
 					new Model_DevblocksEvent(
 						'dao.context_saved_search.update',
@@ -54,7 +121,7 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 				);
 				
 				// Log the context update
-				//DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_, $batch_ids);
+				DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_SAVED_SEARCH, $batch_ids);
 			}
 		}
 	}
@@ -71,7 +138,7 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 	 * @return Model_ContextSavedSearch[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -134,7 +201,7 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 	 * @return Model_ContextSavedSearch[]
 	 */
 	static function getAll($nocache=false) {
-		//$cache = DevblocksPlatform::getCacheService();
+		//$cache = DevblocksPlatform::services()->cache();
 		//if($nocache || null === ($objects = $cache->load(self::_CACHE_ALL))) {
 			$objects = self::getWhere(null, DAO_ContextSavedSearch::NAME, true, null, Cerb_ORMHelper::OPT_GET_MASTER_ONLY);
 			
@@ -180,7 +247,7 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 		if(!method_exists(get_called_class(), 'getWhere'))
 			return array();
 
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
 
@@ -273,7 +340,7 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -283,7 +350,7 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 		$db->ExecuteMaster(sprintf("DELETE FROM context_saved_search WHERE id IN (%s)", $ids_list));
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -358,7 +425,7 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -502,7 +569,7 @@ class Model_ContextSavedSearch {
 		if($as_instance) {
 			return Extension_DevblocksContext::get($this->context);
 		} else {
-			return DevblocksPlatform::getExtension($this->context, false);
+			return Extension_DevblocksContext::get($this->context, false);
 		}
 	}
 	
@@ -699,7 +766,7 @@ class View_ContextSavedSearch extends C4_AbstractView implements IAbstractView_S
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -716,7 +783,7 @@ class View_ContextSavedSearch extends C4_AbstractView implements IAbstractView_S
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -832,14 +899,14 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 		if(empty($context_id))
 			return '';
 	
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=saved_search&id='.$context_id, true);
 		return $url;
 	}
 	
 	function getMeta($context_id) {
 		$context_saved_search = DAO_ContextSavedSearch::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($context_saved_search->name);
@@ -939,11 +1006,24 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 			$token_values = $this->_importModelCustomFieldsAsValues($context_saved_search, $token_values);
 			
 			// URL
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=saved_search&id=%d-%s",$context_saved_search->id, DevblocksPlatform::strToPermalink($context_saved_search->name)), true);
 		}
 		
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'context' => DAO_ContextSavedSearch::CONTEXT,
+			'id' => DAO_ContextSavedSearch::ID,
+			'name' => DAO_ContextSavedSearch::NAME,
+			'owner__context' => DAO_ContextSavedSearch::OWNER_CONTEXT,
+			'owner_id' => DAO_ContextSavedSearch::OWNER_CONTEXT_ID,
+			'query' => DAO_ContextSavedSearch::QUERY,
+			'tag' => DAO_ContextSavedSearch::TAG,
+			'updated_at' => DAO_ContextSavedSearch::UPDATED_AT,
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1015,7 +1095,7 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 	}
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
 		$context = 'cerberusweb.contexts.context.saved.search';

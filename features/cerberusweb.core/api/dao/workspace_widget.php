@@ -16,17 +16,71 @@
  ***********************************************************************/
 
 class DAO_WorkspaceWidget extends Cerb_ORMHelper {
-	const ID = 'id';
+	const CACHE_TTL = 'cache_ttl';
 	const EXTENSION_ID = 'extension_id';
-	const WORKSPACE_TAB_ID = 'workspace_tab_id';
+	const ID = 'id';
 	const LABEL = 'label';
-	const UPDATED_AT = 'updated_at';
 	const PARAMS_JSON = 'params_json';
 	const POS = 'pos';
-	const CACHE_TTL = 'cache_ttl';
+	const UPDATED_AT = 'updated_at';
+	const WORKSPACE_TAB_ID = 'workspace_tab_id';
+	
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// mediumint(8) unsigned
+		$validation
+			->addField(self::CACHE_TTL)
+			->uint(3)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::EXTENSION_ID)
+			->string()
+			->setMaxLength(255)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::LABEL)
+			->string()
+			->setMaxLength(255)
+			;
+		// text
+		$validation
+			->addField(self::PARAMS_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// char(4)
+		$validation
+			->addField(self::POS)
+			->string()
+			->setMaxLength(4)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::UPDATED_AT)
+			->timestamp()
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::WORKSPACE_TAB_ID)
+			->id()
+			;
+
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO workspace_widget () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -65,7 +119,7 @@ class DAO_WorkspaceWidget extends Cerb_ORMHelper {
 	 * @return Model_WorkspaceWidget[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -149,7 +203,7 @@ class DAO_WorkspaceWidget extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -160,7 +214,7 @@ class DAO_WorkspaceWidget extends Cerb_ORMHelper {
 		
 		// Fire event
 		/*
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -177,7 +231,7 @@ class DAO_WorkspaceWidget extends Cerb_ORMHelper {
 	
 	static function deleteByTab($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -241,7 +295,7 @@ class DAO_WorkspaceWidget extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -397,7 +451,7 @@ class Context_WorkspaceWidget extends Extension_DevblocksContext {
 	}
 	
 	function getMeta($context_id) {
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 
 		if(null == ($workspace_widget = DAO_WorkspaceWidget::get($context_id)))
 			return array();
@@ -489,6 +543,14 @@ class Context_WorkspaceWidget extends Extension_DevblocksContext {
 		);
 		
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'id' => DAO_WorkspaceWidget::ID,
+			'extension_id' => DAO_WorkspaceWidget::EXTENSION_ID,
+			'tab_id' => DAO_WorkspaceWidget::WORKSPACE_TAB_ID,
+		];
 	}
 	
 	function lazyLoadContextValues($token, $dictionary) {

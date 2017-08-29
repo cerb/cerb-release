@@ -43,14 +43,61 @@
 class DAO_FeedbackEntry extends Cerb_ORMHelper {
 	const ID = 'id';
 	const LOG_DATE = 'log_date';
-	const WORKER_ID = 'worker_id';
-	const QUOTE_TEXT = 'quote_text';
-	const QUOTE_MOOD = 'quote_mood';
-	const QUOTE_ADDRESS_ID = 'quote_address_id';
 	const SOURCE_URL = 'source_url';
+	const QUOTE_ADDRESS_ID = 'quote_address_id';
+	const QUOTE_MOOD = 'quote_mood';
+	const QUOTE_TEXT = 'quote_text';
+	const WORKER_ID = 'worker_id';
+	
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::LOG_DATE)
+			->timestamp()
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::QUOTE_ADDRESS_ID)
+			->id()
+			;
+		// tinyint(1) unsigned
+		$validation
+			->addField(self::QUOTE_MOOD)
+			->uint(1)
+			;
+		// text
+		$validation
+			->addField(self::QUOTE_TEXT)
+			->string()
+			->setMaxLength(65535)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::SOURCE_URL)
+			->string()
+			->setMaxLength(255)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::WORKER_ID)
+			->id()
+			;
+
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO feedback_entry () ".
 			"VALUES ()"
@@ -86,7 +133,7 @@ class DAO_FeedbackEntry extends Cerb_ORMHelper {
 			if($check_deltas) {
 				
 				// Trigger an event about the changes
-				$eventMgr = DevblocksPlatform::getEventService();
+				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
 					new Model_DevblocksEvent(
 						'dao.feedback_entry.update',
@@ -107,7 +154,7 @@ class DAO_FeedbackEntry extends Cerb_ORMHelper {
 	 * @return boolean
 	 */
 	static function bulkUpdate(Model_ContextBulkUpdate $update) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 
 		$do = $update->actions;
 		$ids = $update->context_ids;
@@ -149,7 +196,7 @@ class DAO_FeedbackEntry extends Cerb_ORMHelper {
 	 * @return Model_FeedbackEntry[]
 	 */
 	static function getWhere($where=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "SELECT id, log_date, worker_id, quote_text, quote_mood, quote_address_id, source_url ".
 			"FROM feedback_entry ".
@@ -206,13 +253,13 @@ class DAO_FeedbackEntry extends Cerb_ORMHelper {
 	}
 	
 	static function getItemCount() {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		return $db->GetOneSlave("SELECT count(id) FROM feedback_entry");
 	}
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$ids_list = implode(',', $ids);
 		
@@ -220,7 +267,7 @@ class DAO_FeedbackEntry extends Cerb_ORMHelper {
 		$db->ExecuteMaster(sprintf("DELETE FROM feedback_entry WHERE id IN (%s)", $ids_list));
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -327,7 +374,7 @@ class DAO_FeedbackEntry extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -795,7 +842,7 @@ class View_FeedbackEntry extends C4_AbstractView implements IAbstractView_Subtot
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -811,7 +858,7 @@ class View_FeedbackEntry extends C4_AbstractView implements IAbstractView_Subtot
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -1064,7 +1111,7 @@ class ChFeedbackController extends DevblocksControllerExtension {
 		$fields = array(
 			DAO_FeedbackEntry::QUOTE_MOOD => intval($mood),
 			DAO_FeedbackEntry::QUOTE_TEXT => $quote,
-			DAO_FeedbackEntry::QUOTE_ADDRESS_ID => intval($address_id),
+			DAO_FeedbackEntry::QUOTE_ADDRESS_ID => @intval($address_id),
 			DAO_FeedbackEntry::SOURCE_URL => $url,
 		);
 
@@ -1116,7 +1163,7 @@ class ChFeedbackController extends DevblocksControllerExtension {
 		@$id_csv = DevblocksPlatform::importGPC($_REQUEST['ids']);
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id']);
 
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 
 		if(!empty($id_csv)) {
@@ -1184,7 +1231,7 @@ class ChFeedbackController extends DevblocksControllerExtension {
 if (class_exists('Extension_MessageToolbarItem',true)):
 	class ChFeedbackMessageToolbarFeedback extends Extension_MessageToolbarItem {
 		function render(Model_Message $message) {
-			$tpl = DevblocksPlatform::getTemplateService();
+			$tpl = DevblocksPlatform::services()->template();
 			
 			$tpl->assign('message', $message); /* @var $message Model_Message */
 			
@@ -1241,7 +1288,7 @@ class Context_Feedback extends Extension_DevblocksContext implements IDevblocksC
 	
 	function getMeta($context_id) {
 		$feedback = DAO_FeedbackEntry::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		return array(
 			'id' => $feedback->id,
@@ -1388,6 +1435,18 @@ class Context_Feedback extends Extension_DevblocksContext implements IDevblocksC
 		
 		return true;
 	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'author_id' => DAO_FeedbackEntry::QUOTE_ADDRESS_ID,
+			'created' => DAO_FeedbackEntry::LOG_DATE,
+			'id' => DAO_FeedbackEntry::ID,
+			'quote_mood_id' => DAO_FeedbackEntry::QUOTE_MOOD,
+			'quote_text' => DAO_FeedbackEntry::QUOTE_TEXT,
+			'url' => DAO_FeedbackEntry::SOURCE_URL,
+			'worker_id' => DAO_FeedbackEntry::WORKER_ID,
+		];
+	}
 
 	function lazyLoadContextValues($token, $dictionary) {
 		if(!isset($dictionary['id']))
@@ -1481,7 +1540,7 @@ class Context_Feedback extends Extension_DevblocksContext implements IDevblocksC
 		
 		@$active_worker = CerberusApplication::getActiveWorker();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 
 		// Creating
@@ -1512,7 +1571,7 @@ class Context_Feedback extends Extension_DevblocksContext implements IDevblocksC
 		} elseif(!empty($id)) { // Were we given a model ID to load?
 			if(null == ($model = DAO_FeedbackEntry::get($id))) {
 				$id = null;
-				$model = new Model_Feedback();
+				$model = new Model_FeedbackEntry();
 			}
 		}
 

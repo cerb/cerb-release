@@ -17,7 +17,7 @@
 
 class PageSection_ProfilesTask extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$translate = DevblocksPlatform::getTranslationService();
 		$response = DevblocksPlatform::getHttpResponse();
 		
@@ -158,8 +158,8 @@ class PageSection_ProfilesTask extends Extension_PageSection {
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // delete
-				if(!$active_worker->hasPriv('core.tasks.actions.delete'))
-					throw new Exception_DevblocksAjaxValidationError("You don't have permission to delete this record.");
+				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_TASK)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 				
 				DAO_Task::delete($id);
 				
@@ -180,9 +180,6 @@ class PageSection_ProfilesTask extends Extension_PageSection {
 	
 				// Title
 				@$title = DevblocksPlatform::importGPC($_REQUEST['title'],'string','');
-				
-				if(empty($title))
-					throw new Exception_DevblocksAjaxValidationError("The 'title' field is required.", 'title');
 				
 				$fields[DAO_Task::TITLE] = $title;
 				
@@ -226,10 +223,22 @@ class PageSection_ProfilesTask extends Extension_PageSection {
 				
 				// Save
 				if(!empty($id)) {
+					if(!$active_worker->hasPriv(sprintf("contexts.%s.update", CerberusContexts::CONTEXT_TASK)))
+						throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.edit'));
+					
+					if(!DAO_Task::validate($fields, $error, $id))
+						throw new Exception_DevblocksAjaxValidationError($error);
+					
 					DAO_Task::update($id, $fields);
 					DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_TASK, $id, $field_ids);
 					
 				} else {
+					if(!$active_worker->hasPriv(sprintf("contexts.%s.create", CerberusContexts::CONTEXT_TASK)))
+						throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.create'));
+					
+					if(!DAO_Task::validate($fields, $error))
+						throw new Exception_DevblocksAjaxValidationError($error);
+					
 					$custom_fields = DAO_CustomFieldValue::parseFormPost(CerberusContexts::CONTEXT_TASK, $field_ids);
 					
 					if(false == ($id = DAO_Task::create($fields, $custom_fields)))
@@ -247,7 +256,7 @@ class PageSection_ProfilesTask extends Extension_PageSection {
 				}
 	
 				// Comments
-				if(!empty($comment) && !empty($id)) {
+				if(!empty($comment) && !empty($id) && $active_worker->hasPriv(sprintf("contexts.%s.comment", CerberusContexts::CONTEXT_TASK))) {
 					$also_notify_worker_ids = array_keys(CerberusApplication::getWorkersByAtMentionsText($comment));
 					
 					$fields = array(
@@ -294,7 +303,7 @@ class PageSection_ProfilesTask extends Extension_PageSection {
 
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 
 		if(!empty($ids)) {
@@ -348,7 +357,7 @@ class PageSection_ProfilesTask extends Extension_PageSection {
 					if(isset($params[$action])) {
 						switch($params[$action]) {
 							case '2':
-								if($active_worker->hasPriv('core.tasks.actions.delete'))
+								if($active_worker->hasPriv('contexts.cerberusweb.contexts.task.delete'))
 									$do['delete'] = true;
 									break;
 								break;
@@ -447,7 +456,7 @@ class PageSection_ProfilesTask extends Extension_PageSection {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());

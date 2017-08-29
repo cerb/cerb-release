@@ -90,6 +90,12 @@ class ChRest_Contexts extends Extension_RestController {
 				'id' => $context->id,
 				'name' => $context->name,
 				'plugin_id' => $context->plugin_id,
+				'alias' => $context->params['alias'],
+				'params' => [
+					'names' => $context->params['names'][0],
+					'acl' => @$context->params['acl'][0] ? array_keys($context->params['acl'][0]) : [],
+					'options' => @$context->params['options'][0] ? array_keys($context->params['options'][0]) : [],
+				]
 			);
 			
 			// [TODO] Filter custom fieldsets by owner?  (API worker?)
@@ -300,7 +306,7 @@ class ChRest_Contexts extends Extension_RestController {
 		
 		$activities = DevblocksPlatform::getActivityPointRegistry();
 		$translate = DevblocksPlatform::getTranslationService();
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		
 		// Verify the 'on' context and accessibility by active worker
 		if(false == ($result_on = $this->_verifyContextString($on)))

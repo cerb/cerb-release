@@ -16,12 +16,50 @@
  ***********************************************************************/
 
 class DAO_CalendarEvent extends Cerb_ORMHelper {
-	const ID = 'id';
-	const NAME = 'name';
 	const CALENDAR_ID = 'calendar_id';
-	const IS_AVAILABLE = 'is_available';
-	const DATE_START = 'date_start';
 	const DATE_END = 'date_end';
+	const DATE_START = 'date_start';
+	const ID = 'id';
+	const IS_AVAILABLE = 'is_available';
+	const NAME = 'name';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::CALENDAR_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_CALENDAR))
+			;
+		$validation
+			->addField(self::DATE_END)
+			->timestamp()
+			;
+		$validation
+			->addField(self::DATE_START)
+			->timestamp()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::IS_AVAILABLE)
+			->bit()
+			;
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setNotEmpty(true)
+			->setRequired(true)
+			;
+		
+		return $validation->getFields();
+	}
 
 	static function create($fields) {
 		if(
@@ -30,7 +68,7 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 			)
 			return false;
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$sql = "INSERT INTO calendar_event () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -81,7 +119,7 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 			// Send events
 			if($check_deltas) {
 				// Trigger an event about the changes
-				$eventMgr = DevblocksPlatform::getEventService();
+				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
 					new Model_DevblocksEvent(
 						'dao.calendar_event.update',
@@ -109,7 +147,7 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 	 * @return Model_CalendarEvent[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -174,7 +212,7 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 	}
 	
 	static function countByCalendar($calendar_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		return $db->GetOneSlave(sprintf("SELECT count(id) FROM calendar_event ".
 			"WHERE calendar_id = %d",
 			$calendar_id
@@ -183,7 +221,7 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -193,7 +231,7 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 		$db->ExecuteMaster(sprintf("DELETE FROM calendar_event WHERE id IN (%s)", $ids_list));
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -211,7 +249,7 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -276,7 +314,7 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -694,7 +732,7 @@ class View_CalendarEvent extends C4_AbstractView implements IAbstractView_Subtot
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -715,7 +753,7 @@ class View_CalendarEvent extends C4_AbstractView implements IAbstractView_Subtot
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -866,14 +904,14 @@ class Context_CalendarEvent extends Extension_DevblocksContext implements IDevbl
 		if(empty($context_id))
 			return '';
 	
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=calendar_event&id='.$context_id, true);
 		return $url;
 	}
 	
 	function getMeta($context_id) {
 		$calendar_event = DAO_CalendarEvent::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($calendar_event->name);
@@ -1007,11 +1045,22 @@ class Context_CalendarEvent extends Extension_DevblocksContext implements IDevbl
 			);
 			
 			// URL
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=calendar_event&id=%d-%s",$calendar_event->id, DevblocksPlatform::strToPermalink($calendar_event->name)), true);
 		}
 
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'calendar_id' => DAO_CalendarEvent::CALENDAR_ID,
+			'date_end' => DAO_CalendarEvent::DATE_END,
+			'date_start' => DAO_CalendarEvent::DATE_START,
+			'id' => DAO_CalendarEvent::ID,
+			'is_available' => DAO_CalendarEvent::IS_AVAILABLE,
+			'name' => DAO_CalendarEvent::NAME,
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1102,7 +1151,7 @@ class Context_CalendarEvent extends Extension_DevblocksContext implements IDevbl
 	}
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_CALENDAR_EVENT;

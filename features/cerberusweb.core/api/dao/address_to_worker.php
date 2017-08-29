@@ -16,16 +16,48 @@
 ***********************************************************************/
 
 class DAO_AddressToWorker extends Cerb_ORMHelper {
-	const _CACHE_ALL = 'cerb:dao:address_to_worker:all';
-	
 	const ADDRESS_ID = 'address_id';
-	const WORKER_ID = 'worker_id';
-	const IS_CONFIRMED = 'is_confirmed';
 	const CODE = 'code';
 	const CODE_EXPIRE = 'code_expire';
+	const IS_CONFIRMED = 'is_confirmed';
+	const WORKER_ID = 'worker_id';
+	
+	const _CACHE_ALL = 'cerb:dao:address_to_worker:all';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::ADDRESS_ID)
+			->id()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CODE)
+			->string()
+			->setMaxLength(32)
+			;
+		$validation
+			->addField(self::CODE_EXPIRE)
+			->timestamp()
+			;
+		$validation
+			->addField(self::IS_CONFIRMED)
+			->bit()
+			;
+		$validation
+			->addField(self::WORKER_ID)
+			->id()
+			->setRequired(true)
+			;
+		
+		return $validation->getFields();
+	}
 
 	static function assign($address_id, $worker_id, $is_confirmed=false) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($address_id) || empty($worker_id))
 			return false;
@@ -43,7 +75,7 @@ class DAO_AddressToWorker extends Cerb_ORMHelper {
 	}
 
 	static function unassign($address_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($address_id))
 			return false;
@@ -58,7 +90,7 @@ class DAO_AddressToWorker extends Cerb_ORMHelper {
 	}
 	
 	static function unassignAll($worker_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($worker_id))
 			return NULL;
@@ -77,7 +109,7 @@ class DAO_AddressToWorker extends Cerb_ORMHelper {
 		
 		$address_ids = DevblocksPlatform::sanitizeArray($address_ids, 'int');
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$sets = array();
 		
 		if(!is_array($fields) || empty($fields) || empty($address_ids))
@@ -178,7 +210,7 @@ class DAO_AddressToWorker extends Cerb_ORMHelper {
 	}
 	
 	static function getAll($nocache=false, $with_disabled=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		
 		if($nocache || null === ($results = $cache->load(self::_CACHE_ALL))) {
 			$results = self::getWhere(
@@ -209,7 +241,7 @@ class DAO_AddressToWorker extends Cerb_ORMHelper {
 	}
 	
 	static function getWhere($where=null, $sortBy=null, $sortAsc=null, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -258,7 +290,7 @@ class DAO_AddressToWorker extends Cerb_ORMHelper {
 	}
 	
 	public static function clearCache() {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::_CACHE_ALL);
 	}
 };

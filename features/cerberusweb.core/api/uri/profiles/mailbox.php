@@ -17,7 +17,7 @@
 
 class PageSection_ProfilesMailbox extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$visit = CerberusApplication::getVisit();
 		$translate = DevblocksPlatform::getTranslationService();
 		$active_worker = CerberusApplication::getActiveWorker();
@@ -169,6 +169,7 @@ class PageSection_ProfilesMailbox extends Extension_PageSection {
 		$tpl->display('devblocks:cerberusweb.core::profiles/mailbox.tpl');
 	}
 	
+	// [TODO] Cards/ajax
 	function savePeekJsonAction() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -323,7 +324,7 @@ class PageSection_ProfilesMailbox extends Extension_PageSection {
 			
 			// Test the provided POP settings and give form feedback
 			if(!empty($host)) {
-				$mail_service = DevblocksPlatform::getMailService();
+				$mail_service = DevblocksPlatform::services()->mail();
 				
 				if(false == $mail_service->testMailbox($host, $port, $protocol, $user, $pass, $ssl_ignore_validation, $auth_disable_plain, $timeout_secs, $max_msg_size_kb))
 					throw new Exception($translate->_('config.mailboxes.failed'));
@@ -347,7 +348,7 @@ class PageSection_ProfilesMailbox extends Extension_PageSection {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());

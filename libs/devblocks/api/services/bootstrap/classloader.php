@@ -40,7 +40,7 @@ class _DevblocksClassLoadManager {
 	}
 	
 	public function loadClass($className) {
-		if(class_exists($className))
+		if(class_exists($className, false))
 			return;
 		
 		@$file = $this->classMap[$className];
@@ -85,9 +85,6 @@ class _DevblocksClassLoadManager {
 			"TijsVerkoyen\\CssToInlineStyles\\"
 		);
 		
-		$this->registerClasses(DEVBLOCKS_PATH . 'libs/finediff/FineDiff.php', array(
-			'FineDiff'
-		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'libs/parsedown/Parsedown.php', array(
 			'Parsedown'
 		));
@@ -129,6 +126,9 @@ class _DevblocksClassLoadManager {
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/event/event_helper.php', array(
 			'DevblocksEventHelper',
+		));
+		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/gpg.php', array(
+			'_DevblocksGPGService',
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/nlp.php', array(
 			'_DevblocksNaturalLanguageManager',
@@ -183,6 +183,10 @@ class _DevblocksClassLoadManager {
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/url.php', array(
 			'_DevblocksUrlManager',
+		));
+		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/validation.php', array(
+			'Exception_DevblocksValidationError',
+			'_DevblocksValidationService',
 		));
 		
 		return true;

@@ -1,16 +1,60 @@
 <?php
 class DAO_WebApiCredentials extends Cerb_ORMHelper {
-	const _CACHE_ALL = 'dao_webapi_credentials_all';
-	
+	const ACCESS_KEY = 'access_key';
 	const ID = 'id';
 	const LABEL = 'label';
-	const WORKER_ID = 'worker_id';
-	const ACCESS_KEY = 'access_key';
-	const SECRET_KEY = 'secret_key';
 	const PARAMS_JSON = 'params_json';
+	const SECRET_KEY = 'secret_key';
+	const WORKER_ID = 'worker_id';
+	
+	const _CACHE_ALL = 'dao_webapi_credentials_all';
+	
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// varchar(255)
+		$validation
+			->addField(self::ACCESS_KEY)
+			->string()
+			->setMaxLength(255)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::LABEL)
+			->string()
+			->setMaxLength(255)
+			;
+		// text
+		$validation
+			->addField(self::PARAMS_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::SECRET_KEY) // [TODO] Encrypt
+			->string()
+			->setMaxLength(255)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::WORKER_ID)
+			->id()
+			;
+
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO webapi_credentials () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -35,7 +79,7 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 	 * @return Model_WebApiCredentials[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -77,7 +121,7 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 	 * @return <Model_WebApiCredentials[], NULL, array>
 	 */
 	static function getAll($nocache=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 
 		if($nocache || null === ($credentials = $cache->load(self::_CACHE_ALL))) {
 			$credentials = self::getWhere(
@@ -139,7 +183,7 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -198,7 +242,7 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -252,7 +296,7 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 	}
 	
 	static function clearCache() {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::_CACHE_ALL);
 	}
 };
@@ -460,7 +504,7 @@ class View_WebApiCredentials extends C4_AbstractView implements IAbstractView_Qu
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -470,7 +514,7 @@ class View_WebApiCredentials extends C4_AbstractView implements IAbstractView_Qu
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {

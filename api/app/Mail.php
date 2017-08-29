@@ -120,10 +120,10 @@ class CerberusMail {
 	
 	static function quickSend($to, $subject, $body, $from_addy=null, $from_personal=null, $custom_headers=array(), $format=null, $html_template_id=null, $file_ids=array(), $cc=null, $bcc=null) {
 		try {
-			$mail_service = DevblocksPlatform::getMailService();
+			$mail_service = DevblocksPlatform::services()->mail();
 			$mail = $mail_service->createMessage();
 			
-			$settings = DevblocksPlatform::getPluginSettingsService();
+			$settings = DevblocksPlatform::services()->pluginSettings();
 			
 			if(empty($from_addy) || empty($from_personal)) {
 				if(null == ($replyto_default = DAO_AddressOutgoing::getDefault()))
@@ -249,6 +249,7 @@ class CerberusMail {
 		 'ticket_reopen'
 		 'dont_send'
 		 'draft_id'
+		 'gpg_encrypt'
 		 */
 		
 		@$group_id = $properties['group_id'];
@@ -319,7 +320,7 @@ class CerberusMail {
 		
 		
 		try {
-			$mail_service = DevblocksPlatform::getMailService();
+			$mail_service = DevblocksPlatform::services()->mail();
 			$email = $mail_service->createMessage();
 
 			// To
@@ -422,6 +423,12 @@ class CerberusMail {
 			$outgoing_mail_headers = $email->getHeaders()->toString();
 			$outgoing_message_id = $email->getHeaders()->get('message-id')->getFieldBody();
 			
+			// Encryption
+			if(isset($properties['gpg_encrypt']) && $properties['gpg_encrypt']) {
+				$signer = new Cerb_SwiftPlugin_GPGSigner();
+				$email->attachSigner($signer);
+			}
+			
 			if(!empty($toList) && (!isset($properties['dont_send']) || empty($properties['dont_send']))) {
 				if(!$mail_service->send($email)) {
 					throw new Exception('Mail failed to send: unknown reason');
@@ -513,6 +520,7 @@ class CerberusMail {
 			DAO_Message::IS_BROADCAST => $is_broadcast ? 1 : 0,
 			DAO_Message::IS_NOT_SENT => @$properties['dont_send'] ? 1 : 0,
 			DAO_Message::HASH_HEADER_MESSAGE_ID => sha1($outgoing_message_id),
+			DAO_Message::WAS_ENCRYPTED => !empty(@$properties['gpg_encrypt']) ? 1 : 0,
 		);
 		$message_id = DAO_Message::create($fields);
 		
@@ -621,7 +629,7 @@ class CerberusMail {
 	}
 	
 	static function sendTicketMessage($properties=array()) {
-		$settings = DevblocksPlatform::getPluginSettingsService();
+		$settings = DevblocksPlatform::services()->pluginSettings();
 		
 		/*
 		'draft_id'
@@ -647,13 +655,14 @@ class CerberusMail {
 		'worker_id'
 		'is_autoreply'
 		'custom_fields'
+		'gpg_encrypt'
 		'dont_send'
 		'dont_keep_copy'
 		*/
 
 		try {
 			// objects
-			$mail_service = DevblocksPlatform::getMailService();
+			$mail_service = DevblocksPlatform::services()->mail();
 			$mail = $mail_service->createMessage();
 			
 			@$reply_message_id = $properties['message_id'];
@@ -916,6 +925,12 @@ class CerberusMail {
 					}
 				}
 			}
+			
+			// Encryption
+			if(isset($properties['gpg_encrypt']) && $properties['gpg_encrypt']) {
+				$signer = new Cerb_SwiftPlugin_GPGSigner();
+				$mail->attachSigner($signer);
+			}
 
 			// Send
 			$recipients = $mail->getTo();
@@ -1030,6 +1045,7 @@ class CerberusMail {
 				DAO_Message::IS_BROADCAST => $is_broadcast ? 1 : 0,
 				DAO_Message::IS_NOT_SENT => @$properties['dont_send'] ? 1 : 0,
 				DAO_Message::HASH_HEADER_MESSAGE_ID => sha1($outgoing_message_id),
+				DAO_Message::WAS_ENCRYPTED => !empty(@$properties['gpg_encrypt']) ? 1 : 0,
 			);
 			$message_id = DAO_Message::create($fields);
 			
@@ -1222,8 +1238,8 @@ class CerberusMail {
 	}
 	
 	static function relay($message_id, $emails, $include_attachments = false, $content = null, $actor_context = null, $actor_context_id = null) {
-		$mail_service = DevblocksPlatform::getMailService();
-		$settings = DevblocksPlatform::getPluginSettingsService();
+		$mail_service = DevblocksPlatform::services()->mail();
+		$settings = DevblocksPlatform::services()->pluginSettings();
 
 		$workers = DAO_Worker::getAll();
 		$relay_spoof_from = $settings->get('cerberusweb.core', CerberusSettings::RELAY_SPOOF_FROM, CerberusSettingsDefaults::RELAY_SPOOF_FROM);
@@ -1242,7 +1258,7 @@ class CerberusMail {
 
 		$sender_name = $sender->getName();
 		
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$ticket_url = $url_writer->write(sprintf('c=profiles&w=ticket&mask=%s', $ticket->mask), true);
 
 		if($relay_spoof_from) {
@@ -1372,7 +1388,7 @@ class CerberusMail {
 		try {
 			$message = $model->getMessage(); /* @var $message CerberusParserMessage */
 			
-			$mail_service = DevblocksPlatform::getMailService();
+			$mail_service = DevblocksPlatform::services()->mail();
 			$mail = $mail_service->createMessage();
 	
 			$mail->setTo(array($to));
@@ -1432,7 +1448,7 @@ class CerberusMail {
 		$embedded_files = array();
 		$exclude_files = array();
 		
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$base_url = $url_writer->write('c=files', true) . '/';
 		
 		// Generate an HTML part using Parsedown
@@ -1446,7 +1462,7 @@ class CerberusMail {
 			
 			// Use an HTML template wrapper if we have one
 			if($html_template instanceof Model_MailHtmlTemplate) {
-				$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 				
 				$html_body = $tpl_builder->build(
 					$html_template->content,

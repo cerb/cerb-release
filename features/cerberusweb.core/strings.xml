@@ -617,6 +617,11 @@
 				<seg>copy</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.create">
+			<tuv xml:lang="en_US">
+				<seg>create</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.created">
 			<tuv xml:lang="en_US">
 				<seg>created</seg>
@@ -747,6 +752,16 @@
 				<seg>Enabled</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.encrypted">
+			<tuv xml:lang="en_US">
+				<seg>encrypted</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.encryption">
+			<tuv xml:lang="en_US">
+				<seg>encryption</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.entity">
 			<tuv xml:lang="en_US">
 				<seg>entity</seg>
@@ -810,6 +825,11 @@
 		<tu tuid="common.expire">
 			<tuv xml:lang="en_US">
 				<seg>expire</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.expired">
+			<tuv xml:lang="en_US">
+				<seg>expired</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.expires">
@@ -895,6 +915,11 @@
 		<tu tuid="common.gender.male">
 			<tuv xml:lang="en_US">
 				<seg>male</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.global">
+			<tuv xml:lang="en_US">
+				<seg>global</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.group">
@@ -1017,6 +1042,26 @@
 				<seg>key</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.key.private">
+			<tuv xml:lang="en_US">
+				<seg>private key</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.key.public">
+			<tuv xml:lang="en_US">
+				<seg>public key</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.keys.private">
+			<tuv xml:lang="en_US">
+				<seg>private keys</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.keys.public">
+			<tuv xml:lang="en_US">
+				<seg>public keys</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.keyboard">
 			<tuv xml:lang="en_US">
 				<seg>Keyboard</seg>
@@ -1075,6 +1120,11 @@
 		<tu tuid="common.members">
 			<tuv xml:lang="en_US">
 				<seg>Members</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.merge">
+			<tuv xml:lang="en_US">
+				<seg>merge</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.message">
@@ -1542,6 +1592,11 @@
 				<seg>Reopen At</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.replace">
+			<tuv xml:lang="en_US">
+				<seg>replace</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.reply">
 			<tuv xml:lang="en_US">
 				<seg>Reply</seg>
@@ -1711,6 +1766,11 @@
 		<tu tuid="common.signature">
 			<tuv xml:lang="en_US">
 				<seg>signature</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.signed">
+			<tuv xml:lang="en_US">
+				<seg>signed</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.simulator">
@@ -1891,6 +1951,11 @@
 		<tu tuid="common.update">
 			<tuv xml:lang="en_US">
 				<seg>update</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.update.bulk">
+			<tuv xml:lang="en_US">
+				<seg>Update (Bulk)</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.updated">
@@ -2173,6 +2238,13 @@
 				<seg>User Agent</seg>
 			</tuv>
 		</tu>
+		
+		<!-- GpgPublicKey -->
+		
+		<tu tuid='dao.gpg_public_key.fingerprint'>
+			<tuv xml:lang="en_US">
+			<seg>Fingerprint</seg></tuv>
+		</tu>
 
 		<!-- Plugin Library -->
 		
@@ -2245,88 +2317,29 @@
 
 		<!-- Errors -->
 		
+		<tu tuid="error.core.no_acl.create">
+			<tuv xml:lang="en_US">
+				<seg>You do not have permission to create this record.</seg>
+			</tuv>
+		</tu>
+		<tu tuid="error.core.no_acl.delete">
+			<tuv xml:lang="en_US">
+				<seg>You do not have permission to delete this record.</seg>
+			</tuv>
+		</tu>
 		<tu tuid="error.core.no_acl.edit">
 			<tuv xml:lang="en_US">
 				<seg>You do not have permission to modify this record.</seg>
 			</tuv>
 		</tu>
+		<tu tuid="error.core.no_acl.view">
+			<tuv xml:lang="en_US">
+				<seg>You do not have permission to view this record.</seg>
+			</tuv>
+		</tu>
 
 		<!-- ACL -->
 		
-		<!-- Contexts -->
-		
-		<tu tuid="acl.context.contact.worklist.broadcast">
-			<tuv xml:lang="en_US">
-				<seg>[Contacts] Can send broadcasts to contact worklists</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.context.org.worklist.broadcast">
-			<tuv xml:lang="en_US">
-				<seg>[Orgs] Can send broadcasts to organization worklists</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.context.worker.worklist.broadcast">
-			<tuv xml:lang="en_US">
-				<seg>[Workers] Can send broadcasts to worker worklists</seg>
-			</tuv>
-		</tu>
-		
-		<!-- Address Book -->
-		
-		<tu tuid="acl.core.addybook.addy.actions.update">
-			<tuv xml:lang="en_US">
-				<seg>[Addresses] Can modify email address contacts</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.addybook.addy.view.actions.broadcast">
-			<tuv xml:lang="en_US">
-				<seg>[Addresses] Can broadcast compose email to address lists</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.addybook.addy.view.actions.export">
-			<tuv xml:lang="en_US">
-				<seg>[Addresses] Can export email address lists to CSV/XML</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.addybook.org.actions.merge">
-			<tuv xml:lang="en_US">
-				<seg>[Orgs] Can merge organizations</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.addybook.org.actions.update">
-			<tuv xml:lang="en_US">
-				<seg>[Orgs] Can modify organizations</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.addybook.org.actions.delete">
-			<tuv xml:lang="en_US">
-				<seg>[Orgs] Can delete organizations</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.addybook.org.view.actions.export">
-			<tuv xml:lang="en_US">
-				<seg>[Orgs] Can export organization lists to CSV/XML</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.addybook.person.actions.delete">
-			<tuv xml:lang="en_US">
-				<seg>[Contacts] Can delete registered contacts</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.addybook.person.actions.update">
-			<tuv xml:lang="en_US">
-				<seg>[Contacts] Can modify registered contacts</seg>
-			</tuv>
-		</tu>
-		
-		<!-- Comments -->
-		
-		<tu tuid="acl.core.comment.actions.update.own">
-			<tuv xml:lang="en_US">
-				<seg>[Comments] Can edit own comments</seg>
-			</tuv>
-		</tu>
-
 		<!-- Display Ticket -->
 		
 		<tu tuid="acl.core.display.actions.attachments.download">
@@ -2339,11 +2352,6 @@
 				<seg>[Tickets] Can forward tickets to third-party email addresses</seg>
 			</tuv>
 		</tu>
-		<tu tuid="acl.core.display.actions.note">
-			<tuv xml:lang="en_US">
-				<seg>[Tickets] Can add sticky notes to tickets</seg>
-			</tuv>
-		</tu>
 		<tu tuid="acl.core.display.actions.reply">
 			<tuv xml:lang="en_US">
 				<seg>[Tickets] Can reply to tickets</seg>
@@ -2354,116 +2362,25 @@
 				<seg>[Tickets] Can split tickets</seg>
 			</tuv>
 		</tu>
-		<tu tuid="acl.core.display.message.actions.delete">
-			<tuv xml:lang="en_US">
-				<seg>[Tickets] Can permanently delete messages on tickets</seg>
-			</tuv>
-		</tu>
 
 		<!-- Mail page -->
 		
 		<tu tuid="acl.core.mail.save_without_sending">
 			<tuv xml:lang="en_US">
-				<seg>[Mail] Can save replies to the ticket history without sending mail</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.mail.send">
-			<tuv xml:lang="en_US">
-				<seg>[Mail] Can compose new messages</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.mail.draft.delete_all">
-			<tuv xml:lang="en_US">
-				<seg>[Mail] Can delete drafts owned by other workers</seg>
-			</tuv>
-		</tu>
-
-		<!-- Snippets -->
-		
-		<tu tuid="acl.core.snippets.actions.create">
-			<tuv xml:lang="en_US">
-				<seg>[Snippets] Can create snippets</seg>
-			</tuv>
-		</tu>
-
-		<!-- Tasks -->
-		
-		<tu tuid="acl.core.tasks.actions.create">
-			<tuv xml:lang="en_US">
-				<seg>[Tasks] Can create tasks</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.tasks.actions.update_all">
-			<tuv xml:lang="en_US">
-				<seg>[Tasks] Can edit tasks</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.tasks.actions.delete">
-			<tuv xml:lang="en_US">
-				<seg>[Tasks] Can delete tasks</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.tasks.view.actions.export">
-			<tuv xml:lang="en_US">
-				<seg>[Tasks] Can export task lists to CSV/XML</seg>
+				<seg>[Tickets] Can save replies to the ticket history without sending mail</seg>
 			</tuv>
 		</tu>
 
 		<!-- Tickets -->
 		
-		<tu tuid="acl.core.ticket.actions.assign">
-			<tuv xml:lang="en_US">
-				<seg>[Tickets] Can assign tickets to other workers</seg>
-			</tuv>
-		</tu>
 		<tu tuid="acl.core.ticket.actions.close">
 			<tuv xml:lang="en_US">
 				<seg>[Tickets] Can close tickets</seg>
 			</tuv>
 		</tu>
-		<tu tuid="acl.core.ticket.actions.delete">
-			<tuv xml:lang="en_US">
-				<seg>[Tickets] Can delete tickets</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.ticket.actions.move">
-			<tuv xml:lang="en_US">
-				<seg>[Tickets] Can move tickets</seg>
-			</tuv>
-		</tu>
 		<tu tuid="acl.core.ticket.actions.spam">
 			<tuv xml:lang="en_US">
 				<seg>[Tickets] Can report tickets as spam</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.ticket.view.actions.broadcast_reply">
-			<tuv xml:lang="en_US">
-				<seg>[Tickets] Can broadcast reply to ticket lists</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.ticket.view.actions.bulk_update">
-			<tuv xml:lang="en_US">
-				<seg>[Tickets] Can bulk update tickets in lists</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.ticket.view.actions.export">
-			<tuv xml:lang="en_US">
-				<seg>[Tickets] Can export ticket lists to CSV/XML</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.ticket.view.actions.merge">
-			<tuv xml:lang="en_US">
-				<seg>[Tickets] Can merge tickets from lists</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.watchers.assign">
-			<tuv xml:lang="en_US">
-				<seg>[Watchers] Can add other workers as watchers</seg>
-			</tuv>
-		</tu>
-		<tu tuid="acl.core.watchers.unassign">
-			<tuv xml:lang="en_US">
-				<seg>[Watchers] Can remove other workers as watchers</seg>
 			</tuv>
 		</tu>
 
@@ -3481,9 +3398,19 @@ For example: http://www.cerbweb.com/support/</seg>
 				<seg>Is Not Sent</seg>
 			</tuv>
 		</tu>
+		<tu tuid="message.is_encrypted">
+			<tuv xml:lang="en_US">
+				<seg>Is Encrypted</seg>
+			</tuv>
+		</tu>
 		<tu tuid="message.is_outgoing">
 			<tuv xml:lang="en_US">
 				<seg>Is Outgoing</seg>
+			</tuv>
+		</tu>
+		<tu tuid="message.is_signed">
+			<tuv xml:lang="en_US">
+				<seg>Is Signed</seg>
 			</tuv>
 		</tu>
 		<tu tuid="message.storage_size">

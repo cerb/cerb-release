@@ -1,7 +1,5 @@
 <?php
 class DAO_Calendar extends Cerb_ORMHelper {
-	const CACHE_ALL = 'cerb_calendars_all';
-	
 	const ID = 'id';
 	const NAME = 'name';
 	const OWNER_CONTEXT = 'owner_context';
@@ -9,8 +7,50 @@ class DAO_Calendar extends Cerb_ORMHelper {
 	const PARAMS_JSON = 'params_json';
 	const UPDATED_AT = 'updated_at';
 	
+	const CACHE_ALL = 'cerb_calendars_all';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setNotEmpty(true)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::OWNER_CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::OWNER_CONTEXT_ID)
+			->id()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::PARAMS_JSON)
+			->string()
+			->setMaxLength(16777215)
+			;
+		$validation
+			->addField(self::UPDATED_AT)
+			->timestamp()
+			;
+		
+		return $validation->getFields();
+	}
+	
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO calendar () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -43,7 +83,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 			// Send events
 			if($check_deltas) {
 				// Trigger an event about the changes
-				$eventMgr = DevblocksPlatform::getEventService();
+				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
 					new Model_DevblocksEvent(
 						'dao.calendar.update',
@@ -88,7 +128,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 	 * @return Model_Calendar[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -115,7 +155,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 	 * @return Model_Calendar[]
 	 */
 	static function getAll($nocache=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		if($nocache || null === ($calendars = $cache->load(self::CACHE_ALL))) {
 			$calendars = DAO_Calendar::getWhere(
 				array(),
@@ -218,7 +258,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 	}
 	
 	static public function count($owner_context, $owner_context_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		return $db->GetOneSlave(sprintf("SELECT count(*) FROM calendar ".
 			"WHERE owner_context = %s AND owner_context_id = %d",
 			$db->qstr($owner_context),
@@ -239,7 +279,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Sanitize
 		$ids = DevblocksPlatform::sanitizeArray($ids, 'int', array('unique','nonzero'));
@@ -259,7 +299,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 		DAO_Worker::updateWhere(array(DAO_Worker::CALENDAR_ID => 0), sprintf("%s IN (%s)", DAO_Worker::CALENDAR_ID, $ids_list));
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -355,7 +395,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -411,7 +451,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 	}
 
 	static public function clearCache() {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::CACHE_ALL);
 	}
 };
@@ -606,7 +646,7 @@ class Model_Calendar {
 		}
 		
 		// Get manual events from the database
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$sql = sprintf(
 			"SELECT id, name, is_available, date_start, date_end ".
 			"FROM calendar_event ".
@@ -619,7 +659,7 @@ class Model_Calendar {
 		);
 		
 		$results = $db->GetArraySlave($sql);
-
+		
 		foreach($results as $row) {
 			// If the event spans multiple days, split them up into distinct events
 			$ts_pointer = strtotime('midnight', $row['date_start']);
@@ -631,10 +671,6 @@ class Model_Calendar {
 			}
 			
 			foreach($day_range as $epoch) {
-				// If the day segment is outside of our desired range, skip
-				if($epoch < $date_from || $epoch > $date_to)
-					continue;
-
 				$day_start = strtotime('midnight', $epoch);
 				$day_end = strtotime('23:59:59', $epoch);
 				
@@ -643,7 +679,11 @@ class Model_Calendar {
 				
 				$event_start = $row['date_start'];
 				$event_end = $row['date_end'];
-
+				
+				// If the day segment is outside of our desired range, skip
+				//if($epoch < $date_from || $epoch > $date_to)
+				//	continue;
+				
 				// Segment multi-day events with day-based start/end times
 				
 				if($event_start < $day_start)
@@ -1071,7 +1111,7 @@ class View_Calendar extends C4_AbstractView implements IAbstractView_Subtotals, 
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -1084,7 +1124,7 @@ class View_Calendar extends C4_AbstractView implements IAbstractView_Subtotals, 
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -1254,14 +1294,14 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 		if(empty($context_id))
 			return '';
 	
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=calendar&id='.$context_id, true);
 		return $url;
 	}
 	
 	function getMeta($context_id) {
 		$calendar = DAO_Calendar::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($calendar->name);
@@ -1368,7 +1408,7 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 			$token_values = $this->_importModelCustomFieldsAsValues($calendar, $token_values);
 			
 			// URL
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=calendar&id=%d-%s",$calendar->id, DevblocksPlatform::strToPermalink($calendar->name)), true);
 			
 			// Owner
@@ -1379,6 +1419,16 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 		return true;
 	}
 
+	function getKeyToDaoFieldMap() {
+		return [
+			'id' => DAO_Calendar::ID,
+			'name' => DAO_Calendar::NAME,
+			'owner__context' => DAO_Calendar::OWNER_CONTEXT,
+			'owner_id' => DAO_Calendar::OWNER_CONTEXT_ID,
+			'updated_at' => DAO_Calendar::UPDATED_AT,
+		];
+	}
+	
 	function lazyLoadContextValues($token, $dictionary) {
 		if(!isset($dictionary['id']))
 			return;
@@ -1587,7 +1637,7 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 	}
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_CALENDAR;

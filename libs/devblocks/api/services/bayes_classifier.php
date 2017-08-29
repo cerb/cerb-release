@@ -77,6 +77,10 @@ class _DevblocksBayesClassifierService {
 		'the',
 	];
 	
+	/**
+	 * 
+	 * @return _DevblocksBayesClassifierService
+	 */
 	static function getInstance() {
 		return self::class;
 	}
@@ -299,7 +303,7 @@ class _DevblocksBayesClassifierService {
 	}
 	
 	static function getNGramsForClass($class_id, $n=0, $oper='>') {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Validate
 		switch($oper) {
@@ -328,7 +332,7 @@ class _DevblocksBayesClassifierService {
 	}
 	
 	static function clearModel($classifier_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		DAO_Classifier::update($classifier_id, array(
 			DAO_Classifier::DICTIONARY_SIZE => 0,
@@ -356,7 +360,7 @@ class _DevblocksBayesClassifierService {
 	}
 	
 	static function train($text, $classifier_id, $class_id, $delta=false) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Convert tags to tokens
 		
@@ -441,7 +445,7 @@ class _DevblocksBayesClassifierService {
 	}
 	
 	private static function _updateCounts($classifier_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$sql = sprintf("SET @class_ids := (SELECT GROUP_CONCAT(id) FROM classifier_class WHERE classifier_id = %d)",
 			$classifier_id
@@ -487,7 +491,7 @@ class _DevblocksBayesClassifierService {
 			return [];
 		
 		$tags = array_fill_keys(array_keys($words), []);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		/**
 		 * Punctuation
@@ -979,7 +983,7 @@ class _DevblocksBayesClassifierService {
 	
 	// [TODO] This can determine how many entities we expect too
 	public static function extractNamedEntities(array $words, array $tags, array $types=[]) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$entities = [];
 		
@@ -1282,7 +1286,7 @@ class _DevblocksBayesClassifierService {
 	// [TODO] remind me about lunch at Twenty Nine Palms Resort on the fifth at five thirty pm for sixty mins
 	// [TODO] $environment has locale, lang, me
 	static function predict($text, $classifier_id, $environment=array()) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Load all classes
 		// [TODO] This would be cached between training
@@ -1497,6 +1501,7 @@ class _DevblocksBayesClassifierService {
 		
 		$params = [];
 		
+		if(@isset($class_data[$predicted_class_id]['entities']) && is_array($class_data[$predicted_class_id]['entities']))
 		foreach($class_data[$predicted_class_id]['entities'] as $entity_type => $results) {
 			if(!isset($params[$entity_type]))
 				$params[$entity_type] = [];
@@ -1925,8 +1930,8 @@ class _DevblocksBayesClassifierService {
 				'text' => $text,
 				//'words' => $words,
 				//'tags' => $tags,
-				'classifier' => array_intersect_key($classifiers[$classifier_id],['id'=>true,'name'=>true]),
-				'classification' => array_intersect_key($classes[$predicted_class_id],['id'=>true,'name'=>true,'attribs'=>true]),
+				'classifier' => @array_intersect_key($classifiers[$classifier_id],['id'=>true,'name'=>true]) ?: [],
+				'classification' => @array_intersect_key($classes[$predicted_class_id],['id'=>true,'name'=>true,'attribs'=>true]) ?: [],
 				'confidence' => $predicted_class_confidence,
 				'params' => $params
 			]

@@ -41,15 +41,59 @@
  */
 
 class DAO_DevblocksTemplate extends DevblocksORMHelper {
-	const ID = 'id';
-	const PLUGIN_ID = 'plugin_id';
-	const PATH = 'path';
-	const TAG = 'tag';
-	const LAST_UPDATED = 'last_updated';
 	const CONTENT = 'content';
+	const ID = 'id';
+	const LAST_UPDATED = 'last_updated';
+	const PATH = 'path';
+	const PLUGIN_ID = 'plugin_id';
+	const TAG = 'tag';
+	
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// mediumtext
+		$validation
+			->addField(self::CONTENT)
+			->string()
+			->setMaxLength(16777215)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::LAST_UPDATED)
+			->timestamp()
+			;
+		// varchar(255)
+		$validation
+			->addField(self::PATH)
+			->string()
+			->setMaxLength(255)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::PLUGIN_ID)
+			->string()
+			->setMaxLength(255)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::TAG)
+			->string()
+			->setMaxLength(255)
+			;
+
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO devblocks_template () ".
 			"VALUES ()"
@@ -118,7 +162,7 @@ class DAO_DevblocksTemplate extends DevblocksORMHelper {
 	 * @return Model_DevblocksTemplate[]
 	 */
 	static function getWhere($where=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "SELECT id, plugin_id, path, tag, last_updated, content ".
 			"FROM devblocks_template ".
@@ -131,7 +175,8 @@ class DAO_DevblocksTemplate extends DevblocksORMHelper {
 
 	/**
 	 * @param integer $id
-	 * @return Model_DevblocksTemplate	 */
+	 * @return Model_DevblocksTemplate
+	 */
 	static function get($id) {
 		if(empty($id))
 			return null;
@@ -196,8 +241,8 @@ class DAO_DevblocksTemplate extends DevblocksORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
-		$db = DevblocksPlatform::getDatabaseService();
-		$tpl = DevblocksPlatform::getTemplateService();
+		$db = DevblocksPlatform::services()->database();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl_sandbox = DevblocksPlatform::getTemplateSandboxService();
 		
 		if(empty($ids))
@@ -271,7 +316,7 @@ class DAO_DevblocksTemplate extends DevblocksORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -323,8 +368,8 @@ class DAO_DevblocksTemplate extends DevblocksORMHelper {
 	}
 	
 	static function importXmlFile($filename, $tag) {
-		$db = DevblocksPlatform::getDatabaseService();
-		$tpl = DevblocksPlatform::getTemplateService();
+		$db = DevblocksPlatform::services()->database();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl_sandbox = DevblocksPlatform::getTemplateSandboxService();
 
 		if(!file_exists($filename) && empty($tag))
@@ -383,6 +428,18 @@ class Model_DevblocksTemplate {
 	public $tag;
 	public $last_updated;
 	public $content;
+	
+	function getDefaultContent() {
+		// Pull from filesystem for editing
+		$content = '';
+		if(null != ($plugin = DevblocksPlatform::getPlugin($this->plugin_id))) {
+			$path = $plugin->getStoragePath() . '/templates/' . $this->path;
+			if(file_exists($path)) {
+				$content = file_get_contents($path);
+			}
+		}
+		return $content;
+	}
 };
 
 class SearchFields_DevblocksTemplate extends DevblocksSearchFields {
@@ -530,7 +587,7 @@ class View_DevblocksTemplate extends C4_AbstractView implements IAbstractView_Qu
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -541,7 +598,7 @@ class View_DevblocksTemplate extends C4_AbstractView implements IAbstractView_Qu
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {

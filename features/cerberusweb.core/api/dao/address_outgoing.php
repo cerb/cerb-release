@@ -18,15 +18,51 @@
 class DAO_AddressOutgoing extends Cerb_ORMHelper {
 	const ADDRESS_ID = 'address_id';
 	const IS_DEFAULT = 'is_default';
-	const REPLY_PERSONAL = 'reply_personal';
-	const REPLY_SIGNATURE = 'reply_signature';
 	const REPLY_HTML_TEMPLATE_ID = 'reply_html_template_id';
 	const REPLY_MAIL_TRANSPORT_ID = 'reply_mail_transport_id';
+	const REPLY_PERSONAL = 'reply_personal';
+	const REPLY_SIGNATURE = 'reply_signature';
 	
 	const _CACHE_ALL = 'dao_address_outgoing_all';
 	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			// [TODO] Must be unique
+			->addField(self::ADDRESS_ID) 
+			->id()
+			->setRequired($bool)
+			;
+		$validation
+			->addField(self::IS_DEFAULT)
+			->bit()
+			;
+		$validation
+			->addField(self::REPLY_HTML_TEMPLATE_ID)
+			->id()
+			;
+		$validation
+			->addField(self::REPLY_MAIL_TRANSPORT_ID)
+			->id()
+			;
+		$validation
+			->addField(self::REPLY_PERSONAL)
+			->string()
+			->setMaxLength(128)
+			;
+		$validation
+			->addField(self::REPLY_SIGNATURE)
+			->string(pow(2,24)-1)
+			;
+		
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		@$id = $fields[self::ADDRESS_ID];
 		
@@ -58,10 +94,10 @@ class DAO_AddressOutgoing extends Cerb_ORMHelper {
 	 * @return Model_AddressOutgoing[]
 	 */
 	static function getAll($nocache=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 
 		if($nocache || null === ($froms = $cache->load(self::_CACHE_ALL))) {
-			$db = DevblocksPlatform::getDatabaseService();
+			$db = DevblocksPlatform::services()->database();
 			$froms = array();
 			
 			$sql = "SELECT ao.address_id, a.email, ao.is_default, ao.reply_personal, ao.reply_signature, ao.reply_html_template_id, ao.reply_mail_transport_id ".
@@ -113,7 +149,7 @@ class DAO_AddressOutgoing extends Cerb_ORMHelper {
 	}
 	
 	static public function setDefault($address_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$db->ExecuteMaster("UPDATE address_outgoing SET is_default = 0");
 		$db->ExecuteMaster(sprintf("UPDATE address_outgoing SET is_default = 1 WHERE address_id = %d", $address_id));
 		
@@ -206,7 +242,7 @@ class DAO_AddressOutgoing extends Cerb_ORMHelper {
 		
 		$ids_list = implode(',', $ids);
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Delete this address_outgoing row
 		$db->ExecuteMaster(sprintf("DELETE FROM address_outgoing WHERE address_id IN (%s)", $ids_list));
@@ -220,7 +256,7 @@ class DAO_AddressOutgoing extends Cerb_ORMHelper {
 	}
 	
 	static function clearCache() {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::_CACHE_ALL);
 		
 		DAO_Group::clearCache();
@@ -243,7 +279,7 @@ class Model_AddressOutgoing {
 	 * @return string
 	 */
 	function getReplyPersonal($worker_model=null) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		$token_labels = array();
 		$token_values = array();
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $worker_model, $token_labels, $token_values);
@@ -289,7 +325,7 @@ class Model_AddressOutgoing {
 			
 		} else {
 			// Parse template
-			$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			$token_labels = array();
 			$token_values = array();
 			CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $worker_model, $token_labels, $token_values);

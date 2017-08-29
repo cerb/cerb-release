@@ -48,7 +48,7 @@
 					<select name="params[status]">
 						<option value="0">{'status.open'|devblocks_translate}</option>
 						<option value="1">{'status.completed'|devblocks_translate}</option>
-						{if $active_worker->hasPriv('core.tasks.actions.delete')}
+						{if $active_worker->hasPriv('contexts.cerberusweb.contexts.task.delete')}
 						<option value="2">{'status.deleted'|devblocks_translate}</option>
 						{/if}
 					</select>
@@ -92,7 +92,6 @@
 		</tr>
 		{/if}
 
-		{if $active_worker->hasPriv('core.watchers.assign')}
 		<tr>
 			<td width="0%" nowrap="nowrap" align="left" valign="top">
 				<label>
@@ -107,9 +106,7 @@
 				</div>
 			</td>
 		</tr>
-		{/if}
 		
-		{if $active_worker->hasPriv('core.watchers.unassign')}
 		<tr>
 			<td width="0%" nowrap="nowrap" align="left" valign="top">
 				<label>
@@ -124,7 +121,6 @@
 				</div>
 			</td>
 		</tr>
-		{/if}
 		
 	</table>
 </fieldset>

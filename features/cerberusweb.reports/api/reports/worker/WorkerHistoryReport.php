@@ -17,9 +17,9 @@
 
 class ChReportWorkerHistory extends Extension_Report {
 	function render() {
-		$db = DevblocksPlatform::getDatabaseService();
-		$tpl = DevblocksPlatform::getTemplateService();
-		$date = DevblocksPlatform::getDateService();
+		$db = DevblocksPlatform::services()->database();
+		$tpl = DevblocksPlatform::services()->template();
+		$date = DevblocksPlatform::services()->date();
 		
 		// Use the worker's timezone for MySQL date functions
 		$db->ExecuteSlave(sprintf("SET time_zone = %s", $db->qstr($date->formatTime('P', time()))));
@@ -166,11 +166,34 @@ class ChReportWorkerHistory extends Extension_Report {
 			}
 			
 			if(!empty($filter_group_ids)) {
-				$params[] = new DevblocksSearchCriteria(SearchFields_Message::TICKET_GROUP_ID,DevblocksSearchCriteria::OPER_IN, $filter_group_ids);
+				$params[] = new DevblocksSearchCriteria(
+					SearchFields_Message::VIRTUAL_TICKET_SEARCH,
+					DevblocksSearchCriteria::OPER_CUSTOM,
+					sprintf('group:(id:[%s])',
+						implode(',', DevblocksPlatform::sanitizeArray($filter_group_ids, 'int'))
+					)
+				);
 			}
 			
 			if(!empty($filter_status)) {
-				$params[] = new DevblocksSearchCriteria(SearchFields_Message::TICKET_STATUS_ID,DevblocksSearchCriteria::OPER_IN, $filter_status);
+				$statuses = [
+					0 => 'o', 
+					1 => 'w', 
+					2 => 'c', 
+					3 => 'd', 
+				];
+				
+				$filter_status = array_intersect_key($statuses, array_flip($filter_status));
+				
+				if($filter_status) {
+					$params[] = new DevblocksSearchCriteria(
+						SearchFields_Message::VIRTUAL_TICKET_SEARCH,
+						DevblocksSearchCriteria::OPER_CUSTOM,
+						sprintf('status:[%s]',
+							implode(',', $filter_status)
+						)
+					);
+				}
 			}
 			
 			$view->addParamsRequired($params, true);

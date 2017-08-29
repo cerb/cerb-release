@@ -16,14 +16,48 @@
 ***********************************************************************/
 
 class DAO_ConfirmationCode extends Cerb_ORMHelper {
-	const ID = 'id';
-	const NAMESPACE_KEY = 'namespace_key';
 	const CONFIRMATION_CODE = 'confirmation_code';
 	const CREATED = 'created';
+	const ID = 'id';
 	const META_JSON = 'meta_json';
+	const NAMESPACE_KEY = 'namespace_key';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::CONFIRMATION_CODE)
+			->string()
+			->setMaxLength(64)
+			->setUnique(get_class($this))
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CREATED)
+			->timestamp()
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::META_JSON)
+			->string()
+			->setMaxLength(16777215)
+			;
+		$validation
+			->addField(self::NAMESPACE_KEY)
+			->string()
+			;
+			
+		return $validation->getFields();
+	}
 
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO confirmation_code () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -53,7 +87,7 @@ class DAO_ConfirmationCode extends Cerb_ORMHelper {
 	 * @return Model_ConfirmationCode[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -136,8 +170,8 @@ class DAO_ConfirmationCode extends Cerb_ORMHelper {
 	}
 	
 	static function maint() {
-		$db = DevblocksPlatform::getDatabaseService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$db = DevblocksPlatform::services()->database();
+		$logger = DevblocksPlatform::services()->log();
 		
 		// Delete confirmation codes older than 12 hours
 		$sql = sprintf("DELETE FROM confirmation_code WHERE created < %d", time() + 43200); // 60s*60m*12h
@@ -147,7 +181,7 @@ class DAO_ConfirmationCode extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -206,7 +240,7 @@ class DAO_ConfirmationCode extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);

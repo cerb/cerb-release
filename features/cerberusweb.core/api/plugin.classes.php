@@ -85,9 +85,9 @@ class ChPageController extends DevblocksControllerExtension {
 	public function writeResponse(DevblocksHttpResponse $response) {
 		$path = $response->path;
 
-		$tpl = DevblocksPlatform::getTemplateService();
-		$session = DevblocksPlatform::getSessionService();
-		$settings = DevblocksPlatform::getPluginSettingsService();
+		$tpl = DevblocksPlatform::services()->template();
+		$session = DevblocksPlatform::services()->session();
+		$settings = DevblocksPlatform::services()->pluginSettings();
 		$translate = DevblocksPlatform::getTranslationService();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -218,6 +218,12 @@ class ChPageController extends DevblocksControllerExtension {
 		// Conversational interactions
 		$interactions = Event_GetInteractionsForWorker::getByPoint('global');
 		$tpl->assign('global_interactions_show', !empty($interactions));
+		
+		// Proactive interactions
+		if(!empty($active_worker)) {
+			$proactive_interactions_count = DAO_BotInteractionProactive::getCountByWorker($active_worker->id);
+			$tpl->assign('proactive_interactions_count', $proactive_interactions_count);
+		}
 		
 		// Template
 		$tpl->display('devblocks:cerberusweb.core::border.tpl');
@@ -390,7 +396,7 @@ class ServiceProvider_Cerb extends Extension_ServiceProvider implements IService
 	const ID = 'core.service.provider.cerb';
 	
 	function renderConfigForm(Model_ConnectedAccount $account) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		$params = $account->decryptParams($active_worker);
@@ -470,7 +476,7 @@ class ServiceProvider_Cerb extends Extension_ServiceProvider implements IService
 
 class VaAction_HttpRequest extends Extension_DevblocksEventAction {
 	function render(Extension_DevblocksEvent $event, Model_TriggerEvent $trigger, $params=array(), $seq=null) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('params', $params);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
@@ -485,7 +491,7 @@ class VaAction_HttpRequest extends Extension_DevblocksEventAction {
 	}
 	
 	function simulate($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 
 		$out = null;
 		
@@ -560,7 +566,7 @@ class VaAction_HttpRequest extends Extension_DevblocksEventAction {
 	}
 	
 	function run($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 
 		@$http_verb = $params['http_verb'];
 		@$http_url = $tpl_builder->build($params['http_url'], $dict);
@@ -713,9 +719,219 @@ class VaAction_HttpRequest extends Extension_DevblocksEventAction {
 	}
 };
 
+class BotAction_ScheduleInteractionProactive extends Extension_DevblocksEventAction {
+	const ID = 'core.bot.action.interaction_proactive.schedule';
+	
+	function render(Extension_DevblocksEvent $event, Model_TriggerEvent $trigger, $params=array(), $seq=null) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('params', $params);
+		
+		if(!is_null($seq))
+			$tpl->assign('namePrefix', 'action'.$seq);
+		
+		$event = $trigger->getEvent();
+		$values_to_contexts = $event->getValuesContexts($trigger);
+		$tpl->assign('values_to_contexts', $values_to_contexts);
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/decisions/actions/_action_create_interaction.tpl');
+	}
+	
+	function simulate($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$date = DevblocksPlatform::services()->date();
+
+		$out = null;
+		
+		@$on = $params['on'];
+		@$behavior_id = $params['behavior_id'];
+		@$interaction = $tpl_builder->build($params['interaction'], $dict);
+		@$interaction_params_json = $tpl_builder->build($params['interaction_params_json'], $dict);
+		@$run = $tpl_builder->build($params['run'], $dict);
+		@$expires = $tpl_builder->build($params['expires'], $dict);
+		
+		$event = $trigger->getEvent();
+		
+		$on_result = DevblocksEventHelper::onContexts($on, $event->getValuesContexts($trigger), $dict);
+		@$on_objects = $on_result['objects'];
+		
+		if(empty($on) || empty($on_objects))
+			return "[ERROR] At least one target worker is required.";
+		
+		if(empty($behavior_id))
+			return "[ERROR] behavior is required.";
+		
+		if(empty($interaction))
+			return "[ERROR] behavior is required.";
+		
+		if(empty($expires) || false == (@$expires_at = strtotime($expires)))
+			$expires_at = 0;
+		
+		if(empty($run) || false == (@$run_at = strtotime($run)))
+			$run_at = time();
+		
+		$out = sprintf(">>> Creating proactive interaction:\nInteraction: %s\nRun: %s\nExpires: %s\nParams:\n%s\n",
+			$interaction,
+			$run_at ? $date->formatTime(DevblocksPlatform::getDateTimeFormat(), $run_at) : 'now',
+			$expires_at ? $date->formatTime(DevblocksPlatform::getDateTimeFormat(), $expires_at) : 'never',
+			$interaction_params_json . (!empty($interaction_params_json) ? "\n" : '')
+		);
+		
+		if(is_array($on_objects)) {
+			$out .= ">>> For:\n";
+			
+			foreach($on_objects as $on_object) {
+				$out .= ' * ' . $on_object->_label . "\n";
+			}
+		}
+		
+		// Run in simulator
+		@$run_in_simulator = !empty($params['run_in_simulator']);
+		if($run_in_simulator) {
+			$this->run($token, $trigger, $params, $dict);
+		}
+		
+		return $out;
+	}
+	
+	function run($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		
+		@$on = $params['on'];
+		@$behavior_id = $params['behavior_id'];
+		@$interaction = $tpl_builder->build($params['interaction'], $dict);
+		@$interaction_params_json = $tpl_builder->build($params['interaction_params_json'], $dict);
+		@$run = $tpl_builder->build($params['run'], $dict);
+		@$expires = $tpl_builder->build($params['expires'], $dict);
+
+		$event = $trigger->getEvent();
+		
+		if(false == ($interaction_params = @json_decode($interaction_params_json, true)))
+			$interaction_params = [];
+		
+		if(empty($expires) || false == (@$expires_at = strtotime($expires)))
+			$expires_at = 0;
+		
+		if(empty($run) || false == (@$run_at = strtotime($run)))
+			$run_at = time();
+		
+		// On workers
+		
+		$on_result = DevblocksEventHelper::onContexts($on, $event->getValuesContexts($trigger), $dict);
+		@$on_objects = $on_result['objects'];
+		
+		if(is_array($on_objects))
+		foreach($on_objects as $on_object) {
+			// Create the notification
+			DAO_BotInteractionProactive::create($on_object->id, $behavior_id, $interaction, $interaction_params, $trigger->bot_id, $expires_at, $run_at);
+		}
+	}
+};
+
+class BotAction_CalculateTimeElapsed extends Extension_DevblocksEventAction {
+	const ID = 'core.bot.action.calculate_time_elapsed';
+	
+	function render(Extension_DevblocksEvent $event, Model_TriggerEvent $trigger, $params=array(), $seq=null) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('params', $params);
+		
+		if(!is_null($seq))
+			$tpl->assign('namePrefix', 'action'.$seq);
+		
+		$event = $trigger->getEvent();
+		$values_to_contexts = $event->getValuesContexts($trigger);
+		$tpl->assign('values_to_contexts', $values_to_contexts);
+		
+		$calendars = DAO_Calendar::getReadableByActor($trigger->getBot());
+		$tpl->assign('calendars', $calendars);
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/decisions/actions/_action_calc_time_elapsed.tpl');
+	}
+	
+	function simulate($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$date = DevblocksPlatform::services()->date();
+
+		$out = null;
+		
+		@$date_from = $tpl_builder->build($params['date_from'], $dict);
+		@$date_to = $tpl_builder->build($params['date_to'], $dict);
+		@$calendar_id = $params['calendar_id'];
+		@$placeholder = $tpl_builder->build($params['placeholder'], $dict);
+		
+		$event = $trigger->getEvent();
+		
+		if(empty($date_from) || (!is_numeric($date_from) && false == (@$date_from = strtotime($date_from))))
+			$date_from = 0;
+		
+		if(empty($date_to) || (!is_numeric($date_to) && false == (@$date_to = strtotime($date_to))))
+			$date_to = 0;
+		
+		if(!is_numeric($calendar_id)) {
+			$value = $dict->$calendar_id;
+			if(is_array($value))
+				$value = key($value);
+			$calendar_id = intval($value);
+		}
+		
+		if(!$calendar_id || false == ($calendar = DAO_Calendar::get($calendar_id))) {
+			return false;
+		}
+		
+		$this->run($token, $trigger, $params, $dict);
+		
+		$out = sprintf(">>> Calculating time elapsed:\nFrom: %s\nTo: %s\nCalendar: %s\nElapsed: %s",
+			$date_from ? $date->formatTime(DevblocksPlatform::getDateTimeFormat(), $date_from) : 'never',
+			$date_to ? $date->formatTime(DevblocksPlatform::getDateTimeFormat(), $date_to) : 'never',
+			$calendar->name,
+			_DevblocksTemplateManager::modifier_devblocks_prettysecs($dict->$placeholder)
+		);
+		
+		return $out;
+	}
+	
+	function run($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		
+		@$date_from = $tpl_builder->build($params['date_from'], $dict);
+		@$date_to = $tpl_builder->build($params['date_to'], $dict);
+		@$calendar_id = $params['calendar_id'];
+		@$placeholder = $tpl_builder->build($params['placeholder'], $dict);
+		
+		$event = $trigger->getEvent();
+		
+		if(empty($date_from) || (!is_numeric($date_from) && false == (@$date_from = strtotime($date_from))))
+			$date_from = 0;
+		
+		if(empty($date_to) || (!is_numeric($date_to) && false == (@$date_to = strtotime($date_to))))
+			$date_to = 0;
+		
+		if(!is_numeric($calendar_id)) {
+			$value = $dict->$calendar_id;
+			if(is_array($value))
+				$value = key($value);
+			$calendar_id = intval($value);
+		}
+		
+		if(!$calendar_id || false == ($calendar = DAO_Calendar::get($calendar_id))) {
+			return false;
+		}
+		
+		$calendar_events = $calendar->getEvents($date_from, $date_to);
+		$availability = $calendar->computeAvailability($date_from, $date_to, $calendar_events);
+		
+		// [TODO] Option for counting in available or busy time?
+		
+		$mins = $availability->getMinutes();
+		$secs = strlen(str_replace('0', '', $mins)) * 60;
+		
+		if($placeholder)
+			$dict->$placeholder = $secs;
+	}
+};
+
 class VaAction_CreateAttachment extends Extension_DevblocksEventAction {
 	function render(Extension_DevblocksEvent $event, Model_TriggerEvent $trigger, $params=array(), $seq=null) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('params', $params);
 		
 		if(!is_null($seq))
@@ -725,7 +941,7 @@ class VaAction_CreateAttachment extends Extension_DevblocksEventAction {
 	}
 	
 	function simulate($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 
 		$out = null;
 		
@@ -775,7 +991,7 @@ class VaAction_CreateAttachment extends Extension_DevblocksEventAction {
 	}
 	
 	function run($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		
 		@$file_name = $tpl_builder->build($params['file_name'], $dict);
 		@$file_type = $tpl_builder->build($params['file_type'], $dict);
@@ -840,7 +1056,7 @@ class VaAction_ClassifierPrediction extends Extension_DevblocksEventAction {
 	const ID = 'core.va.action.classifier_prediction';
 	
 	function render(Extension_DevblocksEvent $event, Model_TriggerEvent $trigger, $params=array(), $seq=null) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('params', $params);
 		
 		$classifiers = DAO_Classifier::getReadableByActor(CerberusContexts::CONTEXT_BOT, $trigger->bot_id);
@@ -853,7 +1069,7 @@ class VaAction_ClassifierPrediction extends Extension_DevblocksEventAction {
 	}
 	
 	function simulate($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		
 		@$classifier_id = $params['classifier_id'];
 		@$content = $tpl_builder->build($params['content'], $dict);
@@ -887,8 +1103,8 @@ class VaAction_ClassifierPrediction extends Extension_DevblocksEventAction {
 	}
 	
 	function run($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
-		$bayes = DevblocksPlatform::getBayesClassifierService();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$bayes = DevblocksPlatform::services()->bayesClassifier();
 		
 		@$classifier_id = $params['classifier_id'];
 		@$content = $tpl_builder->build($params['content'], $dict);
@@ -912,6 +1128,244 @@ class VaAction_ClassifierPrediction extends Extension_DevblocksEventAction {
 		}
 	}
 	
+};
+
+/**
+ * Based on: https://raw.githubusercontent.com/Mailgarant/switfmailer-openpgp/master/OpenPGPSigner.php
+ *
+ */
+class Cerb_SwiftPlugin_GPGSigner implements Swift_Signers_BodySigner {
+	protected $micalg = 'SHA256';
+	protected $encrypt = true;
+	
+	protected function createMessage(Swift_Message $message) {
+		$mimeEntity = new Swift_Message('', $message->getBody(), $message->getContentType(), $message->getCharset());
+		$mimeEntity->setChildren($message->getChildren());
+
+		$messageHeaders = $mimeEntity->getHeaders();
+		$messageHeaders->remove('Message-ID');
+		$messageHeaders->remove('Date');
+		$messageHeaders->remove('Subject');
+		$messageHeaders->remove('MIME-Version');
+		$messageHeaders->remove('To');
+		$messageHeaders->remove('From');
+
+		return $mimeEntity;
+	}
+	
+	protected function getSignKey(Swift_Message $message) {
+		if(false == ($gpg = DevblocksPlatform::services()->gpg()))
+			return false;
+		
+		if(false == ($from = $message->getFrom()) || !is_array($from))
+			return false;
+		
+		$email = key($from);
+		
+		$fingerprints = [];
+		
+		if(false != ($keys = $gpg->keyinfo(sprintf("<%s>", $email))) && is_array($keys)) {
+			foreach($keys as $key) {
+				if($this->isValidKey($key, 'sign'))
+				foreach($key['subkeys'] as $subkey) {
+					if($this->isValidKey($subkey, 'sign')) {
+						return $subkey['fingerprint'];
+					}
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	protected function getRecipientKeys(Swift_Message $message) {
+		$to = $message->getTo() ?: [];
+		$cc = $message->getCc() ?: [];
+		$bcc = $message->getBcc() ?: [];
+		
+		$recipients = $to + $cc	+ $bcc;
+		
+		if(!is_array($recipients) || empty($recipients))
+			throw new Swift_SwiftException(sprintf('Error: No valid recipients for GPG encryption'));
+		
+		$fingerprints = [];
+		
+		foreach($recipients as $email => $name) {
+			$gpg = DevblocksPlatform::services()->gpg();
+			$found = false;
+
+			if(false != ($keys = $gpg->keyinfo(sprintf("<%s>", $email))) && is_array($keys)) {
+				foreach($keys as $key) {
+					if($this->isValidKey($key, 'encrypt'))
+					foreach($key['subkeys'] as $subkey) {
+						if($this->isValidKey($subkey, 'encrypt')) {
+							$fingerprints[] = $subkey['fingerprint'];
+							$found = true;
+						}
+					}
+				}
+			}
+			
+			if(!$found)
+				throw new Swift_SwiftException(sprintf('Error: No recipient GPG public key for: %s', $email));
+		}
+		
+		return $fingerprints;
+	}
+	
+	protected function isValidKey($key, $purpose) {
+		return !(
+			$key['disabled'] 
+			|| $key['expired'] 
+			|| $key['revoked'] 
+			|| (
+				$purpose == 'sign' 
+				&& !$key['can_sign']
+				) 
+			|| (
+				$purpose == 'encrypt' 
+				&& !$key['can_encrypt']
+			)
+		);
+	}
+	
+	protected function signWithPGP($plaintext, $key_fingerprint) {
+		$gpg = DevblocksPlatform::services()->gpg();
+		
+		if(false != ($signed = $gpg->sign($plaintext, $key_fingerprint)))
+			return $signed;
+		
+		throw new Swift_SwiftException('Error: Failed to sign message (passphrase on the secret key?)');
+	}
+	
+	protected function encryptWithPGP($plaintext, $key_fingerprints) {
+		$gpg = DevblocksPlatform::services()->gpg();
+		
+		if(false != ($encrypted = $gpg->encrypt($plaintext, $key_fingerprints)))
+			return $encrypted;
+		
+		throw new Swift_SwiftException('Error: Failed to encrypt message');
+	}
+	
+	/**
+	 * Change the Swift_Signed_Message to apply the singing.
+	 *
+	 * @param Swift_Message $message
+	 *
+	 * @return self
+	 */
+	public function signMessage(Swift_Message $message) {
+		$sign_key = $this->getSignKey($message);
+		
+		if(false == ($recipient_keys = $this->getRecipientKeys($message)))
+			throw new Swift_SwiftException('Error: No recipient GPG public keys for encryption.');
+		
+		$originalMessage = $this->createMessage($message);
+		$message->setChildren([]);
+		$message->setEncoder(Swift_DependencyContainer::getInstance()->lookup('mime.rawcontentencoder'));
+		
+		if($sign_key) {
+			$type = $message->getHeaders()->get('Content-Type');
+			$type->setValue('multipart/signed');
+			$type->setParameters([
+				'micalg' => sprintf('pgp-%s', DevblocksPlatform::strLower($this->micalg)),
+				'protocol' => 'application/pgp-signature',
+				'boundary' => $message->getBoundary(),
+			]);
+			
+			$signed_body = $originalMessage->toString();
+			
+			$lines = DevblocksPlatform::parseCrlfString(rtrim($signed_body), true);
+			
+			array_walk($lines, function(&$line) {
+				$line = rtrim($line) . "\r\n";
+			});
+			
+			$signed_body = rtrim(implode('', $lines) . "\r\n");
+			
+			$signature = $this->signWithPGP($signed_body, $sign_key);
+			
+			$body = <<< EOD
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+
+--{$message->getBoundary()}
+$signed_body
+--{$message->getBoundary()}
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+$signature
+
+--{$message->getBoundary()}--
+EOD;
+
+		} else { // No signature
+			$body = $originalMessage->toString();
+			
+		}
+		
+		$message->setBody($body);
+		
+		if($this->encrypt) {
+			if($sign_key) {
+				$content = sprintf("%s\r\n%s", $message->getHeaders()->get('Content-Type')->toString(), $body);
+			} else {
+				$content = $body;
+			}
+			
+			$encrypted_body = $this->encryptWithPGP($content, $recipient_keys);
+			
+			$type = $message->getHeaders()->get('Content-Type');
+			$type->setValue('multipart/encrypted');
+			$type->setParameters([
+				'protocol' => 'application/pgp-encrypted',
+				'boundary' => $message->getBoundary(),
+			]);
+			
+			$body = <<< EOD
+This is an OpenPGP/MIME encrypted message (RFC 4880 and 3156)
+
+--{$message->getBoundary()}
+Content-Type: application/pgp-encrypted
+Content-Description: PGP/MIME version identification
+
+Version: 1
+
+--{$message->getBoundary()}
+Content-Type: application/octet-stream; name="encrypted.asc"
+Content-Description: OpenPGP encrypted message
+Content-Disposition: inline; filename="encrypted.asc"
+
+$encrypted_body
+
+--{$message->getBoundary()}--
+EOD;
+		
+			$message->setBody($body);
+		}
+		
+		$message_headers = $message->getHeaders();
+		$message_headers->removeAll('Content-Transfer-Encoding');
+		
+		return $this;
+	}
+
+	/**
+	 * Return the list of header a signer might tamper.
+	 *
+	 * @return array
+	 */
+	public function getAlteredHeaders() {
+		return ['Content-Type', 'Content-Transfer-Encoding', 'Content-Disposition', 'Content-Description'];
+	}
+	
+	/**
+	 * return $this
+	 */
+	public function reset() {
+		return $this;
+	}
 };
 
 class Cerb_SwiftPlugin_TransportExceptionLogger implements Swift_Events_TransportExceptionListener {
@@ -939,7 +1393,7 @@ class CerbMailTransport_Smtp extends Extension_MailTransport {
 	private $_logger = null;
 	
 	function renderConfig(Model_MailTransport $model) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('model', $model);
 		$tpl->assign('extension', $this);
 		$tpl->display('devblocks:cerberusweb.core::internal/mail_transport/smtp/config.tpl');
@@ -966,7 +1420,7 @@ class CerbMailTransport_Smtp extends Extension_MailTransport {
 		
 		// Try connecting
 		
-		$mail_service = DevblocksPlatform::getMailService();
+		$mail_service = DevblocksPlatform::services()->mail();
 		
 		$options = array(
 			'host' => $host,
@@ -1105,7 +1559,7 @@ class CerbMailTransport_Null extends Extension_MailTransport {
 	const ID = 'core.mail.transport.null';
 	
 	function renderConfig(Model_MailTransport $model) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('model', $model);
 		$tpl->assign('extension', $this);
 		$tpl->display('devblocks:cerberusweb.core::internal/mail_transport/null/config.tpl');

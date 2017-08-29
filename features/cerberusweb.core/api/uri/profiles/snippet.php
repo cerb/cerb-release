@@ -17,7 +17,7 @@
 
 class PageSection_ProfilesSnippet extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$visit = CerberusApplication::getVisit();
 		$translate = DevblocksPlatform::getTranslationService();
 		$active_worker = CerberusApplication::getActiveWorker();
@@ -121,7 +121,7 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 	function showTabContentAction() {
 		@$context_id = DevblocksPlatform::importGPC($_REQUEST['context_id'],'integer',0);
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if(!$context_id || false == ($snippet = DAO_Snippet::get($context_id)))
@@ -138,7 +138,7 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());
@@ -211,7 +211,7 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string','');
 		@$form_id = DevblocksPlatform::importGPC($_REQUEST['form_id'],'string','');
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('context', $context);
 		$tpl->assign('form_id', $form_id);
 		
@@ -246,9 +246,9 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 			if($do_delete) {
 				if(null == ($snippet = DAO_Snippet::get($id))) /* @var $snippet Model_Snippet */
 					throw new Exception_DevblocksAjaxValidationError('Failed to delete the record.');
-					
-				if(!Context_Snippet::isWriteableByActor($snippet, $active_worker))
-					throw new Exception_DevblocksAjaxValidationError("You do not have permission to delete this record.");
+				
+				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_SNIPPET)) || !Context_Snippet::isWriteableByActor($snippet, $active_worker))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 					
 				DAO_Snippet::delete($id);
 				
@@ -259,9 +259,6 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 				));
 				
 			} else { // Create || Update
-				if(empty($title))
-					throw new Exception_DevblocksAjaxValidationError("The 'Title' field is required.", 'title');
-				
 				@list($owner_context, $owner_context_id) = explode(':', DevblocksPlatform::importGPC($_REQUEST['owner'],'string',''));
 			
 				switch($owner_context) {
@@ -278,14 +275,8 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 						break;
 				}
 
-				if(empty($owner_context))
-					throw new Exception_DevblocksAjaxValidationError("The 'Owner' field is required.", 'owner');
-				
 				if(!CerberusContexts::isOwnableBy($owner_context, $owner_context_id, $active_worker))
 					throw new Exception_DevblocksAjaxValidationError("You don't have permission to use this owner.", 'owner');
-				
-				if(empty($content))
-					throw new Exception_DevblocksAjaxValidationError("The 'Content' field is required.", 'content');
 				
 				$fields = array(
 					DAO_Snippet::TITLE => $title,
@@ -330,7 +321,14 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 				// Create / Update
 				
 				if(empty($id)) {
-					if($active_worker->hasPriv('core.snippets.actions.create')) {
+					if(!$active_worker->hasPriv(sprintf("contexts.%s.create", CerberusContexts::CONTEXT_SNIPPET)))
+						throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.create'));
+					
+					// Validate fields from DAO
+					if(!DAO_Snippet::validate($fields, $error))
+						throw new Exception_DevblocksAjaxValidationError($error);
+					
+					if($active_worker->hasPriv('contexts.cerberusweb.contexts.snippet.create')) {
 						if(false == ($id = DAO_Snippet::create($fields)))
 							throw new Exception_DevblocksAjaxValidationError('Failed to create the record.');
 						
@@ -341,6 +339,13 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 					}
 					
 				} else {
+					if(!$active_worker->hasPriv(sprintf("contexts.%s.update", CerberusContexts::CONTEXT_SNIPPET)))
+						throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.edit'));
+					
+					// Validate fields from DAO
+					if(!DAO_Snippet::validate($fields, $error, $id))
+						throw new Exception_DevblocksAjaxValidationError($error);
+					
 					if(null == ($snippet = DAO_Snippet::get($id)))
 						throw new Exception_DevblocksAjaxValidationError('This record no longer exists.');
 					

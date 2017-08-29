@@ -17,12 +17,12 @@
 
 class PageSection_SetupCustomFields extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->display('devblocks:cerberusweb.core::configuration/section/fields/index.tpl');
 	}
 	
 	function showFieldsTabAction() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$visit = CerberusApplication::getVisit();
 		
 		$visit->set(ChConfigurationPage::ID, 'fields');
@@ -34,7 +34,7 @@ class PageSection_SetupCustomFields extends Extension_PageSection {
 	}
 	
 	function showFieldsetsTabAction() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 
 		$defaults = C4_AbstractViewModel::loadFromClass('View_CustomFieldset');
 		$defaults->id = 'cfg_fieldsets';
@@ -47,12 +47,12 @@ class PageSection_SetupCustomFields extends Extension_PageSection {
 	}
 	
 	private function _getRecordType($ext_id) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		$tpl->assign('ext_id', $ext_id);
 
 		//  Make sure the extension exists before continuing
-		if(false == ($context_manifest = DevblocksPlatform::getExtension($ext_id, false)))
+		if(false == ($context_manifest = Extension_DevblocksContext::get($ext_id, false)))
 			return;
 		
 		$tpl->assign('context_manifest', $context_manifest);

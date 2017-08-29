@@ -134,7 +134,7 @@ abstract class C4_AbstractView {
 	}
 	
 	protected function _doGetDataSample($dao_class, $size, $id_col = 'id') {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		if(!method_exists($dao_class,'getSearchQueryComponents'))
 			return array();
@@ -369,7 +369,7 @@ abstract class C4_AbstractView {
 		
 		// Replace placeholders
 
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		$dict = new DevblocksDictionaryDelegate($this->getPlaceholderValues());
 		$query = $tpl_builder->build($query, $dict);
 		
@@ -392,11 +392,11 @@ abstract class C4_AbstractView {
 					continue;
 				
 				if(isset($sort_results['sort_by']) && !empty($sort_results['sort_by']))
-					$this->renderSortBy = $sort_results['sort_by'][0];
+					$this->renderSortBy = $sort_results['sort_by'];
 				
 				if(isset($sort_results['sort_asc']) && !empty($sort_results['sort_asc']))
-					$this->renderSortAsc = $sort_results['sort_asc'][0];
-					
+					$this->renderSortAsc = $sort_results['sort_asc'];
+				
 				unset($fields[$k]);
 			}
 		}
@@ -437,8 +437,8 @@ abstract class C4_AbstractView {
 		if(false == ($search_fields = $this->getQuickSearchFields()))
 			return false;
 		
-		// Tokenize the sort string with spaces
-		$sort_fields = explode(' ', $sort_query);
+		// Tokenize the sort string with commas
+		$sort_fields = explode(',', $sort_query);
 		
 		if(!is_array($sort_fields) || empty($sort_fields))
 			return false;
@@ -628,7 +628,7 @@ abstract class C4_AbstractView {
 		$param_key = $param->field;
 		settype($param_key, 'string');
 
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 
 		if(is_string($param->value)) {
 			if(false !== ($value = $tpl_builder->build($param->value, $args['placeholder_values']))) {
@@ -1346,6 +1346,11 @@ abstract class C4_AbstractView {
 						);
 					break;
 					
+				case Model_CustomField::TYPE_LIST:
+					$search_field_meta['type'] = DevblocksSearchCriteria::TYPE_TEXT;
+					$search_field_meta['options']['match'] = DevblocksSearchCriteria::OPTION_TEXT_PREFIX;
+					break;
+					
 				case Model_CustomField::TYPE_MULTI_CHECKBOX:
 					$search_field_meta['type'] = DevblocksSearchCriteria::TYPE_TEXT;
 					$search_field_meta['options']['match'] = DevblocksSearchCriteria::OPTION_TEXT_PARTIAL;
@@ -1464,10 +1469,22 @@ abstract class C4_AbstractView {
 		}
 		
 		// Sort by sanity check
-		if(substr($this->renderSortBy,0,3)=="cf_") {
-			if(0 != ($cf_id = intval(substr($this->renderSortBy,3)))) {
-				if(!isset($custom_fields[$cf_id])) {
-					$this->renderSortBy = null;
+		if(is_array($this->renderSortBy)) {
+			foreach($this->renderSortBy as $idx => $k) {
+				if(DevblocksPlatform::strStartsWith($k, "cf_")) {
+					if(0 != ($cf_id = intval(substr($k,3)))) {
+						if(!isset($custom_fields[$cf_id])) {
+							unset($this->renderSortBy[$idx]);
+							unset($this->renderSortAsc[$idx]);
+						}
+					}
+				}
+			}
+		} else if (is_string($this->renderSortBy)) {
+			if(DevblocksPlatform::strStartsWith($this->renderSortBy, 'cf_')) {
+				if(0 != ($cf_id = intval(substr($this->renderSortBy,3)))) {
+					if(!isset($custom_fields[$cf_id]))
+						$this->renderSortBy = null;
 				}
 			}
 		}
@@ -1574,17 +1591,18 @@ abstract class C4_AbstractView {
 	}
 
 	function doSortBy($sortBy) {
-		$iSortAsc = intval($this->renderSortAsc);
-
+		$render_sort_by = is_array($this->renderSortBy) ? array_shift($this->renderSortBy) : $this->renderSortBy;
+		$render_sort_asc = is_array($this->renderSortAsc) ? array_shift($this->renderSortAsc) : ($this->renderSortAsc ? true : false);
+		
 		// [JAS]: If clicking the same header, toggle asc/desc.
-		if(0 == strcasecmp($sortBy,$this->renderSortBy)) {
-			$iSortAsc = (0 == $iSortAsc) ? 1 : 0;
+		if(0 == strcasecmp($sortBy, $render_sort_by)) {
+			$render_sort_asc = empty($render_sort_asc) ? true : false;
 		} else { // [JAS]: If a new header, start with asc.
-			$iSortAsc = 1;
+			$render_sort_asc = true;
 		}
-
+		
 		$this->renderSortBy = $sortBy;
-		$this->renderSortAsc = $iSortAsc;
+		$this->renderSortAsc = $render_sort_asc;
 	}
 
 	function doPage($page) {
@@ -1813,7 +1831,7 @@ abstract class C4_AbstractView {
 		if(!$this instanceof IAbstractView_Subtotals)
 			return;
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -1853,6 +1871,7 @@ abstract class C4_AbstractView {
 			case Model_CustomField::TYPE_CHECKBOX:
 			case Model_CustomField::TYPE_DROPDOWN:
 			case Model_CustomField::TYPE_MULTI_CHECKBOX:
+			case Model_CustomField::TYPE_LIST:
 			case Model_CustomField::TYPE_NUMBER:
 			case Model_CustomField::TYPE_SINGLE_LINE:
 			case Model_CustomField::TYPE_URL:
@@ -1865,7 +1884,7 @@ abstract class C4_AbstractView {
 	}
 	
 	protected function _getSubtotalDataForColumn($context, $field_key) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$fields = $this->getFields();
 		$columns = $this->view_columns;
@@ -1912,6 +1931,110 @@ abstract class C4_AbstractView {
 //		$total = ($total < 20) ? $total : $db->GetOneSlave("SELECT FOUND_ROWS()");
 
 		return $results;
+	}
+	
+	protected function _getSubtotalDataForVirtualColumn($context, $field_key) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$fields = $this->getFields();
+		$columns = $this->view_columns;
+
+		$params = $this->getParams();
+		$params[uniqid()] = new DevblocksSearchCriteria($field_key, DevblocksSearchCriteria::OPER_IS_NOT_NULL, true);
+		
+		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+			return array();
+		
+		if(false == ($dao_class = $context_ext->getDaoClass()))
+			return array();
+		
+		if(!method_exists($dao_class,'getSearchQueryComponents'))
+			return array();
+		
+		if(!isset($columns[$field_key]))
+			$columns[] = $field_key;
+		
+		$query_parts = call_user_func_array(
+			array($dao_class,'getSearchQueryComponents'),
+			array(
+				$columns,
+				$params,
+				$this->renderSortBy,
+				$this->renderSortAsc
+			)
+		);
+		
+		$join_sql = $query_parts['join'];
+		$where_sql = $query_parts['where'];
+		
+		$sql = sprintf("SELECT %s.%s as label, count(*) as hits ", //SQL_CALC_FOUND_ROWS
+				$fields[$field_key]->db_table,
+				$fields[$field_key]->db_column
+			).
+			$join_sql.
+			$where_sql.
+			"GROUP BY label ".
+			"ORDER BY hits DESC ".
+			"LIMIT 0,250 "
+		;
+		
+		$results = $db->GetArraySlave($sql);
+
+		return $results;
+	}
+	
+	protected function _getSubtotalCountForVirtualColumn($context, $field_key, $label_map=array(), $virtual_key, $virtual_query, $virtual_query_null) {
+		$counts = array();
+		$results = $this->_getSubtotalDataForVirtualColumn($context, $field_key);
+		
+		if(is_callable($label_map)) {
+			$label_map = $label_map(array_column($results, 'label'));
+		}
+		
+		foreach($results as $result) {
+			$label = $result['label'];
+			$key = $label;
+			$hits = $result['hits'];
+
+			if(is_array($label_map) && isset($label_map[$result['label']]))
+				$label = $label_map[$result['label']];
+			
+			// Null strings
+			if(empty($label)) {
+				$label = '(none)';
+				if(!isset($counts[$key]))
+					$counts[$key] = [
+						'hits' => $hits,
+						'label' => $label,
+						'filter' =>
+							[
+								'field' => $virtual_key,
+								'oper' => DevblocksSearchCriteria::OPER_CUSTOM,
+								'values' => ['value' => $virtual_query_null],
+							],
+						'children' => []
+					];
+				
+			// Anything else
+			} else {
+				if(!isset($counts[$key]))
+					$counts[$key] = [
+						'hits' => $hits,
+						'label' => $label,
+						'filter' =>
+							[
+								'field' => $virtual_key,
+								'oper' => DevblocksSearchCriteria::OPER_CUSTOM,
+								'values' => ['value' => sprintf($virtual_query, $key)],
+							],
+						'children' => []
+					];
+				
+			}
+			
+		}
+		
+		return $counts;
 	}
 	
 	protected function _getSubtotalCountForStringColumn($context, $field_key, $label_map=array(), $value_oper='=', $value_key='value') {
@@ -2059,7 +2182,7 @@ abstract class C4_AbstractView {
 	}
 	
 	protected function _getSubtotalDataForWatcherColumn($context, $field_key) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$fields = $this->getFields();
 		$columns = $this->view_columns;
@@ -2153,9 +2276,9 @@ abstract class C4_AbstractView {
 		
 		return $counts;
 	}
-		
+	
 	protected function _getSubtotalDataForContextLinkColumn($context, $field_key) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$fields = $this->getFields();
 		$columns = $this->view_columns;
@@ -2314,7 +2437,7 @@ abstract class C4_AbstractView {
 	}
 		
 	protected function _getSubtotalDataForContextAndIdColumns($context, $field_key, $context_field, $context_id_field) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$fields = $this->getFields();
 		$columns = $this->view_columns;
@@ -2493,7 +2616,7 @@ abstract class C4_AbstractView {
 	}
 	
 	protected function _getSubtotalDataForHasFieldsetColumn($dao_class, $context) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$fields = $this->getFields();
 		$columns = $this->view_columns;
@@ -2543,7 +2666,7 @@ abstract class C4_AbstractView {
 	}
 	
 	protected function _getSubtotalCountForCustomColumn($context, $field_key) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		$translate = DevblocksPlatform::getTranslationService();
 		
 		$counts = array();
@@ -2572,7 +2695,7 @@ abstract class C4_AbstractView {
 		
 		$cfield_select_sql = null;
 		
-		$is_multiple_value_cfield = in_array($cfield->type,[Model_CustomField::TYPE_MULTI_CHECKBOX]);
+		$is_multiple_value_cfield = Model_CustomField::hasMultipleValues($cfield->type);
 		
 		$cfield_key = $search_class::getCustomFieldContextWhereKey($cfield->context);
 		
@@ -2672,6 +2795,7 @@ abstract class C4_AbstractView {
 				break;
 				
 			case Model_CustomField::TYPE_DROPDOWN:
+			case Model_CustomField::TYPE_LIST:
 			case Model_CustomField::TYPE_MULTI_CHECKBOX:
 			case Model_CustomField::TYPE_NUMBER:
 			case Model_CustomField::TYPE_SINGLE_LINE:
@@ -2838,7 +2962,7 @@ abstract class C4_AbstractView {
 			}
 
 			// If multi-selection types, handle delta changes
-			if(Model_CustomField::TYPE_MULTI_CHECKBOX==$cf_field->type) {
+			if(Model_CustomField::hasMultipleValues($cf_field->type)) {
 				if(is_array($cf_val))
 				foreach($cf_val as $val) {
 					$op = substr($val,0,1);
@@ -2914,7 +3038,7 @@ abstract class C4_AbstractView {
 			return false;
 		
 		try {
-			$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			
 			if(
 				!isset($params['worker_id'])
@@ -3376,7 +3500,7 @@ class CerbQuickSearchLexer {
 		} else {
 			$params = array($params);
 		}
-		
+
 		return $params;
 	}
 	
@@ -3616,16 +3740,15 @@ class C4_AbstractViewModel {
 	public $renderPage = 0;
 	public $renderLimit = 10;
 	public $renderTotal = true;
-	public $renderSortBy = '';
-	public $renderSortAsc = 1;
+	public $renderSort = '';
 	
 	public $renderFilters = null;
 	public $renderSubtotals = null;
 	
 	public $renderTemplate = null;
 	
-	public $placeholderLabels = array();
-	public $placeholderValues = array();
+	public $placeholderLabels = [];
+	public $placeholderValues = [];
 	
 	static function loadFromClass($class_name) {
 		if(empty($class_name))
@@ -3746,9 +3869,13 @@ class C4_AbstractViewLoader {
 		$model->renderPage = intval($view->renderPage);
 		$model->renderLimit = intval($view->renderLimit);
 		$model->renderTotal = intval($view->renderTotal);
-		$model->renderSortBy = $view->renderSortBy;
-		$model->renderSortAsc = $view->renderSortAsc ? true : false;
-
+		
+		if(!is_array($view->renderSortBy)) {
+			$model->renderSort = [$view->renderSortBy => ($view->renderSortAsc ? true : false)];
+		} else {
+			$model->renderSort = @array_combine($view->renderSortBy, $view->renderSortAsc);
+		}
+		
 		$model->renderFilters = $view->renderFilters ? true : false;
 		$model->renderSubtotals = $view->renderSubtotals;
 		
@@ -3799,14 +3926,21 @@ class C4_AbstractViewLoader {
 			$inst->renderLimit = intval($model->renderLimit);
 		if(null !== $model->renderTotal)
 			$inst->renderTotal = intval($model->renderTotal);
-		if(!empty($model->renderSortBy))
-			$inst->renderSortBy = $model->renderSortBy;
-		if(null !== $model->renderSortBy)
-			$inst->renderSortAsc = $model->renderSortAsc ? true : false;
 
+		if(is_array($model->renderSort)) {
+			if(1 == count($model->renderSort)) {
+				$inst->renderSortBy = key($model->renderSort);
+				$inst->renderSortAsc = current($model->renderSort);
+				
+			} else {
+				$inst->renderSortBy = array_keys($model->renderSort);
+				$inst->renderSortAsc = array_values($model->renderSort);
+			}
+		}
+		
 		$inst->renderFilters = $model->renderFilters ? true : false;
 		$inst->renderSubtotals = $model->renderSubtotals;
-			
+		
 		$inst->renderTemplate = $model->renderTemplate;
 		
 		if(is_array($model->placeholderLabels))
@@ -3843,7 +3977,7 @@ class C4_AbstractViewLoader {
 			'params' => json_decode(json_encode($view->getEditableParams()), true),
 			'limit' => intval($view->renderLimit),
 			'sort_by' => $view->renderSortBy,
-			'sort_asc' => !empty($view->renderSortAsc),
+			'sort_asc' => $view->renderSortAsc,
 			'subtotals' => $view->renderSubtotals,
 		);
 		
@@ -3874,7 +4008,7 @@ class C4_AbstractViewLoader {
 		$view->view_columns = $view_model['columns'];
 		$view->renderLimit = intval($view_model['limit']);
 		$view->renderSortBy = $view_model['sort_by'];
-		$view->renderSortAsc = $view_model['sort_asc'] ? true : false;
+		$view->renderSortAsc = $view_model['sort_asc'];
 		$view->renderSubtotals = $view_model['subtotals'];
 		
 		// Convert JSON params back to objects
@@ -3931,13 +4065,164 @@ class C4_AbstractViewLoader {
 };
 
 class DAO_WorkerViewModel extends Cerb_ORMHelper {
+	const CLASS_NAME = 'class_name';
+	const COLUMNS_HIDDEN_JSON = 'columns_hidden_json';
+	const COLUMNS_JSON = 'columns_json';
+	const IS_EPHEMERAL = 'is_ephemeral';
+	const OPTIONS_JSON = 'options_json';
+	const PARAMS_DEFAULT_JSON = 'params_default_json';
+	const PARAMS_EDITABLE_JSON = 'params_editable_json';
+	const PARAMS_HIDDEN_JSON = 'params_hidden_json';
+	const PARAMS_REQUIRED_JSON = 'params_required_json';
+	const PLACEHOLDER_LABELS_JSON = 'placeholder_labels_json';
+	const PLACEHOLDER_VALUES_JSON = 'placeholder_values_json';
+	const RENDER_FILTERS = 'render_filters';
+	const RENDER_LIMIT = 'render_limit';
+	const RENDER_PAGE = 'render_page';
+	const RENDER_SORT_JSON = 'render_sort_json';
+	const RENDER_SUBTOTALS = 'render_subtotals';
+	const RENDER_TEMPLATE = 'render_template';
+	const RENDER_TOTAL = 'render_total';
+	const TITLE = 'title';
+	const VIEW_ID = 'view_id';
+	const WORKER_ID = 'worker_id';
+	
+	private function __construct() {}
+
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// varchar(255)
+		$validation
+			->addField(self::CLASS_NAME)
+			->string()
+			->setMaxLength(255)
+			;
+		// text
+		$validation
+			->addField(self::COLUMNS_HIDDEN_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// text
+		$validation
+			->addField(self::COLUMNS_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// tinyint(3) unsigned
+		$validation
+			->addField(self::IS_EPHEMERAL)
+			->bit()
+			;
+		// text
+		$validation
+			->addField(self::OPTIONS_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// text
+		$validation
+			->addField(self::PARAMS_DEFAULT_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// text
+		$validation
+			->addField(self::PARAMS_EDITABLE_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// text
+		$validation
+			->addField(self::PARAMS_HIDDEN_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// text
+		$validation
+			->addField(self::PARAMS_REQUIRED_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// mediumtext
+		$validation
+			->addField(self::PLACEHOLDER_LABELS_JSON)
+			->string()
+			->setMaxLength(16777215)
+			;
+		// mediumtext
+		$validation
+			->addField(self::PLACEHOLDER_VALUES_JSON)
+			->string()
+			->setMaxLength(16777215)
+			;
+		// tinyint(1)
+		$validation
+			->addField(self::RENDER_FILTERS)
+			->uint(1)
+			;
+		// smallint(5) unsigned
+		$validation
+			->addField(self::RENDER_LIMIT)
+			->uint(2)
+			;
+		// smallint(5) unsigned
+		$validation
+			->addField(self::RENDER_PAGE)
+			->uint(2)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::RENDER_SORT_JSON)
+			->string()
+			->setMaxLength(255)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::RENDER_SUBTOTALS)
+			->string()
+			->setMaxLength(255)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::RENDER_TEMPLATE)
+			->string()
+			->setMaxLength(255)
+			;
+		// tinyint(3) unsigned
+		$validation
+			->addField(self::RENDER_TOTAL)
+			->uint(1)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::TITLE)
+			->string()
+			->setMaxLength(255)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::VIEW_ID)
+			->string()
+			->setMaxLength(255)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::WORKER_ID)
+			->id()
+			;
+
+		return $validation->getFields();
+	}
+	
 	/**
 	 *
 	 * @param string $where
 	 * @return C4_AbstractViewModel[]
 	 */
 	static public function getWhere($where=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$objects = array();
 		
@@ -3957,8 +4242,7 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			'render_page',
 			'render_total',
 			'render_limit',
-			'render_sort_by',
-			'render_sort_asc',
+			'render_sort_json',
 			'render_filters',
 			'render_subtotals',
 			'render_template',
@@ -3984,8 +4268,6 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			$model->renderPage = $row['render_page'];
 			$model->renderTotal = $row['render_total'];
 			$model->renderLimit = $row['render_limit'];
-			$model->renderSortBy = $row['render_sort_by'];
-			$model->renderSortAsc = $row['render_sort_asc'];
 			$model->renderFilters = $row['render_filters'];
 			$model->renderSubtotals = $row['render_subtotals'];
 			$model->renderTemplate = $row['render_template'];
@@ -3998,6 +4280,7 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			$model->paramsRequired = self::decodeParamsJson($row['params_required_json']);
 			$model->paramsDefault = self::decodeParamsJson($row['params_default_json']);
 			$model->paramsHidden = json_decode($row['params_hidden_json'], true);
+			$model->renderSort = json_decode($row['render_sort_json'], true);
 			
 			$model->placeholderLabels = json_decode($row['placeholder_labels_json'], true);
 			$model->placeholderValues = json_decode($row['placeholder_values_json'], true);
@@ -4019,7 +4302,7 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 	 * @return C4_AbstractViewModel|false
 	 */
 	static public function getView($worker_id, $view_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$results = DAO_WorkerViewModel::getWhere(sprintf("worker_id = %d AND view_id = %s",
 			$worker_id,
@@ -4058,7 +4341,19 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 	}
 	
 	static public function setView($worker_id, $view_id, C4_AbstractViewModel $model) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
+
+		$render_sort = '';
+		
+		if(isset($model->renderSortBy)) {
+			if(is_array($model->renderSortBy) && is_array($model->renderSortAsc) && count($model->renderSortBy) == count($model->renderSortAsc)) {
+				$render_sort = array_combine($model->renderSortBy, $model->renderSortAsc);
+			} else if(!is_array($model->renderSortBy) && !is_array($model->renderSortAsc)) {
+				$render_sort = [$model->renderSortBy => ($model->renderSortAsc ? true : false) ];
+			}
+		} else {
+			$render_sort = $model->renderSort;
+		}
 		
 		$fields = array(
 			'worker_id' => $worker_id,
@@ -4076,8 +4371,7 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			'render_page' => abs(intval($model->renderPage)),
 			'render_total' => !empty($model->renderTotal) ? 1 : 0,
 			'render_limit' => intval($model->renderLimit),
-			'render_sort_by' => $db->qstr($model->renderSortBy),
-			'render_sort_asc' => !empty($model->renderSortAsc) ? 1 : 0,
+			'render_sort_json' => $db->qstr(json_encode($render_sort)),
 			'render_filters' => !empty($model->renderFilters) ? 1 : 0,
 			'render_subtotals' => $db->qstr($model->renderSubtotals),
 			'render_template' => $db->qstr($model->renderTemplate),
@@ -4093,7 +4387,7 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 	}
 	
 	static public function deleteView($worker_id, $view_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM worker_view_model WHERE worker_id = %d AND view_id = %s",
 			$worker_id,
@@ -4108,7 +4402,7 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 	 * @param integer$worker_id
 	 */
 	static public function flush($worker_id=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if($worker_id) {
 			$db->ExecuteMaster(sprintf("DELETE FROM worker_view_model WHERE worker_id = %d and is_ephemeral = 1",

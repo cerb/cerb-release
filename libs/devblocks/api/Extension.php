@@ -117,8 +117,10 @@ interface IDevblocksContextExtension {
 }
 
 abstract class Extension_DevblocksContext extends DevblocksExtension implements IDevblocksContextExtension {
+	const ID = 'devblocks.context';
+	
 	static $_changed_contexts = array();
-
+	
 	static function markContextChanged($context, $context_ids) {
 		if(!is_array($context_ids))
 			$context_ids = array($context_ids);
@@ -130,7 +132,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	}
 
 	static function flushTriggerChangedContextsEvents() {
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 
 		if(is_array(self::$_changed_contexts))
 		foreach(self::$_changed_contexts as $context => $context_ids) {
@@ -182,7 +184,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	}
 	
 	public static function getAliasesForAllContexts() {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		
 		if(null !== ($results = $cache->load(DevblocksPlatform::CACHE_CONTEXT_ALIASES)))
 			return $results;
@@ -265,7 +267,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		@$ctx_id = $aliases[$alias];
 		
 		// If this is a valid context, return it
-		if($ctx_id && false != ($ctx = DevblocksPlatform::getExtension($ctx_id, $as_instance))) {
+		if($ctx_id && false != ($ctx = Extension_DevblocksContext::get($ctx_id, $as_instance))) {
 			return $ctx;
 		}
 		
@@ -290,27 +292,31 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	}
 
 	/**
-	 * Lazy loader + cache
+	 * 
 	 * @param string $context
 	 * @return Extension_DevblocksContext
 	 */
-	public static function get($context) {
-		static $contexts = null;
-
-		/*
-		 * Lazy load
-		 */
-
-		if(isset($contexts[$context]))
-			return $contexts[$context];
-
-		if(!isset($contexts[$context])) {
-			if(null == ($ext = DevblocksPlatform::getExtension($context, true)))
-				return null;
-
-			$contexts[$context] = $ext;
-			return $ext;
+	public static function get($context, $as_instance=true) {
+		static $_cache = [];
+		
+		if($as_instance && isset($_cache[$context]))
+			return $_cache[$context];
+		
+		$contexts = self::getAll(false);
+		
+		if(isset($contexts[$context])) {
+			$manifest = $contexts[$context]; /* @var $manifest DevblocksExtensionManifest */
+			
+			if(!$as_instance) {
+				return $manifest;
+				
+			} else {
+				$_cache[$context] = $manifest->createInstance();
+				return $_cache[$context];
+			}
 		}
+
+		return false;
 	}
 	
 	static function getOwnerTree(array $contexts=['app','bot','group','role','worker']) {
@@ -507,6 +513,50 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	abstract function getRandom();
 	abstract function getMeta($context_id);
 	abstract function getContext($object, &$token_labels, &$token_values, $prefix=null);
+	abstract function getKeyToDaoFieldMap();
+	
+	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
+		return true;
+	}
+	
+	function getDaoFieldsFromKeysAndValues($data, &$out_fields, &$out_custom_fields, &$error) {
+		$out_fields = $out_custom_fields = [];
+		$error = null;
+		
+		$context = $this->id;
+		
+		$map = $this->getKeyToDaoFieldMap();
+		
+		if(!$this->_getDaoCustomFieldsFromKeysAndValues($context, $data, $out_custom_fields, $error))
+			return false;
+		
+		// Remove custom fields from data
+		if(is_array($out_custom_fields))
+		foreach($out_custom_fields as $field_id => $value)
+			unset($data['custom_' . $field_id]);
+		
+		if(is_array($data))
+		foreach($data as $key => $value) {
+			$fields = [];
+			
+			if(!$this->getDaoFieldsFromKeyAndValue($key, $value, $fields, $error))
+				return false;
+			
+			if(!empty($fields)) {
+				$out_fields = array_merge($out_fields, $fields);
+				continue;
+			}
+			
+			if(!isset($map[$key])) {
+				$error = sprintf("'%s' is not an editable field.", $key);
+				return false;
+			}
+			
+			$out_fields[$map[$key]] = $value;
+		}
+		
+		return true;
+	}
 	
 	function getDefaultProperties() {
 		return array();
@@ -681,11 +731,40 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		return $view;
 	}
 
+	/**
+	 * 
+	 * @param string $view_id
+	 * @return C4_AbstractView
+	 */
 	abstract function getChooserView($view_id=null);
 	abstract function getView($context=null, $context_id=null, $options=array(), $view_id=null);
 
 	function lazyLoadContextValues($token, $dictionary) { return array(); }
 
+	protected function _getDaoCustomFieldsFromKeysAndValues($context, array &$data, &$out_custom_fields, &$error=null) {
+		$error = null;
+		$custom_fields = null;
+		
+		if(is_array($data))
+		foreach($data as $key => $value) {
+			if(DevblocksPlatform::strStartsWith($key, 'custom_')) {
+				if(is_null($custom_fields))
+					$custom_fields = DAO_CustomField::getByContext($context);
+				
+				$custom_field_id = substr($key,strrpos($key,'_')+1);
+				
+				if(!$custom_field_id || !isset($custom_fields[$custom_field_id])) {
+					$error = sprintf("'%s' is not a valid custom field", $key);
+					return false;
+				}
+				
+				$out_custom_fields[$custom_field_id] = $value;
+			}
+		}
+		
+		return true;
+	}
+	
 	protected function _importModelCustomFieldsAsValues($model, $token_values) {
 		@$custom_fields = $model->custom_fields;
 
@@ -727,7 +806,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		// If (0 == $context_id), we need to null out all the fields and return w/o queries
 		if(empty($context_id))
 			return $token_values;
-
+			
 		// If we weren't passed values
 		if(is_null($field_values)) {
 			$results = DAO_CustomFieldValue::getValuesByContextIds($context, $context_id);
@@ -735,11 +814,11 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 				$field_values = array_shift($results);
 			unset($results);
 		}
-
+		
 		foreach(array_keys($fields) as $cf_id) {
 			$token_values['custom'][$cf_id] = '';
 			$token_values['custom_' . $cf_id] = '';
-
+			
 			if(isset($field_values[$cf_id])) {
 				// The literal value
 				$token_values['custom'][$cf_id] = $field_values[$cf_id];
@@ -776,7 +855,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 					break;
 			}
 		}
-
+		
 		return $token_values;
 	}
 
@@ -1201,7 +1280,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 		$conditions = $this->getConditions($trigger, false);
 		$condition_extensions = $this->getConditionExtensions($trigger);
 
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('params', $params);
 
 		if(!is_null($seq))
@@ -1248,6 +1327,9 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 						case 'phone':
 							return $tpl->display('devblocks:cerberusweb.core::internal/decisions/conditions/_string.tpl');
 							break;
+						case Model_CustomField::TYPE_LIST:
+							return $tpl->display('devblocks:cerberusweb.core::internal/decisions/conditions/_string_list.tpl');
+							break;
 						case Model_CustomField::TYPE_NUMBER:
 						//case 'percent':
 						case 'id':
@@ -1291,7 +1373,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 	}
 
 	function runCondition($token, $trigger, $params, DevblocksDictionaryDelegate $dict) {
-		$logger = DevblocksPlatform::getConsoleLog('Bot');
+		$logger = DevblocksPlatform::services()->log('Bot');
 		$conditions = $this->getConditions($trigger, false);
 		
 		// Cache the extensions
@@ -1339,7 +1421,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 			case '_custom_script':
 				@$tpl = DevblocksPlatform::importVar($params['tpl'],'string','');
 
-				$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 				$value = $tpl_builder->build($tpl, $dict);
 
 				if(false === $value) {
@@ -1495,8 +1577,46 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 									$pass = @preg_match($param_value, $value);
 									break;
 							}
+							break;
+							
+						case Model_CustomField::TYPE_LIST:
+							$not = (substr($params['oper'],0,1) == '!');
+							$oper = ltrim($params['oper'],'!');
+							
+							$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+							@$param_value = $tpl_builder->build($params['value'], $dict);
 
-							// Handle operator negation
+							$logger->info(sprintf("Text: `%s` %s%s `%s`",
+								$value,
+								(!empty($not) ? 'not ' : ''),
+								$oper,
+								$param_value
+							));
+							
+							$token_parts = explode('_', $token);
+							$field_id = array_pop($token_parts);
+							$token_cfields = implode('_', $token_parts);
+							$contains = false;
+							
+							switch($oper) {
+								case 'contains':
+									if(!isset($dict->$token_cfields) 
+										|| !is_array($dict->$token_cfields) 
+										|| !isset($dict->$token_cfields[$field_id])) {
+										$contains = false;
+										break;
+									}
+									
+									foreach($dict->$token_cfields[$field_id] as $value) {
+										if(!$contains && 0 == strcasecmp($param_value, $value)) {
+											$contains = true;
+											break;
+										}
+									}
+									
+									$pass = $contains;
+									break;
+							}
 							break;
 
 						case Model_CustomField::TYPE_NUMBER:
@@ -1737,7 +1857,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 	function renderAction($token, $trigger, $params=array(), $seq=null) {
 		$actions = $this->getActionExtensions($trigger);
 
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('trigger', $trigger);
 		$tpl->assign('params', $params);
 
@@ -2025,7 +2145,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 					break;
 					
 				case '_set_custom_var':
-					$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+					$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 
 					@$var = $params['var'];
 					@$value = $params['value'];
@@ -2049,8 +2169,8 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 					break;
 
 				case '_set_custom_var_snippet':
-					$tpl_builder = DevblocksPlatform::getTemplateBuilder();
-					$cache = DevblocksPlatform::getCacheService();
+					$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+					$cache = DevblocksPlatform::services()->cache();
 
 					@$on = $params['on'];
 					@$snippet_id = $params['snippet_id'];
@@ -2586,7 +2706,7 @@ abstract class Extension_DevblocksStorageSchema extends DevblocksExtension {
 	public static function unarchive($stop_time=null) {}
 
 	protected function _stats($table_name) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$stats = array();
 

@@ -54,7 +54,7 @@ class Page_Custom extends CerberusPageExtension {
 		$inst = DevblocksPlatform::getExtension($extension_id, true);
 		
 		if($inst instanceof Extension_WorkspaceTab && method_exists($inst, $action.'Action')) {
-			$tpl = DevblocksPlatform::getTemplateService();
+			$tpl = DevblocksPlatform::services()->template();
 			$tpl->assign('tab', $tab);
 			$tpl->assign('tab_extension', $inst);
 			
@@ -91,7 +91,7 @@ class Page_Custom extends CerberusPageExtension {
 	}
 	
 	private function _renderIndex() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		$pages = DAO_WorkspacePage::getAll();
@@ -124,7 +124,7 @@ class Page_Custom extends CerberusPageExtension {
 	}
 	
 	private function _renderPage($page_id) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if(null == ($page = DAO_WorkspacePage::get($page_id)))
@@ -150,7 +150,7 @@ class Page_Custom extends CerberusPageExtension {
 	function showPageWizardPopupAction() {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string',null);
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		$tpl->assign('view_id', $view_id);
 		
@@ -217,7 +217,7 @@ class Page_Custom extends CerberusPageExtension {
 		// Marquee
 		
 		if(!empty($page_id) && !empty($view_id)) {
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			C4_AbstractView::setMarquee($view_id, sprintf("New page created: <a href='%s'><b>%s</b></a>",
 				$url_writer->write(sprintf("c=pages&a=%d-%s",
 					$page_id,
@@ -251,7 +251,7 @@ class Page_Custom extends CerberusPageExtension {
 		// Marquee
 		
 		if(!empty($page_id) && !empty($view_id)) {
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			C4_AbstractView::setMarquee($view_id, sprintf("New page created: <a href='%s'><b>%s</b></a>",
 				$url_writer->write(sprintf("c=pages&a=%d-%s",
 					$page_id,
@@ -328,8 +328,8 @@ class Page_Custom extends CerberusPageExtension {
 			$list_view->num_rows = $view_model->renderLimit;
 			$list_view->params = $view_model->paramsEditable;
 			$list_view->params_required = $view_model->paramsRequired;
-			$list_view->sort_by = $view_model->renderSortBy;
-			$list_view->sort_asc = $view_model->renderSortAsc;
+			$list_view->sort_by = @array_keys($view_model->renderSort) ?: [];
+			$list_view->sort_asc = @array_values($view_model->renderSort) ?: [];
 			$list_view->subtotals = $view_model->renderSubtotals;
 			
 			$list_id = DAO_WorkspaceList::create(array(
@@ -378,8 +378,8 @@ class Page_Custom extends CerberusPageExtension {
 			$list_view->num_rows = $view_model->renderLimit;
 			$list_view->params = $view_model->paramsEditable;
 			$list_view->params_required = $view_model->paramsRequired;
-			$list_view->sort_by = $view_model->renderSortBy;
-			$list_view->sort_asc = $view_model->renderSortAsc;
+			$list_view->sort_by = @array_keys($view_model->renderSort) ?: [];
+			$list_view->sort_asc = @array_values($view_model->renderSort) ?: [];
 			$list_view->subtotals = $view_model->renderSubtotals;
 			
 			$list_id = DAO_WorkspaceList::create(array(
@@ -427,8 +427,8 @@ class Page_Custom extends CerberusPageExtension {
 			$list_view->num_rows = $view_model->renderLimit;
 			$list_view->params = $view_model->paramsEditable;
 			$list_view->params_required = $view_model->paramsRequired;
-			$list_view->sort_by = $view_model->renderSortBy;
-			$list_view->sort_asc = $view_model->renderSortAsc;
+			$list_view->sort_by = @array_keys($view_model->renderSort) ?: [];
+			$list_view->sort_asc = @array_values($view_model->renderSort) ?: [];
 			$list_view->subtotals = $view_model->renderSubtotals;
 			
 			$list_id = DAO_WorkspaceList::create(array(
@@ -441,7 +441,7 @@ class Page_Custom extends CerberusPageExtension {
 		// Marquee
 		
 		if(!empty($page_id) && !empty($view_id)) {
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			C4_AbstractView::setMarquee($view_id, sprintf("New page created: <a href='%s'><b>%s</b></a>",
 				$url_writer->write(sprintf("c=pages&a=%d-%s",
 					$page_id,
@@ -499,7 +499,7 @@ class Page_Custom extends CerberusPageExtension {
 	function showAddTabsAction() {
 		@$page_id = DevblocksPlatform::importGPC($_REQUEST['page_id'],'integer','0');
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if(null == ($page = DAO_WorkspacePage::get($page_id)))
@@ -577,7 +577,7 @@ class Page_Custom extends CerberusPageExtension {
 		@$import_json = DevblocksPlatform::importGPC($_REQUEST['import_json'], 'string', null);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 
 		header('Content-type: application/json');
 		
@@ -667,7 +667,7 @@ class Page_Custom extends CerberusPageExtension {
 		@$point = DevblocksPlatform::importGPC($_REQUEST['point'],'string', '');
 		@$request = DevblocksPlatform::importGPC($_REQUEST['request'],'string', '');
 
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 
 		if(null == ($tab = DAO_WorkspaceTab::get($tab_id)))
@@ -696,7 +696,7 @@ class Page_Custom extends CerberusPageExtension {
 		if(null == ($list = DAO_WorkspaceList::get($list_id)))
 			return;
 			
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 	
 		if(null == ($tab = DAO_WorkspaceTab::get($list->workspace_tab_id)))
@@ -710,7 +710,7 @@ class Page_Custom extends CerberusPageExtension {
 		$view_id = 'cust_' . $list->id;
 	
 		// Make sure our workspace source has a valid renderer class
-		if(null == ($ext = DevblocksPlatform::getExtension($list->context, true))) { /* @var $ext Extension_DevblocksContext */
+		if(null == ($ext = Extension_DevblocksContext::get($list->context))) {
 			return;
 		}
 		
@@ -764,7 +764,7 @@ class Page_Custom extends CerberusPageExtension {
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer', 0);
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string', '');
 	
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 	
 		$tpl->assign('view_id', $view_id);
@@ -822,6 +822,10 @@ class Page_Custom extends CerberusPageExtension {
 		}
 	
 		if(!empty($workspace_page_id) && $do_delete) { // Delete
+			if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_WORKSPACE_PAGE)))
+				return;
+				//throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+			
 			DAO_WorkspacePage::delete($workspace_page_id);
 	
 		} else { // Create/Edit
@@ -843,7 +847,7 @@ class Page_Custom extends CerberusPageExtension {
 					$owner_context = null;
 			}
 			
-			if(!CerberusContexts::isWriteableByActor($owner_context, $owner_context_id, $active_worker)) {
+			if(!CerberusContexts::isOwnableBy($owner_context, $owner_context_id, $active_worker)) {
 				$owner_context = null;
 				$owner_context_id = null;
 			}
@@ -854,6 +858,9 @@ class Page_Custom extends CerberusPageExtension {
 			}
 				
 			if(empty($workspace_page_id)) {
+				if(!$active_worker->hasPriv(sprintf("contexts.%s.create", CerberusContexts::CONTEXT_WORKSPACE_PAGE)))
+					return;
+				
 				// Extension
 				$fields[DAO_WorkspacePage::EXTENSION_ID] = $extension_id;
 	
@@ -861,7 +868,7 @@ class Page_Custom extends CerberusPageExtension {
 	
 				// View marquee
 				if(!empty($workspace_page_id) && !empty($view_id)) {
-					$url_writer = DevblocksPlatform::getUrlService();
+					$url_writer = DevblocksPlatform::services()->url();
 					C4_AbstractView::setMarquee($view_id, sprintf("New page created: <a href='%s'><b>%s</b></a>",
 						$url_writer->write(sprintf("c=pages&a=%d-%s",
 							$workspace_page_id,
@@ -872,6 +879,9 @@ class Page_Custom extends CerberusPageExtension {
 				}
 				
 			} else {
+				if(!$active_worker->hasPriv(sprintf("contexts.%s.update", CerberusContexts::CONTEXT_WORKSPACE_PAGE)))
+					return;
+				
 				DAO_WorkspacePage::update($workspace_page_id, $fields);
 	
 			}
@@ -918,7 +928,7 @@ class Page_Custom extends CerberusPageExtension {
 					break;
 			}
 			
-			if(!CerberusContexts::isWriteableByActor($owner_context, $owner_context_id, $active_worker))
+			if(!CerberusContexts::isOwnableBy($owner_context, $owner_context_id, $active_worker))
 				throw new Exception();
 			
 			if(empty($owner_context))
@@ -939,7 +949,7 @@ class Page_Custom extends CerberusPageExtension {
 			if(false == $page_extension->importPageConfigJson($json, $page))
 				throw new Exception();
 			
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			
 			echo json_encode(array(
 				'page_id' => $page->id,
@@ -956,7 +966,7 @@ class Page_Custom extends CerberusPageExtension {
 	function showEditWorkspaceTabAction() {
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer', 0);
 	
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 	
 		if(empty($id))
@@ -1051,7 +1061,7 @@ class Page_Custom extends CerberusPageExtension {
 		@$page_id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		if(null == ($page = DAO_WorkspacePage::get($page_id)))
 			return;
@@ -1073,7 +1083,7 @@ class Page_Custom extends CerberusPageExtension {
 		@$tab_id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		
 		if(null == ($tab = DAO_WorkspaceTab::get($tab_id)))
 			return;

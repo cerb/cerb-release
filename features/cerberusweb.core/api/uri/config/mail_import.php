@@ -17,7 +17,7 @@
 
 class PageSection_SetupMailImport extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$visit = CerberusApplication::getVisit();
 
 		$visit->set(ChConfigurationPage::ID, 'mail_import');
@@ -30,7 +30,7 @@ class PageSection_SetupMailImport extends Extension_PageSection {
 		
 		CerberusContexts::pushActivityDefaultActor(CerberusContexts::CONTEXT_APPLICATION, 0);
 		
-		$logger = DevblocksPlatform::getConsoleLog('Parser');
+		$logger = DevblocksPlatform::services()->log('Parser');
 		$logger->setLogLevel(4);
 		
 		ob_start();

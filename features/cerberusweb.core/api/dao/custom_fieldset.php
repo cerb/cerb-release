@@ -1,15 +1,49 @@
 <?php
 class DAO_CustomFieldset extends Cerb_ORMHelper {
+	const CONTEXT = 'context';
 	const ID = 'id';
 	const NAME = 'name';
-	const CONTEXT = 'context';
 	const OWNER_CONTEXT = 'owner_context';
 	const OWNER_CONTEXT_ID = 'owner_context_id';
 
 	const CACHE_ALL = 'ch_CustomFieldsets';
 	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::OWNER_CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::OWNER_CONTEXT_ID)
+			->id()
+			->setRequired(true)
+			;
+			
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO custom_fieldset () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -56,7 +90,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 	}
 	
 	static function linkToContextsByFieldValues($fieldset_id, $field_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$temp_table = '_links_' . uniqid();
 		
@@ -98,7 +132,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 	 * @return Model_CustomFieldset[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -136,7 +170,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 	}
 	
 	static function getAll($nocache=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		
 		if($nocache || null === ($objects = $cache->load(self::CACHE_ALL))) {
 			$objects = DAO_CustomFieldset::getWhere(
@@ -281,7 +315,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 	}
 	
 	static public function count($owner_context, $owner_context_id) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		return $db->GetOneSlave(sprintf("SELECT count(*) FROM custom_fieldset ".
 			"WHERE owner_context = %s AND owner_context_id = %d",
 			$db->qstr($owner_context),
@@ -293,7 +327,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -314,7 +348,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 		$db->ExecuteMaster(sprintf("DELETE FROM custom_fieldset WHERE id IN (%s)", $ids_list));
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -395,7 +429,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -450,7 +484,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 	
 	public static function clearCache() {
 		// Invalidate cache on changes
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::CACHE_ALL);
 	}
 
@@ -544,6 +578,9 @@ class Model_CustomFieldset {
 	 * @return Model_CustomField[]
 	 */
 	function getCustomFields() {
+		if(!$this->id)
+			return [];
+		
 		$fields = DAO_CustomField::getAll();
 		$results = array();
 		
@@ -762,7 +799,7 @@ class View_CustomFieldset extends C4_AbstractView implements IAbstractView_Subto
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -774,7 +811,7 @@ class View_CustomFieldset extends C4_AbstractView implements IAbstractView_Subto
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -915,7 +952,9 @@ class View_CustomFieldset extends C4_AbstractView implements IAbstractView_Subto
 	}
 };
 
-class Context_CustomFieldset extends Extension_DevblocksContext {
+class Context_CustomFieldset extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek {
+	const ID = 'cerberusweb.contexts.custom_fieldset';
+	
 	static function isReadableByActor($models, $actor, $ignore_admins=false) {
 		return CerberusContexts::isReadableByDelegateOwner($actor, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, $models, 'owner_', $ignore_admins);
 	}
@@ -928,11 +967,20 @@ class Context_CustomFieldset extends Extension_DevblocksContext {
 		return DAO_CustomFieldset::random();
 	}
 	
+	function profileGetUrl($context_id) {
+		if(empty($context_id))
+			return '';
+	
+		$url_writer = DevblocksPlatform::services()->url();
+		$url = $url_writer->writeNoProxy('c=profiles&type=custom_fieldset&id='.$context_id, true);
+		return $url;
+	}
+	
 	function getMeta($context_id) {
 		if(false == ($cfieldset = DAO_CustomFieldset::get($context_id)))
 			return null;
 			
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		return array(
 			'id' => $context_id,
@@ -966,7 +1014,6 @@ class Context_CustomFieldset extends Extension_DevblocksContext {
 	
 	function getDefaultProperties() {
 		return array(
-			'name',
 			'owner__label',
 		);
 	}
@@ -1025,6 +1072,16 @@ class Context_CustomFieldset extends Extension_DevblocksContext {
 		}
 
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'context' => DAO_CustomFieldset::CONTEXT,
+			'id' => DAO_CustomFieldset::ID,
+			'name' => DAO_CustomFieldset::NAME,
+			'owner__context' => DAO_CustomFieldset::OWNER_CONTEXT,
+			'owner_id' => DAO_CustomFieldset::OWNER_CONTEXT_ID,
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1132,5 +1189,107 @@ class Context_CustomFieldset extends Extension_DevblocksContext {
 		
 		$view->renderTemplate = 'context';
 		return $view;
+	}
+	
+	function showCustomFieldsetPeekAction() {
+		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
+		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'], 'string', '');
+		@$layer = DevblocksPlatform::importGPC($_REQUEST['layer'], 'string', '');
+		
+		$active_worker = CerberusApplication::getActiveWorker();
+		$tpl = DevblocksPlatform::services()->template();
+
+		$tpl->assign('view_id', $view_id);
+		$tpl->assign('layer', $layer);
+		
+
+		// Template
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/custom_fieldsets/peek_edit.tpl');
+	}
+	
+	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('view_id', $view_id);
+		
+		$context = CerberusContexts::CONTEXT_CUSTOM_FIELDSET;
+		
+		if(!empty($context_id)) {
+			$model = DAO_CustomFieldset::get($context_id);
+			
+		} else {
+			@$owner_context = DevblocksPlatform::importGPC($_REQUEST['owner_context'],'string','');
+			@$owner_context_id = DevblocksPlatform::importGPC($_REQUEST['owner_context_id'],'integer',0);
+		
+			$model = new Model_CustomFieldset();
+			$model->id = 0;
+			$model->owner_context = !empty($owner_context) ? $owner_context : '';
+			$model->owner_context_id = $owner_context_id;
+		}
+		
+		if(empty($context_id) || $edit) {
+			if(isset($model))
+				$tpl->assign('model', $model);
+			
+			$types = Model_CustomField::getTypes();
+			$tpl->assign('types', $types);
+			
+			$custom_fields = $model->getCustomFields();
+			$tpl->assign('custom_fields', $custom_fields);
+			
+			// Contexts
+			
+			$contexts = Extension_DevblocksContext::getAll(false, array('custom_fields'));
+			$tpl->assign('contexts', $contexts);
+			
+			$link_contexts = Extension_DevblocksContext::getAll(false, array('workspace'));
+			$tpl->assign('link_contexts', $link_contexts);
+			
+			// Owner
+			
+			$owners_menu = Extension_DevblocksContext::getOwnerTree();
+			$tpl->assign('owners_menu', $owners_menu);
+			
+			// View
+			$tpl->assign('id', $context_id);
+			$tpl->assign('view_id', $view_id);
+			$tpl->display('devblocks:cerberusweb.core::internal/custom_fieldsets/peek_edit.tpl');
+			
+		} else {
+			// Counts
+			$activity_counts = array(
+				//'comments' => DAO_Comment::count($context, $context_id),
+			);
+			$tpl->assign('activity_counts', $activity_counts);
+			
+			// Links
+			$links = array(
+				$context => array(
+					$context_id => 
+						DAO_ContextLink::getContextLinkCounts(
+							$context,
+							$context_id,
+							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+						),
+				),
+			);
+			$tpl->assign('links', $links);
+			
+			// Context
+			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+				return;
+			
+			// Dictionary
+			$labels = array();
+			$values = array();
+			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
+			$dict = DevblocksDictionaryDelegate::instance($values);
+			$tpl->assign('dict', $dict);
+			
+			$properties = $context_ext->getCardProperties();
+			$tpl->assign('properties', $properties);
+			
+			$tpl->display('devblocks:cerberusweb.core::internal/custom_fieldsets/peek.tpl');
+		}
 	}
 };

@@ -23,8 +23,8 @@ class ChDebugController extends DevblocksControllerExtension  {
 		$stack = $request->path;
 		array_shift($stack); // update
 
-//		$cache = DevblocksPlatform::getCacheService(); /* @var $cache _DevblocksCacheManager */
-		$settings = DevblocksPlatform::getPluginSettingsService();
+//		$cache = DevblocksPlatform::services()->cache(); /* @var $cache _DevblocksCacheManager */
+		$settings = DevblocksPlatform::services()->pluginSettings();
 
 		$authorized_ips_str = $settings->get('cerberusweb.core',CerberusSettings::AUTHORIZED_IPS,CerberusSettingsDefaults::AUTHORIZED_IPS);
 		$authorized_ips = DevblocksPlatform::parseCrlfString($authorized_ips_str);
@@ -92,7 +92,7 @@ class ChDebugController extends DevblocksControllerExtension  {
 				break;
 				
 			case 'status':
-				@$db = DevblocksPlatform::getDatabaseService();
+				@$db = DevblocksPlatform::services()->database();
 
 				header('Content-Type: application/json; charset=utf-8');
 
@@ -210,8 +210,8 @@ class ChDebugController extends DevblocksControllerExtension  {
 				break;
 				
 			case 'report':
-				@$db = DevblocksPlatform::getDatabaseService();
-				@$settings = DevblocksPlatform::getPluginSettingsService();
+				@$db = DevblocksPlatform::services()->database();
+				@$settings = DevblocksPlatform::services()->pluginSettings();
 				
 				@$tables = $db->metaTablesDetailed();
 				
@@ -381,7 +381,7 @@ class ChDebugController extends DevblocksControllerExtension  {
 				break;
 				
 			default:
-				$url_service = DevblocksPlatform::getUrlService();
+				$url_service = DevblocksPlatform::services()->url();
 				
 				echo sprintf(
 					"<html>

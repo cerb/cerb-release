@@ -168,7 +168,7 @@ class _DevblocksTemplateManager {
 		if($repeat)
 			return;
 		
-		$url = DevblocksPlatform::getUrlService();
+		$url = DevblocksPlatform::services()->url();
 		
 		$contents = $url->write($content, !empty($params['full']) ? true : false);
 		
@@ -188,7 +188,7 @@ class _DevblocksTemplateManager {
 		if(empty($string))
 			return '';
 	
-		$date = DevblocksPlatform::getDateService();
+		$date = DevblocksPlatform::services()->date();
 		return $date->formatTime($format, $string, $gmt);
 	}
 	

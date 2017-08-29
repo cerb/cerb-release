@@ -51,20 +51,6 @@ class ChRest_Addresses extends Extension_RestController implements IExtensionRes
 	function deleteAction($stack) {
 		// Consistency with the Web-UI
 		$this->error(self::ERRNO_NOT_IMPLEMENTED);
-		
-//		$worker = CerberusApplication::getActiveWorker();
-//		if(!$worker->hasPriv('core.addybook.person.actions.delete'))
-//			$this->error(self::ERRNO_ACL);
-//
-//		$id = array_shift($stack);
-//
-//		if(null == ($task = DAO_Address::get($id)))
-//			$this->error(self::ERRNO_CUSTOM, sprintf("Invalid address ID %d", $id));
-//
-//		DAO_Address::delete($id);
-//
-//		$result = array('id' => $id);
-//		$this->success($result);
 	}
 	
 	private function getId($id) {
@@ -121,7 +107,6 @@ class ChRest_Addresses extends Extension_RestController implements IExtensionRes
 				'num_nonspam' => SearchFields_Address::NUM_NONSPAM,
 				'num_spam' => SearchFields_Address::NUM_SPAM,
 				'org_id' => SearchFields_Address::CONTACT_ORG_ID,
-				'org_name' => SearchFields_Address::ORG_NAME,
 				'updated' => SearchFields_Address::UPDATED,
 			);
 		}
@@ -217,7 +202,7 @@ class ChRest_Addresses extends Extension_RestController implements IExtensionRes
 		$worker = CerberusApplication::getActiveWorker();
 		
 		// ACL
-		if(!$worker->hasPriv('core.addybook.addy.actions.update'))
+		if(!$worker->hasPriv('contexts.cerberusweb.contexts.address.update'))
 			$this->error(self::ERRNO_ACL);
 		
 		// Validate the ID
@@ -271,7 +256,7 @@ class ChRest_Addresses extends Extension_RestController implements IExtensionRes
 		$worker = CerberusApplication::getActiveWorker();
 		
 		// ACL
-		if(!$worker->hasPriv('core.addybook.addy.actions.update'))
+		if(!$worker->hasPriv('contexts.cerberusweb.contexts.address.create'))
 			$this->error(self::ERRNO_ACL);
 		
 		$postfields = array(

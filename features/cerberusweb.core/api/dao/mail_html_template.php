@@ -16,18 +16,67 @@
 ***********************************************************************/
 
 class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
-	const _CACHE_ALL = 'cerb_cache_mail_html_template_all';
-	
+	const CONTENT = 'content';
 	const ID = 'id';
 	const NAME = 'name';
-	const UPDATED_AT = 'updated_at';
 	const OWNER_CONTEXT = 'owner_context';
 	const OWNER_CONTEXT_ID = 'owner_context_id';
-	const CONTENT = 'content';
 	const SIGNATURE = 'signature';
+	const UPDATED_AT = 'updated_at';
+	
+	const _CACHE_ALL = 'cerb_cache_mail_html_template_all';
+	
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// mediumtext
+		$validation
+			->addField(self::CONTENT)
+			->string()
+			->setMaxLength(16777215)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::NAME)
+			->string()
+			->setMaxLength(255)
+			->setRequired(true)
+			;
+		// varchar(128)
+		$validation
+			->addField(self::OWNER_CONTEXT)
+			->context()
+			;
+		// int(11)
+		$validation
+			->addField(self::OWNER_CONTEXT_ID)
+			->id()
+			;
+		// mediumtext
+		$validation
+			->addField(self::SIGNATURE)
+			->string()
+			->setMaxLength(16777215)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::UPDATED_AT)
+			->timestamp()
+			;
+
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO mail_html_template () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -69,7 +118,7 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 	 * @return Model_MailHtmlTemplate[]
 	 */
 	static function getWhere($where=null, $sortBy=DAO_MailHtmlTemplate::NAME, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -112,7 +161,7 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 	 * @return Model_MailHtmlTemplate[]
 	 */
 	static function getAll($nocache=false) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		if($nocache || null === ($html_templates = $cache->load(self::_CACHE_ALL))) {
 			$html_templates = self::getWhere(
 				null,
@@ -164,7 +213,7 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -182,7 +231,7 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 		DAO_AddressOutgoing::clearCache();
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -280,7 +329,7 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -334,7 +383,7 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 	}
 	
 	static public function clearCache() {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::_CACHE_ALL);
 	}
 
@@ -454,7 +503,7 @@ class Model_MailHtmlTemplate {
 		$signature = $this->signature;
 		
 		if(!empty($worker)) {
-			$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			
 			$labels = array();
 			$values = array();
@@ -693,7 +742,7 @@ class View_MailHtmlTemplate extends C4_AbstractView implements IAbstractView_Sub
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -706,7 +755,7 @@ class View_MailHtmlTemplate extends C4_AbstractView implements IAbstractView_Sub
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -871,14 +920,14 @@ class Context_MailHtmlTemplate extends Extension_DevblocksContext implements IDe
 		if(empty($context_id))
 			return '';
 	
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=html_template&id='.$context_id, true);
 		return $url;
 	}
 	
 	function getMeta($context_id) {
 		$mail_html_template = DAO_MailHtmlTemplate::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($mail_html_template->name);
@@ -967,11 +1016,21 @@ class Context_MailHtmlTemplate extends Extension_DevblocksContext implements IDe
 			$token_values = $this->_importModelCustomFieldsAsValues($mail_html_template, $token_values);
 			
 			// URL
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=html_template&id=%d-%s",$mail_html_template->id, DevblocksPlatform::strToPermalink($mail_html_template->name)), true);
 		}
 		
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'content' => DAO_MailHtmlTemplate::CONTENT,
+			'id' => DAO_MailHtmlTemplate::ID,
+			'name' => DAO_MailHtmlTemplate::NAME,
+			'signature' => DAO_MailHtmlTemplate::SIGNATURE,
+			'updated_at' => DAO_MailHtmlTemplate::UPDATED_AT,
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1066,7 +1125,7 @@ class Context_MailHtmlTemplate extends Extension_DevblocksContext implements IDe
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
 		if(!empty($context_id) && null != ($mail_html_template = DAO_MailHtmlTemplate::get($context_id))) {

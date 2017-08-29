@@ -16,17 +16,64 @@
 ***********************************************************************/
 
 class DAO_ContextActivityLog extends Cerb_ORMHelper {
-	const ID = 'id';
 	const ACTIVITY_POINT = 'activity_point';
 	const ACTOR_CONTEXT = 'actor_context';
 	const ACTOR_CONTEXT_ID = 'actor_context_id';
-	const TARGET_CONTEXT = 'target_context';
-	const TARGET_CONTEXT_ID = 'target_context_id';
 	const CREATED = 'created';
 	const ENTRY_JSON = 'entry_json';
-
+	const ID = 'id';
+	const TARGET_CONTEXT = 'target_context';
+	const TARGET_CONTEXT_ID = 'target_context_id';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::ACTIVITY_POINT)
+			->string()
+			->setMaxLength(128)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::ACTOR_CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::ACTOR_CONTEXT_ID)
+			->id()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CREATED)
+			->timestamp()
+			;
+		$validation
+			->addField(self::ENTRY_JSON)
+			->string()
+			->setMaxLength(16777215)
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::TARGET_CONTEXT)
+			->context()
+			;
+		$validation
+			->addField(self::TARGET_CONTEXT_ID)
+			->id()
+			;
+			
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		@$target_context = $fields[DAO_ContextActivityLog::TARGET_CONTEXT];
 		@$target_context_id = $fields[DAO_ContextActivityLog::TARGET_CONTEXT_ID];
@@ -51,7 +98,7 @@ class DAO_ContextActivityLog extends Cerb_ORMHelper {
 	 * @return Model_ContextActivityLog[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -160,7 +207,7 @@ class DAO_ContextActivityLog extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -179,7 +226,7 @@ class DAO_ContextActivityLog extends Cerb_ORMHelper {
 		if(empty($context_ids))
 			return;
 			
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM context_activity_log WHERE (actor_context = %s AND actor_context_id IN (%s)) OR (target_context = %s AND target_context_id IN (%s)) ",
 			$db->qstr($context),
@@ -252,7 +299,7 @@ class DAO_ContextActivityLog extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -681,7 +728,7 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -690,7 +737,7 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 
 		switch($field) {
@@ -874,7 +921,7 @@ class Context_ContextActivityLog extends Extension_DevblocksContext {
 	}
 	
 	function getMeta($context_id) {
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		$entry = DAO_ContextActivityLog::get($context_id);
 		
@@ -979,6 +1026,17 @@ class Context_ContextActivityLog extends Extension_DevblocksContext {
 		}
 		
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'actor__context' => DAO_ContextActivityLog::ACTOR_CONTEXT,
+			'actor_id' => DAO_ContextActivityLog::ACTOR_CONTEXT_ID,
+			'created' => DAO_ContextActivityLog::CREATED,
+			'id' => DAO_ContextActivityLog::ID,
+			'target__context' => DAO_ContextActivityLog::TARGET_CONTEXT,
+			'target_id' => DAO_ContextActivityLog::TARGET_CONTEXT_ID,
+		];
 	}
 	
 	function lazyLoadContextValues($token, $dictionary) {

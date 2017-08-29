@@ -29,7 +29,7 @@ class ParseCron extends CerberusCronPageExtension {
 	}
 
 	function run() {
-		$logger = DevblocksPlatform::getConsoleLog();
+		$logger = DevblocksPlatform::services()->log();
 		
 		$logger->info("[Parser] Starting Parser Task");
 		
@@ -123,7 +123,7 @@ class ParseCron extends CerberusCronPageExtension {
 	}
 
 	function _parseFile($full_filename) {
-		$logger = DevblocksPlatform::getConsoleLog('Parser');
+		$logger = DevblocksPlatform::services()->log('Parser');
 		
 		$fileparts = pathinfo($full_filename);
 		$logger->info("Reading ".$fileparts['basename']."...");
@@ -158,7 +158,7 @@ class ParseCron extends CerberusCronPageExtension {
 	}
 
 	function configure($instance) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 
 		$tpl->assign('max_messages', $this->getParam('max_messages', 500));
 
@@ -179,11 +179,11 @@ class ParseCron extends CerberusCronPageExtension {
 // [TODO] Clear idle temp files (fileatime())
 class MaintCron extends CerberusCronPageExtension {
 	function run() {
-		$logger = DevblocksPlatform::getConsoleLog();
+		$logger = DevblocksPlatform::services()->log();
 		
 		$logger->info("[Maint] Starting Maintenance Task");
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		// Platform
 		DAO_Platform::maint();
@@ -206,7 +206,7 @@ class MaintCron extends CerberusCronPageExtension {
 		$logger->info("[Maint] Purged " . $db->Affected_Rows() . " ticket records.");
 
 		// Give plugins a chance to run maintenance (nuke NULL rows, etc.)
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'cron.maint',
@@ -287,7 +287,7 @@ class MaintCron extends CerberusCronPageExtension {
 	}
 
 	function configure($instance) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 
 		$tpl->assign('purge_waitdays', $this->getParam('purge_waitdays', 7));
 
@@ -308,7 +308,7 @@ class MaintCron extends CerberusCronPageExtension {
 class HeartbeatCron extends CerberusCronPageExtension {
 	function run() {
 		// Heartbeat Event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'cron.heartbeat',
@@ -319,14 +319,14 @@ class HeartbeatCron extends CerberusCronPageExtension {
 	}
 
 	function configure($instance) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->display('devblocks:cerberusweb.core::cron/heartbeat/config.tpl');
 	}
 };
 
 class ImportCron extends CerberusCronPageExtension {
 	function run() {
-		$logger = DevblocksPlatform::getConsoleLog();
+		$logger = DevblocksPlatform::services()->log();
 		
 		$logger->info("[Importer] Starting Import Task");
 		
@@ -537,8 +537,8 @@ class ImportCron extends CerberusCronPageExtension {
 	
 	// [TODO] Move to an extension
 	private function _handleImportTicket($xml) {
-		$settings = DevblocksPlatform::getPluginSettingsService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$settings = DevblocksPlatform::services()->pluginSettings();
+		$logger = DevblocksPlatform::services()->log();
 		$workers = DAO_Worker::getAll();
 
 		static $email_to_worker_id = null;
@@ -912,8 +912,8 @@ class ImportCron extends CerberusCronPageExtension {
 	}
 
 	private function _handleImportWorker($xml) {
-		$settings = DevblocksPlatform::getPluginSettingsService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$settings = DevblocksPlatform::services()->pluginSettings();
+		$logger = DevblocksPlatform::services()->log();
 
 		$sFirstName = (string) $xml->first_name;
 		$sLastName = (string) $xml->last_name;
@@ -951,8 +951,8 @@ class ImportCron extends CerberusCronPageExtension {
 	}
 
 	private function _handleImportOrg($xml) {
-		$settings = DevblocksPlatform::getPluginSettingsService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$settings = DevblocksPlatform::services()->pluginSettings();
+		$logger = DevblocksPlatform::services()->log();
 
 		$sName = (string) $xml->name;
 		$sStreet = (string) $xml->street;
@@ -987,8 +987,8 @@ class ImportCron extends CerberusCronPageExtension {
 	}
 
 	private function _handleImportAddress($xml) {
-		$settings = DevblocksPlatform::getPluginSettingsService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$settings = DevblocksPlatform::services()->pluginSettings();
+		$logger = DevblocksPlatform::services()->log();
 
 		$sFirstName = (string) $xml->first_name;
 		$sLastName = (string) $xml->last_name;
@@ -1087,7 +1087,7 @@ class ImportCron extends CerberusCronPageExtension {
 	}
 
 	function configure($instance) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->display('devblocks:cerberusweb.core::cron/import/config.tpl');
 	}
 };
@@ -1099,7 +1099,7 @@ class ImportCron extends CerberusCronPageExtension {
  */
 class MailboxCron extends CerberusCronPageExtension {
 	function run() {
-		$logger = DevblocksPlatform::getConsoleLog();
+		$logger = DevblocksPlatform::services()->log();
 		
 		$logger->info("[Mailboxes] Started Mailbox Checker job");
 		
@@ -1214,7 +1214,7 @@ class MailboxCron extends CerberusCronPageExtension {
 				if(in_array($num_fails, array(2,5,10,20))) {
 					$logger->info(sprintf("[Mailboxes] Sending notification about %d consecutive failures on this mailbox", $num_fails));
 					
-					$url_writer = DevblocksPlatform::getUrlService();
+					$url_writer = DevblocksPlatform::services()->url();
 					$admin_workers = DAO_Worker::getAllAdmins();
 					
 					/*
@@ -1355,7 +1355,7 @@ class MailboxCron extends CerberusCronPageExtension {
 	}
 
 	function configure($instance) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 
 		$timeout = ini_get('max_execution_time');
 		$tpl->assign('max_messages', $this->getParam('max_messages', (($timeout) ? 20 : 50)));
@@ -1374,7 +1374,7 @@ class MailboxCron extends CerberusCronPageExtension {
 
 class StorageCron extends CerberusCronPageExtension {
 	function run() {
-		$logger = DevblocksPlatform::getConsoleLog();
+		$logger = DevblocksPlatform::services()->log();
 		
 		$runtime = microtime(true);
 		
@@ -1434,7 +1434,7 @@ class StorageCron extends CerberusCronPageExtension {
 	}
 	
 	function configure($instance) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 
 //		$timeout = ini_get('max_execution_time');
 //		$tpl->assign('max_messages', $this->getParam('max_messages', (($timeout) ? 20 : 50)));
@@ -1452,7 +1452,7 @@ class StorageCron extends CerberusCronPageExtension {
 
 class MailQueueCron extends CerberusCronPageExtension {
 	function run() {
-		$logger = DevblocksPlatform::getConsoleLog();
+		$logger = DevblocksPlatform::services()->log();
 		$runtime = microtime(true);
 
 		$stop_time = time() + 30; // [TODO] Make configurable
@@ -1509,19 +1509,77 @@ class MailQueueCron extends CerberusCronPageExtension {
 	}
 
 	function configure($instance) {
-		//$tpl = DevblocksPlatform::getTemplateService();
+		//$tpl = DevblocksPlatform::services()->template();
 		//$tpl->display('devblocks:cerberusweb.core::cron/mail_queue/config.tpl');
 	}
 };
 
 class Cron_BotScheduledBehavior extends CerberusCronPageExtension {
 	function run() {
-		$logger = DevblocksPlatform::getConsoleLog('Bot Scheduler');
+		$logger = DevblocksPlatform::services()->log('Bot Scheduler');
 		$runtime = microtime(true);
 
 		$stop_time = time() + 20; // [TODO] Make configurable
 
 		$logger->info("Starting...");
+		
+		// Run recurrent behaviors
+		
+		$this->_runRecurrentBehaviors();
+		
+		// Run scheduled behaviors
+		
+		$this->_runScheduledBehaviors($stop_time);
+		
+		$logger->info("Total Runtime: ".number_format((microtime(true)-$runtime)*1000,2)." ms");
+	}
+
+	function configure($instance) {
+	}
+	
+	private function _runRecurrentBehaviors() {
+		$recurrent_behaviors = Event_RecurrentBehavior::getReadyBehaviors();
+		
+		foreach($recurrent_behaviors as $behavior) { /* @var $behavior Model_TriggerEvent */
+			if(false == ($event = $behavior->getEvent()))
+				continue;
+			
+			$event_model = new Model_DevblocksEvent();
+			$event_model->id = Event_RecurrentBehavior::ID;
+			$event_model->params = [];
+			
+			$event->setEvent($event_model, $behavior);
+			
+			$values = $event->getValues();
+			$dict = DevblocksDictionaryDelegate::instance($values);
+			
+			$result = $behavior->runDecisionTree($dict, false, $event);
+			
+			// Update the next runtime timestamp
+			@$patterns = DevblocksPlatform::parseCrlfString($behavior->event_params['repeat_patterns']);
+			@$timezone = $behavior->event_params['timezone'];
+			@$history = $behavior->event_params['repeat_history'];
+			
+			if(!is_array($history))
+				$history = [];
+			
+			if(is_array($patterns)) {
+				$run_at = Event_RecurrentBehavior::getNextOccurrence($patterns, $timezone);
+				$behavior->event_params['repeat_run_at'] = $run_at;
+				
+				$history[] = time();
+				$behavior->event_params['repeat_history'] = array_slice($history, -25);
+				
+				DAO_TriggerEvent::update($behavior->id, [
+					DAO_TriggerEvent::EVENT_PARAMS_JSON => json_encode($behavior->event_params),
+				]);
+			}
+		}
+	}
+	
+	private function _runScheduledBehaviors($stop_time) {
+		$logger = DevblocksPlatform::services()->log();
+		
 		$last_behavior_id = 0;
 
 		do {
@@ -1545,7 +1603,7 @@ class Cron_BotScheduledBehavior extends CerberusCronPageExtension {
 							throw new Exception("Incomplete macro.");
 					
 						// Load context
-						if(null == ($context_ext = DevblocksPlatform::getExtension($behavior->context, true)))
+						if(null == ($context_ext = Extension_DevblocksContext::get($behavior->context)))
 							throw new Exception("Invalid context.");
 					
 						// [TODO] ACL: Ensure access to the context object
@@ -1580,17 +1638,12 @@ class Cron_BotScheduledBehavior extends CerberusCronPageExtension {
 			}
 			
 		} while(!empty($behaviors) && $stop_time > time());
-
-		$logger->info("Total Runtime: ".number_format((microtime(true)-$runtime)*1000,2)." ms");
-	}
-
-	function configure($instance) {
 	}
 };
 
 class SearchCron extends CerberusCronPageExtension {
 	function run() {
-		$logger = DevblocksPlatform::getConsoleLog();
+		$logger = DevblocksPlatform::services()->log();
 		$runtime = microtime(true);
 		
 		$logger->info("[Search] Starting...");

@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>8.0.7</version>
+	<version>8.1.0</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -62,6 +62,7 @@
 		<patch version="7.3.0" revision="1190" file="patches/7.x/7.3.0.php" />
 		
 		<patch version="8.0.0" revision="1206" file="patches/8.x/8.0.0.php" />
+		<patch version="8.1.0" revision="1226" file="patches/8.x/8.1.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -72,6 +73,8 @@
 		</file>
 		
 		<file path="api/plugin.classes.php">
+			<class name="Cerb_SwiftPlugin_GPGSigner" />
+			<class name="Cerb_SwiftPlugin_TransportExceptionLogger" />
 			<class name="ChPageController" />
 			<class name="ChTaskSource_Org" />
 			<class name="ChTaskSource_Ticket" />
@@ -82,9 +85,10 @@
 		</file>
 		
 		<file path="api/dao/abstract_view.php">
-			<class name="C4_AbstractView" />
 			<class name="C4_AbstractLoader" />
 			<class name="C4_AbstractModel" />
+			<class name="C4_AbstractView" />
+			<class name="C4_AbstractViewModel" />
 			<class name="CerbQuickSearchLexer" />
 			<class name="CerbQuickSearchLexerToken" />
 			<class name="DAO_WorkerViewModel" />
@@ -130,6 +134,10 @@
 			<class name="DAO_BotDatastore" />
 		</file>
 		
+		<file path="api/dao/bot_interaction_proactive.php">
+			<class name="DAO_BotInteractionProactive" />
+		</file>
+
 		<file path="api/dao/bot_session.php">
 			<class name="DAO_BotSession" />
 			<class name="Model_BotSession" />
@@ -349,6 +357,14 @@
 			<class name="View_FileBundle" />
 		</file>
 		
+		<file path="api/dao/gpg_public_key.php">
+			<class name="Context_GpgPublicKey" />
+			<class name="DAO_GpgPublicKey" />
+			<class name="Model_GpgPublicKey" />
+			<class name="SearchFields_GpgPublicKey" />
+			<class name="View_GpgPublicKey" />
+		</file>
+		
 		<file path="api/dao/group.php">
 			<class name="Context_Group" />
 			<class name="DAO_Group" />
@@ -566,6 +582,10 @@
 			<class name="AbstractEvent_Message" />
 		</file>
 		
+		<file path="api/events/abstract/abstract_event_notification.php">
+			<class name="AbstractEvent_Notification" />
+		</file>
+		
 		<file path="api/events/abstract/abstract_event_org.php">
 			<class name="AbstractEvent_Org" />
 		</file>
@@ -686,6 +706,10 @@
 			<class name="Event_MessageMacro" />
 		</file>
 		
+		<file path="api/events/macro/notification_macro.php">
+			<class name="Event_NotificationMacro" />
+		</file>
+		
 		<file path="api/events/macro/org_macro.php">
 			<class name="Event_OrgMacro" />
 		</file>
@@ -716,6 +740,14 @@
 		
 		<file path="api/events/interaction/new_message_chat_worker.php">
 			<class name="Event_NewMessageChatWorker" />
+		</file>
+		
+		<file path="api/events/recurrent/recurrent_behavior.php">
+			<class name="Event_RecurrentBehavior" />
+		</file>
+
+		<file path="api/events/ui/ui_before_compose_by_worker.php">
+			<class name="Event_MailBeforeUiComposeByWorker" />
 		</file>
 		
 		<file path="api/events/ui/ui_before_reply_by_worker.php">
@@ -990,62 +1022,18 @@
 	<!-- Permissions -->
 
 	<acl>
-		<!-- Contexts -->
-		<priv id="context.contact.worklist.broadcast" label="acl.context.contact.worklist.broadcast" />
-		<priv id="context.org.worklist.broadcast" label="acl.context.org.worklist.broadcast" />
-		<priv id="context.worker.worklist.broadcast" label="acl.context.worker.worklist.broadcast" />
-	
-		<!-- Addy Book -->
-		<priv id="core.addybook.addy.actions.update" label="acl.core.addybook.addy.actions.update" />
-		<priv id="core.addybook.addy.view.actions.broadcast" label="acl.core.addybook.addy.view.actions.broadcast" />
-		<priv id="core.addybook.addy.view.actions.export" label="acl.core.addybook.addy.view.actions.export" />
-		<priv id="core.addybook.org.actions.merge" label="acl.core.addybook.org.actions.merge" />
-		<priv id="core.addybook.org.actions.update" label="acl.core.addybook.org.actions.update" />
-		<priv id="core.addybook.org.actions.delete" label="acl.core.addybook.org.actions.delete" />
-		<priv id="core.addybook.org.view.actions.export" label="acl.core.addybook.org.view.actions.export" />
-		<priv id="core.addybook.person.actions.delete" label="acl.core.addybook.person.actions.delete" />
-		<priv id="core.addybook.person.actions.update" label="acl.core.addybook.person.actions.update" />
-
-		<!-- Comments -->
-		<priv id="core.comment.actions.update.own" label="acl.core.comment.actions.update.own" />
-		
 		<!-- Display Ticket -->
 		<priv id="core.display.actions.attachments.download" label="acl.core.display.actions.attachments.download" />
 		<priv id="core.display.actions.forward" label="acl.core.display.actions.forward" />
-		<priv id="core.display.actions.note" label="acl.core.display.actions.note" />
 		<priv id="core.display.actions.reply" label="acl.core.display.actions.reply" />
 		<priv id="core.display.actions.split" label="acl.core.display.actions.split" />
 		
-		<priv id="core.display.message.actions.delete" label="acl.core.display.message.actions.delete" />
-
 		<!-- Mail page -->
 		<priv id="core.mail.save_without_sending" label="acl.core.mail.save_without_sending" />
-		<priv id="core.mail.send" label="acl.core.mail.send" />
-		<priv id="core.mail.draft.delete_all" label="acl.core.mail.draft.delete_all" />
 
-		<!-- Snippets -->
-		<priv id="core.snippets.actions.create" label="acl.core.snippets.actions.create" />
-
-		<!-- Tasks -->
-		<priv id="core.tasks.actions.create" label="acl.core.tasks.actions.create" />
-		<priv id="core.tasks.actions.update_all" label="acl.core.tasks.actions.update_all" />
-		<priv id="core.tasks.actions.delete" label="acl.core.tasks.actions.delete" />
-		<priv id="core.tasks.view.actions.export" label="acl.core.tasks.view.actions.export" />
-		
 		<!-- Tickets -->
-		<priv id="core.ticket.actions.assign" label="acl.core.ticket.actions.assign" />
 		<priv id="core.ticket.actions.close" label="acl.core.ticket.actions.close" />
-		<priv id="core.ticket.actions.delete" label="acl.core.ticket.actions.delete" />
-		<priv id="core.ticket.actions.move" label="acl.core.ticket.actions.move" />
 		<priv id="core.ticket.actions.spam" label="acl.core.ticket.actions.spam" />
-		<priv id="core.ticket.view.actions.broadcast_reply" label="acl.core.ticket.view.actions.broadcast_reply" />
-		<priv id="core.ticket.view.actions.bulk_update" label="acl.core.ticket.view.actions.bulk_update" />
-		<priv id="core.ticket.view.actions.export" label="acl.core.ticket.view.actions.export" />
-		<priv id="core.ticket.view.actions.merge" label="acl.core.ticket.view.actions.merge" />
-
-		<!-- Watchers -->
-		<priv id="core.watchers.assign" label="acl.core.watchers.assign" />
-		<priv id="core.watchers.unassign" label="acl.core.watchers.unassign" />
 	</acl>
 
 	<!-- Extensions -->
@@ -1081,6 +1069,9 @@
 						-->
 					</value>
 				</param>
+				<param key="acl">
+					<value/>
+				</param>
 			</params>
 		</extension>
 		
@@ -1105,11 +1096,21 @@
 				<param key="view_class" value="View_Attachment" />
 				<param key="options">
 					<value>
+						<data key="create" />
 						<data key="cards" />
 						<data key="links" />
 						<data key="search" />
 						<data key="workspace" />
 						<data key="va_variable" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -1137,10 +1138,19 @@
 				<param key="options">
 					<value>
 						<data key="cards" />
+						<data key="create" />
 						<data key="custom_fields" />
 						<data key="links" />
 						<data key="search" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -1175,7 +1185,21 @@
 						<data key="search" />
 						<data key="snippets" />
 						<data key="va_variable" />
+						<data key="watchers" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="broadcast" />
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="merge" />
+						<data key="update" />
+						<data key="update.bulk" />
 					</value>
 				</param>
 			</params>
@@ -1208,6 +1232,14 @@
 						<data key="workspace" />
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="import" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1236,6 +1268,15 @@
 						<!-- <data key="search" /> -->
 						<data key="va_variable" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -1269,6 +1310,14 @@
 						<data key="workspace" />
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1298,6 +1347,15 @@
 						<!-- <data key="search" /> -->
 						<data key="va_variable" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -1334,6 +1392,14 @@
 						-->
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1364,6 +1430,10 @@
 						<data key="search" />
 					</value>
 					-->
+				</param>
+				<param key="acl">
+					<value>
+					</value>
 				</param>
 			</params>
 		</extension>
@@ -1401,10 +1471,24 @@
 						<data key="search" />
 						<data key="snippets" />
 						<data key="va_variable" />
+						<data key="watchers" />
 						<data key="workspace" />
 					</value>
 				</param>
 				<param key="context_expand_export" value="org_" />
+				<param key="acl">
+					<value>
+						<data key="broadcast" />
+						<data key="comment" />
+						<data key="create" />
+						<!--<data key="delete" />-->
+						<data key="export" />
+						<data key="import" />
+						<data key="merge" />
+						<data key="update" />
+						<data key="update.bulk" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1436,6 +1520,15 @@
 						<data key="workspace" />
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1464,10 +1557,20 @@
 						<data key="search" />
 						<data key="snippets" />
 						<data key="va_variable" />
+						<data key="watchers" />
 						<data key="workspace" />
 					</value>
 				</param>
 				<param key="context_expand_export" value="owner_" />
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1497,10 +1600,20 @@
 						<data key="links" />
 						<data key="search" />
 						<data key="va_variable" />
+						<data key="watchers" />
 						<data key="workspace" />
 					</value>
 				</param>
 				<param key="context_expand_export" value="calendar_" />
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1530,10 +1643,20 @@
 						<data key="links" />
 						<data key="search" />
 						<data key="va_variable" />
+						<data key="watchers" />
 						<data key="workspace" />
 					</value>
 				</param>
 				<param key="context_expand_export" value="calendar_" />
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1567,6 +1690,13 @@
 						<data key="workspace" />
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1597,6 +1727,15 @@
 						<data key="search" />
 						<data key="va_variable" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -1633,6 +1772,11 @@
 						<data key="workspace" />
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="export" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1658,6 +1802,14 @@
 						<data key="search" />
 						<data key="va_variable" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+						<data key="update.bulk" />
 					</value>
 				</param>
 			</params>
@@ -1691,7 +1843,17 @@
 						<data key="search" />
 						<data key="snippets" />
 						<data key="va_variable" />
+						<data key="watchers" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -1725,6 +1887,55 @@
 						-->
 						<data key="create" />
 						<data key="links" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="export" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.gpg_public_key</id>
+			<name>Public Key</name>
+			<class>
+				<file>api/dao/gpg_public_key.php</file>
+				<name>Context_GpgPublicKey</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="public key" value="singular" />
+						<data key="public keys" value="plural" />
+						<data key="key" value="singular short" />
+						<data key="keys" value="plural short" />
+					</value>
+				</param>
+				<param key="alias" value="gpg_public_key" />
+				<param key="dao_class" value="DAO_GpgPublicKey" />
+				<param key="view_class" value="View_GpgPublicKey" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="create" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="watchers" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -1761,6 +1972,13 @@
 						<data key="workspace" />
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1786,6 +2004,10 @@
 				<param key="options">
 					<value>
 						<data key="custom_fields" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
 					</value>
 				</param>
 			</params>
@@ -1824,6 +2046,15 @@
 					</value>
 				</param>
 				<param key="context_expand_export" value="ticket_,ticket_bucket,ticket_group,sender_,sender_org_" />
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<!--<data key="create" />-->
+						<!--<data key="delete" />-->
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -1852,6 +2083,15 @@
 						<data key="search" />
 						<data key="va_variable" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<!--<data key="create" />-->
+						<!--<data key="delete" />-->
+						<data key="export" />
+						<!--<data key="update" />-->
+						<data key="update.bulk" />-->
 					</value>
 				</param>
 			</params>
@@ -1889,7 +2129,21 @@
 						<data key="search" />
 						<data key="snippets" />
 						<data key="va_variable" />
+						<data key="watchers" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="broadcast" />
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="merge" />
+						<data key="update" />
+						<data key="update.bulk" />
 					</value>
 				</param>
 			</params>
@@ -1915,6 +2169,11 @@
 				<param key="options">
 					<value>
 						<data key="custom_fields" />
+						<data key="watchers" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
 					</value>
 				</param>
 			</params>
@@ -1948,6 +2207,14 @@
 						<data key="va_variable" />
 						<data key="workspace" />
 						-->
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -1985,6 +2252,14 @@
 						-->
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -2016,6 +2291,16 @@
 					</value>
 				</param>
 				<param key="context_expand_export" value="owner_" />
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+						<data key="update.bulk" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -2045,7 +2330,19 @@
 						<data key="search" />
 						<data key="snippets" />
 						<data key="va_variable" />
+						<data key="watchers" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="update" />
+						<data key="update.bulk" />
 					</value>
 				</param>
 			</params>
@@ -2083,10 +2380,23 @@
 						<data key="search" />
 						<data key="snippets" />
 						<data key="va_variable" />
+						<data key="watchers" />
 						<data key="workspace" />
 					</value>
 				</param>
 				<param key="context_expand_export" value="group_,bucket_,owner_,latest_message_sender_" />
+				<param key="acl">
+					<value>
+						<data key="broadcast" />
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="merge" />
+						<data key="update" />
+						<data key="update.bulk" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -2114,6 +2424,16 @@
 						<data key="search" />
 						<data key="workspace" />
 						<data key="va_variable" />
+						<data key="watchers" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -2150,7 +2470,14 @@
 						<data key="owner" />
 						<data key="search" />
 						<data key="va_variable" />
+						<data key="watchers" />
 						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="export" />
 					</value>
 				</param>
 			</params>
@@ -2196,6 +2523,12 @@
 					</value>
 				</param>
 				<param key="context_expand_export" value="address_" />
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="export" />
+					</value>
+				</param>
 			</params>
 		</extension>
 
@@ -2227,6 +2560,12 @@
 						<data key="workspace" />
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="export" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
@@ -2256,6 +2595,15 @@
 						<data key="workspace" />
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 
@@ -2281,6 +2629,15 @@
 				<param key="options">
 					<value>
 						<!-- <data key="va_variable" /> -->
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -2310,10 +2667,39 @@
 						<!--<data key="va_variable" />-->
 					</value>
 				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="update" />
+					</value>
+				</param>
 			</params>
 		</extension>
 		
 		<!-- Event Triggers -->
+		
+		<extension point="devblocks.event">
+			<id>event.behavior.recurrent</id>
+			<name>Recurrent behavior</name>
+			<class>
+				<file>api/events/recurrent/recurrent_behavior.php</file>
+				<name>Event_RecurrentBehavior</name>
+			</class>
+			<params>
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.role" />
+						<data key="cerberusweb.contexts.group" />
+						<data key="cerberusweb.contexts.worker" />
+					</value>
+				</param>
+				<param key="options"/>
+			</params>
+		</extension>
 		
 		<extension point="devblocks.event">
 			<id>event.interactions.get.worker</id>
@@ -2815,6 +3201,31 @@
 		</extension>
 		
 		<extension point="devblocks.event">
+			<id>event.macro.notification</id>
+			<name>Custom behavior on notification</name>
+			<class>
+				<file>api/events/macro/notification_macro.php</file>
+				<name>Event_NotificationMacro</name>
+			</class>
+			<params>
+				<param key="macro_context" value="cerberusweb.contexts.notification" />
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.group" />
+						<data key="cerberusweb.contexts.role" />
+						<data key="cerberusweb.contexts.worker" />
+					</value>
+				</param>
+				<param key="options">
+					<value>
+						<data key="visibility" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event">
 			<id>event.macro.org</id>
 			<name>Custom behavior on organization</name>
 			<class>
@@ -2972,8 +3383,27 @@
 		</extension>
 		
 		<extension point="devblocks.event">
+			<id>event.mail.compose.pre.ui.worker</id>
+			<name>[UI] Before composing a new message</name>
+			<class>
+				<file>api/events/ui/ui_before_compose_by_worker.php</file>
+				<name>Event_MailBeforeUiComposeByWorker</name>
+			</class>
+			<params>
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.group" />
+						<data key="cerberusweb.contexts.role" />
+						<data key="cerberusweb.contexts.worker" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event">
 			<id>event.mail.reply.pre.ui.worker</id>
-			<name>[UI] Before starting a message reply</name>
+			<name>[UI] Before composing a message reply</name>
 			<class>
 				<file>api/events/ui/ui_before_reply_by_worker.php</file>
 				<name>Event_MailBeforeUiReplyByWorker</name>
@@ -3131,6 +3561,40 @@
 			</class>
 			<params>
 				<param key="label" value="Execute HTTP request" />
+				<param key="events">
+					<value>
+						<data key="*" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event.action">
+			<id>core.bot.action.calculate_time_elapsed</id>
+			<name>Get time elapsed using calendar availability</name>
+			<class>
+				<file>api/plugin.classes.php</file>
+				<name>BotAction_CalculateTimeElapsed</name>
+			</class>
+			<params>
+				<param key="label" value="Get time elapsed using calendar availability" />
+				<param key="events">
+					<value>
+						<data key="*" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event.action">
+			<id>core.bot.action.interaction_proactive.schedule</id>
+			<name>Schedule Proactive Interaction</name>
+			<class>
+				<file>api/plugin.classes.php</file>
+				<name>BotAction_ScheduleInteractionProactive</name>
+			</class>
+			<params>
+				<param key="label" value="Schedule proactive interaction" />
 				<param key="events">
 					<value>
 						<data key="*" />
@@ -4305,6 +4769,19 @@
 			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.custom_fieldset</id>
+				<name>Custom Fieldset Section</name>
+				<class>
+					<file>api/uri/profiles/custom_fieldset.php</file>
+					<name>PageSection_ProfilesCustomFieldset</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="custom_fieldset" />
+				</params>
+			</extension>
+
+			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.profiles.context_saved_search</id>
 				<name>Saved Search Section</name>
 				<class>
@@ -4340,6 +4817,19 @@
 				<params>
 					<param key="page_id" value="core.page.profiles" />
 					<param key="uri" value="file_bundle" />
+				</params>
+			</extension>
+		
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.gpg_public_key</id>
+				<name>Gpg Public Key Section</name>
+				<class>
+					<file>api/uri/profiles/gpg_public_key.php</file>
+					<name>PageSection_ProfilesGpgPublicKey</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="gpg_public_key" />
 				</params>
 			</extension>
 		

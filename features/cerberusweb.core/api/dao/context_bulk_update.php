@@ -1,18 +1,75 @@
 <?php
 class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
-	const ID = 'id';
+	const ACTIONS_JSON = 'actions_json';
 	const BATCH_KEY = 'batch_key';
 	const CONTEXT = 'context';
 	const CONTEXT_IDS = 'context_ids';
-	const NUM_RECORDS = 'num_records';
-	const WORKER_ID = 'worker_id';
-	const VIEW_ID = 'view_id';
 	const CREATED_AT = 'created_at';
+	const ID = 'id';
+	const NUM_RECORDS = 'num_records';
 	const STATUS_ID = 'status_id';
-	const ACTIONS_JSON = 'actions_json';
-
+	const VIEW_ID = 'view_id';
+	const WORKER_ID = 'worker_id';
+	
+	private function __construct() {}
+	
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField(self::ACTIONS_JSON)
+			->string()
+			->setMaxLength(16777215)
+			;
+		$validation
+			->addField(self::BATCH_KEY)
+			->string()
+			->setMaxLength(40)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CONTEXT)
+			->context()
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CONTEXT_IDS)
+			->string()
+			->setMaxLength(16777215)
+			->setRequired(true)
+			;
+		$validation
+			->addField(self::CREATED_AT)
+			->timestamp()
+			;
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::NUM_RECORDS)
+			->uint()
+			;
+		$validation
+			->addField(self::STATUS_ID)
+			->uint(1)
+			;
+		$validation
+			->addField(self::VIEW_ID)
+			->string()
+			->setMaxLength(128)
+			;
+		$validation
+			->addField(self::WORKER_ID)
+			->id()
+			;
+			
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO context_bulk_update () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -59,7 +116,7 @@ class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
 		$batch_key = uniqid();
 		$current_worker = CerberusApplication::getActiveWorker();
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$params = $view->getParams();
 		
@@ -116,7 +173,7 @@ class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
 			// Send events
 			if($check_deltas) {
 				// Trigger an event about the changes
-				$eventMgr = DevblocksPlatform::getEventService();
+				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
 					new Model_DevblocksEvent(
 						'dao.context_bulk_update.update',
@@ -163,7 +220,7 @@ class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
 	 * @return integer
 	 */
 	static function getTotalByCursor($cursor) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		return $db->GetOneSlave(sprintf("SELECT SUM(num_records) FROM context_bulk_update WHERE batch_key = %s", $db->qstr($cursor)));
 	}
 	
@@ -175,7 +232,7 @@ class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
 	 * @return Model_ContextBulkUpdate[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -202,7 +259,7 @@ class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
 	 * @return Model_ContextBulkUpdate[]
 	 */
 	static function getAll($nocache=false) {
-		//$cache = DevblocksPlatform::getCacheService();
+		//$cache = DevblocksPlatform::services()->cache();
 		//if($nocache || null === ($objects = $cache->load(self::_CACHE_ALL))) {
 			$objects = self::getWhere(null, DAO_ContextBulkUpdate::NAME, true, null, Cerb_ORMHelper::OPT_GET_MASTER_ONLY);
 			
@@ -249,7 +306,7 @@ class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
 		if(!method_exists(get_called_class(), 'getWhere'))
 			return array();
 
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
 
@@ -308,8 +365,8 @@ class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
 	}
 	
 	static function maint() {
-		$db = DevblocksPlatform::getDatabaseService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$db = DevblocksPlatform::services()->database();
+		$logger = DevblocksPlatform::services()->log();
 		
 		// Keep rows for 1 week
 		$sql = "DELETE FROM context_bulk_update WHERE status_id = 2 AND created_at <= unix_timestamp() - 604800";
@@ -319,7 +376,7 @@ class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
 	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -329,7 +386,7 @@ class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
 		$db->ExecuteMaster(sprintf("DELETE FROM context_bulk_update WHERE id IN (%s)", $ids_list));
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -431,7 +488,7 @@ class DAO_ContextBulkUpdate extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);

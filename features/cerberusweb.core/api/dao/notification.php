@@ -16,19 +16,72 @@
 ***********************************************************************/
 
 class DAO_Notification extends Cerb_ORMHelper {
-	const CACHE_COUNT_PREFIX = 'notification_count_';
-	
-	const ID = 'id';
+	const ACTIVITY_POINT = 'activity_point';
 	const CONTEXT = 'context';
 	const CONTEXT_ID = 'context_id';
 	const CREATED_DATE = 'created_date';
-	const WORKER_ID = 'worker_id';
-	const IS_READ = 'is_read';
-	const ACTIVITY_POINT = 'activity_point';
 	const ENTRY_JSON = 'entry_json';
+	const ID = 'id';
+	const IS_READ = 'is_read';
+	const WORKER_ID = 'worker_id';
+	
+	const CACHE_COUNT_PREFIX = 'notification_count_';
+	
+	private function __construct() {}
 
+	static function getFields() {
+		$validation = DevblocksPlatform::services()->validation();
+		
+		// varchar(255)
+		$validation
+			->addField(self::ACTIVITY_POINT)
+			->string()
+			->setMaxLength(255)
+			;
+		// varchar(255)
+		$validation
+			->addField(self::CONTEXT)
+			->string()
+			->setMaxLength(255)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::CONTEXT_ID)
+			->id()
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::CREATED_DATE)
+			->timestamp()
+			;
+		// text
+		$validation
+			->addField(self::ENTRY_JSON)
+			->string()
+			->setMaxLength(65535)
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::ID)
+			->id()
+			->setEditable(false)
+			;
+		// tinyint(1) unsigned
+		$validation
+			->addField(self::IS_READ)
+			->bit()
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::WORKER_ID)
+			->id()
+			;
+
+		return $validation->getFields();
+	}
+	
 	static function create($fields) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO notification () ".
 			"VALUES ()"
@@ -73,7 +126,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 			if($check_deltas) {
 				
 				// Trigger an event about the changes
-				$eventMgr = DevblocksPlatform::getEventService();
+				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
 					new Model_DevblocksEvent(
 						'dao.notification.update',
@@ -98,7 +151,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 	 * @return boolean
 	 */
 	static function bulkUpdate(Model_ContextBulkUpdate $update) {
-		$tpl_builder = DevblocksPlatform::getTemplateBuilder();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 
 		$do = $update->actions;
 		$ids = $update->context_ids;
@@ -147,7 +200,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 	 * @return Model_Notification[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
@@ -189,7 +242,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 		if(empty($count))
 			return array();
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$contexts = array();
 		
@@ -260,8 +313,8 @@ class DAO_Notification extends Cerb_ORMHelper {
 	}
 	
 	static function getUnreadCountByWorker($worker_id) {
-		$db = DevblocksPlatform::getDatabaseService();
-		$cache = DevblocksPlatform::getCacheService();
+		$db = DevblocksPlatform::services()->database();
+		$cache = DevblocksPlatform::services()->cache();
 		
 		if(null === ($count = $cache->load(self::CACHE_COUNT_PREFIX.$worker_id))) {
 			$sql = sprintf("SELECT count(*) ".
@@ -312,7 +365,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
 			return;
@@ -323,7 +376,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 		$db->ExecuteMaster(sprintf("DELETE FROM notification WHERE id IN (%s)", $ids_list));
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.delete',
@@ -350,7 +403,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 		
 		$context_ids = DevblocksPlatform::sanitizeArray($context_ids, 'int');
 			
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM notification WHERE context = %s AND context_id IN (%s) ",
 			$db->qstr($context),
@@ -365,7 +418,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 	}
 	
 	static function deleteByContextActivityAndWorker($context, $context_ids, $activity_point=null, $worker_ids=array()) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 		
 		if(!is_array($context_ids))
 			$context_ids = array($context_ids);
@@ -416,14 +469,14 @@ class DAO_Notification extends Cerb_ORMHelper {
 	}
 
 	static function maint() {
-		$db = DevblocksPlatform::getDatabaseService();
-		$logger = DevblocksPlatform::getConsoleLog();
+		$db = DevblocksPlatform::services()->database();
+		$logger = DevblocksPlatform::services()->log();
 		
 		$db->ExecuteMaster("DELETE FROM notification WHERE is_read = 1");
 		$logger->info('[Maint] Purged ' . $db->Affected_Rows() . ' notification records.');
 		
 		// Fire event
-		$eventMgr = DevblocksPlatform::getEventService();
+		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(
 			new Model_DevblocksEvent(
 				'context.maint',
@@ -437,7 +490,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 	}
 	
 	static function clearCountCache($worker_id=null) {
-		$cache = DevblocksPlatform::getCacheService();
+		$cache = DevblocksPlatform::services()->cache();
 		
 		$workers = array();
 		
@@ -514,7 +567,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 	 * @return array
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::getDatabaseService();
+		$db = DevblocksPlatform::services()->database();
 
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
@@ -676,7 +729,7 @@ class Model_Notification {
 		}
 		
 		if(empty($url)) {
-			$url_writer = DevblocksPlatform::getUrlService();
+			$url_writer = DevblocksPlatform::services()->url();
 			$url = $url_writer->write('c=profiles&obj=worker&who=me&what=notifications', true);
 		}
 		
@@ -918,7 +971,7 @@ class View_Notification extends C4_AbstractView implements IAbstractView_Subtota
 	function render() {
 		$this->_sanitize();
 		
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -930,7 +983,7 @@ class View_Notification extends C4_AbstractView implements IAbstractView_Subtota
 	}
 
 	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::getTemplateService();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
@@ -1102,7 +1155,7 @@ class Context_Notification extends Extension_DevblocksContext {
 	
 	function getMeta($context_id) {
 		$notification = DAO_Notification::get($context_id);
-		$url_writer = DevblocksPlatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 		
 		if(false == ($url = $notification->getURL())) {
 			$url = $url_writer->writeNoProxy('c=preferences&action=redirectRead&id='.$context_id, true);
@@ -1153,7 +1206,7 @@ class Context_Notification extends Extension_DevblocksContext {
 		
 		$translate = DevblocksPlatform::getTranslationService();
 		$fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_NOTIFICATION);
-		$url_writer = DevblocksPLatform::getUrlService();
+		$url_writer = DevblocksPlatform::services()->url();
 
 		// Polymorph
 		if(is_numeric($notification)) {
@@ -1252,6 +1305,18 @@ class Context_Notification extends Extension_DevblocksContext {
 		);
 		
 		return true;
+	}
+	
+	function getKeyToDaoFieldMap() {
+		return [
+			'activity_point' => DAO_Notification::ACTIVITY_POINT,
+			'created' => DAO_Notification::CREATED_DATE,
+			'event_json' => DAO_Notification::ENTRY_JSON,
+			'id' => DAO_Notification::ID,
+			'is_read' => DAO_Notification::IS_READ,
+			'target__context' => DAO_Notification::CONTEXT,
+			'target_id' => DAO_Notification::CONTEXT_ID
+		];
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {

@@ -17,8 +17,8 @@
 
 class ChReportSpamAddys extends Extension_Report {
 	function render() {
-		$tpl = DevblocksPlatform::getTemplateService();
-		$db = DevblocksPlatform::getDatabaseService();
+		$tpl = DevblocksPlatform::services()->template();
+		$db = DevblocksPlatform::services()->database();
 		
 		$top_spam_addys = array();
 		$top_nonspam_addys = array();
