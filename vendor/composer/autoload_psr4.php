@@ -6,4 +6,6 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
+    'Defuse\\Crypto\\' => array($vendorDir . '/defuse/php-encryption/src'),
+    'Cron\\' => array($vendorDir . '/mtdowling/cron-expression/src/Cron'),
 );
