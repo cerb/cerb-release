@@ -51,7 +51,7 @@
 			{else}
 				<a href="javascript:;" style="text-decoration:none;">{$view_fields.$header->db_label|capitalize}</a>
 			{/if}
-			
+
 			{* add arrow if sorting by this column, finish table header tag *}
 			{if $header==$view->renderSortBy}
 				<span class="glyphicons {if $view->renderSortAsc}glyphicons-sort-by-attributes{else}glyphicons-sort-by-attributes-alt{/if}" style="font-size:14px;{if $view->options.disable_sorting}color:rgb(80,80,80);{else}color:rgb(39,123,213);{/if}"></span>
@@ -72,11 +72,9 @@
 	{/if}
 	<tbody style="cursor:pointer;">
 		<tr class="{$tableRowClass}">
-			<td data-column="*_watchers" align="center" rowspan="2" nowrap="nowrap" style="padding:5px;">
+			<td data-column="*_watchers" align="center" nowrap="nowrap" style="padding:5px;">
 				{include file="devblocks:cerberusweb.core::internal/watchers/context_follow_button.tpl" context=$view_context context_id=$result.p_id}
 			</td>
-		</tr>
-		<tr class="{$tableRowClass}">
 		{foreach from=$view->view_columns item=column name=columns}
 			{if substr($column,0,3)=="cf_"}
 				{include file="devblocks:cerberusweb.core::internal/custom_fields/view/cell_renderer.tpl"}
@@ -89,7 +87,7 @@
 					<span class="glyphicons glyphicons-circle-exclamation-mark" style="font-size:16px;color:rgb(200,0,0);"></span>
 				{/if}
 				<a href="{devblocks_url}c=profiles&type=mailbox&id={$result.p_id}-{$result.p_name|devblocks_permalink}{/devblocks_url}" class="subject">{$result.p_name}</a>
-				<button type="button" class="peek" onclick="genericAjaxPopup('peek','c=internal&a=showPeekPopup&context={$view_context}&context_id={$result.p_id}&view_id={$view->id}',null,false,'50%');"><span class="glyphicons glyphicons-new-window-alt" style="margin-left:2px" title="{$translate->_('views.peek')}"></span></button>
+				{if $active_worker->is_superuser}<button type="button" class="peek" onclick="genericAjaxPopup('peek','c=internal&a=showPeekPopup&context={$view_context}&context_id={$result.p_id}&view_id={$view->id}',null,false,'50%');"><span class="glyphicons glyphicons-new-window-alt" style="margin-left:2px" title="{$translate->_('views.peek')}"></span></button>{/if}
 			</td>
 			{elseif in_array($column, ["p_checked_at", "p_updated_at", "p_delay_until"])}
 				<td data-column="{$column}" title="{$result.$column|devblocks_date}">
@@ -125,11 +123,11 @@
 		{math assign=nextPage equation="x+1" x=$view->renderPage}
 		{math assign=prevPage equation="x-1" x=$view->renderPage}
 		{math assign=lastPage equation="ceil(x/y)-1" x=$total y=$view->renderLimit}
-		
+
 		{* Sanity checks *}
 		{if $toRow > $total}{assign var=toRow value=$total}{/if}
 		{if $fromRow > $toRow}{assign var=fromRow value=$toRow}{/if}
-		
+
 		{if $view->renderPage > 0}
 			<a href="javascript:;" onclick="genericAjaxGet('view{$view->id}','c=internal&a=viewPage&id={$view->id}&page=0');">&lt;&lt;</a>
 			<a href="javascript:;" onclick="genericAjaxGet('view{$view->id}','c=internal&a=viewPage&id={$view->id}&page={$prevPage}');">&lt;{$translate->_('common.previous_short')|capitalize}</a>
@@ -140,7 +138,7 @@
 			<a href="javascript:;" onclick="genericAjaxGet('view{$view->id}','c=internal&a=viewPage&id={$view->id}&page={$lastPage}');">&gt;&gt;</a>
 		{/if}
 	</div>
-	
+
 	{if $total}
 	<div style="float:left;" id="{$view->id}_actions">
 		<button type="button" class="action-always-show action-explore" onclick="this.form.explore_from.value=$(this).closest('form').find('tbody input:checkbox:checked:first').val();this.form.action.value='viewExplore';this.form.submit();"><span class="glyphicons glyphicons-play-button"></span> {'common.explore'|devblocks_translate|lower}</button>
@@ -160,21 +158,21 @@ $frm = $('#viewForm{$view->id}');
 {if $pref_keyboard_shortcuts}
 $frm.bind('keyboard_shortcut',function(event) {
 	$view_actions = $('#{$view->id}_actions');
-	
+
 	hotkey_activated = true;
 
 	switch(event.keypress_event.which) {
 		case 101: // (e) explore
 			$btn = $view_actions.find('button.action-explore');
-		
+
 			if(event.indirect) {
 				$btn.select().focus();
-				
+
 			} else {
 				$btn.click();
 			}
 			break;
-			
+
 		default:
 			hotkey_activated = false;
 			break;
