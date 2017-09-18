@@ -41,8 +41,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 		// varchar(255)
 		$validation
 			->addField(self::CONTEXT)
-			->string()
-			->setMaxLength(255)
+			->context()
 			;
 		// int(10) unsigned
 		$validation
@@ -91,15 +90,6 @@ class DAO_Notification extends Cerb_ORMHelper {
 		
 		self::update($id, $fields);
 		
-		// If a worker was provided
-		if(isset($fields[self::WORKER_ID])) {
-			// Invalidate the worker notification count cache
-			self::clearCountCache($fields[self::WORKER_ID]);
-			
-			// Trigger notification
-			Event_NotificationReceivedByWorker::trigger($id, $fields[self::WORKER_ID]);
-		}
-		
 		return $id;
 	}
 	
@@ -139,6 +129,16 @@ class DAO_Notification extends Cerb_ORMHelper {
 				// Log the context update
 				DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_NOTIFICATION, $batch_ids);
 			}
+		}
+		
+		// If a worker was provided
+		if(isset($fields[self::WORKER_ID])) {
+			// Invalidate the worker notification count cache
+			self::clearCountCache($fields[self::WORKER_ID]);
+			
+			if(is_array($ids))
+			foreach($ids as $id)
+				Event_NotificationReceivedByWorker::trigger($id, $fields[self::WORKER_ID]);
 		}
 	}
 	
@@ -556,7 +556,6 @@ class DAO_Notification extends Cerb_ORMHelper {
 	}
 	
 	/**
-	 * Enter description here...
 	 *
 	 * @param DevblocksSearchCriteria[] $params
 	 * @param integer $limit
@@ -1310,6 +1309,7 @@ class Context_Notification extends Extension_DevblocksContext {
 	function getKeyToDaoFieldMap() {
 		return [
 			'activity_point' => DAO_Notification::ACTIVITY_POINT,
+			'assignee_id' => DAO_Notification::WORKER_ID,
 			'created' => DAO_Notification::CREATED_DATE,
 			'event_json' => DAO_Notification::ENTRY_JSON,
 			'id' => DAO_Notification::ID,

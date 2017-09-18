@@ -1,18 +1,18 @@
 <?php
 /***********************************************************************
- | Cerb(tm) developed by Webgroup Media, LLC.
- |-----------------------------------------------------------------------
- | All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
- |   unless specifically noted otherwise.
- |
- | This source code is released under the Devblocks Public License.
- | The latest version of this license can be found here:
- | http://cerb.ai/license
- |
- | By using this software, you acknowledge having read this license
- | and agree to be bound thereby.
- | ______________________________________________________________________
- |	http://cerb.ai	    http://webgroup.media
+| Cerb(tm) developed by Webgroup Media, LLC.
+|-----------------------------------------------------------------------
+| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+|   unless specifically noted otherwise.
+|
+| This source code is released under the Devblocks Public License.
+| The latest version of this license can be found here:
+| http://cerb.ai/license
+|
+| By using this software, you acknowledge having read this license
+| and agree to be bound thereby.
+| ______________________________________________________________________
+|	http://cerb.ai	    http://webgroup.media
  ***********************************************************************/
 
 abstract class C4_AbstractView {
@@ -1113,7 +1113,6 @@ abstract class C4_AbstractView {
 	}
 	
 	/**
-	 * Enter description here...
 	 *
 	 * @param string $field
 	 * @param string $oper
@@ -1838,10 +1837,10 @@ abstract class C4_AbstractView {
 		$fields = $this->getSubtotalFields();
 		$tpl->assign('subtotal_fields', $fields);
 		
-		$counts = $this->getSubtotalCounts($this->renderSubtotals);
+		$counts = $this->getSubtotalCounts($this->renderSubtotals) ?: [];
 		
 		// Unless we're subtotalling by group, limit the results to top 20
-		if($this->renderSubtotals != 't_group_id')
+		if($this->renderSubtotals != 't_group_id' && is_array($counts))
 			$counts = array_slice($counts, 0, 20);
 		
 		$tpl->assign('subtotal_counts', $counts);
@@ -3679,16 +3678,16 @@ class CerbQuickSearchLexer {
 						$v = $oper_hint . $v;
 						
 					} else if(preg_match('#^(.*)?\.\.\.(.*)#', $v, $matches)) {
-						 $from = trim($matches[1]);
-						 $to = trim($matches[2]);
-						 
-						 if(!is_numeric($from))
+						$from = trim($matches[1]);
+						$to = trim($matches[2]);
+						
+						if(!is_numeric($from))
 							$from = floor(DevblocksPlatform::strTimeToSecs($from) / $interval);
-						 if(!is_numeric($to))
+						if(!is_numeric($to))
 							$to = floor(DevblocksPlatform::strTimeToSecs($to) / $interval);
-						 
-						 $v = sprintf("%s...%s", $from, $to);
-						 
+						
+						$v = sprintf("%s...%s", $from, $to);
+						
 					} else {
 						if(!is_numeric($v))
 							$v = floor(DevblocksPlatform::strTimeToSecs($v) / $interval);
@@ -3772,7 +3771,6 @@ endif;
  */
 class C4_AbstractViewLoader {
 	/**
-	 * Enter description here...
 	 *
 	 * @param string $view_id
 	 * @param C4_AbstractViewModel $defaults
@@ -3799,7 +3797,6 @@ class C4_AbstractViewLoader {
 	}
 
 	/**
-	 * Enter description here...
 	 *
 	 * @param string $class C4_AbstractView
 	 * @param string $view_label ID
@@ -3988,10 +3985,7 @@ class C4_AbstractViewLoader {
 	}
 	
 	static function unserializeViewFromAbstractJson($view_model, $view_id) {
-		if(!isset($view_model['context']))
-			return false;
-		
-		$view_context = $view_model['context'];
+		@$view_context = $view_model['context'];
 		
 		if(empty($view_context))
 			return false;
@@ -4026,14 +4020,16 @@ class C4_AbstractViewLoader {
 			}
 		};
 		
-		array_walk(
-			$view_model['params'],
-			$func
-		);
+		if(isset($view_model['params']) && is_array($view_model['params'])) {
+			array_walk(
+				$view_model['params'],
+				$func
+			);
+			
+			$view->addParams($view_model['params'], true);
+		}
 		
-		$view->addParams($view_model['params'], true);
-		
-		if(isset($view_model['params_required'])) {
+		if(isset($view_model['params_required']) && is_array($view_model['params_required'])) {
 			array_walk(
 				$view_model['params_required'],
 				$func
@@ -4044,8 +4040,8 @@ class C4_AbstractViewLoader {
 
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		$labels = array();
-		$values = array();
+		$labels = [];
+		$values = [];
 		
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $active_worker, $worker_labels, $worker_values, null, true, true);
 		CerberusContexts::merge('current_worker_', null, $worker_labels, $worker_values, $labels, $values);
@@ -4053,7 +4049,8 @@ class C4_AbstractViewLoader {
 		$view->setPlaceholderValues($values);
 		
 		// If the param keys changed during unserialization, then consider everything changed
-		if(array_keys($view_model['params']) != array_keys($view->getParams(false))) {
+		$view_params = $view->getParams(false);
+		if(isset($view_model['params']) && is_array($view_model['params']) && is_array($view_params) && array_keys($view_model['params']) != array_keys($view_params)) {
 			$view->_init_checksum = sha1(mt_rand());
 			
 		} else {

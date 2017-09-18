@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2017091101);
-define("APP_VERSION", '8.1.1');
+define("APP_BUILD", 2017091801);
+define("APP_VERSION", '8.1.2');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -1747,12 +1747,18 @@ class CerberusContexts {
 				foreach($entry['urls'] as $token => $url) {
 					if(0 == strcasecmp('ctx://',substr($url,0,6))) {
 						$url = self::getUrlFromContextUrl($url);
-						$vars[$token] = '<a href="'.$url.'" style="font-weight:bold;">'.$vars[$token].'</a>';
+						if(isset($vars[$token])) {
+							$vars[$token] = '<a href="'.$url.'" style="font-weight:bold;">'.$vars[$token].'</a>';
+						}
 					} elseif(0 == strcasecmp('http',substr($url,0,4))) {
-						$vars[$token] = '<a href="'.$url.'" target="_blank" style="font-weight:bold;">'.$vars[$token].'</a>';
+						if(isset($vars[$token])) {
+							$vars[$token] = '<a href="'.$url.'" target="_blank" style="font-weight:bold;">'.$vars[$token].'</a>';
+						}
 					} else {
 						$url = $url_writer->writeNoProxy($url, true);
-						$vars[$token] = '<a href="'.$url.'" style="font-weight:bold;">'.$vars[$token].'</a>';
+						if(isset($vars[$token])) {
+							$vars[$token] = '<a href="'.$url.'" style="font-weight:bold;">'.$vars[$token].'</a>';
+						}
 					}
 				}
 				break;
@@ -2339,11 +2345,11 @@ class Context_Application extends Extension_DevblocksContext {
 			$object = new Model_Application();
 			$object->name = 'Cerb';
 
- 		} elseif($object instanceof Model_Application) {
+		} elseif($object instanceof Model_Application) {
 			// It's what we want already.
 
- 		} elseif(is_array($object)) {
- 			$object = Cerb_ORMHelper::recastArrayToModel($object, 'Model_Application');
+		} elseif(is_array($object)) {
+			$object = Cerb_ORMHelper::recastArrayToModel($object, 'Model_Application');
 
 		} else {
 			$object = null;
@@ -2859,7 +2865,7 @@ class Cerb_ORMHelper extends DevblocksORMHelper {
 	/**
 	 *
 	 * @param array $ids
-	 * @return Model[]
+	 * @return mixed
 	 */
 	static function getIds($ids) {
 		if(!is_array($ids))

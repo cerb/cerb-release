@@ -1,18 +1,18 @@
 <?php
 /************************************************************************
- | Cerb(tm) developed by Webgroup Media, LLC.
- |-----------------------------------------------------------------------
- | All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
- |   unless specifically noted otherwise.
- |
- | This source code is released under the Devblocks Public License.
- | The latest version of this license can be found here:
- | http://cerb.ai/license
- |
- | By using this software, you acknowledge having read this license
- | and agree to be bound thereby.
- | ______________________________________________________________________
- |	http://cerb.ai	    http://webgroup.media
+| Cerb(tm) developed by Webgroup Media, LLC.
+|-----------------------------------------------------------------------
+| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+|   unless specifically noted otherwise.
+|
+| This source code is released under the Devblocks Public License.
+| The latest version of this license can be found here:
+| http://cerb.ai/license
+|
+| By using this software, you acknowledge having read this license
+| and agree to be bound thereby.
+| ______________________________________________________________________
+|	http://cerb.ai	    http://webgroup.media
  ***********************************************************************/
 
 class DAO_WorkspaceWidget extends Cerb_ORMHelper {
@@ -283,7 +283,6 @@ class DAO_WorkspaceWidget extends Cerb_ORMHelper {
 	}
 	
 	/**
-	 * Enter description here...
 	 *
 	 * @param array $columns
 	 * @param DevblocksSearchCriteria[] $params
@@ -457,7 +456,7 @@ class Context_WorkspaceWidget extends Extension_DevblocksContext {
 			return array();
 		
 		/*
-		$url = $url_writer(sprintf("c=pages&id=%d",
+		$url = $url_writer->write(sprintf("c=pages&id=%d",
 			$workspace_tab->workspace_page_id
 		));
 		*/
@@ -547,9 +546,13 @@ class Context_WorkspaceWidget extends Extension_DevblocksContext {
 	
 	function getKeyToDaoFieldMap() {
 		return [
+			'cache_ttl' => DAO_WorkspaceWidget::CACHE_TTL,
 			'id' => DAO_WorkspaceWidget::ID,
 			'extension_id' => DAO_WorkspaceWidget::EXTENSION_ID,
+			'label' => DAO_WorkspaceWidget::LABEL,
+			'pos' => DAO_WorkspaceWidget::POS,
 			'tab_id' => DAO_WorkspaceWidget::WORKSPACE_TAB_ID,
+			'updated_at' => DAO_WorkspaceWidget::UPDATED_AT,
 		];
 	}
 	

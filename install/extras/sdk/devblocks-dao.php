@@ -91,6 +91,9 @@ class DAO_<?php echo $class_name; ?> extends Cerb_ORMHelper {
 	static function update($ids, $fields, $check_deltas=true) {
 		if(!is_array($ids))
 			$ids = array($ids);
+			
+		if(!isset($fields[self::UPDATED_AT]))
+			$fields[self::UPDATED_AT] = time();
 		
 		// Make a diff for the requested objects in batches
 		
@@ -357,7 +360,6 @@ class DAO_<?php echo $class_name; ?> extends Cerb_ORMHelper {
 	}
 	
 	/**
-	 * Enter description here...
 	 *
 	 * @param array $columns
 	 * @param DevblocksSearchCriteria[] $params

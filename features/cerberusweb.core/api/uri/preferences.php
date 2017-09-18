@@ -369,7 +369,7 @@ class ChPreferencesPage extends CerberusPageExtension {
 		$stack = $request->path;
 
 		array_shift($stack); // preferences
-		array_shift($stack); // redirectReadAction
+		array_shift($stack); // redirectRead
 		@$id = array_shift($stack); // id
 
 		if(null != ($notification = DAO_Notification::get($id))) {
@@ -379,6 +379,9 @@ class ChPreferencesPage extends CerberusPageExtension {
 				case CerberusContexts::CONTEXT_CUSTOM_FIELD:
 				case CerberusContexts::CONTEXT_CUSTOM_FIELDSET:
 				case CerberusContexts::CONTEXT_MESSAGE:
+				case CerberusContexts::CONTEXT_WORKSPACE_PAGE:
+				case CerberusContexts::CONTEXT_WORKSPACE_TAB:
+				case CerberusContexts::CONTEXT_WORKSPACE_WIDGET:
 					// Mark as read before we redirect
 					if(empty($notification->is_read)) {
 						DAO_Notification::update($id, array(

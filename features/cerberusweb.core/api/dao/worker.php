@@ -71,6 +71,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 			->addField(self::EMAIL_ID)
 			->id()
 			->setRequired(true)
+			->setUnique(get_class())
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS))
 			;
 		// varchar(128)
@@ -422,7 +423,6 @@ class DAO_Worker extends Cerb_ORMHelper {
 	}
 	
 	/**
-	 * Enter description here...
 	 *
 	 * @param resource $rs
 	 */
@@ -607,7 +607,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 	
 	static function update($ids, $fields, $option_bits=0, $check_deltas=true) {
 		if(!is_array($ids))
-			$ids = array($ids);
+			$ids = [$ids];
 		
 		if(!isset($fields[self::UPDATED]) && !($option_bits & DevblocksORMHelper::OPT_UPDATE_NO_EVENTS))
 			$fields[self::UPDATED] = time();
@@ -1128,7 +1128,6 @@ class DAO_Worker extends Cerb_ORMHelper {
 	}
 	
 	/**
-	 * Enter description here...
 	 *
 	 * @param DevblocksSearchCriteria[] $params
 	 * @param integer $limit
@@ -2939,6 +2938,7 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			'dob' => DAO_Worker::DOB,
 			'first_name' => DAO_Worker::FIRST_NAME,
 			'gender' => DAO_Worker::GENDER,
+			'email_id' => DAO_Worker::EMAIL_ID,
 			'id' => DAO_Worker::ID,
 			'is_disabled' => DAO_Worker::IS_DISABLED,
 			'is_superuser' => DAO_Worker::IS_SUPERUSER,

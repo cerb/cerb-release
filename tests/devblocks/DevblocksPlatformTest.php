@@ -339,6 +339,30 @@ class DevblocksPlatformTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(1.0, $actual);
 	}
 	
+	public function testIsIpAuthorized() {
+		$authorized_ips = ['192.168.1.1','127.0.','::1'];
+		
+		// Exact match
+		$actual = DevblocksPlatform::isIpAuthorized('192.168.1.1', $authorized_ips);
+		$this->assertTrue($actual);
+		
+		// Blocked IP
+		$actual = DevblocksPlatform::isIpAuthorized('8.8.8.8', $authorized_ips);
+		$this->assertFalse($actual);
+		
+		// IPv6 loopback
+		$actual = DevblocksPlatform::isIpAuthorized('::1', $authorized_ips);
+		$this->assertTrue($actual);
+		
+		// strStartsWith collision without wildcard (doesn't end with dot)
+		$actual = DevblocksPlatform::isIpAuthorized('192.168.1.100', $authorized_ips);
+		$this->assertFalse($actual);
+		
+		// Localhost subnet wildcard
+		$actual = DevblocksPlatform::isIpAuthorized('127.0.0.1', $authorized_ips);
+		$this->assertTrue($actual);
+	}
+	
 	public function testObjectsToStrings() {
 		// Objects (__toString)
 		$objects = array(
@@ -902,16 +926,14 @@ class DevblocksPlatformTest extends PHPUnit_Framework_TestCase {
 	}
 	
 	public function testStrFormatJson() {
-		
-		$expected = <<< END
-[
-    {
-        "name": "Jeff",
-        "title": "Software Architect",
-        "org": "Webgroup Media LLC"
-    }
-]
-END;
+		$expected = 
+		"[\n".
+		"    {\n".
+		"        \"name\": \"Jeff\",\n".
+		"        \"title\": \"Software Architect\",\n".
+		"        \"org\": \"Webgroup Media LLC\"\n".
+		"    }\n".
+		"]";
 		
 		// Test array input
 		

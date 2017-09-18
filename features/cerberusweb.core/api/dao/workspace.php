@@ -308,7 +308,6 @@ class DAO_WorkspacePage extends Cerb_ORMHelper {
 	}
 
 	/**
-	 * Enter description here...
 	 *
 	 * @param array $columns
 	 * @param DevblocksSearchCriteria[] $params
@@ -660,7 +659,6 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 	}
 	
 	/**
-	 * Enter description here...
 	 *
 	 * @param array $columns
 	 * @param DevblocksSearchCriteria[] $params
@@ -1012,6 +1010,7 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 		);
 		if(false == ($db->ExecuteMaster($sql)))
 			return false;
+		
 		$id = $db->LastInsertId();
 
 		self::update($id, $fields);
@@ -1020,7 +1019,6 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 	}
 	
 	/**
-	 * Enter description here...
 	 *
 	 * @param integer $id
 	 * @return Model_WorkspaceList
@@ -1041,7 +1039,6 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 	}
 	
 	/**
-	 * Enter description here...
 	 *
 	 * @param string $where
 	 * @return Model_WorkspaceList[]
@@ -1372,9 +1369,9 @@ class Context_WorkspacePage extends Extension_DevblocksContext {
 		$url_writer = DevblocksPlatform::services()->url();
 
 		if(null == ($workspace_page = DAO_WorkspacePage::get($context_id)))
-			return array();
+			return [];
 		
-		$url = $url_writer(sprintf("c=pages&id=%d",
+		$url = $url_writer->write(sprintf("c=pages&id=%d",
 			$workspace_page->id
 		));
 		
@@ -1384,12 +1381,12 @@ class Context_WorkspacePage extends Extension_DevblocksContext {
 		if(!empty($friendly))
 			$url .= '-' . $friendly;
 		
-		return array(
+		return [
 			'id' => $workspace_page->id,
 			'name' => $workspace_page->name,
 			'permalink' => $url,
 			'updated' => 0, // [TODO]
-		);
+		];
 	}
 	
 	function getContext($page, &$token_labels, &$token_values, $prefix=null) {
@@ -1740,6 +1737,7 @@ class Context_WorkspaceTab extends Extension_DevblocksContext {
 			'id' => DAO_WorkspaceTab::ID,
 			'name' => DAO_WorkspaceTab::NAME,
 			'page_id' => DAO_WorkspaceTab::WORKSPACE_PAGE_ID,
+			'pos' => DAO_WorkspaceTab::POS,
 		];
 	}
 	

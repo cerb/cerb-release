@@ -7,7 +7,7 @@ abstract class DevblocksORMHelper {
 	const OPT_UPDATE_NO_EVENTS = 2;
 	const OPT_UPDATE_NO_READ_AFTER_WRITE = 4;
 	
-	static public function validate(array &$fields, &$error=null, $id=null) {
+	static public function validate(array &$fields, &$error=null, $id=null, array $excludes=[]) {
 		if(!method_exists(get_called_class(), 'getFields'))
 			return false;
 		
@@ -26,7 +26,11 @@ abstract class DevblocksORMHelper {
 		}
 		
 		if(is_array($fields))
-		foreach($fields as $field_key => $value) {
+		foreach($fields as $field_key => &$value) {
+			// Bypass
+			if(in_array($field_key, $excludes))
+				continue;
+			
 			if(false == (@$field = $valid_fields[$field_key])) { /* @var $field _DevblocksValidationField */
 				$error = sprintf("'%s' is not a valid field.", $field_key);
 				return false;
@@ -586,8 +590,8 @@ class DAO_Platform extends DevblocksORMHelper {
 		);
 		
 		if($db->GetOneMaster($sql))
-			 return true;
-			 
+			return true;
+			
 		return false;
 	}
 	
@@ -922,7 +926,7 @@ class DAO_Translation extends DevblocksORMHelper {
 	
 	/**
 	 * @param string $where
-	 * @return Model_TranslationDefault[]
+	 * @return Model_Translation[]
 	 */
 	static function getWhere($where=null) {
 		$db = DevblocksPlatform::services()->database();
@@ -938,7 +942,8 @@ class DAO_Translation extends DevblocksORMHelper {
 
 	/**
 	 * @param integer $id
-	 * @return Model_TranslationDefault	 */
+	 * @return Model_Translation
+	 */
 	static function get($id) {
 		if(empty($id))
 			return null;
@@ -1103,7 +1108,7 @@ class DAO_Translation extends DevblocksORMHelper {
 	
 	/**
 	 * @param resource $rs
-	 * @return Model_TranslationDefault[]
+	 * @return Model_Translation[]
 	 */
 	static private function _getObjectsFromResult($rs) {
 		$objects = array();
@@ -1165,7 +1170,7 @@ class DAO_Translation extends DevblocksORMHelper {
 				SearchFields_Translation::LANG_CODE,
 				SearchFields_Translation::STRING_DEFAULT,
 				SearchFields_Translation::STRING_OVERRIDE
-			 );
+			);
 		
 		$join_sql =
 			"FROM translation tl ";

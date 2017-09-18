@@ -453,7 +453,7 @@ class DevblocksDictionaryDelegate {
 			$len = strlen($with_prefix);
 			if(0 == strcasecmp($with_prefix, substr($k,0,$len))) {
 				$new_dict[substr($k,$len)] = $v;
- 			}
+			}
 		}
 		
 		return $new_dict;
@@ -522,17 +522,21 @@ class DevblocksDictionaryDelegate {
 		return true;
 	}
 	
-	public static function getDictionariesFromModels(array $models, $context, array $keys=array()) {
-		$dicts = array();
+	public static function getDictionariesFromModels(array $models, $context, array $keys=[]) {
+		$dicts = [];
 		
 		if(empty($models)) {
-			return array();
+			return [];
 		}
 		
 		foreach($models as $model_id => $model) {
-			$labels = array();
-			$values = array();
-			CerberusContexts::getContext($context, $model, $labels, $values, null, true, true);
+			$labels = $values = [];
+			
+			if($context == CerberusContexts::CONTEXT_APPLICATION) {
+				$values = ['_context' => $context, 'id' => 0, '_label' => 'Cerb'];
+			} else {
+				CerberusContexts::getContext($context, $model, $labels, $values, null, true, true);
+			}
 			
 			if(isset($values['id']))
 				$dicts[$model_id] = DevblocksDictionaryDelegate::instance($values);
@@ -636,13 +640,13 @@ class _DevblocksTwigExpressionVisitor implements Twig_NodeVisitorInterface {
 		return $node;
 	}
 	
- 	function getPriority() {
- 		return 0;
- 	}
- 	
- 	function getFoundTokens() {
- 		return array_keys($this->_tokens);
- 	}
+	function getPriority() {
+		return 0;
+	}
+	
+	function getFoundTokens() {
+		return array_keys($this->_tokens);
+	}
 };
 
 if(class_exists('Twig_Extension', true)):
