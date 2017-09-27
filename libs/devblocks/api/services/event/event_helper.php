@@ -1761,6 +1761,7 @@ class DevblocksEventHelper {
 		@$metric_field = $fields[$metric_field]; /* @var $metric_field DevblocksSearchField */
 		
 		$view->addParamsWithQuickSearch($query, true);
+		$view->renderPage = 0;
 		
 		$query_parts = $dao_class::getSearchQueryComponents([], $view->getParams());
 		
@@ -2144,7 +2145,7 @@ class DevblocksEventHelper {
 		if(null == ($behavior = DAO_TriggerEvent::get($behavior_id)))
 			return "[ERROR] Behavior does not exist. Skipping...";
 		
-		if(null == ($ext = DevblocksPlatform::getExtension($behavior->event_point, true))) /* @var $ext Extension_DevblocksEvent */
+		if(null == ($ext = Extension_DevblocksEvent::get($behavior->event_point, true))) /* @var $ext Extension_DevblocksEvent */
 			return "[ERROR] Behavior event does not exist. Skipping...";
 		
 		$out = sprintf(">>> Running behavior: %s\n",
@@ -2271,7 +2272,7 @@ class DevblocksEventHelper {
 			return FALSE;
 		
 		// Load event manifest
-		if(false == ($ext = DevblocksPlatform::getExtension($behavior->event_point, false))) /* @var $ext DevblocksExtensionManifest */
+		if(false == ($ext = Extension_DevblocksEvent::get($behavior->event_point, false))) /* @var $ext DevblocksExtensionManifest */
 			return FALSE;
 		
 		if(empty($var))
@@ -4457,10 +4458,11 @@ class DevblocksEventHelper {
 			$from_address_id = 0;
 			$from_placeholders = DevblocksPlatform::parseCsvString($params['from_address_id']);
 			
+			if(is_array($from_placeholders))
 			foreach($from_placeholders as $from_placeholder) {
 				if(!empty($from_address_id))
 					continue;
-
+				
 				if(isset($dict->$from_placeholder)) {
 					$possible_from_id = $dict->$from_placeholder;
 					
@@ -4543,6 +4545,12 @@ class DevblocksEventHelper {
 					$out .= " * " . $attachment->name . "\n";
 				}
 			}
+		}
+		
+		@$run_in_simulator = $params['run_in_simulator'];
+		
+		if($run_in_simulator) {
+			self::runActionSendEmail($params, $dict);
 		}
 		
 		return $out;

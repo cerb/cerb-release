@@ -1506,6 +1506,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		$exclude_list = DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::PARSER_AUTO_REQ_EXCLUDE, CerberusSettingsDefaults::PARSER_AUTO_REQ_EXCLUDE);
 		@$excludes = DevblocksPlatform::parseCrlfString($exclude_list);
 		
+		if(is_array($addys))
 		foreach($addys as $addy => $addy_data) {
 			try {
 				// Filter out our own addresses
@@ -5104,7 +5105,11 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 
 		// Template
 		
-		$model = DAO_Ticket::get($context_id);
+		if(false == ($model = DAO_Ticket::get($context_id))) {
+			$tpl->assign('error_message', 'The requested record does not exist.');
+			$tpl->display('devblocks:cerberusweb.core::internal/peek/peek_error.tpl');
+			return false;
+		}
 		
 		if(empty($context_id) || $edit_mode) {
 			if($model)
@@ -5139,8 +5144,8 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			
 		} else {
 			// Dictionary
-			$labels = array();
-			$values = array();
+			$labels = [];
+			$values = [];
 			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			$tpl->assign('dict', $dict);

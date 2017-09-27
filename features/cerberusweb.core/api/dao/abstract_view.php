@@ -422,14 +422,13 @@ abstract class C4_AbstractView {
 	function addParamsWithQuickSearch($query, $replace=true) {
 		$fields = $this->getParamsFromQuickSearch($query);
 		$this->addParams($fields, $replace);
-		$this->renderPage = 0;
 	}
 	
 	function _getSortFromQuickSearchQuery($sort_query) {
-		$sort_results = array(
-			'sort_by' => array(),
-			'sort_asc' => array(),
-		);
+		$sort_results = [
+			'sort_by' => [],
+			'sort_asc' => [],
+		];
 		
 		if(empty($sort_query) || !($this instanceof IAbstractView_QuickSearch))
 			return false;
@@ -2036,14 +2035,15 @@ abstract class C4_AbstractView {
 		return $counts;
 	}
 	
-	protected function _getSubtotalCountForStringColumn($context, $field_key, $label_map=array(), $value_oper='=', $value_key='value') {
-		$counts = array();
+	protected function _getSubtotalCountForStringColumn($context, $field_key, $label_map=[], $value_oper='=', $value_key='value') {
+		$counts = [];
 		$results = $this->_getSubtotalDataForColumn($context, $field_key);
 		
 		if(is_callable($label_map)) {
 			$label_map = $label_map(array_column($results, 'label'));
 		}
 		
+		if(is_array($results))
 		foreach($results as $result) {
 			$label = $result['label'];
 			$key = $label;
@@ -2056,35 +2056,34 @@ abstract class C4_AbstractView {
 			if(empty($label)) {
 				$label = '(none)';
 				if(!isset($counts[$key]))
-					$counts[$key] = array(
+					$counts[$key] = [
 						'hits' => $hits,
 						'label' => $label,
 						'filter' =>
-							array(
+							[
 								'field' => $field_key,
 								'oper' => DevblocksSearchCriteria::OPER_IN_OR_NULL,
-								'values' => array($value_key => ''),
-							),
-						'children' => array()
-					);
+								'values' => [$value_key => ''],
+							],
+						'children' => [],
+					];
 				
 			// Anything else
 			} else {
 				if(!isset($counts[$key]))
-					$counts[$key] = array(
+					$counts[$key] = [
 						'hits' => $hits,
 						'label' => $label,
 						'filter' =>
-							array(
+							[
 								'field' => $field_key,
 								'oper' => $value_oper,
-								'values' => array($value_key => $key),
-							),
-						'children' => array()
-					);
+								'values' => [$value_key => $key],
+							],
+						'children' => [],
+					];
 				
 			}
-			
 		}
 		
 		return $counts;

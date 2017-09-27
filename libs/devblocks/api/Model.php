@@ -159,6 +159,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			$view->is_ephemeral = true;
 			$view->setAutoPersist(false);
 			$view->addParamsWithQuickSearch($query, true);
+			$view->renderPage = 0;
 			
 			$params = $view->getParams();
 			
@@ -199,6 +200,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			$view->is_ephemeral = true;
 			$view->setAutoPersist(false);
 			$view->addParamsWithQuickSearch($query, true);
+			$view->renderPage = 0;
 			
 			$params = $view->getParams();
 			
@@ -249,6 +251,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			$view->is_ephemeral = true;
 			$view->setAutoPersist(false);
 			$view->addParamsWithQuickSearch($query, true);
+			$view->renderPage = 0;
 			
 			$params = $view->getParams();
 			
@@ -306,6 +309,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			$view->is_ephemeral = true;
 			$view->setAutoPersist(false);
 			$view->addParamsWithQuickSearch($query, true);
+			$view->renderPage = 0;
 			
 			$params = $view->getParams();
 			
@@ -1955,10 +1959,10 @@ class DevblocksExtensionManifest {
 	function createInstance() {
 		if(empty($this->id) || empty($this->plugin_id))
 			return null;
-
+		
 		if(null == ($plugin = DevblocksPlatform::getPlugin($this->plugin_id)))
 			return;
-
+		
 		$class_file = $plugin->getStoragePath() . '/' . $this->file;
 		$class_name = $this->class;
 		
@@ -2102,10 +2106,10 @@ class Model_DevblocksEvent {
 	public $id = '';
 	public $params = array();
 
-  function __construct($id='',$params=array()) {
+	function __construct($id='',$params=array()) {
 		$this->id = $id;
 		$this->params = $params;
-  }
+	}
 };
 
 class Model_Translation {

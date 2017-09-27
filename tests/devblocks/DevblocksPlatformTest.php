@@ -659,9 +659,29 @@ class DevblocksPlatformTest extends PHPUnit_Framework_TestCase {
 	}
 	
 	public function testParseStringAsRegExp() {
-		// Wildcards
+		// Wildcard prefix substring
+		$expected = '/(.*?)wildcard/i';
+		$actual = DevblocksPlatform::parseStringAsRegExp('*wildcard', true);
+		$this->assertEquals($expected, $actual);
+		
+		// Wildcard prefix non-substring
+		$expected = '/^(.*?)wildcard$/i';
+		$actual = DevblocksPlatform::parseStringAsRegExp('*wildcard');
+		$this->assertEquals($expected, $actual);
+		
+		// Wildcard suffix substring
 		$expected = '/wildcard(.*?)/i';
-		$actual = DevblocksPlatform::parseStringAsRegExp('wildcard*');
+		$actual = DevblocksPlatform::parseStringAsRegExp('wildcard*', true);
+		$this->assertEquals($expected, $actual);
+		
+		// Test substring
+		$expected = '/text/i';
+		$actual = DevblocksPlatform::parseStringAsRegExp('text', true);
+		$this->assertEquals($expected, $actual);
+		
+		// Test non-substring
+		$expected = '/^text$/i';
+		$actual = DevblocksPlatform::parseStringAsRegExp('text');
 		$this->assertEquals($expected, $actual);
 	}
 	
@@ -922,6 +942,46 @@ class DevblocksPlatformTest extends PHPUnit_Framework_TestCase {
 	public function testStrBase32Decode() {
 		$expected = 'Give me $10000 of AAPL stock, please!';
 		$actual = DevblocksPlatform::strBase32Decode('I5UXMZJANVSSAJBRGAYDAMBAN5TCAQKBKBGCA43UN5RWWLBAOBWGKYLTMUQQ====', true);
+		$this->assertEquals($expected, $actual);
+	}
+	
+	public function testStrBitsToInt() {
+		// Test 4 bits as int == 2^4=16
+		$expected = 16;
+		$actual = DevblocksPlatform::strBitsToInt(4);
+		$this->assertEquals($expected, $actual);
+		
+		// Test 4 bits as string == 2^4=16
+		$expected = 16;
+		$actual = DevblocksPlatform::strBitsToInt('4');
+		$this->assertEquals($expected, $actual);
+		
+		// Test 2 bytes as string == 2^16=65,536
+		$expected = pow(2,16);
+		$actual = DevblocksPlatform::strBitsToInt('2 bytes');
+		$this->assertEquals($expected, $actual);
+
+		// Test 32-bit overflow
+		if(4 == PHP_INT_SIZE) {
+			$expected = pow(2,31);
+			$actual = DevblocksPlatform::strBitsToInt(32);
+			$this->assertEquals($expected, $actual);
+			
+		// Test 32 bits as int == 2^32=4,294,967,296
+		} else {
+			$expected = pow(2,32);
+			$actual = DevblocksPlatform::strBitsToInt(32);
+			$this->assertEquals($expected, $actual);
+		}
+		
+		// Test negative bits as number
+		$expected = 0;
+		$actual = DevblocksPlatform::strBitsToInt(-8);
+		$this->assertEquals($expected, $actual);
+		
+		// Test overflow on PHP_INT_MAX
+		$expected = PHP_INT_MAX;
+		$actual = DevblocksPlatform::strBitsToInt(512);
 		$this->assertEquals($expected, $actual);
 	}
 	

@@ -558,12 +558,17 @@ class DevblocksPlatform extends DevblocksEngine {
 	 * Returns a string as a regexp.
 	 * "*bob" returns "/(.*?)bob/".
 	 * @param string $string
+	 * @param boolean $is_substring
 	 * @return string
 	 * @test DevblocksPlatformTest
 	 */
-	static function parseStringAsRegExp($string) {
+	static function parseStringAsRegExp($string, $is_substring=false) {
 		$pattern = str_replace(array('*'),'__any__', $string);
-		$pattern = sprintf("/%s/i",str_replace(array('__any__'),'(.*?)', preg_quote($pattern)));
+		$pattern = sprintf("/%s%s%s/i",
+			!$is_substring ? '^' : '',
+			str_replace(array('__any__'),'(.*?)', preg_quote($pattern)),
+			!$is_substring ? '$' : ''
+		);
 		return $pattern;
 	}
 	
@@ -832,6 +837,64 @@ class DevblocksPlatform extends DevblocksEngine {
 		}
 		
 		return intval($v);
+	}
+	
+	/**
+	 * 
+	 * @param string|int $bits
+	 * @return int|false
+	 */
+	static function strBitsToInt($bits) {
+		// Handle int param
+		if(is_numeric($bits)) {
+			$bits = intval($bits);
+			
+		// Handle string param
+		} else if(is_string($bits)) {
+			$parts = explode(' ', $bits, 2);
+			
+			switch(count($parts)) {
+				case 1:
+					$bits = intval($parts[0]);
+					break;
+					
+				case 2:
+					$value = intval($parts[0]);
+					
+					switch(DevblocksPlatform::strLower($parts[1])) {
+						case 'byte':
+						case 'bytes':
+							$bits = intval($value) * 8;
+							break;
+							
+						case 'bit':
+						case 'bits':
+							break;
+							
+						default:
+							return false;
+							break;
+					}
+					break;
+				
+				default:
+					return false;
+					break;
+			}
+		}
+		
+		@$bits = intval($bits);
+		
+		// Handle negatives
+		if($bits < 1)
+			return 0;
+		
+		// 32-bit overflow?
+		$max_bits = (PHP_INT_SIZE * 8)-1;
+		if($bits > $max_bits)
+			$bits = $max_bits;
+			
+		return pow(2, $bits);
 	}
 	
 	/**
