@@ -4229,6 +4229,20 @@ class DevblocksEventHelper {
 			(Model_Ticket::STATUS_CLOSED==$status_id) ? $translate->_('status.closed') : ((Model_Ticket::STATUS_WAITING == $status_id) ? $translate->_('status.waiting') : $translate->_('status.open'))
 		);
 		
+		// Attachment list variables
+		
+		if(isset($params['attachment_vars']) && is_array($params['attachment_vars'])) {
+			$out = rtrim($out,"\n") . "\n\n>>> Attaching files from variables:\n";
+			
+			foreach($params['attachment_vars'] as $attachment_var) {
+				if(false != ($attachments = $dict->$attachment_var) && is_array($attachments)) {
+					foreach($attachments as $attachment_id => $attachment) {
+						$out .= " * " . $attachment->name . ' (' . DevblocksPlatform::strPrettyBytes($attachment->size) . ')' . "\n";
+					}
+				}
+			}
+		}
+		
 		if(!empty($owner_id) && isset($workers[$owner_id])) {
 			$out .= sprintf("Owner: %s\n",
 				$workers[$owner_id]->getName()
@@ -4340,11 +4354,28 @@ class DevblocksEventHelper {
 			'ticket_id' => $ticket_id,
 			'subject' => $subject,
 			'content' => $content,
+			'group_id' => $group->id,
+			'bucket_id' => $group->getDefaultBucket()->id,
 			'worker_id' => 0,
 			'status_id' => $status_id,
 			'owner_id' => $owner_id,
 			'ticket_reopen' => $reopen_at,
 		);
+		
+		// Attachments
+		
+		if(isset($params['attachment_vars']) && is_array($params['attachment_vars'])) {
+			$properties['forward_files'] = [];
+			
+			foreach($params['attachment_vars'] as $attachment_var) {
+				if(false != ($attachments = $dict->$attachment_var) && is_array($attachments)) {
+					foreach($attachments as $attachment) {
+						$properties['forward_files'][] = $attachment->id;
+						$properties['link_forward_files'][] = $attachment->id;
+					}
+				}
+			}
+		}
 		
 		// Watchers
 		
