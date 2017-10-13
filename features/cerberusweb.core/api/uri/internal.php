@@ -194,7 +194,7 @@ class ChInternalController extends DevblocksControllerExtension {
 			$bot_name = $bot->name;
 		
 		$url_writer = DevblocksPlatform::services()->url();
-		$bot_image_url = $url_writer->write(sprintf("c=avatars&w=bot&id=%d", $bot->id) . '?v=' . $bot->updated_at);
+		$bot_image_url = $url_writer->write(sprintf("c=avatars&w=bot&id=%d", $bot->id)) . '?v=' . $bot->updated_at;
 		
 		$session_data = [
 			'actor' => ['context' => CerberusContexts::CONTEXT_WORKER, 'id' => $active_worker->id],
@@ -427,6 +427,17 @@ class ChInternalController extends DevblocksControllerExtension {
 					$tpl->assign('autocomplete', $autocomplete);
 					$tpl->assign('delay_ms', 0);
 					$tpl->display('devblocks:cerberusweb.core::console/prompt_chooser.tpl');
+					break;
+					
+				case 'prompt.date':
+					@$placeholder = $params['placeholder'];
+					
+					if(empty($placeholder))
+						$placeholder = 'e.g. tomorrow 5pm, 2 hours';
+					
+					$tpl->assign('delay_ms', 0);
+					$tpl->assign('placeholder', $placeholder);
+					$tpl->display('devblocks:cerberusweb.core::console/prompt_date.tpl');
 					break;
 					
 				case 'prompt.file':
