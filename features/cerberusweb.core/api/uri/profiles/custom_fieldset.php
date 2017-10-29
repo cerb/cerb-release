@@ -184,63 +184,6 @@ class PageSection_ProfilesCustomFieldset extends Extension_PageSection {
 					DAO_CustomFieldset::update($id, $fields);
 				}
 				
-				@$ids = DevblocksPlatform::importGPC($_REQUEST['ids'], 'array', array());
-				@$types = DevblocksPlatform::importGPC($_REQUEST['types'], 'array', array());
-				@$names = DevblocksPlatform::importGPC($_REQUEST['names'], 'array', array());
-				@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', array());
-				@$deletes = DevblocksPlatform::importGPC($_REQUEST['deletes'], 'array', array());
-				
-				if(is_array($ids))
-				foreach($ids as $idx => $field_id) {
-					if(
-						!isset($types[$idx])
-						|| !isset($names[$idx])
-						|| empty($names[$idx])
-						)
-						continue;
-					
-					// Handle field deletion
-					if(isset($deletes[$idx]) && !empty($deletes[$idx])) {
-						if(empty($field_id)) {
-							continue;
-							
-						} else {
-							if(null == ($cfield = DAO_CustomField::get($field_id)))
-								continue;
-							
-							// If we have permission to delete fields
-							if($cfield->custom_fieldset_id == $id)
-								DAO_CustomField::delete($field_id);
-						}
-					}
-					
-					$fields = array(
-						DAO_CustomField::NAME => $names[$idx],
-						DAO_CustomField::POS => $idx,
-					);
-					
-					if(isset($params[$field_id]['options']))
-						$params[$field_id]['options'] = DevblocksPlatform::parseCrlfString($params[$field_id]['options']);
-					
-					if(isset($params[$field_id]))
-						$fields[DAO_CustomField::PARAMS_JSON] = json_encode($params[$field_id]);
-					else
-						$fields[DAO_CustomField::PARAMS_JSON] = json_encode(array());
-					
-					// Create field
-					if(empty($field_id) || !is_numeric($field_id)) {
-						$fields[DAO_CustomField::CONTEXT] = $context;
-						$fields[DAO_CustomField::CUSTOM_FIELDSET_ID] = $id;
-						$fields[DAO_CustomField::TYPE] = $types[$idx];
-						
-						DAO_CustomField::create($fields);
-						
-					// Modify field
-					} else {
-						DAO_CustomField::update($field_id, $fields);
-					}
-				}
-
 				echo json_encode(array(
 					'status' => true,
 					'id' => $id,

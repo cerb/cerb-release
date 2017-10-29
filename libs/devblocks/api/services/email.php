@@ -42,10 +42,10 @@ class _DevblocksEmailManager {
 		if(empty($sender))
 			return false;
 		
-		if(false == ($replyto = DAO_AddressOutgoing::getByEmail($sender)))
+		if(false == ($replyto = DAO_Address::getByEmail($sender)))
 			return false;
 		
-		if(false == ($model = $replyto->getReplyMailTransport()))
+		if(false == ($model = $replyto->getMailTransport()))
 			return false;
 		
 		if(false == ($transport = $model->getExtension()))
@@ -103,7 +103,7 @@ class _DevblocksEmailManager {
 					$port
 				);
 				break;
-				 
+				
 			case 'pop3-ssl': // 995
 				$connect = sprintf("{%s:%d/pop3/ssl%s}INBOX",
 					$server,
@@ -111,7 +111,7 @@ class _DevblocksEmailManager {
 					$ssl_ignore_validation ? '/novalidate-cert' : ''
 				);
 				break;
-				 
+				
 			case 'imap': // 143
 				$connect = sprintf("{%s:%d/notls}INBOX",
 					$server,

@@ -104,6 +104,10 @@ interface IDevblocksContextAutocomplete {
 	function autocomplete($term, $query=null);
 }
 
+interface IDevblocksDaoAbstractEvents {
+	static function onAbstractUpdate($id, $fields);
+}
+
 class DevblocksMenuItemPlaceholder {
 	var $label = null;
 	var $key = null;
@@ -157,26 +161,88 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	 */
 	public static function getAll($as_instances=false, $with_options=null) {
 		$contexts = DevblocksPlatform::getExtensions('devblocks.context', $as_instances);
-
-		if($as_instances)
-			DevblocksPlatform::sortObjects($contexts, 'manifest->name');
-		else
-			DevblocksPlatform::sortObjects($contexts, 'name');
-
-		if(!empty($with_options)) {
-			if(!is_array($with_options))
-				$with_options = array($with_options);
-
-			foreach($contexts as $k => $context) {
-				@$options = $context->params['options'][0];
-
-				if(!is_array($options) || empty($options)) {
-					unset($contexts[$k]);
-					continue;
+		
+		if(
+			class_exists('DAO_CustomRecord', true)
+			&& false != ($custom_records = DAO_CustomRecord::getAll()) 
+			&& is_array($custom_records)
+			) {
+			foreach($custom_records as $custom_record) {
+				$options = [
+					'cards' => '',
+					'create' => '',
+					'custom_fields' => '',
+					'links' => '',
+					'search' => '',
+					'snippets' => '',
+					'va_variable' => '',
+					'watchers' => '',
+					'workspace' => '',
+				];
+				
+				if(is_array(@$custom_record->params['options']) && in_array('hide_search', $custom_record->params['options']))
+					unset($options['search']);
+				
+				$context_id = sprintf('contexts.custom_record.%d', $custom_record->id);
+				$manifest = new DevblocksExtensionManifest();
+				$manifest->id = $context_id;
+				$manifest->plugin_id = 'cerberusweb.core';
+				$manifest->point = Extension_DevblocksContext::ID;
+				$manifest->name = $custom_record->name;
+				$manifest->file = 'api/dao/abstract_custom_record.php';
+				$manifest->class = 'Context_AbstractCustomRecord_' . $custom_record->id;
+				$manifest->params = [
+					//'alias' => 'custom_record_' . $custom_record->id,
+					'alias' => $custom_record->uri,
+					'dao_class' => 'DAO_AbstractCustomRecord_' . $custom_record->id,
+					'view_class' => 'View_AbstractCustomRecord_' . $custom_record->id,
+					'acl' => [
+						0 => [
+							'comment' => '',
+							'create' => '',
+							'delete' => '',
+							'export' => '',
+							'update' => '',
+						],
+					],
+					'options' => [
+						0 => $options,
+					],
+					'names' => [
+						0 => [
+							DevblocksPlatform::strLower($custom_record->name) => 'singular',
+							DevblocksPlatform::strLower($custom_record->name_plural) => 'plural',
+						]
+					],
+				];
+				
+				if($as_instances) {
+					$contexts[$context_id] = $manifest->createInstance();
+				} else {
+					$contexts[$context_id] = $manifest;
 				}
-
-				if(count(array_intersect(array_keys($options), $with_options)) != count($with_options))
-					unset($contexts[$k]);
+			}
+			
+			if($as_instances)
+				DevblocksPlatform::sortObjects($contexts, 'manifest->name');
+			else
+				DevblocksPlatform::sortObjects($contexts, 'name');
+	
+			if(!empty($with_options)) {
+				if(!is_array($with_options))
+					$with_options = array($with_options);
+	
+				foreach($contexts as $k => $context) {
+					@$options = $context->params['options'][0];
+	
+					if(!is_array($options) || empty($options)) {
+						unset($contexts[$k]);
+						continue;
+					}
+	
+					if(count(array_intersect(array_keys($options), $with_options)) != count($with_options))
+						unset($contexts[$k]);
+				}
 			}
 		}
 
@@ -944,6 +1010,8 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 						foreach($merge_values['_types'] as $type_key => $type) {
 							$types['custom_'.$cf_id.'_'.$type_key] = $type;
 						}
+						
+						$types['custom_'.$cf_id.'__label'] = 'context_url';
 					}
 					break;
 					
@@ -1008,15 +1076,56 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 abstract class Extension_DevblocksEvent extends DevblocksExtension {
 	const POINT = 'devblocks.event';
 
-	private $_labels = array();
-	private $_types = array();
-	private $_values = array();
+	private $_labels = [];
+	private $_types = [];
+	private $_values = [];
 	
-	private $_conditions_cache = array();
-	private $_conditions_extensions_cache = array();
+	private $_conditions_cache = [];
+	private $_conditions_extensions_cache = [];
 
 	public static function getAll($as_instances=false) {
 		$events = DevblocksPlatform::getExtensions('devblocks.event', $as_instances);
+		
+		if(
+			class_exists('DAO_CustomRecord', true)
+			&& false != ($custom_records = DAO_CustomRecord::getAll()) 
+			&& is_array($custom_records)
+			) {
+			foreach($custom_records as $custom_record) {
+				$context_id = sprintf('contexts.custom_record.%d', $custom_record->id);
+				$event_id = sprintf('event.macro.custom_record.%d', $custom_record->id);
+				$manifest = new DevblocksExtensionManifest();
+				$manifest->id = $event_id;
+				$manifest->plugin_id = 'cerberusweb.core';
+				$manifest->point = Extension_DevblocksEvent::POINT;
+				$manifest->name = 'Custom behavior on ' . DevblocksPlatform::strLower($custom_record->name);
+				$manifest->file = 'api/events/macro/abstract_custom_record_macro.php';
+				$manifest->class = 'Event_AbstractCustomRecord_' . $custom_record->id;
+				$manifest->params = [
+					'macro_context' => $context_id,
+					'contexts' => [
+						0 => [
+							'cerberusweb.contexts.app' => '',
+							'cerberusweb.contexts.group' => '',
+							'cerberusweb.contexts.role' => '',
+							'cerberusweb.contexts.worker' => '',
+						],
+					],
+					'options' => [
+						0 => [
+							'visibility' => '',
+						],
+					]
+				];
+				
+				if($as_instances) {
+					$events[$event_id] = $manifest->createInstance();
+				} else {
+					$events[$event_id] = $manifest;
+				}
+			}
+		}
+		
 		if($as_instances)
 			DevblocksPlatform::sortObjects($events, 'manifest->name');
 		else
@@ -1104,7 +1213,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 		return $conditions;
 	}
 
-	abstract function setEvent(Model_DevblocksEvent $event_model=null, Model_TriggerEvent $trigger);
+	abstract function setEvent(Model_DevblocksEvent $event_model=null, Model_TriggerEvent $trigger=null);
 
 	function setLabels($labels) {
 		natcasesort($labels);

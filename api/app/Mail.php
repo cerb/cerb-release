@@ -43,7 +43,7 @@ class CerberusMail {
 	private function __construct() {}
 	
 	static function parseRfcAddresses($string, $exclude_controlled_addresses=false) {
-		$results = array();
+		$results = [];
 		$string = rtrim(str_replace(';',',',$string),' ,');
 		@$parsed = imap_rfc822_parse_adrlist($string, 'localhost');
 		
@@ -70,7 +70,7 @@ class CerberusMail {
 				$check_address = $mailbox.'@'.$host;
 				
 				// If this is a local address and we're excluding them, skip it
-				if(DAO_AddressOutgoing::isLocalAddress($check_address))
+				if(DAO_Address::isLocalAddress($check_address))
 					continue;
 				
 				$skip = false;
@@ -102,9 +102,9 @@ class CerberusMail {
 	
 	static private function _parseCustomHeaders(array $headers) {
 		if(!is_array($headers))
-			return array();
+			return [];
 		
-		$results = array();
+		$results = [];
 		
 		foreach($headers as $header) {
 			@list($name, $value) = explode(':', $header);
@@ -118,7 +118,7 @@ class CerberusMail {
 		return $results;
 	}
 	
-	static function quickSend($to, $subject, $body, $from_addy=null, $from_personal=null, $custom_headers=array(), $format=null, $html_template_id=null, $file_ids=array(), $cc=null, $bcc=null) {
+	static function quickSend($to, $subject, $body, $from_addy=null, $from_personal=null, $custom_headers=[], $format=null, $html_template_id=null, $file_ids=[], $cc=null, $bcc=null) {
 		try {
 			$mail_service = DevblocksPlatform::services()->mail();
 			$mail = $mail_service->createMessage();
@@ -126,13 +126,11 @@ class CerberusMail {
 			$settings = DevblocksPlatform::services()->pluginSettings();
 			
 			if(empty($from_addy) || empty($from_personal)) {
-				if(null == ($replyto_default = DAO_AddressOutgoing::getDefault()))
+				if(false == ($replyto_default = DAO_Address::getDefaultLocalAddress()))
 					throw new Exception("There is no default sender address.");
 				
 				if(empty($from_addy))
 					$from_addy = $replyto_default->email;
-				if(empty($from_personal))
-					$from_personal = $replyto_default->getReplyPersonal();
 			}
 			
 			$mail->setTo(DevblocksPlatform::parseCsvString($to));
@@ -625,7 +623,7 @@ class CerberusMail {
 		CerberusBayes::markTicketAsNotSpam($ticket_id);
 		
 		// Custom fields
-		@$custom_fields = isset($properties['custom_fields']) ? $properties['custom_fields'] : array();
+		@$custom_fields = isset($properties['custom_fields']) ? $properties['custom_fields'] : [];
 		if(is_array($custom_fields) && !empty($custom_fields)) {
 			DAO_CustomFieldValue::formatAndSetFieldValues(CerberusContexts::CONTEXT_TICKET, $ticket_id, $custom_fields);
 			
@@ -651,7 +649,7 @@ class CerberusMail {
 		return intval($ticket_id);
 	}
 	
-	static function sendTicketMessage($properties=array()) {
+	static function sendTicketMessage($properties=[]) {
 		$settings = DevblocksPlatform::services()->pluginSettings();
 		
 		/*
@@ -805,7 +803,7 @@ class CerberusMail {
 						continue;
 			
 					// Ourselves?
-					if(DAO_AddressOutgoing::isLocalAddressId($requester->id))
+					if(DAO_Address::isLocalAddressId($requester->id))
 						continue;
 
 					if($is_autoreply) {
@@ -1039,7 +1037,7 @@ class CerberusMail {
 			return false;
 		}
 		
-		$change_fields = array();
+		$change_fields = [];
 		
 		$fromAddressInst = CerberusApplication::hashLookupAddress($from_replyto->email, true);
 		$fromAddressId = $fromAddressInst->id;
@@ -1230,7 +1228,7 @@ class CerberusMail {
 		}
 
 		// Custom fields
-		@$custom_fields = isset($properties['custom_fields']) ? $properties['custom_fields'] : array();
+		@$custom_fields = isset($properties['custom_fields']) ? $properties['custom_fields'] : [];
 		if(is_array($custom_fields) && !empty($custom_fields)) {
 			DAO_CustomFieldValue::formatAndSetFieldValues(CerberusContexts::CONTEXT_TICKET, $ticket_id, $custom_fields, true, true, false);
 		}
@@ -1311,12 +1309,12 @@ class CerberusMail {
 			$replyto = $group->getReplyTo($ticket->bucket_id);
 		} else {
 			// Use the default so our 'From:' is always consistent
-			$replyto = DAO_AddressOutgoing::getDefault();
+			$replyto = DAO_Address::getDefaultLocalAddress();
 		}
 		
 		$attachments = ($include_attachments)
 			? DAO_Attachment::getByContextIds(CerberusContexts::CONTEXT_MESSAGE, $message->id)
-			: array()
+			: []
 			;
 		
 		if(empty($content)) {
@@ -1353,16 +1351,8 @@ class CerberusMail {
 					$mail->setReplyTo($replyto->email);
 					
 				} else {
-					$replyto_personal = $replyto->getReplyPersonal($worker);
-					
-					if(!empty($replyto_personal)) {
-						$mail->setFrom($replyto->email, !empty($replyto_personal) ? $replyto_personal : null);
-						$mail->setReplyTo($replyto->email, !empty($replyto_personal) ? $replyto_personal : null);
-						
-					} else {
-						$mail->setFrom($replyto->email);
-						$mail->setReplyTo($replyto->email);
-					}
+					$mail->setFrom($replyto->email);
+					$mail->setReplyTo($replyto->email);
 				}
 
 				// Subject

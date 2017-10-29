@@ -1207,7 +1207,7 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 					
 				// Valid custom fields
 				default:
-					if('cf_' == substr($field_key,0,3))
+					if(DevblocksPlatform::strStartsWith($field_key, 'cf_'))
 						$pass = $this->_canSubtotalCustomField($field_key);
 					break;
 			}
@@ -1950,6 +1950,21 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 			'title' => DAO_Contact::TITLE,
 			'username' => DAO_Contact::USERNAME,
 		];
+	}
+	
+	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
+		switch(DevblocksPlatform::strLower($key)) {
+			case 'email':
+				if(false == ($address = DAO_Address::lookupAddress($value, true))) {
+					$error = sprintf("Failed to lookup address: %s", $value);
+					return false;
+				}
+				
+				$out_fields[DAO_Contact::PRIMARY_EMAIL_ID] = $address->id;
+				break;
+		}
+		
+		return true;
 	}
 	
 	function lazyLoadContextValues($token, $dictionary) {

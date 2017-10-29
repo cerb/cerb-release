@@ -210,7 +210,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			if(false == ($search_class = $ext->getSearchClass()))
 				return;
 			
-			$query_parts = $dao_class::getSearchQueryComponents(array(), $params);
+			$query_parts = $dao_class::getSearchQueryComponents([], $params);
 			
 			$query_parts['select'] = sprintf("SELECT %s ", $search_class::getPrimaryKey());
 			
@@ -532,6 +532,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 		// Return a soft failure when a filtered custom field has been deleted (i.e. ignore)
 		if(false == ($field = DAO_CustomField::get($field_id)))
 			return '';
+		
 
 		$field_table = sprintf("cf_%d", $field_id);
 		$value_table = DAO_CustomFieldValue::getValueTableName($field_id);
@@ -575,6 +576,28 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 						$not = true;
 						$param->operator = DevblocksSearchCriteria::OPER_IS_NULL;
 						$param->value = null;
+						break;
+				}
+				break;
+				
+			case Model_CustomField::TYPE_LINK:
+				switch($param->operator) {
+					case DevblocksSearchCriteria::OPER_CUSTOM:
+						@$link_context = $field->params['context'];
+						
+						$subquery_sql = sprintf("SELECT context_id FROM %s WHERE field_id = %d AND field_value IN (%%s)",
+							$value_table,
+							$field_id
+						);
+						
+						$where_sql = self::_getWhereSQLFromVirtualSearchSqlField(
+							$param,
+							$link_context,
+							$subquery_sql,
+							$cfield_key
+						);
+						
+						return $where_sql;
 						break;
 				}
 				break;
@@ -732,34 +755,49 @@ class DevblocksSearchCriteria {
 			case DevblocksSearchCriteria::TYPE_BOOL:
 				if($param_key && false != ($param = DevblocksSearchCriteria::getBooleanParamFromTokens($param_key, $tokens)))
 					return $param;
-				continue;
+				break;
 				
 			case DevblocksSearchCriteria::TYPE_DATE:
 				if($param_key && false != ($param = DevblocksSearchCriteria::getDateParamFromTokens($param_key, $tokens)))
 					return $param;
-				continue;
+				break;
 				
 			case DevblocksSearchCriteria::TYPE_FULLTEXT:
 				if($param_key && false != ($param = DevblocksSearchCriteria::getFulltextParamFromTokens($param_key, $tokens)))
 					return $param;
-				continue;
+				break;
 				
 			case DevblocksSearchCriteria::TYPE_NUMBER:
 				if($param_key && false != ($param = DevblocksSearchCriteria::getNumberParamFromTokens($param_key, $tokens)))
 					return $param;
-				continue;
+				break;
 				
 			case DevblocksSearchCriteria::TYPE_TEXT:
 				@$match_type = $search_field['options']['match'];
 				
 				if($param_key && false != ($param = DevblocksSearchCriteria::getTextParamFromTokens($param_key, $tokens, $match_type)))
 					return $param;
-				continue;
+				break;
+			
+			case DevblocksSearchCriteria::TYPE_VIRTUAL:
+				@$cf_id = $search_fields[$field]['options']['cf_id'];
 				
+				if(!$cf_id || false == ($custom_field = DAO_CustomField::get($cf_id)))
+					break;
+				
+				switch($custom_field->type) {
+					// If a custom record link, add a deep search filter
+					case Model_CustomField::TYPE_LINK:
+						if($param_key && false != $param = DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, $param_key))
+							return $param;
+						break;
+				}
+				break;
+			
 			case DevblocksSearchCriteria::TYPE_WORKER:
 				if($param_key && false != ($param = DevblocksSearchCriteria::getWorkerParamFromTokens($param_key, $tokens, $search_field)))
 					return $param;
-				continue;
+				break;
 		}
 		
 		return false;
@@ -1303,7 +1341,7 @@ class DevblocksSearchCriteria {
 			return '';
 		
 		$db_field_name = $fields[$this->field]->db_table . '.' . $fields[$this->field]->db_column;
-
+		
 		// This should be handled by SearchFields_*::getWhereSQL()
 		if('*_' == substr($this->field,0,2)) {
 			return '';
@@ -1630,6 +1668,9 @@ class DevblocksSearchCriteria {
 				break;
 			
 			case DevblocksSearchCriteria::OPER_CUSTOM:
+				if(!isset($this->value['where']))
+					return 0;
+				
 				$where = sprintf("%s %s",
 					$db_field_name,
 					$this->value['where']
@@ -2104,9 +2145,9 @@ class DevblocksPatch {
 
 class Model_DevblocksEvent {
 	public $id = '';
-	public $params = array();
+	public $params = [];
 
-	function __construct($id='',$params=array()) {
+	function __construct($id='',$params=[]) {
 		$this->id = $id;
 		$this->params = $params;
 	}
@@ -2125,14 +2166,14 @@ class Model_DevblocksStorageProfile {
 	public $name;
 	public $extension_id;
 	public $params_json;
-	public $params = array();
+	public $params = [];
 	
 	function getUsageStats() {
 		// Schemas
 		$storage_schemas = DevblocksPlatform::getExtensions('devblocks.storage.schema', true);
 		
 		// Stats
-		$storage_schema_stats = array();
+		$storage_schema_stats = [];
 		foreach($storage_schemas as $schema) {
 			$stats = $schema->getStats();
 			$key = $this->extension_id . ':' . intval($this->id);

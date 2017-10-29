@@ -2,7 +2,7 @@
 	<ul>
 		<li>
 			<div>
-				<a href="javascript:;" class="menu">Configure <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
+				<a href="javascript:;" class="menu">{'common.configure'|devblocks_translate|capitalize} <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
 				<ul class="cerb-popupmenu cerb-float">
 					<li><b>System</b></li>
 					<li><a href="{devblocks_url}c=config&a=branding{/devblocks_url}">Branding</a></li>
@@ -15,12 +15,13 @@
 					<li><a href="{devblocks_url}c=config&a=security{/devblocks_url}">Security</a></li>
 					<li><a href="{devblocks_url}c=config&a=sessions{/devblocks_url}">Sessions</a></li>
 					<li><hr></li>
-					<li><b>{'common.contexts'|devblocks_translate|capitalize}</b></li>
+					<li><b>{'common.records'|devblocks_translate|capitalize}</b></li>
 					<li><a href="{devblocks_url}c=config&a=avatars{/devblocks_url}">Avatars</a></li>
 					<li><a href="{devblocks_url}c=config&a=cards{/devblocks_url}">{'common.cards'|devblocks_translate|capitalize}</a></li>
 					<li><a href="{devblocks_url}c=config&a=fields{/devblocks_url}">{'common.custom_fields'|devblocks_translate|capitalize}</a></li>
+					<li><a href="{devblocks_url}c=config&a=records{/devblocks_url}">{'common.custom_records'|devblocks_translate|capitalize}</a></li>
 					<li><a href="{devblocks_url}c=config&a=skills{/devblocks_url}">{'common.skills'|devblocks_translate|capitalize}</a></li>
-					<li><a href="{devblocks_url}c=config&a=snippets{/devblocks_url}">Snippets</a></li>
+					<li><a href="{devblocks_url}c=config&a=snippets{/devblocks_url}">{'common.snippets'|devblocks_translate|capitalize}</a></li>
 					
 					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.settings')}
 					{if !empty($exts)}
@@ -35,25 +36,13 @@
 		</li>
 		<li>
 			<div>
-				<a href="javascript:;" class="menu">Mail <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
+				<a href="javascript:;" class="menu">{'common.team'|devblocks_translate|capitalize} <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
 				<ul class="cerb-popupmenu cerb-float">
-					<li><b>Incoming Mail</b></li>
-					<li><a href="{devblocks_url}c=config&a=mail_incoming{/devblocks_url}">{'common.settings'|devblocks_translate|capitalize}</a></li>
-					<li><a href="{devblocks_url}c=config&a=mailboxes{/devblocks_url}">Mailboxes</a></li>
-					<li><a href="{devblocks_url}c=config&a=mail_routing{/devblocks_url}">Routing</a></li>
-					<li><a href="{devblocks_url}c=config&a=mail_filtering{/devblocks_url}">Filtering</a></li>
-					<li><a href="{devblocks_url}c=config&a=mail_failed{/devblocks_url}">Failed Messages</a></li>
-					<li><a href="{devblocks_url}c=config&a=mail_import{/devblocks_url}">Import Message</a></li>
-					<li><a href="{devblocks_url}c=config&a=mail_relay{/devblocks_url}">External Relay</a></li>
-					<li><hr></li>
+					<li><a href="{devblocks_url}c=config&a=team&w=roles{/devblocks_url}">{'common.roles'|devblocks_translate|capitalize}</a></li>
+					<li><a href="{devblocks_url}c=config&a=team&w=groups{/devblocks_url}">{'common.groups'|devblocks_translate|capitalize}</a></li>
+					<li><a href="{devblocks_url}c=config&a=team&w=workers{/devblocks_url}">{'common.workers'|devblocks_translate|capitalize}</a></li>
 					
-					<li><b>Outgoing Mail</b></li>
-					<li><a href="{devblocks_url}c=config&a=mail_smtp{/devblocks_url}">Mail Transports</a></li>
-					<li><a href="{devblocks_url}c=config&a=mail_from{/devblocks_url}">Sender Addresses</a></li>
-					<li><a href="{devblocks_url}c=config&a=mail_queue{/devblocks_url}">Queue</a></li>
-					<li><a href="{devblocks_url}c=config&a=mail_html{/devblocks_url}">HTML Templates</a></li>
-					
-					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.mail')}
+					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.team')}
 					{if !empty($exts)}
 						<li><hr></li>
 						<li><b>Plugins</b></li>
@@ -66,14 +55,16 @@
 		</li>
 		<li>
 			<div>
-				<a href="javascript:;" class="menu">Storage <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
+				<a href="javascript:;" class="menu">{'common.mail'|devblocks_translate|capitalize} <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
 				<ul class="cerb-popupmenu cerb-float">
-					<li><a href="{devblocks_url}c=config&a=storage_content{/devblocks_url}">Overview</a></li>
-					{if !$smarty.const.DEVBLOCKS_STORAGE_ENGINE_PREVENT_CHANGE}<li><a href="{devblocks_url}c=config&a=storage_profiles{/devblocks_url}">{'common.profiles'|devblocks_translate|capitalize}</a></li>{/if}
-					<li><a href="{devblocks_url}c=config&a=storage_attachments{/devblocks_url}">{'common.objects'|devblocks_translate|capitalize}</a></li>
+					<li><a href="{devblocks_url}c=config&a=mail_incoming{/devblocks_url}">{'common.mail.incoming'|devblocks_translate|capitalize}</a></li>
+					<li><a href="{devblocks_url}c=config&a=mail_outgoing{/devblocks_url}">{'common.mail.outgoing'|devblocks_translate|capitalize}</a></li>
 					
-					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.storage')}
-					{if !empty($exts)}<li><hr></li>{/if}
+					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.mail')}
+					{if !empty($exts)}
+						<li><hr></li>
+						<li><b>Plugins</b></li>
+					{/if}
 					{foreach from=$exts item=menu_item}
 						{if method_exists($menu_item,'render')}<li>{$menu_item->render()}</li>{/if}
 					{/foreach}
@@ -124,7 +115,23 @@
 		</li>
 		<li>
 			<div>
-				<a href="javascript:;" class="menu">Plugins <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
+				<a href="javascript:;" class="menu">{'common.storage'|devblocks_translate|capitalize} <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
+				<ul class="cerb-popupmenu cerb-float">
+					<li><a href="{devblocks_url}c=config&a=storage_content{/devblocks_url}">Overview</a></li>
+					{if !$smarty.const.DEVBLOCKS_STORAGE_ENGINE_PREVENT_CHANGE}<li><a href="{devblocks_url}c=config&a=storage_profiles{/devblocks_url}">{'common.profiles'|devblocks_translate|capitalize}</a></li>{/if}
+					<li><a href="{devblocks_url}c=config&a=storage_attachments{/devblocks_url}">{'common.objects'|devblocks_translate|capitalize}</a></li>
+					
+					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.storage')}
+					{if !empty($exts)}<li><hr></li>{/if}
+					{foreach from=$exts item=menu_item}
+						{if method_exists($menu_item,'render')}<li>{$menu_item->render()}</li>{/if}
+					{/foreach}
+				</ul>
+			</div>
+		</li>
+		<li>
+			<div>
+				<a href="javascript:;" class="menu">{'common.plugins'|devblocks_translate|capitalize} <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
 				<ul class="cerb-popupmenu cerb-float">
 					<li><a href="{devblocks_url}c=config&a=plugins&tab=installed{/devblocks_url}">Installed Plugins</a></li>
 					{if $smarty.const.CERB_FEATURES_PLUGIN_LIBRARY}<li><a href="{devblocks_url}c=config&a=plugins&tab=library{/devblocks_url}">Plugin Library</a></li>{/if}

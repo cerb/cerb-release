@@ -987,7 +987,7 @@ class View_Calendar extends C4_AbstractView implements IAbstractView_Subtotals, 
 					
 				// Valid custom fields
 				default:
-					if('cf_' == substr($field_key,0,3))
+					if(DevblocksPlatform::strStartsWith($field_key, 'cf_'))
 						$pass = $this->_canSubtotalCustomField($field_key);
 					break;
 			}
@@ -1429,6 +1429,27 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 			'owner_id' => DAO_Calendar::OWNER_CONTEXT_ID,
 			'updated_at' => DAO_Calendar::UPDATED_AT,
 		];
+	}
+	
+	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
+		$dict_key = DevblocksPlatform::strLower($key);
+		switch($dict_key) {
+			case 'params':
+				if(!is_array($value)) {
+					$error = 'must be an object.';
+					return false;
+				}
+				
+				if(false == ($json = json_encode($value))) {
+					$error = 'could not be JSON encoded.';
+					return false;
+				}
+				
+				$out_fields[DAO_Calendar::PARAMS_JSON] = $json;
+				break;
+		}
+		
+		return true;
 	}
 	
 	function lazyLoadContextValues($token, $dictionary) {

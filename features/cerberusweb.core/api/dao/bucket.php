@@ -25,7 +25,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 	const REPLY_ADDRESS_ID = 'reply_address_id';
 	const REPLY_HTML_TEMPLATE_ID = 'reply_html_template_id';
 	const REPLY_PERSONAL = 'reply_personal';
-	const REPLY_SIGNATURE = 'reply_signature';
+	const REPLY_SIGNATURE_ID = 'reply_signature_id';
 	const UPDATED_AT = 'updated_at';
 	
 	private function __construct() {}
@@ -57,20 +57,35 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		$validation
 			->addField(self::REPLY_ADDRESS_ID)
 			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS, true))
+			->addValidator(function($value, &$error) {
+				if($value && false == ($address = DAO_Address::get($value))) {
+					$error = "is an invalid.";
+					return false;
+				}
+				
+				if($value && !$address->mail_transport_id) {
+					$error = "is not configured for outgoing mail.";
+					return false;
+				}
+				
+				return true;
+			})
 			;
 		$validation
 			->addField(self::REPLY_HTML_TEMPLATE_ID)
 			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_MAIL_HTML_TEMPLATE, true))
 			;
 		$validation
 			->addField(self::REPLY_PERSONAL)
 			->string()
-			->setMaxLength(128)
+			->setMaxLength(255)
 			;
 		$validation
-			->addField(self::REPLY_SIGNATURE)
-			->string()
-			->setMaxLength(16777215)
+			->addField(self::REPLY_SIGNATURE_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_EMAIL_SIGNATURE, true))
 			;
 		$validation
 			->addField(self::UPDATED_AT)
@@ -217,7 +232,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
 		// SQL
-		$sql = "SELECT id, name, group_id, reply_address_id, reply_personal, reply_signature, reply_html_template_id, is_default, updated_at ".
+		$sql = "SELECT id, name, group_id, reply_address_id, reply_personal, reply_signature_id, reply_html_template_id, is_default, updated_at ".
 			"FROM bucket ".
 			$where_sql.
 			$sort_sql.
@@ -438,7 +453,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 			$bucket->group_id = intval($row['group_id']);
 			$bucket->reply_address_id = $row['reply_address_id'];
 			$bucket->reply_personal = $row['reply_personal'];
-			$bucket->reply_signature = $row['reply_signature'];
+			$bucket->reply_signature_id = $row['reply_signature_id'];
 			$bucket->reply_html_template_id = $row['reply_html_template_id'];
 			$bucket->is_default = !empty($row['is_default']) ? 1 : 0;
 			$bucket->updated_at = intval($row['updated_at']);
@@ -466,7 +481,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 			"bucket.name as %s, ".
 			"bucket.reply_address_id as %s, ".
 			"bucket.reply_personal as %s, ".
-			"bucket.reply_signature as %s, ".
+			"bucket.reply_signature_id as %s, ".
 			"bucket.reply_html_template_id as %s, ".
 			"bucket.updated_at as %s, ".
 			"bucket.is_default as %s ",
@@ -475,7 +490,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 				SearchFields_Bucket::NAME,
 				SearchFields_Bucket::REPLY_ADDRESS_ID,
 				SearchFields_Bucket::REPLY_PERSONAL,
-				SearchFields_Bucket::REPLY_SIGNATURE,
+				SearchFields_Bucket::REPLY_SIGNATURE_ID,
 				SearchFields_Bucket::REPLY_HTML_TEMPLATE_ID,
 				SearchFields_Bucket::UPDATED_AT,
 				SearchFields_Bucket::IS_DEFAULT
@@ -604,7 +619,7 @@ class SearchFields_Bucket extends DevblocksSearchFields {
 	const NAME = 'b_name';
 	const REPLY_ADDRESS_ID = 'b_reply_address_id';
 	const REPLY_PERSONAL = 'b_reply_personal';
-	const REPLY_SIGNATURE = 'b_reply_signature';
+	const REPLY_SIGNATURE_ID = 'b_reply_signature_id';
 	const REPLY_HTML_TEMPLATE_ID = 'b_reply_html_template_id';
 	const UPDATED_AT = 'b_updated_at';
 	const IS_DEFAULT = 'b_is_default';
@@ -670,10 +685,10 @@ class SearchFields_Bucket extends DevblocksSearchFields {
 			self::ID => new DevblocksSearchField(self::ID, 'bucket', 'id', $translate->_('common.id'), Model_CustomField::TYPE_NUMBER, true),
 			self::GROUP_ID => new DevblocksSearchField(self::GROUP_ID, 'bucket', 'group_id', $translate->_('common.group'), null, true),
 			self::NAME => new DevblocksSearchField(self::NAME, 'bucket', 'name', $translate->_('common.name'), null, true),
-			self::REPLY_ADDRESS_ID => new DevblocksSearchField(self::REPLY_ADDRESS_ID, 'bucket', 'reply_address_id', $translate->_('dao.bucket.reply_address_id'), null, true),
-			self::REPLY_PERSONAL => new DevblocksSearchField(self::REPLY_PERSONAL, 'bucket', 'reply_personal', $translate->_('dao.bucket.reply_personal'), null, true),
-			self::REPLY_SIGNATURE => new DevblocksSearchField(self::REPLY_SIGNATURE, 'bucket', 'reply_signature', $translate->_('dao.bucket.reply_signature'), null, true),
-			self::REPLY_HTML_TEMPLATE_ID => new DevblocksSearchField(self::REPLY_HTML_TEMPLATE_ID, 'bucket', 'reply_html_template_id', $translate->_('dao.bucket.reply_html_template_id'), null, true),
+			self::REPLY_ADDRESS_ID => new DevblocksSearchField(self::REPLY_ADDRESS_ID, 'bucket', 'reply_address_id', $translate->_('common.send.from'), null, true),
+			self::REPLY_HTML_TEMPLATE_ID => new DevblocksSearchField(self::REPLY_HTML_TEMPLATE_ID, 'bucket', 'reply_html_template_id', $translate->_('common.email_template'), null, true),
+			self::REPLY_PERSONAL => new DevblocksSearchField(self::REPLY_PERSONAL, 'bucket', 'reply_personal', $translate->_('common.send.as'), null, true),
+			self::REPLY_SIGNATURE_ID => new DevblocksSearchField(self::REPLY_SIGNATURE_ID, 'bucket', 'reply_signature_id', $translate->_('common.signature'), null, true),
 			self::UPDATED_AT => new DevblocksSearchField(self::UPDATED_AT, 'bucket', 'updated_at', $translate->_('common.updated'), Model_CustomField::TYPE_DATE, true),
 			self::IS_DEFAULT => new DevblocksSearchField(self::IS_DEFAULT, 'bucket', 'is_default', $translate->_('common.default'), Model_CustomField::TYPE_CHECKBOX, true),
 				
@@ -702,7 +717,7 @@ class Model_Bucket {
 	public $group_id = 0;
 	public $reply_address_id = 0;
 	public $reply_personal;
-	public $reply_signature;
+	public $reply_signature_id = 0;
 	public $reply_html_template_id = 0;
 	public $is_default = 0;
 	public $updated_at = 0;
@@ -722,25 +737,25 @@ class Model_Bucket {
 	/**
 	 *
 	 * @param integer $bucket_id
-	 * @return Model_AddressOutgoing
+	 * @return Model_Address
 	 */
 	public function getReplyTo() {
 		$from_id = 0;
-		$froms = DAO_AddressOutgoing::getAll();
+		$froms = DAO_Address::getLocalAddresses();
 		
 		// Cascade to bucket
 		$from_id = $this->reply_address_id;
 		
-		// Cascade to group default
-		if(empty($from_id) && empty($this->is_default)) {
+		// Cascade to group
+		if(empty($from_id) && false != ($group = $this->getGroup())) {
 			$default_bucket = DAO_Bucket::getDefaultForGroup($this->group_id);
-			$from_id = $default_bucket->reply_address_id;
+			$from_id = $group->getReplyFrom();
 		}
 		
 		// Cascade to global
 		if(empty($from_id) || !isset($froms[$from_id])) {
-			$from = DAO_AddressOutgoing::getDefault();
-			$from_id = $from->address_id;
+			$from = DAO_Address::getDefaultLocalAddress();
+			$from_id = $from->id;
 		}
 			
 		// Last check
@@ -751,8 +766,8 @@ class Model_Bucket {
 	}
 	
 	public function getReplyFrom() {
-		$froms = DAO_AddressOutgoing::getAll();
-		$default_from = DAO_AddressOutgoing::getDefault();
+		$froms = DAO_Address::getLocalAddresses();
+		$default_from = DAO_Address::getDefaultLocalAddress();
 		$default_bucket = DAO_Bucket::getDefaultForGroup($this->group_id);
 		
 		// Check this bucket
@@ -770,7 +785,7 @@ class Model_Bucket {
 		
 		// Cascade to global
 		if($default_from 
-				&& $from_id = $default_from->address_id
+				&& $from_id = $default_from->id
 				&& isset($froms[$from_id]))
 					return $from_id;
 			
@@ -778,8 +793,7 @@ class Model_Bucket {
 	}
 	
 	public function getReplyPersonal($worker_model=null) {
-		$froms = DAO_AddressOutgoing::getAll();
-		$default_from = DAO_AddressOutgoing::getDefault();
+		$froms = DAO_Address::getLocalAddresses();
 		$default_bucket = DAO_Bucket::getDefaultForGroup($this->group_id);
 		
 		// Check bucket first
@@ -799,11 +813,6 @@ class Model_Bucket {
 					$personal = $default_bucket->getReplyPersonal($worker_model);
 		}
 		
-		// Cascade to global
-		if(empty($personal) 
-				&& $default_from)
-					$personal = $default_from->reply_personal;
-		
 		// If we have a worker model, convert template tokens
 		if(empty($worker_model))
 			$worker_model = new Model_Worker();
@@ -818,47 +827,34 @@ class Model_Bucket {
 	}
 	
 	public function getReplySignature($worker_model=null) {
-		$froms = DAO_AddressOutgoing::getAll();
-		$default_from = DAO_AddressOutgoing::getDefault();
-		$default_bucket = DAO_Bucket::getDefaultForGroup($this->group_id);
+		$froms = DAO_Address::getLocalAddresses();
+		$group = $this->getGroup();
 		
 		// Check bucket first
-		$signature = $this->reply_signature;
+		$signature_id = $this->reply_signature_id;
 		
-		// Cascade to bucket address
-		if(empty($signature) 
-				&& $this->reply_address_id
-				&& isset($froms[$this->reply_address_id])
-				&& $from = $froms[$this->reply_address_id])
-					$signature = $from->reply_signature;
+		// Cascade to group
+		if(!$signature_id && $group) 
+			$signature_id = $group->reply_signature_id;
 		
-		// Cascade to group default bucket
-		if(empty($signature) 
-				&& $default_bucket
-				&& $default_bucket->id != $this->id)
-					$signature = $default_bucket->reply_signature;
-		
-		// Cascade to global
-		if(empty($signature) 
-				&& $default_from)
-					$signature = $default_from->reply_signature;
+		if(!$signature_id || false == ($signature = DAO_EmailSignature::get($signature_id)))
+			return '';
 		
 		// If we have a worker model, convert template tokens
 		if(empty($worker_model))
 			$worker_model = new Model_Worker();
 		
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-		$token_labels = array();
-		$token_values = array();
+		$token_labels = $token_values = [];
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $worker_model, $token_labels, $token_values);
-		$signature = $tpl_builder->build($signature, $token_values);
+		$signature = $tpl_builder->build($signature->signature, $token_values);
 		
 		return $signature;
 	}
 	
 	public function getReplyHtmlTemplate() {
-		$froms = DAO_AddressOutgoing::getAll();
-		$default_from = DAO_AddressOutgoing::getDefault();
+		$froms = DAO_Address::getLocalAddresses();
+		$default_from = DAO_Address::getDefaultLocalAddress();
 		$default_bucket = DAO_Bucket::getDefaultForGroup($this->group_id);
 		
 		// Check bucket first
@@ -871,17 +867,11 @@ class Model_Bucket {
 				&& $from = $froms[$this->reply_address_id])
 					$html_template_id = $from->reply_html_template_id;
 		
-		// Cascade to group default bucket
-		if(empty($html_template_id) 
-				&& $default_bucket
-				&& $default_bucket->id != $this->id)
-					$html_template_id = $default_bucket->reply_html_template_id;
+		// Cascade to group default
+		if(empty($html_template_id) && false != ($group = $this->getGroup())) {
+			$html_template_id = $group->reply_html_template_id;
+		}
 		
-		// Cascade to global
-		if(empty($html_template_id) 
-				&& $default_from)
-					$html_template_id = $default_from->reply_html_template_id;
-			
 		if($html_template_id)
 			return DAO_MailHtmlTemplate::get($html_template_id);
 		
@@ -955,6 +945,9 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 	function getDefaultProperties() {
 		return array(
 			'replyto__label',
+			'reply_personal',
+			'reply_html_template__label',
+			'reply_signature__label',
 			'updated_at',
 		);
 	}
@@ -995,6 +988,7 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 			'name' => $prefix.$translate->_('common.name'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
+			'reply_personal' => $prefix.$translate->_('common.send.as'),
 		);
 		
 		// Token types
@@ -1005,6 +999,7 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 			'name' => Model_CustomField::TYPE_SINGLE_LINE,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 			'record_url' => Model_CustomField::TYPE_URL,
+			'reply_personal' => Model_CustomField::TYPE_SINGLE_LINE,
 		);
 		
 		// Custom fields
@@ -1032,13 +1027,13 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 			$token_values['id'] = $bucket->id;
 			$token_values['is_default'] = $bucket->is_default;
 			$token_values['name'] = $bucket->name;
+			$token_values['replyto_id'] = $bucket->reply_address_id;
+			$token_values['reply_html_template_id'] = $bucket->reply_html_template_id;
+			$token_values['reply_personal'] = $bucket->reply_personal;
+			$token_values['reply_signature_id'] = $bucket->reply_signature_id;
 			$token_values['updated_at'] = $bucket->updated_at;
 			
 			$token_values['group_id'] = $bucket->group_id;
-			
-			if(false != ($replyto = $bucket->getReplyTo())) {
-				$token_values['replyto_id'] = $replyto->address_id;
-			}
 			
 			// Custom fields
 			$token_values = $this->_importModelCustomFieldsAsValues($bucket, $token_values);
@@ -1064,7 +1059,35 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 		
 		CerberusContexts::merge(
 			'replyto_',
-			$prefix.'Reply To:',
+			$prefix.'Send from:',
+			$merge_token_labels,
+			$merge_token_values,
+			$token_labels,
+			$token_values
+		);
+		
+		// HTML Template
+		$merge_token_labels = array();
+		$merge_token_values = array();
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_MAIL_HTML_TEMPLATE, null, $merge_token_labels, $merge_token_values, '', true);
+
+		CerberusContexts::merge(
+			'reply_html_template_',
+			$prefix.'Email template:',
+			$merge_token_labels,
+			$merge_token_values,
+			$token_labels,
+			$token_values
+		);
+		
+		// Email Signature
+		$merge_token_labels = array();
+		$merge_token_values = array();
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_EMAIL_SIGNATURE, null, $merge_token_labels, $merge_token_values, '', true);
+
+		CerberusContexts::merge(
+			'reply_signature_',
+			$prefix.'Signature:',
 			$merge_token_labels,
 			$merge_token_values,
 			$token_labels,
@@ -1094,8 +1117,11 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 			'id' => DAO_Bucket::ID,
 			'is_default' => DAO_Bucket::IS_DEFAULT,
 			'name' => DAO_Bucket::NAME,
+			'reply_address_id' => DAO_Bucket::REPLY_ADDRESS_ID,
+			'reply_html_template_id' => DAO_Bucket::REPLY_HTML_TEMPLATE_ID,
 			'reply_personal' => DAO_Bucket::REPLY_PERSONAL,
-			'reply_signature' => DAO_Bucket::REPLY_SIGNATURE,
+			'reply_signature_id' => DAO_Bucket::REPLY_SIGNATURE_ID,
+			'replyto_id' => DAO_Bucket::REPLY_ADDRESS_ID,
 			'updated_at' => DAO_Bucket::UPDATED_AT,
 		];
 	}
@@ -1208,10 +1234,6 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 		$workers = DAO_Worker::getAll();
 		$tpl->assign('workers', $workers);
 
-		// Reply-to Addresses
-		
-		$tpl->assign('replyto_addresses', DAO_AddressOutgoing::getAll());
-		
 		// Custom fields
 		
 		$custom_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_BUCKET, false);
@@ -1258,27 +1280,27 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 			
 		} else {
 			// Dictionary
-			$labels = array();
-			$values = array();
+			$labels = [];
+			$values = [];
 			CerberusContexts::getContext($context, $bucket, $labels, $values, '', true, false);
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			$tpl->assign('dict', $dict);
 			
-			$activity_counts = array(
+			$activity_counts = [
 				'tickets' => DAO_Ticket::countsByBucketId($context_id),
 				'comments' => DAO_Comment::count(CerberusContexts::CONTEXT_BUCKET, $context_id),
-			);
+			];
 			$tpl->assign('activity_counts', $activity_counts);
 			
 			$links = array(
-				CerberusContexts::CONTEXT_BUCKET => array(
+				CerberusContexts::CONTEXT_BUCKET => [
 					$context_id => 
 						DAO_ContextLink::getContextLinkCounts(
 							CerberusContexts::CONTEXT_BUCKET,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[CerberusContexts::CONTEXT_CUSTOM_FIELDSET]
 						),
-				),
+				],
 			);
 			$tpl->assign('links', $links);
 			
@@ -1319,16 +1341,17 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		$this->renderSortAsc = true;
 
 		$this->view_columns = array(
-			SearchFields_Bucket::NAME,
 			SearchFields_Bucket::GROUP_ID,
+			SearchFields_Bucket::NAME,
+			SearchFields_Bucket::IS_DEFAULT,
+			SearchFields_Bucket::REPLY_ADDRESS_ID,
+			SearchFields_Bucket::REPLY_PERSONAL,
+			SearchFields_Bucket::REPLY_SIGNATURE_ID,
+			SearchFields_Bucket::REPLY_HTML_TEMPLATE_ID,
 			SearchFields_Bucket::UPDATED_AT,
 		);
 		
 		$this->addColumnsHidden(array(
-			SearchFields_Bucket::REPLY_ADDRESS_ID,
-			SearchFields_Bucket::REPLY_PERSONAL,
-			SearchFields_Bucket::REPLY_SIGNATURE,
-			SearchFields_Bucket::REPLY_HTML_TEMPLATE_ID,
 			SearchFields_Bucket::VIRTUAL_CONTEXT_LINK,
 			SearchFields_Bucket::VIRTUAL_GROUP_SEARCH,
 			SearchFields_Bucket::VIRTUAL_HAS_FIELDSET,
@@ -1390,7 +1413,7 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 					
 				// Valid custom fields
 				default:
-					if('cf_' == substr($field_key,0,3))
+					if(DevblocksPlatform::strStartsWith($field_key, 'cf_'))
 						$pass = $this->_canSubtotalCustomField($field_key);
 					break;
 			}
@@ -1537,6 +1560,15 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		// Custom fields
 		$custom_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_BUCKET);
 		$tpl->assign('custom_fields', $custom_fields);
+		
+		$replyto_addresses = DAO_Address::getLocalAddresses();
+		$tpl->assign('replyto_addresses', $replyto_addresses);
+		
+		$html_templates = DAO_MailHtmlTemplate::getAll();
+		$tpl->assign('html_templates', $html_templates);
+		
+		$signatures = DAO_EmailSignature::getAll();
+		$tpl->assign('signatures', $signatures);
 
 		$tpl->assign('view_template', 'devblocks:cerberusweb.core::internal/bucket/view.tpl');
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
@@ -1549,13 +1581,13 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		switch($field) {
 			case SearchFields_Bucket::NAME:
 			case SearchFields_Bucket::REPLY_PERSONAL:
-			case SearchFields_Bucket::REPLY_SIGNATURE:
 				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
 				break;
 				
 			case SearchFields_Bucket::ID:
 			case SearchFields_Bucket::REPLY_ADDRESS_ID:
 			case SearchFields_Bucket::REPLY_HTML_TEMPLATE_ID:
+			case SearchFields_Bucket::REPLY_SIGNATURE_ID:
 				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
 				break;
 				
@@ -1654,13 +1686,13 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		switch($field) {
 			case SearchFields_Bucket::NAME:
 			case SearchFields_Bucket::REPLY_PERSONAL:
-			case SearchFields_Bucket::REPLY_SIGNATURE:
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
 				
 			case SearchFields_Bucket::ID:
 			case SearchFields_Bucket::REPLY_ADDRESS_ID:
 			case SearchFields_Bucket::REPLY_HTML_TEMPLATE_ID:
+			case SearchFields_Bucket::REPLY_SIGNATURE_ID:
 				$criteria = new DevblocksSearchCriteria($field,$oper,$value);
 				break;
 				

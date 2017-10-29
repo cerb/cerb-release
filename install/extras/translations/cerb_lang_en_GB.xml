@@ -2503,11 +2503,6 @@
 				<seg>Node Type</seg>
 			</tuv>
 		</tu>
-		<tu tuid="dao.decision_node.parent_id">
-			<tuv xml:lang="en_GB">
-				<seg>Parent Id</seg>
-			</tuv>
-		</tu>
 		<tu tuid="dao.decision_node.trigger_id">
 			<tuv xml:lang="en_GB">
 				<seg>Trigger Id</seg>
@@ -3351,16 +3346,6 @@
 		<tu tuid="mail.sent">
 			<tuv xml:lang="en_GB">
 				<seg>Sent</seg>
-			</tuv>
-		</tu>
-		<tu tuid="mail.transport">
-			<tuv xml:lang="en_GB">
-				<seg>Transport</seg>
-			</tuv>
-		</tu>
-		<tu tuid="mail.transports">
-			<tuv xml:lang="en_GB">
-				<seg>Transports</seg>
 			</tuv>
 		</tu>
 		<tu tuid="mail.view.add_filter">

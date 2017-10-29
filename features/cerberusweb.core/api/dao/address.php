@@ -23,9 +23,12 @@ class DAO_Address extends Cerb_ORMHelper {
 	const ID = 'id';
 	const IS_BANNED = 'is_banned';
 	const IS_DEFUNCT = 'is_defunct';
+	const MAIL_TRANSPORT_ID = 'mail_transport_id';
 	const NUM_NONSPAM = 'num_nonspam';
 	const NUM_SPAM = 'num_spam';
 	const UPDATED = 'updated';
+	
+	const _CACHE_LOCAL_ADDRESSES = 'addresses_local';
 	
 	private function __construct() {}
 	
@@ -68,6 +71,11 @@ class DAO_Address extends Cerb_ORMHelper {
 			->bit()
 			;
 		$validation
+			->addField(self::MAIL_TRANSPORT_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_MAIL_TRANSPORT, true))
+			;
+		$validation
 			->addField(self::NUM_NONSPAM)
 			->uint()
 			->setEditable(false)
@@ -99,47 +107,50 @@ class DAO_Address extends Cerb_ORMHelper {
 	static function create($fields) {
 		$db = DevblocksPlatform::services()->database();
 		
-		if(null == ($email = @$fields[self::EMAIL]))
-			return NULL;
+		$sql = "INSERT INTO address () VALUES ()";
+		$db->ExecuteMaster($sql);
+		$id = $db->LastInsertId();
 		
-		// [TODO] Validate
-		@$addresses = imap_rfc822_parse_adrlist('<'.$email.'>', 'host');
-		
-		if(!is_array($addresses) || empty($addresses))
-			return NULL;
-		
-		$address = array_shift($addresses);
-		
-		if(empty($address->host) || $address->host == 'host')
-			return NULL;
-		
-		$full_address = trim(DevblocksPlatform::strLower($address->mailbox.'@'.$address->host));
-		
-		// Make sure the address doesn't exist already
-		if(null == ($check = self::getByEmail($full_address))) {
-			$sql = sprintf("INSERT INTO address (email,host,contact_id,contact_org_id,num_spam,num_nonspam,is_banned,is_defunct,updated) ".
-				"VALUES (%s,%s,0,0,0,0,0,0,0)",
-				$db->qstr($full_address),
-				$db->qstr(substr($full_address, strpos($full_address, '@')+1))
-			);
-			if(false == ($db->ExecuteMaster($sql)))
-				return false;
-			$id = $db->LastInsertId();
-
-		} else { // update
-			$id = $check->id;
-			unset($fields[self::ID]);
-			unset($fields[self::EMAIL]);
-		}
-
 		self::update($id, $fields);
 		
 		return $id;
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
+		$db = DevblocksPlatform::services()->database();
+		
 		if(!is_array($ids))
-			$ids = array($ids);
+			$ids = [$ids];
+		
+		if(isset($fields[self::EMAIL])) {
+			$email = $fields[self::EMAIL];
+			
+			// We can only set the email address on one record
+			if(count($ids) != 1)
+				return NULL;
+			
+			@$addresses = imap_rfc822_parse_adrlist('<'.$email.'>', 'host');
+			
+			if(!is_array($addresses) || empty($addresses))
+				return NULL;
+			
+			$address = array_shift($addresses);
+			
+			if(empty($address->host) || $address->host == 'host')
+				return NULL;
+			
+			// Format the email address
+			$full_address = trim(DevblocksPlatform::strLower($address->mailbox.'@'.$address->host));
+			
+			$id = $db->GetOne(sprintf("SELECT id FROM address WHERE email = %s", $db->qstr($full_address)));
+			
+			// If an email address is a duplicate, we can only set it on the same record
+			if($id && !in_array($id, $ids))
+				return NULL;
+			
+			$fields[self::EMAIL] = $full_address;
+			$fields[self::HOST] = substr($full_address, strpos($full_address, '@')+1);
+		}
 		
 		if(!isset($fields[DAO_Address::UPDATED]))
 			$fields[DAO_Address::UPDATED] = time();
@@ -175,6 +186,10 @@ class DAO_Address extends Cerb_ORMHelper {
 				// Log the context update
 				DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_ADDRESS, $batch_ids);
 			}
+		}
+		
+		if(isset($fields[self::MAIL_TRANSPORT_ID])) {
+			self::clearCache();
 		}
 	}
 	
@@ -297,6 +312,15 @@ class DAO_Address extends Cerb_ORMHelper {
 				)
 			)
 		);
+
+		if(isset($fields[self::MAIL_TRANSPORT_ID])) {
+			self::clearCache();
+		}
+	}
+	
+	static function clearCache() {
+		$cache = DevblocksPlatform::services()->cache();
+		$cache->remove(self::_CACHE_LOCAL_ADDRESSES);
 	}
 	
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null) {
@@ -305,7 +329,7 @@ class DAO_Address extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
 		// SQL
-		$sql = "SELECT id, email, host, contact_id, contact_org_id, num_spam, num_nonspam, is_banned, is_defunct, updated ".
+		$sql = "SELECT id, email, host, contact_id, contact_org_id, mail_transport_id, num_spam, num_nonspam, is_banned, is_defunct, updated ".
 			"FROM address ".
 			$where_sql.
 			$sort_sql.
@@ -335,6 +359,7 @@ class DAO_Address extends Cerb_ORMHelper {
 			$object->host = $row['host'];
 			$object->contact_id = intval($row['contact_id']);
 			$object->contact_org_id = intval($row['contact_org_id']);
+			$object->mail_transport_id = intval($row['mail_transport_id']);
 			$object->num_spam = intval($row['num_spam']);
 			$object->num_nonspam = intval($row['num_nonspam']);
 			$object->is_banned = intval($row['is_banned']);
@@ -411,6 +436,51 @@ class DAO_Address extends Cerb_ORMHelper {
 			return $addresses[$id];
 			
 		return null;
+	}
+	
+	static function getLocalAddresses() {
+		$cache = DevblocksPlatform::services()->cache();
+		
+		if(null == ($sender_addresses = $cache->load(self::_CACHE_LOCAL_ADDRESSES))) {
+			$sender_addresses = self::getWhere("mail_transport_id > 0");
+			$cache->save($sender_addresses, self::_CACHE_LOCAL_ADDRESSES);
+		}
+		
+		return $sender_addresses;
+	}
+	
+	/**
+	 * 
+	 * @return Model_Address[]
+	 */
+	static function getDefaultLocalAddress() {
+		$sender_addresses = self::getLocalAddresses();
+		$address_id = DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::MAIL_DEFAULT_FROM_ID, 0);
+		
+		if(isset($sender_addresses[$address_id]))
+			return $sender_addresses[$address_id];
+		
+		return null;
+	}
+	
+	static function isLocalAddress($address) {
+		$sender_addresses = self::getLocalAddresses();
+		foreach($sender_addresses as $from) {
+			if(0 == strcasecmp($from->email, $address))
+				return true;
+		}
+		
+		return false;
+	}
+	
+	static function isLocalAddressId($id) {
+		$sender_addresses = self::getLocalAddresses();
+		foreach($sender_addresses as $from_id => $from) {
+			if(intval($from_id)==intval($id))
+				return true;
+		}
+		
+		return false;
 	}
 	
 	/**
@@ -507,6 +577,7 @@ class DAO_Address extends Cerb_ORMHelper {
 			"a.host as %s, ".
 			"a.contact_id as %s, ".
 			"a.contact_org_id as %s, ".
+			"a.mail_transport_id as %s, ".
 			"a.num_spam as %s, ".
 			"a.num_nonspam as %s, ".
 			"a.is_banned as %s, ".
@@ -517,6 +588,7 @@ class DAO_Address extends Cerb_ORMHelper {
 				SearchFields_Address::HOST,
 				SearchFields_Address::CONTACT_ID,
 				SearchFields_Address::CONTACT_ORG_ID,
+				SearchFields_Address::MAIL_TRANSPORT_ID,
 				SearchFields_Address::NUM_SPAM,
 				SearchFields_Address::NUM_NONSPAM,
 				SearchFields_Address::IS_BANNED,
@@ -573,42 +645,52 @@ class DAO_Address extends Cerb_ORMHelper {
 		}
 	}
 	
-	static function autocomplete($term, $as='models') {
+	static function autocomplete($term, $as='models', $query=null) {
+		$context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_ADDRESS);
+		
+		$view = $context_ext->getSearchView('autocomplete_address');
+		$view->is_ephemeral = true;
+		$view->renderPage = 0;
+		$view->addParamsWithQuickSearch($query, true);
+		
+		$query_parts = DAO_Worker::getSearchQueryComponents([], $view->getParams(), $view->renderSortBy, $view->renderSortAsc);
+		
 		// If we have a special email character then switch to literal email matching
 		if(preg_match('/[\.\@\_]/', $term)) {
 			// If a leading '@', then prefix/trailing wildcard
 			if(substr($term,0,1) == '@') {
-				$query = '*' . $term . '*';
+				$q = '*' . $term . '*';
 			// Otherwise, only suffix wildcard
 			} else {
-				$query = $term . '*';
+				$q = $term . '*';
 			}
 			
-			$params = array(
-				SearchFields_Address::EMAIL => new DevblocksSearchCriteria(SearchFields_Address::EMAIL, DevblocksSearchCriteria::OPER_LIKE, $query),
+			$params = [
+				SearchFields_Address::EMAIL => new DevblocksSearchCriteria(SearchFields_Address::EMAIL, DevblocksSearchCriteria::OPER_LIKE, $q),
 				SearchFields_Address::IS_BANNED => new DevblocksSearchCriteria(SearchFields_Address::IS_BANNED, DevblocksSearchCriteria::OPER_EQ, 0),
 				SearchFields_Address::IS_DEFUNCT => new DevblocksSearchCriteria(SearchFields_Address::IS_DEFUNCT, DevblocksSearchCriteria::OPER_EQ, 0),
-			);
+			];
+			
+			$view->addParams($params);
 			
 		// Otherwise, use fulltext
 		} else {
-			$params = array(
+			$params = [
 				SearchFields_Address::FULLTEXT_ADDRESS => new DevblocksSearchCriteria(SearchFields_Address::FULLTEXT_ADDRESS, DevblocksSearchCriteria::OPER_FULLTEXT, $term.'*'),
 				SearchFields_Address::IS_BANNED => new DevblocksSearchCriteria(SearchFields_Address::IS_BANNED, DevblocksSearchCriteria::OPER_EQ, 0),
 				SearchFields_Address::IS_DEFUNCT => new DevblocksSearchCriteria(SearchFields_Address::IS_DEFUNCT, DevblocksSearchCriteria::OPER_EQ, 0),
-			);
+			];
+			
+			$view->addParams($params);
 		}
 		
-		list($results, $null) = DAO_Address::search(
-			array(),
-			$params,
-			25,
-			0,
-			SearchFields_Address::NUM_NONSPAM,
-			false,
-			false
-		);
-
+		$view->renderLimit = 25;
+		$view->renderSortBy = SearchFields_Address::NUM_NONSPAM;
+		$view->renderSortAsc = false;
+		$view->renderTotal = false;
+		
+		list($results, $null) = $view->getData();
+		
 		switch($as) {
 			case 'ids':
 				return array_keys($results);
@@ -683,6 +765,7 @@ class SearchFields_Address extends DevblocksSearchFields {
 	const HOST = 'a_host';
 	const CONTACT_ID = 'a_contact_id';
 	const CONTACT_ORG_ID = 'a_contact_org_id';
+	const MAIL_TRANSPORT_ID = 'a_mail_transport_id';
 	const NUM_SPAM = 'a_num_spam';
 	const NUM_NONSPAM = 'a_num_nonspam';
 	const IS_BANNED = 'a_is_banned';
@@ -793,6 +876,7 @@ class SearchFields_Address extends DevblocksSearchFields {
 			self::EMAIL => new DevblocksSearchField(self::EMAIL, 'a', 'email', $translate->_('common.email'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::HOST => new DevblocksSearchField(self::HOST, 'a', 'host', $translate->_('common.host'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::CONTACT_ID => new DevblocksSearchField(self::CONTACT_ID, 'a', 'contact_id', $translate->_('common.contact'), null, true),
+			self::MAIL_TRANSPORT_ID => new DevblocksSearchField(self::MAIL_TRANSPORT_ID, 'a', 'mail_transport_id', $translate->_('common.email_transport'), Model_CustomField::TYPE_NUMBER, true),
 			self::NUM_SPAM => new DevblocksSearchField(self::NUM_SPAM, 'a', 'num_spam', $translate->_('address.num_spam'), Model_CustomField::TYPE_NUMBER, true),
 			self::NUM_NONSPAM => new DevblocksSearchField(self::NUM_NONSPAM, 'a', 'num_nonspam', $translate->_('address.num_nonspam'), Model_CustomField::TYPE_NUMBER, true),
 			self::IS_BANNED => new DevblocksSearchField(self::IS_BANNED, 'a', 'is_banned', $translate->_('address.is_banned'), Model_CustomField::TYPE_CHECKBOX, true),
@@ -1000,6 +1084,7 @@ class Model_Address {
 	public $host = '';
 	public $is_banned = 0;
 	public $is_defunct = 0;
+	public $mail_transport_id = 0;
 	public $num_nonspam = 0;
 	public $num_spam = 0;
 	public $updated = 0;
@@ -1062,6 +1147,13 @@ class Model_Address {
 		
 		return $this->_org_model;
 	}
+	
+	function getMailTransport() {
+		if($this->mail_transport_id && false != ($transport = DAO_MailTransport::get($this->mail_transport_id)))
+			return $transport;
+		
+		return null;
+	}
 };
 
 class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, IAbstractView_QuickSearch {
@@ -1081,6 +1173,7 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 			SearchFields_Address::ORG_NAME,
 			SearchFields_Address::NUM_NONSPAM,
 			SearchFields_Address::NUM_SPAM,
+			SearchFields_Address::MAIL_TRANSPORT_ID,
 		);
 		
 		$this->addColumnsHidden(array(
@@ -1156,7 +1249,7 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 					
 				// Valid custom fields
 				default:
-					if('cf_' == substr($field_key,0,3))
+					if(DevblocksPlatform::strStartsWith($field_key, 'cf_'))
 						$pass = $this->_canSubtotalCustomField($field_key);
 					break;
 			}
@@ -1277,6 +1370,11 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_BOOL,
 					'options' => array('param_key' => SearchFields_Address::IS_DEFUNCT),
+				),
+			'mailTransport.id' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'options' => array('param_key' => SearchFields_Address::MAIL_TRANSPORT_ID),
 				),
 			'nonspam' =>
 				array(
@@ -1439,6 +1537,9 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 			;
 		$tpl->assign('custom_fields', $custom_fields);
 		
+		$mail_transports = DAO_MailTransport::getAll();
+		$tpl->assign('mail_transports', $mail_transports);
+		
 		switch($this->renderTemplate) {
 			case 'contextlinks_chooser':
 			default:
@@ -1461,6 +1562,7 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
 				break;
 				
+			case SearchFields_Address::MAIL_TRANSPORT_ID:
 			case SearchFields_Address::NUM_SPAM:
 			case SearchFields_Address::NUM_NONSPAM:
 			case SearchFields_Address::CONTACT_ORG_ID:
@@ -1614,6 +1716,7 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
 				
+			case SearchFields_Address::MAIL_TRANSPORT_ID:
 			case SearchFields_Address::NUM_SPAM:
 			case SearchFields_Address::NUM_NONSPAM:
 				$criteria = new DevblocksSearchCriteria($field,$oper,$value);
@@ -1756,22 +1859,23 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 	}
 	
 	function getDefaultProperties() {
-		return array(
+		return [
 			'org__label',
 			'contact__label',
 			'is_banned',
 			'is_defunct',
 			'num_nonspam',
 			'num_spam',
+			'mail_transport__label',
 			'updated',
-		);
+		];
 	}
 	
 	function autocomplete($term, $query=null) {
 		$url_writer = DevblocksPlatform::services()->url();
 		
-		$models = DAO_Address::autocomplete($term);
-		$list = array();
+		$models = DAO_Address::autocomplete($term, 'models', $query);
+		$list = [];
 		
 		if(stristr('none', $term) || stristr('empty', $term) || stristr('null', $term)) {
 			$empty = new stdClass();
@@ -1791,7 +1895,7 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 			$entry->value = $model->id;
 			$entry->icon = $url_writer->write('c=avatars&type=address&id=' . $model->id, true) . '?v=' . $model->updated;
 			
-			$meta = array();
+			$meta = [];
 			
 			if(false != ($full_name = $model->getName()))
 				$meta['full_name'] = $full_name;
@@ -1906,6 +2010,9 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 			// Org
 			$org_id = (null != $address && !empty($address->contact_org_id)) ? $address->contact_org_id : null;
 			$token_values['org_id'] = $org_id;
+			
+			// Transport
+			$token_values['mail_transport_id'] = $address->mail_transport_id;
 		}
 		
 		$context_stack = CerberusContexts::getStack();
@@ -1930,12 +2037,29 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 		// Email Org
 		// Only link org placeholders if the org isn't nested under a contact already
 		if(1 == count($context_stack) || !in_array(CerberusContexts::CONTEXT_CONTACT, $context_stack)) {
-			$merge_token_labels = array();
-			$merge_token_values = array();
+			$merge_token_labels = [];
+			$merge_token_values = [];
 			CerberusContexts::getContext(CerberusContexts::CONTEXT_ORG, null, $merge_token_labels, $merge_token_values, null, true);
 	
 			CerberusContexts::merge(
 				'org_',
+				$prefix,
+				$merge_token_labels,
+				$merge_token_values,
+				$token_labels,
+				$token_values
+			);
+		}
+		
+		// Email Transport
+		// Only link org placeholders if the org isn't nested under a contact already
+		if(1 == count($context_stack) || !in_array(CerberusContexts::CONTEXT_ADDRESS, $context_stack)) {
+			$merge_token_labels = [];
+			$merge_token_values = [];
+			CerberusContexts::getContext(CerberusContexts::CONTEXT_MAIL_TRANSPORT, null, $merge_token_labels, $merge_token_values, null, true);
+	
+			CerberusContexts::merge(
+				'mail_transport_',
 				$prefix,
 				$merge_token_labels,
 				$merge_token_values,
@@ -1955,6 +2079,7 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 			'id' => DAO_Address::ID,
 			'is_banned' => DAO_Address::IS_BANNED,
 			'is_defunct' => DAO_Address::IS_DEFUNCT,
+			'mail_transport_id' => DAO_Address::MAIL_TRANSPORT_ID,
 			'num_nonspam' => DAO_Address::NUM_NONSPAM,
 			'num_spam' => DAO_Address::NUM_SPAM,
 			'org_id' => DAO_Address::CONTACT_ORG_ID,
@@ -2196,6 +2321,11 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 				'label' => 'Is Defunct',
 				'type' => Model_CustomField::TYPE_CHECKBOX,
 				'param' => SearchFields_Address::IS_DEFUNCT,
+			),
+			'mail_transport_id' => array(
+				'label' => 'Mail Transport Id',
+				'type' => Model_CustomField::TYPE_NUMBER,
+				'param' => SearchFields_Address::MAIL_TRANSPORT_ID,
 			),
 			'num_nonspam' => array(
 				'label' => '# Nonspam',

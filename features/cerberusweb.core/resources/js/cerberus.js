@@ -483,7 +483,6 @@ var cAjaxCalls = function() {
 		var $sel = $(sel);
 		
 		$sel.autocomplete(options);
-		$sel.autocomplete('widget').css('max-width', $sel.closest('form').width());
 	}
 
 	this.orgAutoComplete = function(sel, options) {
@@ -503,7 +502,6 @@ var cAjaxCalls = function() {
 		var $sel = $(sel);
 		
 		$sel.autocomplete(options);
-		$sel.autocomplete('widget').css('max-width', $sel.closest('form').width());
 	}
 	
 	this.countryAutoComplete = function(sel, options) {
@@ -523,7 +521,6 @@ var cAjaxCalls = function() {
 		var $sel = $(sel);
 		
 		$sel.autocomplete(options);
-		$sel.autocomplete('widget').css('max-width', $sel.closest('form').width());
 	}
 
 	this.chooser = function(button, context, field_name, options) {
@@ -576,7 +573,7 @@ var cAjaxCalls = function() {
 			$autocomplete.insertBefore($button);
 			
 			$autocomplete.autocomplete({
-				delay: 300,
+				delay: 250,
 				source: DevblocksAppPath+'ajax.php?c=internal&a=autocomplete&context=' + context + '&_csrf_token=' + $('meta[name="_csrf_token"]').attr('content'),
 				minLength: 1,
 				focus:function(event, ui) {
@@ -602,8 +599,6 @@ var cAjaxCalls = function() {
 					return false;
 				}
 			});
-			
-			$autocomplete.autocomplete('widget').css('max-width', $autocomplete.closest('form').width());
 		}
 	}
 	
@@ -1076,16 +1071,42 @@ var ajax = new cAjaxCalls();
 			if(!($trigger.is('textarea')))
 				return;
 			
-			var context = $trigger.attr('data-context');
-			var template = $trigger.val();
-			var width = $(window).width()-100;
-			
-			// Context
-			if(!(typeof context == "string") || 0 == context.length)
-				return;
-			
 			$trigger.on('click', function() {
-				var $chooser = genericAjaxPopup("template" + Devblocks.uniqueId(),'c=internal&a=editorOpenTemplate&context=' + encodeURIComponent(context) + '&template=' + encodeURIComponent(template),null,true,width);
+				var context = $trigger.attr('data-context');
+				var label_prefix = $trigger.attr('data-label-prefix');
+				var key_prefix = $trigger.attr('data-key-prefix');
+				var placeholders_json = $trigger.attr('data-placeholders-json');
+				var template = $trigger.val();
+				var width = $(window).width()-100;
+				
+				// Context
+				if(!(typeof context == "string") || 0 == context.length)
+					return;
+				
+				var url = 'c=internal&a=editorOpenTemplate&context=' 
+					+ encodeURIComponent(context) 
+					+ '&template=' + encodeURIComponent(template)
+					+ '&label_prefix=' + (label_prefix ? encodeURIComponent(label_prefix) : '')
+					+ '&key_prefix=' + (key_prefix ? encodeURIComponent(key_prefix) : '')
+					;
+				
+				
+				if(typeof placeholders_json == 'string') {
+					var placeholders = JSON.parse(placeholders_json);
+					
+					if(typeof placeholders == 'object')
+					for(key in placeholders) {
+						url += "&placeholders[" + encodeURIComponent(key) + ']=' + encodeURIComponent(placeholders[key]);
+					}
+				}
+				
+				var $chooser = genericAjaxPopup(
+					"template" + Devblocks.uniqueId(),
+					url,
+					null,
+					true,
+					width
+				);
 				
 				$chooser.on('template_save',function(event) {
 					$trigger.val(event.template);
@@ -1510,8 +1531,6 @@ var ajax = new cAjaxCalls();
 					$li.appendTo(ul);
 					return $li;
 				};
-				
-				$autocomplete.autocomplete('widget').css('max-width', $autocomplete.closest('form').width());
 				
 				if(is_autocomplete_ifnull || is_single) {
 					if($ul.find('>li').length > 0) {

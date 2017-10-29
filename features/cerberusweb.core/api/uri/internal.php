@@ -1195,8 +1195,8 @@ class ChInternalController extends DevblocksControllerExtension {
 			$view->setPlaceholderLabels($conditions);
 			
 		} elseif(null != $active_worker = CerberusApplication::getActiveWorker()) {
-			$labels = array();
-			$values = array();
+			$labels = [];
+			$values = [];
 			$active_worker->getPlaceholderLabelsValues($labels, $values);
 			
 			$view->setPlaceholderLabels($labels);
@@ -1218,21 +1218,38 @@ class ChInternalController extends DevblocksControllerExtension {
 	
 	function editorOpenTemplateAction() {
 		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string');
+		@$label_prefix = DevblocksPlatform::importGPC($_REQUEST['label_prefix'],'string', '');
+		@$key_prefix = DevblocksPlatform::importGPC($_REQUEST['key_prefix'],'string', '');
 		@$template = DevblocksPlatform::importGPC($_REQUEST['template'],'string');
+		@$placeholders = DevblocksPlatform::importGPC($_REQUEST['placeholders'],'array',[]);
 
 		$tpl = DevblocksPlatform::services()->template();
-		
-		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-			return;
-		
-		$tpl->assign('context_ext', $context_ext);
 		$tpl->assign('template', $template);
 		
-		// Load the context dictionary for scope
-		$labels = array();
-		$values = array();
-		CerberusContexts::getContext($context_ext->id, null, $labels, $null, '', true, false);
-
+		$tpl->assign('key_prefix', $key_prefix);
+		
+		$labels = $placeholders;
+		$values = [];
+		
+		if($context && false != ($context_ext = Extension_DevblocksContext::get($context))) {
+			$tpl->assign('context_ext', $context_ext);
+			
+			if(empty($label_prefix))
+				$label_prefix =  $context_ext->manifest->name . ' ';
+			
+			// Load the context dictionary for scope
+			CerberusContexts::getContext($context_ext->id, null, $merge_labels, $merge_values, '', true, false);
+			
+			CerberusContexts::merge(
+				$key_prefix,
+				$label_prefix,
+				$merge_labels,
+				$merge_values,
+				$labels,
+				$values
+			);
+		}
+		
 		$placeholders = Extension_DevblocksContext::getPlaceholderTree($labels);
 		$tpl->assign('placeholders', $placeholders);
 		
@@ -1671,7 +1688,7 @@ class ChInternalController extends DevblocksControllerExtension {
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
 		
-		$list = array();
+		$list = [];
 		
 		// [TODO] Abstractly handle '(no record)' blank functionality?
 		
@@ -1854,6 +1871,7 @@ class ChInternalController extends DevblocksControllerExtension {
 	function snippetTestAction() {
 		@$snippet_context = DevblocksPlatform::importGPC($_REQUEST['snippet_context'],'string','');
 		@$snippet_context_id = DevblocksPlatform::importGPC($_REQUEST['snippet_context_id'],'integer',0);
+		@$snippet_key_prefix = DevblocksPlatform::importGPC($_REQUEST['snippet_key_prefix'],'string','');
 		@$snippet_field = DevblocksPlatform::importGPC($_REQUEST['snippet_field'],'string','');
 
 		$content = '';
@@ -1863,8 +1881,7 @@ class ChInternalController extends DevblocksControllerExtension {
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		$tpl = DevblocksPlatform::services()->template();
 
-		$token_labels = array();
-		$token_value = array();
+		$token_labels = $token_value = [];
 
 		$ctx = Extension_DevblocksContext::get($snippet_context);
 
@@ -1872,7 +1889,8 @@ class ChInternalController extends DevblocksControllerExtension {
 		if(empty($snippet_context_id) && method_exists($ctx, 'getRandom'))
 			$snippet_context_id = $ctx->getRandom();
 		
-		CerberusContexts::getContext($snippet_context, $snippet_context_id, $token_labels, $token_values);
+		CerberusContexts::getContext($snippet_context, $snippet_context_id, $merge_labels, $merge_values);
+		CerberusContexts::merge($snippet_key_prefix, '', $merge_labels, $merge_values, $token_labels, $token_values);
 
 		// Add prompted placeholders to the valid tokens
 		
@@ -2450,9 +2468,6 @@ class ChInternalController extends DevblocksControllerExtension {
 						
 						if(!$html_template && false != ($group = DAO_Group::get($broadcast_group_id)))
 							$html_template = $group->getReplyHtmlTemplate(0);
-						
-						if(!$html_template && false != ($replyto = DAO_AddressOutgoing::getDefault()))
-							$html_template = $replyto->getReplyHtmlTemplate();
 						
 						if($html_template)
 							@$output = $tpl_builder->build($html_template->content, array('message_body' => $output));
@@ -4376,16 +4391,6 @@ class ChInternalController extends DevblocksControllerExtension {
 								// Cascade to group/bucket
 								if($_group_id && !$html_template && false != ($_group = DAO_Group::get($_group_id))) {
 									$html_template = $_group->getReplyHtmlTemplate($_bucket_id);
-								}
-								
-								// Cascade to current reply-to
-								if($_replyto_id && !$html_template && false != ($replyto = DAO_AddressOutgoing::get($_replyto_id))) {
-									$html_template = $replyto->getReplyHtmlTemplate();
-								}
-								
-								// Cascade to default reply-to
-								if(!$html_template && false != ($replyto = DAO_AddressOutgoing::getDefault())) {
-									$html_template = $replyto->getReplyHtmlTemplate();
 								}
 								
 								if($html_template) {

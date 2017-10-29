@@ -3,100 +3,28 @@
 </div>
 
 <div>
-
-{if $records_created[CerberusContexts::CONTEXT_CUSTOM_FIELDSET]}
-<fieldset class="peek">
-	<legend>{'common.custom_fieldsets'|devblocks_translate|capitalize}</legend>
-	
-	<ul class="bubbles">
-	{foreach from=$records_created[CerberusContexts::CONTEXT_CUSTOM_FIELDSET] item=record key=context}
-	<li><a href="javascript:;" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_CUSTOM_FIELDSET}" data-context-id="{$record.id}">{$record.label}</a></li>
-	{/foreach}
-	</ul>
-</fieldset>
-{/if}
-
-{if $records_created[CerberusContexts::CONTEXT_BOT]}
-<fieldset class="peek">
-	<legend>{'common.bots'|devblocks_translate|capitalize}</legend>
-	
-	<ul class="bubbles">
-	{foreach from=$records_created[CerberusContexts::CONTEXT_BOT] item=record key=context}
-	<li>
-		<img class="cerb-avatar" src="{devblocks_url}c=avatars&context=bot&context_id={$record.id}{/devblocks_url}?v={time()}">
-		<a href="javascript:;" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_BOT}" data-context-id="{$record.id}">{$record.label}</a>
-	</li>
-	{/foreach}
-	</ul>
-</fieldset>
-{/if}
-
-{if $records_created[CerberusContexts::CONTEXT_PORTAL]}
-<fieldset class="peek">
-	<legend>{'common.portals'|devblocks_translate|capitalize}</legend>
-	
-	<ul class="bubbles">
-	{foreach from=$records_created[CerberusContexts::CONTEXT_PORTAL] item=record key=context}
-	<li><a href="{devblocks_url}c=config&a=portal&code={$record.code}{/devblocks_url}" rel="external" target="_blank">{$record.label}</a></li>
-	{/foreach}
-	</ul>
-</fieldset>
-{/if}
-
-{if $records_created[CerberusContexts::CONTEXT_SAVED_SEARCH]}
-<fieldset class="peek">
-	<legend>{'common.saved_searches'|devblocks_translate|capitalize}</legend>
-	
-	<ul class="bubbles">
-	{foreach from=$records_created[CerberusContexts::CONTEXT_SAVED_SEARCH] item=record key=context}
-	<li>
-		<a href="javascript:;" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_SAVED_SEARCH}" data-context-id="{$record.id}">{$record.label}</a>
-	</li>
-	{/foreach}
-	</ul>
-</fieldset>
-{/if}
-
-{if $records_created[CerberusContexts::CONTEXT_CALENDAR]}
-<fieldset class="peek">
-	<legend>{'common.calendars'|devblocks_translate|capitalize}</legend>
-	
-	<ul class="bubbles">
-	{foreach from=$records_created[CerberusContexts::CONTEXT_CALENDAR] item=record key=context}
-	<li>
-		<a href="javascript:;" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_CALENDAR}" data-context-id="{$record.id}">{$record.label}</a>
-	</li>
-	{/foreach}
-	</ul>
-</fieldset>
-{/if}
-
-{if $records_created[CerberusContexts::CONTEXT_CLASSIFIER]}
-<fieldset class="peek">
-	<legend>{'common.classifiers'|devblocks_translate|capitalize}</legend>
-	
-	<ul class="bubbles">
-	{foreach from=$records_created[CerberusContexts::CONTEXT_CLASSIFIER] item=record key=context}
-	<li>
-		<a href="javascript:;" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_CLASSIFIER}" data-context-id="{$record.id}">{$record.label}</a>
-	</li>
-	{/foreach}
-	</ul>
-</fieldset>
-{/if}
-
-{if $records_created['cerberusweb.contexts.project.board']}
-<fieldset class="peek">
-	<legend>{'projects.common.boards'|devblocks_translate|capitalize}</legend>
-	
-	<ul class="bubbles">
-	{foreach from=$records_created['cerberusweb.contexts.project.board'] item=record key=context}
-	<li>
-		<a href="javascript:;" class="cerb-peek-trigger" data-context="{'cerberusweb.contexts.project.board'}" data-context-id="{$record.id}">{$record.label}</a>
-	</li>
-	{/foreach}
-	</ul>
-</fieldset>
-{/if}
-
+{$time_now = time()}
+{foreach from=$context_mfts key=context_ext_id item=context_mft}
+	{if $records_created.{$context_ext_id}}
+		{$context_aliases = Extension_DevblocksContext::getAliasesForContext($context_mft)}
+		<fieldset class="peek">
+			<legend>{$context_aliases.plural|capitalize}</legend>
+			
+			<ul class="bubbles">
+				{foreach from=$records_created.{$context_ext_id} item=record}
+				<li>
+					{if $context_mft->hasOption('avatars')}
+						<img src="{devblocks_url}c=avatars&context={$context_ext_id}&context_id={$record.id}{/devblocks_url}?v={$time_now}" style="height:16px;width:16px;border-radius:16px;vertical-align:middle;">
+					{/if}
+					{if $context_mft->hasOption('cards')}
+						<a href="javascript:;" class="cerb-peek-trigger" data-context="{$context_mft->id}" data-context-id="{$record.id}">{$record.label}</a>
+					{else}
+						{$record.label}
+					{/if}
+				</li>
+				{/foreach}
+			</ul>
+		</fieldset>
+	{/if}
+{/foreach}
 </div>

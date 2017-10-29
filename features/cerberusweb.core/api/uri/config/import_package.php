@@ -32,13 +32,13 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			$worker = CerberusApplication::getActiveWorker();
 			
 			if(!$worker || !$worker->is_superuser)
-				throw new Exception("You are not a superuser.");
+				throw new Exception_DevblocksValidationError("You are not a superuser.");
 			
 			@$json_string = DevblocksPlatform::importGPC($_POST['json'],'string','');
 			@$prompts = DevblocksPlatform::importGPC($_POST['prompts'],'array',[]);
 			
 			if(false == (@$json = json_decode($json_string, true)))
-				throw new Exception("Invalid JSON");
+				throw new Exception_DevblocksValidationError("Invalid JSON");
 			
 			$package = $json['package'];
 			
@@ -51,13 +51,13 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 				
 				if(!empty($target_version) && is_string($target_version)) {
 					if(!version_compare(APP_VERSION, $target_version, '>='))
-						throw new Exception(sprintf("This package requires Cerb version %s or later.", $target_version));
+						throw new Exception_DevblocksValidationError(sprintf("This package requires Cerb version %s or later.", $target_version));
 				}
 				
 				if(is_array($target_plugins))
 				foreach($target_plugins as $target_plugin_id) {
 					if(!DevblocksPlatform::isPluginEnabled($target_plugin_id))
-						throw new Exception(sprintf("This package requires the %s plugin to be installed and enabled.", $target_plugin_id));
+						throw new Exception_DevblocksValidationError(sprintf("This package requires the %s plugin to be installed and enabled.", $target_plugin_id));
 				}
 			}
 			
@@ -86,12 +86,12 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 						@$key = $config_prompt['key'];
 						
 						if(!$key)
-							throw new Exception(sprintf("Prompt key is missing."));
+							throw new Exception_DevblocksValidationError(sprintf("Prompt key is missing."));
 						
 						@$value = $prompts[$key];
 						
 						if(empty($value))
-							throw new Exception(sprintf("'%s' (%s) is required.", $config_prompt['label'], $key));
+							throw new Exception_DevblocksValidationError(sprintf("'%s' (%s) is required.", $config_prompt['label'], $key));
 						
 						switch($config_prompt['type']) {
 							case 'chooser':
@@ -111,7 +111,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 				@$key = $config_placeholder['key'];
 				
 				if(!$key)
-					throw new Exception(sprintf("Placeholder key is missing."));
+					throw new Exception_DevblocksValidationError(sprintf("Placeholder key is missing."));
 				
 				switch($config_placeholder['type']) {
 					case 'random':
@@ -133,19 +133,77 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			
 			$tpl = DevblocksPlatform::services()->template();
 			$tpl->assign('records_created', $records_created);
+			
+			$context_mfts = Extension_DevblocksContext::getAll(false);
+			DevblocksPlatform::sortObjects($context_mfts, 'name', true);
+			$tpl->assign('context_mfts', $context_mfts);
+			
 			$results_html = $tpl->fetch('devblocks:cerberusweb.core::configuration/section/import_package/results.tpl');
 			
 			echo json_encode(array('status' => true, 'results_html' => $results_html));
 			
-		} catch(Exception $e) {
-			// [TODO] On failure, delete temporary UIDs?
-			
+		} catch(Exception_DevblocksValidationError $e) {
 			echo json_encode(array('status' => false, 'error' => $e->getMessage()));
+			return;
+			
+		} catch(Exception $e) {
+			echo json_encode(array('status' => false, 'error' => 'An unexpected error occurred.'));
 			return;
 		}
 	}
 	
 	private function _packageValidate(&$json, &$uids, &$records_created, &$placeholders) {
+		@$records = $json['records'];
+		
+		// Validate records
+		if(is_array($records))
+		foreach($records as $record) {
+			$keys_to_require = ['uid','_context'];
+			$diff = array_diff_key(array_flip($keys_to_require), $record);
+			if(count($diff))
+				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: record (%s) is missing properties (%s)", $record['uid'], implode(', ', array_keys($diff))));
+			
+			if(false == ($context_ext = Extension_DevblocksContext::getByAlias($record['_context'], true)))
+				throw new Exception_DevblocksValidationError(sprintf("Unknown context '%s' on record (%s).", $record['_context'], $record['uid']));
+			
+			$fields = $custom_fields = $dict = [];
+			$error = null;
+			
+			if(is_array($record))
+			foreach($record as $key => $value) {
+				// Ignore internal keys
+				if(in_array($key, ['_context','uid'])) {
+					continue;
+				}
+				
+				// Ignore keys or values with unfilled placeholders
+				if(false !== strstr($key,'{{{')) {
+					continue;
+				}
+				
+				$dict[$key] = $value;
+			}
+			
+			if(!$context_ext->getDaoFieldsFromKeysAndValues($dict, $fields, $custom_fields, $error))
+				throw new Exception_DevblocksValidationError(sprintf("Error on record (%s): %s", $record['uid'], $error));
+			
+			if(false == ($dao_class = $context_ext->getDaoClass()))
+				throw new Exception_DevblocksValidationError(sprintf("Error on record (%s): %s", $record['uid'], "Can't load DAO class."));
+			
+			$excludes = [];
+			
+			if(is_array($fields))
+			foreach($fields as $key => $value) {
+				// Bypass the dynamic value in this phase
+				if(is_string($value) && false !== strstr($value,'{{{')) {
+					$excludes[] = $key;
+				}
+			}
+			
+			if(!$dao_class::validate($fields, $error, null, $excludes))
+				throw new Exception_DevblocksValidationError(sprintf("Error on record (%s): %s", $record['uid'], $error));
+		}
+		
 		@$custom_fieldsets = $json['custom_fieldsets'];
 		
 		if(is_array($custom_fieldsets))
@@ -153,7 +211,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			$keys_to_require = ['uid','name','context','owner','fields'];
 			$diff = array_diff_key(array_flip($keys_to_require), $custom_fieldset);
 			if(count($diff))
-				throw new Exception(sprintf("Invalid JSON: custom fieldset is missing properties (%s)", implode(', ', array_keys($diff))));
+				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: custom fieldset is missing properties (%s)", implode(', ', array_keys($diff))));
 			
 			@$fields = $custom_fieldset['fields'];
 			$keys_to_require = ['uid','name','type','params'];
@@ -163,7 +221,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			foreach($fields as $field) {
 				$diff = array_diff_key(array_flip($keys_to_require), $field);
 				if(count($diff))
-					throw new Exception(sprintf("Invalid JSON: field is missing properties (%s)", implode(', ', array_keys($diff))));
+					throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: field is missing properties (%s)", implode(', ', array_keys($diff))));
 			}
 		}
 		
@@ -174,7 +232,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			$keys_to_require = ['uid','name','owner','is_disabled','params','behaviors'];
 			$diff = array_diff_key(array_flip($keys_to_require), $bot);
 			if(count($diff))
-				throw new Exception(sprintf("Invalid JSON: bot is missing properties (%s)", implode(', ', array_keys($diff))));
+				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: bot is missing properties (%s)", implode(', ', array_keys($diff))));
 			
 			@$behaviors = $bot['behaviors'];
 			$keys_to_require = ['uid','title','is_disabled','is_private','priority','event','nodes'];
@@ -184,7 +242,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			foreach($behaviors as $behavior) {
 				$diff = array_diff_key(array_flip($keys_to_require), $behavior);
 				if(count($diff))
-					throw new Exception(sprintf("Invalid JSON: behavior is missing properties (%s)", implode(', ', array_keys($diff))));
+					throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: behavior is missing properties (%s)", implode(', ', array_keys($diff))));
 			}
 		}
 		
@@ -195,7 +253,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			$keys_to_require = ['uid','name','extension_id','tabs'];
 			$diff = array_diff_key(array_flip($keys_to_require), $workspace);
 			if(count($diff))
-				throw new Exception(sprintf("Invalid JSON: workspace is missing properties (%s)", implode(', ', array_keys($diff))));
+				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: workspace is missing properties (%s)", implode(', ', array_keys($diff))));
 			
 			@$tabs = $bot['tabs'];
 			$keys_to_require = ['uid','name','extension_id','params'];
@@ -205,7 +263,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			foreach($tabs as $tab) {
 				$diff = array_diff_key(array_flip($keys_to_require), $tab);
 				if(count($diff))
-					throw new Exception(sprintf("Invalid JSON: workspace tab is missing properties (%s)", implode(', ', array_keys($diff))));
+					throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: workspace tab is missing properties (%s)", implode(', ', array_keys($diff))));
 			}
 		}
 		
@@ -216,7 +274,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			$keys_to_require = ['uid','name','extension_id','params'];
 			$diff = array_diff_key(array_flip($keys_to_require), $portal);
 			if(count($diff))
-				throw new Exception(sprintf("Invalid JSON: portal is missing properties (%s)", implode(', ', array_keys($diff))));
+				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: portal is missing properties (%s)", implode(', ', array_keys($diff))));
 		}
 	
 		@$saved_searches = $json['saved_searches'];
@@ -226,7 +284,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			$keys_to_require = ['uid','name','context','tag','query'];
 			$diff = array_diff_key(array_flip($keys_to_require), $saved_search);
 			if(count($diff))
-				throw new Exception(sprintf("Invalid JSON: saved search is missing properties (%s)", implode(', ', array_keys($diff))));
+				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: saved search is missing properties (%s)", implode(', ', array_keys($diff))));
 		}
 		
 		@$calendars = $json['calendars'];
@@ -236,7 +294,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			$keys_to_require = ['uid','name','params'];
 			$diff = array_diff_key(array_flip($keys_to_require), $calendar);
 			if(count($diff))
-				throw new Exception(sprintf("Invalid JSON: calendar is missing properties (%s)", implode(', ', array_keys($diff))));
+				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: calendar is missing properties (%s)", implode(', ', array_keys($diff))));
 			
 			@$events = $calendar['events'];
 			$keys_to_require = ['uid','name','is_available','tz','event_start','event_end','recur_start','recur_end','patterns'];
@@ -246,7 +304,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			foreach($events as $event) {
 				$diff = array_diff_key(array_flip($keys_to_require), $event);
 				if(count($diff))
-					throw new Exception(sprintf("Invalid JSON: calendar event is missing properties (%s)", implode(', ', array_keys($diff))));
+					throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: calendar event is missing properties (%s)", implode(', ', array_keys($diff))));
 			}
 		}
 		
@@ -258,7 +316,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			$keys_to_require = ['uid','name','params'];
 			$diff = array_diff_key(array_flip($keys_to_require), $classifier);
 			if(count($diff))
-				throw new Exception(sprintf("Invalid JSON: classifier is missing properties (%s)", implode(', ', array_keys($diff))));
+				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: classifier is missing properties (%s)", implode(', ', array_keys($diff))));
 			
 			@$classes = $classifier['classes'];
 			$keys_to_require = ['uid','name','expressions'];
@@ -268,7 +326,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			foreach($classes as $class) {
 				$diff = array_diff_key(array_flip($keys_to_require), $class);
 				if(count($diff))
-					throw new Exception(sprintf("Invalid JSON: classification is missing properties (%s)", implode(', ', array_keys($diff))));
+					throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: classification is missing properties (%s)", implode(', ', array_keys($diff))));
 				
 				@$expressions = $class['expressions'];
 				
@@ -277,7 +335,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 				
 				foreach($expressions as $expression) {
 					if(!$bayes::verify($expression))
-						throw new Exception(sprintf("Invalid JSON: invalid training in classifier (%s -> %s): %s", $classifier['name'], $class['name'], $expression));
+						throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: invalid training in classifier (%s -> %s): %s", $classifier['name'], $class['name'], $expression));
 				}
 			}
 		}
@@ -289,7 +347,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 			$keys_to_require = ['uid','name','columns'];
 			$diff = array_diff_key(array_flip($keys_to_require), $project_board);
 			if(count($diff))
-				throw new Exception(sprintf("Invalid JSON: project board is missing properties (%s)", implode(', ', array_keys($diff))));
+				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: project board is missing properties (%s)", implode(', ', array_keys($diff))));
 			
 			@$columns = $project_board['columns'];
 			
@@ -299,7 +357,7 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 				$keys_to_require = ['uid','name'];
 				$diff = array_diff_key(array_flip($keys_to_require), $column);
 				if(count($diff))
-					throw new Exception(sprintf("Invalid JSON: project board column is missing properties (%s)", implode(', ', array_keys($diff))));
+					throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: project board column is missing properties (%s)", implode(', ', array_keys($diff))));
 				
 				@$cards = $column['cards'];
 				
@@ -309,10 +367,10 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 					$keys_to_require = ['uid','_context'];
 					$diff = array_diff_key(array_flip($keys_to_require), $card);
 					if(count($diff))
-						throw new Exception(sprintf("Invalid JSON: project card is missing properties (%s)", implode(', ', array_keys($diff))));
+						throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: project card is missing properties (%s)", implode(', ', array_keys($diff))));
 					
 					if(false == ($context_ext = Extension_DevblocksContext::getByAlias($card['_context'], true)))
-						throw new Exception(sprintf("Unknown context '%s' on project card.", $card['_context']));
+						throw new Exception_DevblocksValidationError(sprintf("Unknown context '%s' on project card.", $card['_context']));
 					
 					// Ignore any keys with placeholders
 					$dict = array_filter($card, function($value, $key) {
@@ -336,20 +394,41 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 					$error = null;
 					
 					if(!$context_ext->getDaoFieldsFromKeysAndValues($dict, $fields, $custom_fields, $error))
-						throw new Exception(sprintf("Error on project card (%s): %s", $card['uid'], $error));
+						throw new Exception_DevblocksValidationError(sprintf("Error on project card (%s): %s", $card['uid'], $error));
 					
 					if(false == ($dao_class = $context_ext->getDaoClass()))
-						throw new Exception(sprintf("Error on project card (%s): %s", $uid_card, "Can't load DAO class."));
+						throw new Exception_DevblocksValidationError(sprintf("Error on project card (%s): %s", $uid_card, "Can't load DAO class."));
 					
 					// [TODO] Throw a subclass of Exception
 					if(!$dao_class::validate($fields, $error))
-						throw new Exception($error);
+						throw new Exception_DevblocksValidationError($error);
 				}
 			}
 		}
 	}
 	
 	private function _packageGenerateIds(&$json, &$uids, &$records_created, &$placeholders) {
+		@$records = $json['records'];
+		
+		if(is_array($records))
+		foreach($records as $record) {
+			$uid_record = $record['uid'];
+			
+			if(false == ($context_ext = Extension_DevblocksContext::getByAlias($record['_context'], true)))
+				throw new Exception_DevblocksValidationError(sprintf("Unknown context on record (%s)", $record['_context']));
+
+			$dict = [];
+			$fields = $custom_fields = [];
+			$error = null;
+			
+			if(false == ($dao_class = $context_ext->getDaoClass()))
+				throw new Exception_DevblocksValidationError(sprintf("Error on record (%s): %s", $uid_record, "Can't load DAO class."));
+			
+			$record_id = $dao_class::create($dict);
+			
+			$uids[$uid_record] = $record_id;
+		}
+		
 		@$custom_fieldsets = $json['custom_fieldsets'];
 		
 		if(is_array($custom_fieldsets))
@@ -573,14 +652,14 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 					$uid_card = $card['uid'];
 					
 					if(false == ($context_ext = Extension_DevblocksContext::getByAlias($card['_context'], true)))
-						throw new Exception(sprintf("Unknown context on project card (%s)", $card['_context']));
+						throw new Exception_DevblocksValidationError(sprintf("Unknown context on project card (%s)", $card['_context']));
 
 					$dict = [];
 					$fields = $custom_fields = [];
 					$error = null;
 					
 					if(false == ($dao_class = $context_ext->getDaoClass()))
-						throw new Exception(sprintf("Error on project card (%s): %s", $uid_card, "Can't load DAO class."));
+						throw new Exception_DevblocksValidationError(sprintf("Error on project card (%s): %s", $uid_card, "Can't load DAO class."));
 					
 					$card_id = $dao_class::create($dict);
 					
@@ -604,14 +683,14 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 		
 		// Add defaults
 		$url_writer = DevblocksPlatform::services()->url();
-		$default_replyto = DAO_AddressOutgoing::getDefault();
+		$default_replyto = DAO_Address::getDefaultLocalAddress();
 		$default_group = DAO_Group::getDefaultGroup();
 		
 		$placeholders['default'] = [
 			'base_url' => $url_writer->write('', true),
 			'group_id' => @$default_group->id ?: 0,
 			'bucket_id' => @$default_group->getDefaultBucket()->id ?: 0,
-			'replyto_id' => @$default_replyto->address_id ?: 0,
+			'replyto_id' => @$default_replyto->id ?: 0,
 			'replyto_email' => @$default_replyto->email ?: 0,
 		];
 		
@@ -623,6 +702,69 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 	}
 
 	private function _packageImport(&$json, &$uids, &$records_created) {
+		// Records
+		@$records = $json['records'];
+		$record_ids = [];
+		
+		if(is_array($records))
+		foreach($records as $record) {
+			$uid_record = $record['uid'];
+			$record_id = $uids[$uid_record];
+			$record_ids[] = $record_id;
+			
+			if(false == ($context_ext = Extension_DevblocksContext::getByAlias($record['_context'], true)))
+				throw new Exception_DevblocksValidationError(sprintf("Unknown extension on record (%s): %s", $uid_record, $record['_context']));
+			
+			$dict = array_diff_key($record, ['_context'=>true,'uid'=>true]);
+			$fields = $custom_fields = [];
+			$error = null;
+			
+			if(!$context_ext->getDaoFieldsFromKeysAndValues($dict, $fields, $custom_fields, $error))
+				throw new Exception_DevblocksValidationError(sprintf("Error on record (%s): %s", $uid_record, $error));
+			
+			if(false == ($dao_class = $context_ext->getDaoClass()))
+				throw new Exception_DevblocksValidationError(sprintf("Error on record (%s): %s", $uid_record, "Can't load DAO class."));
+			
+			if(!$dao_class::validate($fields, $error, $record_id))
+				throw new Exception_DevblocksValidationError(sprintf("Error on record (%s): %s", $uid_record, $error));
+			
+			$dao_class::update($record_id, $fields);
+			
+			if($dao_class instanceof IDevblocksDaoAbstractEvents)
+				$dao_class::onAbstractUpdate($record_id, $fields);
+			
+			DAO_CustomFieldValue::formatAndSetFieldValues($context_ext->id, $record_id, $custom_fields);
+			
+			$records_created[$context_ext->id][] = [
+				'id' => $record_id,
+				'label' => @$record['_label'] ?: @$record['name'] ?: $record['uid'],
+			];
+		}
+		
+		// Fill in labels for abstractly created records
+		foreach($records_created as $context_ext_id => $records) {
+			if(false == ($context_ext = Extension_DevblocksContext::get($context_ext_id, true)))
+				continue;
+			
+			if(false == ($dao_class = $context_ext->getDaoClass()))
+				continue;
+			
+			if(false == ($models = $dao_class::getIds(array_column($records, 'id'))))
+				continue;
+				
+			if(false == ($dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, $context_ext_id)))
+				continue;
+			
+			$dicts = array_map(function($dict) {
+				return [
+					'id' => $dict->id,
+					'label' => $dict->_label,
+				];
+			}, $dicts);
+			
+			$records_created[$context_ext_id] = $dicts;
+		}
+		
 		@$custom_fieldsets = $json['custom_fieldsets'];
 		
 		if(is_array($custom_fieldsets))
@@ -709,17 +851,23 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 					DAO_TriggerEvent::VARIABLES_JSON => isset($behavior['variables']) ? json_encode($behavior['variables']) : '',
 				]);
 				
+				
 				// Create records for all child nodes and link them to the proper parents
 				
 				if(isset($behavior['nodes']) && !empty($behavior['nodes']))
 				if(false == DAO_TriggerEvent::recursiveImportDecisionNodes($behavior['nodes'], $id, 0))
-					throw new Exception('Failed to import behavior nodes');
+					throw new Exception_DevblocksValidationError('Failed to import behavior nodes');
 				
 				// Enable the new behavior since we've succeeded
 				
 				DAO_TriggerEvent::update($id, array(
 					DAO_TriggerEvent::IS_DISABLED => @$behavior['is_disabled'] ? 1 : 0,
 				));
+				
+				$records_created[CerberusContexts::CONTEXT_BEHAVIOR][] = [
+					'id' => $id,
+					'label' => $behavior['title'],
+				];
 			}
 		}
 		
@@ -754,10 +902,10 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 				]);
 				
 				if(false == ($extension = Extension_WorkspaceTab::get($tab['extension_id']))) /* @var $extension Extension_WorkspaceTab */
-					throw new Exception('Failed to instantiate workspace tab extension: ' . $tab['extension_id']);
+					throw new Exception_DevblocksValidationError('Failed to instantiate workspace tab extension: ' . $tab['extension_id']);
 				
 				if(false == ($model = DAO_WorkspaceTab::get($id)))
-					throw new Exception('Failed to load workspace tab model: ' . $tab['extension_id']);
+					throw new Exception_DevblocksValidationError('Failed to load workspace tab model: ' . $tab['extension_id']);
 				
 				$import_json = ['tab' => $tab];
 				$extension->importTabConfigJson($import_json, $model);
@@ -942,17 +1090,17 @@ class PageSection_SetupImportPackage extends Extension_PageSection {
 					$card_ids[] = $card_id;
 					
 					if(false == ($context_ext = Extension_DevblocksContext::getByAlias($card['_context'], true)))
-						throw new Exception(sprintf("Unknown extension on project card (%s): %s", $card['uid'], $card['_context']));
+						throw new Exception_DevblocksValidationError(sprintf("Unknown extension on project card (%s): %s", $card['uid'], $card['_context']));
 					
 					$dict = array_diff_key($card, ['_context'=>true,'uid'=>true]);
 					$fields = $custom_fields = [];
 					$error = null;
 					
 					if(!$context_ext->getDaoFieldsFromKeysAndValues($dict, $fields, $custom_fields, $error))
-						throw new Exception(sprintf("Error on project card (%s): %s", $uid_card, $error));
+						throw new Exception_DevblocksValidationError(sprintf("Error on project card (%s): %s", $uid_card, $error));
 					
 					if(false == ($dao_class = $context_ext->getDaoClass()))
-						throw new Exception(sprintf("Error on project card (%s): %s", $uid_card, "Can't load DAO class."));
+						throw new Exception_DevblocksValidationError(sprintf("Error on project card (%s): %s", $uid_card, "Can't load DAO class."));
 					
 					$dao_class::update($card_id, $fields);
 					

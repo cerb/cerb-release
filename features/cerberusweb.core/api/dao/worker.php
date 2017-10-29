@@ -36,6 +36,8 @@ class DAO_Worker extends Cerb_ORMHelper {
 	const TITLE = 'title';
 	const UPDATED = 'updated';
 	
+	const _IMAGE = '_image';
+	
 	const CACHE_ALL = 'ch_workers';
 	
 	private function __construct() {}
@@ -157,14 +159,17 @@ class DAO_Worker extends Cerb_ORMHelper {
 			->addField(self::UPDATED)
 			->timestamp()
 			;
+		
+		// base64 blob png
+		$validation
+			->addField(self::_IMAGE)
+			->image('image/png', 50, 50, 500, 500, 100000)
+			;
 
 		return $validation->getFields();
 	}
 	
 	static function create($fields) {
-		if(empty($fields[DAO_Worker::EMAIL_ID]))
-			return NULL;
-			
 		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO worker () ".
@@ -611,6 +616,14 @@ class DAO_Worker extends Cerb_ORMHelper {
 		
 		if(!isset($fields[self::UPDATED]) && !($option_bits & DevblocksORMHelper::OPT_UPDATE_NO_EVENTS))
 			$fields[self::UPDATED] = time();
+		
+		// Handle avatar images
+		if(isset($fields[self::_IMAGE])) {
+			foreach($ids as $id) {
+				DAO_ContextAvatar::upsertWithImage(CerberusContexts::CONTEXT_WORKER, $id, $fields[self::_IMAGE]);
+			}
+			unset($fields[self::_IMAGE]);
+		}
 		
 		// Make a diff for the requested objects in batches
 		
@@ -1079,7 +1092,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		$url_writer = DevblocksPlatform::services()->url();
 		$db = DevblocksPlatform::services()->database();
 		$workers = DAO_Worker::getAll();
-		$objects = array();
+		$objects = [];
 		
 		$context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_WORKER);
 		
@@ -1964,7 +1977,7 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 					
 				// Valid custom fields
 				default:
-					if('cf_' == substr($field_key,0,3))
+					if(DevblocksPlatform::strStartsWith($field_key, 'cf_'))
 						$pass = $this->_canSubtotalCustomField($field_key);
 					break;
 			}
@@ -2953,6 +2966,26 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			'title' => DAO_Worker::TITLE,
 			'updated' => DAO_Worker::UPDATED,
 		];
+	}
+	
+	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
+		$dict_key = DevblocksPlatform::strLower($key);
+		switch($dict_key) {
+			case 'email':
+				if(false == ($address = DAO_Address::lookupAddress($value, true))) {
+					$error = sprintf("Failed to lookup address: %s", $value);
+					return false;
+				}
+				
+				$out_fields[DAO_Worker::EMAIL_ID] = $address->id;
+				break;
+				
+			case 'image':
+				$out_fields[DAO_Worker::_IMAGE] = $value;
+				break;
+		}
+		
+		return true;
 	}
 	
 	function lazyLoadContextValues($token, $dictionary) {

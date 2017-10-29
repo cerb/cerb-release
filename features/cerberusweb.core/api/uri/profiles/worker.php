@@ -263,16 +263,16 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 				if(false != ($worker_check = DAO_Worker::getByEmail($worker_address->email)) && (empty($id) || $worker_check->id != $id))
 					throw new Exception_DevblocksAjaxValidationError("The given email address is already associated with another worker.", 'email_id');
 				
-				if(DAO_AddressOutgoing::getByEmail($worker_address->email, false))
+				if(DAO_Address::isLocalAddress($worker_address->email))
 					throw new Exception_DevblocksAjaxValidationError("You can not assign an email address to a worker that is already assigned to a group/bucket.", 'email_id');
 				
 				// Verify passwords if not blank
 				if($password_new && ($password_new != $password_verify))
-						throw new Exception_DevblocksAjaxValidationError("The given passwords do not match.", 'password_new');
+					throw new Exception_DevblocksAjaxValidationError("The given passwords do not match.", 'password_new');
 				
 				// Verify auth extension
 				if(false == ($auth_extension = Extension_LoginAuthenticator::get($auth_extension_id)))
-						throw new Exception_DevblocksAjaxValidationError("The login method is invalid.", 'auth_extension_id');
+					throw new Exception_DevblocksAjaxValidationError("The login method is invalid.", 'auth_extension_id');
 				
 				// Verify @mention name
 				if(!empty($at_mention_name)) {
@@ -289,60 +289,14 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 				$date = DevblocksPlatform::services()->date();
 				$timezones = $date->getTimezones();
 				if(false === array_search($timezone, $timezones))
-						throw new Exception_DevblocksAjaxValidationError("The given timezone is invalid.", 'timezone');
+					throw new Exception_DevblocksAjaxValidationError("The given timezone is invalid.", 'timezone');
 				
 				// Verify language
 				$languages = DAO_Translation::getDefinedLangCodes();
 				if($language && !isset($languages[$language]))
-						throw new Exception_DevblocksAjaxValidationError("The given language is invalid.", 'language');
+					throw new Exception_DevblocksAjaxValidationError("The given language is invalid.", 'language');
 				
 				if(empty($id)) {
-					if(empty($password_new)) {
-						// Creating new worker.  If password is empty, email it to them
-						$replyto_default = DAO_AddressOutgoing::getDefault();
-						$replyto_personal = $replyto_default->getReplyPersonal();
-						$url = DevblocksPlatform::services()->url();
-						$password = CerberusApplication::generatePassword(8);
-						
-						try {
-							$mail_service = DevblocksPlatform::services()->mail();
-							$mail = $mail_service->createMessage();
-							
-							$mail->setTo(array($worker_address->email => $first_name . ' ' . $last_name));
-							
-							if(!empty($replyto_personal)) {
-								$mail->setFrom($replyto_default->email, $replyto_personal);
-							} else {
-								$mail->setFrom($replyto_default->email);
-							}
-							
-							$mail->setSubject('Your new Cerb login information!');
-							
-							$headers = $mail->getHeaders();
-							
-							$headers->addTextHeader('X-Mailer','Cerb ' . APP_VERSION . ' (Build '.APP_BUILD.')');
-							
-							$body = sprintf("Your new Cerb login information is below:\r\n".
-								"\r\n".
-								"URL: %s\r\n".
-								"Login: %s\r\n".
-								"\r\n",
-									$url->write('',true),
-									$worker_address->email
-							);
-							
-							$mail->setBody($body);
-		
-							if(!$mail_service->send($mail)) {
-								throw new Exception('Password notification email failed to send.');
-							}
-							
-						} catch (Exception $e) {
-							// [TODO] need to report to the admin when the password email doesn't send.  The try->catch
-							// will keep it from killing php, but the password will be empty and the user will never get an email.
-						}
-					}
-					
 					$fields = array(
 						DAO_Worker::FIRST_NAME => $first_name,
 						DAO_Worker::LAST_NAME => $last_name,
@@ -367,6 +321,20 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 					
 					if(false == ($id = DAO_Worker::create($fields)))
 						return false;
+					
+					// Creating new worker.  If no password, email them an invite
+					if(empty($password_new)) {
+						$url = DevblocksPlatform::services()->url();
+						$worker = DAO_Worker::get($id);
+						
+						$labels = $values = [];
+						CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $worker, $worker_labels, $worker_values, '', true, true);
+						CerberusContexts::merge('worker_', null, $worker_labels, $worker_values, $labels, $values);
+						
+						$values['url'] = $url->write('c=login', true) . '?email=' . rawurlencode($worker->getEmailString());
+						
+						CerberusApplication::sendEmailTemplate($worker->getEmailString(), 'worker_invite', $values);
+					}
 					
 					// View marquee
 					if(!empty($id) && !empty($view_id)) {

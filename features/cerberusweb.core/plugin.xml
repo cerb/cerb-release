@@ -63,6 +63,7 @@
 		
 		<patch version="8.0.0" revision="1206" file="patches/8.x/8.0.0.php" />
 		<patch version="8.1.0" revision="1227" file="patches/8.x/8.1.0.php" />
+		<patch version="8.2.0" revision="1248" file="patches/8.x/8.2.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -85,6 +86,14 @@
 			<class name="IServiceProvider_OAuthRefresh" />
 		</file>
 		
+		<file path="api/dao/abstract_custom_record.php">
+			<class name="Context_AbstractCustomRecord" />
+			<class name="DAO_AbstractCustomRecord" />
+			<class name="Model_AbstractCustomRecord" />
+			<class name="SearchFields_AbstractCustomRecord" />
+			<class name="View_AbstractCustomRecord" />
+		</file>
+		
 		<file path="api/dao/abstract_view.php">
 			<class name="C4_AbstractLoader" />
 			<class name="C4_AbstractModel" />
@@ -104,11 +113,6 @@
 			<class name="Search_Address" />
 			<class name="SearchFields_Address" />
 			<class name="View_Address" />
-		</file>
-		
-		<file path="api/dao/address_outgoing.php">
-			<class name="DAO_AddressOutgoing" />
-			<class name="Model_AddressOutgoing" />
 		</file>
 		
 		<file path="api/dao/address_to_worker.php">
@@ -321,14 +325,24 @@
 			<class name="DAO_CustomField" />
 			<class name="DAO_CustomFieldValue" />
 			<class name="Model_CustomField" />
+			<class name="SearchFields_CustomField" />
+			<class name="View_CustomField" />
 		</file>
-
+		
 		<file path="api/dao/custom_fieldset.php">
 			<class name="Context_CustomFieldset" />
 			<class name="DAO_CustomFieldset" />
 			<class name="Model_CustomFieldset" />
 			<class name="SearchFields_CustomFieldset" />
 			<class name="View_CustomFieldset" />
+		</file>
+		
+		<file path="api/dao/custom_record.php">
+			<class name="Context_CustomRecord" />
+			<class name="DAO_CustomRecord" />
+			<class name="Model_CustomRecord" />
+			<class name="SearchFields_CustomRecord" />
+			<class name="View_CustomRecord" />
 		</file>
 
 		<file path="api/dao/decision_node.php">
@@ -343,6 +357,14 @@
 			<class name="Model_DevblocksSession" />
 			<class name="SearchFields_DevblocksSession" />
 			<class name="View_DevblocksSession" />
+		</file>
+		
+		<file path="api/dao/email_signature.php">
+			<class name="Context_EmailSignature" />
+			<class name="DAO_EmailSignature" />
+			<class name="Model_EmailSignature" />
+			<class name="SearchFields_EmailSignature" />
+			<class name="View_EmailSignature" />
 		</file>
 		
 		<file path="api/dao/explorer.php">
@@ -374,6 +396,11 @@
 			<class name="SearchFields_Group" />
 			<class name="View_Group" />
 			<class name="Model_GroupMember" />
+		</file>
+		
+		<file path="api/dao/mail_failed.php">
+			<class name="SearchFields_MailParseFail" />
+			<class name="View_MailParseFail" />
 		</file>
 		
 		<file path="api/dao/mail_html_template.php">
@@ -433,6 +460,14 @@
 			<class name="Model_Mailbox" />
 			<class name="SearchFields_Mailbox" />
 			<class name="View_Mailbox" />
+		</file>
+		
+		<file path="api/dao/reminder.php">
+			<class name="Context_Reminder" />
+			<class name="DAO_Reminder" />
+			<class name="Model_Reminder" />
+			<class name="SearchFields_Reminder" />
+			<class name="View_Reminder" />
 		</file>
 		
 		<file path="api/dao/skill.php">
@@ -528,6 +563,7 @@
 		<file path="api/dao/workspace.php">
 			<class name="Context_WorkspacePage" />
 			<class name="Context_WorkspaceTab" />
+			<class name="Context_WorkspaceWorklist" />
 			<class name="DAO_WorkspaceList" />
 			<class name="DAO_WorkspacePage" />
 			<class name="DAO_WorkspaceTab" />
@@ -545,6 +581,10 @@
 			<class name="DAO_WorkspaceWidget" />
 			<class name="Model_WorkspaceWidget" />
 			<class name="SearchFields_WorkspaceWidget" />
+		</file>
+		
+		<file path="api/events/abstract/abstract_event_abstract_custom_record.php">
+			<class name="AbstractEvent_AbstractCustomRecord" />
 		</file>
 		
 		<file path="api/events/abstract/abstract_event_address.php">
@@ -593,6 +633,10 @@
 		
 		<file path="api/events/abstract/abstract_event_record.php">
 			<class name="AbstractEvent_Record" />
+		</file>
+		
+		<file path="api/events/abstract/abstract_event_reminder.php">
+			<class name="AbstractEvent_Reminder" />
 		</file>
 		
 		<file path="api/events/abstract/abstract_event_task.php">
@@ -683,6 +727,10 @@
 			<class name="Event_MailBeforeSentByGroup" />
 		</file>
 		
+		<file path="api/events/macro/abstract_custom_record_macro.php">
+			<class name="Event_AbstractCustomRecordMacro" />
+		</file>
+		
 		<file path="api/events/macro/address_macro.php">
 			<class name="Event_AddressMacro" />
 		</file>
@@ -713,6 +761,10 @@
 		
 		<file path="api/events/macro/org_macro.php">
 			<class name="Event_OrgMacro" />
+		</file>
+		
+		<file path="api/events/macro/reminder_macro.php">
+			<class name="Event_ReminderMacro" />
 		</file>
 		
 		<file path="api/events/macro/task_macro.php">
@@ -771,17 +823,16 @@
 			<class name="Event_NotificationReceivedByWorker" />
 		</file>
 		
-		<file path="api/uri/config/mail_failed.php">
-			<class name="SearchFields_MailParseFail" />
-			<class name="View_MailParseFail" />
-		</file>
-		
 		<file path="api/uri/portal.php">
 			<class name="ChPortalHelper" />
 		</file>
 		
 		<file path="api/uri/profiles.php">
 			<class name="Page_Profiles" />
+		</file>
+		
+		<file path="api/uri/profiles/abstract_custom_record.php">
+			<class name="PageSection_ProfilesAbstractCustomRecord" />
 		</file>
 		
 	</class_loader>
@@ -1064,6 +1115,7 @@
 				<param key="view_class" value="" />
 				<param key="options">
 					<value>
+						<data key="avatars" />
 						<data key="owner" />
 						<!--
 						<data key="links" />
@@ -1179,6 +1231,7 @@
 				<param key="options">
 					<value>
 						<data key="autocomplete" />
+						<data key="avatars" />
 						<data key="cards" />
 						<data key="create" />
 						<data key="custom_fields" />
@@ -1424,16 +1477,64 @@
 				</param>
 				<param key="alias" value="custom_field" />
 				<param key="dao_class" value="DAO_CustomField" />
-				<param key="view_class" value="" />
+				<param key="view_class" value="View_CustomField" />
 				<param key="options">
-					<!--
 					<value>
+						<data key="cards" />
 						<data key="search" />
+						<data key="va_variable" />
+						<data key="workspace" />
 					</value>
-					-->
 				</param>
 				<param key="acl">
 					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.custom_record</id>
+			<name>Custom Record</name>
+			<class>
+				<file>api/dao/custom_record.php</file>
+				<name>Context_CustomRecord</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="custom record" value="singular" />
+						<data key="custom records" value="plural" />
+					</value>
+				</param>
+				<param key="alias" value="custom_record" />
+				<param key="dao_class" value="DAO_CustomRecord" />
+				<param key="view_class" value="View_CustomRecord" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="create" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="watchers" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -1465,6 +1566,7 @@
 				<param key="options">
 					<value>
 						<data key="autocomplete" />
+						<data key="avatars" />
 						<data key="cards" />
 						<data key="create" />
 						<data key="custom_fields" />
@@ -1552,6 +1654,7 @@
 				<param key="view_class" value="View_Calendar" />
 				<param key="options">
 					<value>
+						<data key="cards" />
 						<data key="create" />
 						<data key="custom_fields" />
 						<data key="links" />
@@ -1639,6 +1742,7 @@
 				<param key="view_class" value="View_CalendarRecurringProfile" />
 				<param key="options">
 					<value>
+						<data key="cards" />
 						<data key="create" />
 						<data key="custom_fields" />
 						<data key="links" />
@@ -1817,6 +1921,48 @@
 		</extension>
 		
 		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.email.signature</id>
+			<name>Email Signature</name>
+			<class>
+				<file>api/dao/email_signature.php</file>
+				<name>Context_EmailSignature</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="email signature" value="singular" />
+						<data key="email signatures" value="plural" />
+						<data key="signature" value="singular short" />
+						<data key="signatures" value="plural short" />
+					</value>
+				</param>
+				<param key="alias" value="email_signature" />
+				<param key="dao_class" value="DAO_EmailSignature" />
+				<param key="view_class" value="View_EmailSignature" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="create" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="search" />
+						<data key="va_variable" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
 			<id>cerberusweb.contexts.file_bundle</id>
 			<name>File Bundle</name>
 			<class>
@@ -1862,7 +2008,7 @@
 		
 		<extension point="devblocks.context">
 			<id>cerberusweb.contexts.mail.html_template</id>
-			<name>HTML Template</name>
+			<name>Email Template</name>
 			<class>
 				<file>api/dao/mail_html_template.php</file>
 				<name>Context_MailHtmlTemplate</name>
@@ -1870,10 +2016,12 @@
 			<params>
 				<param key="names">
 					<value>
-						<data key="html template" value="singular" />
-						<data key="html templates" value="plural" />
+						<data key="email template" value="singular" />
+						<data key="email templates" value="plural" />
 						<data key="mail template" value="singular" />
 						<data key="mail templates" value="plural" />
+						<data key="html template" value="singular" />
+						<data key="html templates" value="plural" />
 					</value>
 				</param>
 				<param key="alias" value="html_template" />
@@ -1881,18 +2029,22 @@
 				<param key="view_class" value="View_MailHtmlTemplate" />
 				<param key="options">
 					<value>
-						<!--
-						<data key="search" /> 
+						<data key="cards" />
+						<data key="create" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="search" />
 						<data key="va_variable" />
 						<data key="workspace" />
-						-->
-						<data key="create" />
-						<data key="links" />
 					</value>
 				</param>
 				<param key="acl">
 					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
 						<data key="export" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -1963,6 +2115,7 @@
 				<param key="view_class" value="View_Group" />
 				<param key="options">
 					<value>
+						<data key="avatars" />
 						<data key="cards" />
 						<data key="custom_fields" />
 						<data key="links" />
@@ -1985,7 +2138,7 @@
 		
 		<extension point="devblocks.context">
 			<id>cerberusweb.contexts.mail.transport</id>
-			<name>Mail Transport</name>
+			<name>Email Transport</name>
 			<class>
 				<file>api/dao/mail_transport.php</file>
 				<name>Context_MailTransport</name>
@@ -1993,6 +2146,8 @@
 			<params>
 				<param key="names">
 					<value>
+						<data key="email transport" value="singular" />
+						<data key="email transports" value="plural" />
 						<data key="mail transport" value="singular" />
 						<data key="mail transports" value="plural" />
 						<data key="transport" value="singular short" />
@@ -2004,11 +2159,24 @@
 				<param key="view_class" value="View_MailTransport" />
 				<param key="options">
 					<value>
+						<data key="cards" />
+						<data key="create" />
 						<data key="custom_fields" />
+						<data key="links" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="watchers" />
+						<data key="workspace" />
 					</value>
 				</param>
 				<param key="acl">
 					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -2080,6 +2248,7 @@
 				<param key="view_class" value="View_Notification" />
 				<param key="options">
 					<value>
+						<data key="cards" />
 						<data key="links" />
 						<data key="search" />
 						<data key="va_variable" />
@@ -2123,6 +2292,7 @@
 				<param key="view_class" value="View_ContactOrg" />
 				<param key="options">
 					<value>
+						<data key="avatars" />
 						<data key="cards" />
 						<data key="create" />
 						<data key="custom_fields" />
@@ -2160,8 +2330,10 @@
 			<params>
 				<param key="names">
 					<value>
-						<data key="mailbox" value="singular" />
-						<data key="mailboxes" value="plural" />
+						<data key="email mailbox" value="singular" />
+						<data key="email mailboxes" value="plural" />
+						<data key="mailbox" value="short singular" />
+						<data key="mailboxes" value="short plural" />
 					</value>
 				</param>
 				<param key="alias" value="mailbox" />
@@ -2169,12 +2341,24 @@
 				<param key="view_class" value="View_Mailbox" />
 				<param key="options">
 					<value>
+						<data key="cards" />
+						<data key="create" />
 						<data key="custom_fields" />
+						<data key="links" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
 						<data key="watchers" />
+						<data key="workspace" />
 					</value>
 				</param>
 				<param key="acl">
 					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -2464,6 +2648,7 @@
 				<param key="options">
 					<value>
 						<data key="autocomplete" />
+						<data key="avatars" />
 						<data key="cards" />
 						<data key="create" />
 						<data key="custom_fields" />
@@ -2513,6 +2698,7 @@
 				<param key="options">
 					<value>
 						<data key="autocomplete" />
+						<data key="avatars" />
 						<data key="cards" />
 						<data key="custom_fields" />
 						<data key="links" />
@@ -2532,7 +2718,49 @@
 				</param>
 			</params>
 		</extension>
-
+		
+		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.reminder</id>
+			<name>Reminder</name>
+			<class>
+				<file>api/dao/reminder.php</file>
+				<name>Context_Reminder</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="reminder" value="singular" />
+						<data key="reminders" value="plural" />
+					</value>
+				</param>
+				<param key="alias" value="reminder" />
+				<param key="dao_class" value="DAO_Reminder" />
+				<param key="view_class" value="View_Reminder" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="create" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="watchers" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
 		<extension point="devblocks.context">
 			<id>cerberusweb.contexts.role</id>
 			<name>Role</name>
@@ -2663,6 +2891,42 @@
 				<param key="alias" value="workspace_widget" />
 				<param key="dao_class" value="DAO_WorkspaceWidget" />
 				<param key="view_class" value="View_WorkspaceWidget" />
+				<param key="options">
+					<value>
+						<!--<data key="va_variable" />-->
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="update" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.workspace.worklist</id>
+			<name>Workspace Worklist</name>
+			<class>
+				<file>api/dao/workspace.php</file>
+				<name>Context_WorkspaceWorklist</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="workspace worklist" value="singular" />
+						<data key="workspace worklists" value="plural" />
+						<data key="worklist" value="singular short" />
+						<data key="worklists" value="plural short" />
+					</value>
+				</param>
+				<param key="alias" value="workspace_list" />
+				<param key="dao_class" value="DAO_WorkspaceList" />
+				<param key="view_class" value="View_WorkspaceList" />
 				<param key="options">
 					<value>
 						<!--<data key="va_variable" />-->
@@ -3252,6 +3516,31 @@
 		</extension>
 		
 		<extension point="devblocks.event">
+			<id>event.macro.reminder</id>
+			<name>Custom behavior on reminder</name>
+			<class>
+				<file>api/events/macro/reminder_macro.php</file>
+				<name>Event_ReminderMacro</name>
+			</class>
+			<params>
+				<param key="macro_context" value="cerberusweb.contexts.reminder" />
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.group" />
+						<data key="cerberusweb.contexts.role" />
+						<data key="cerberusweb.contexts.worker" />
+					</value>
+				</param>
+				<param key="options">
+					<value>
+						<data key="visibility" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event">
 			<id>event.macro.task</id>
 			<name>Custom behavior on task</name>
 			<class>
@@ -3613,6 +3902,23 @@
 			</class>
 			<params>
 				<param key="label" value="Create attachment" />
+				<param key="events">
+					<value>
+						<data key="*" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event.action">
+			<id>core.bot.action.create_reminder</id>
+			<name>Create Reminder</name>
+			<class>
+				<file>api/plugin.classes.php</file>
+				<name>BotAction_CreateReminder</name>
+			</class>
+			<params>
+				<param key="label" value="Create reminder" />
 				<param key="events">
 					<value>
 						<data key="*" />
@@ -4248,84 +4554,6 @@
 			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.mail_filtering</id>
-				<name>Mail Filtering Section</name>
-				<class>
-					<file>api/uri/config/mail_filtering.php</file>
-					<name>PageSection_SetupMailFiltering</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="mail_filtering" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.mail_relay</id>
-				<name>Mail Relay Section</name>
-				<class>
-					<file>api/uri/config/mail_relay.php</file>
-					<name>PageSection_SetupMailRelay</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="mail_relay" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.mail_failed</id>
-				<name>Failed Messages Section</name>
-				<class>
-					<file>api/uri/config/mail_failed.php</file>
-					<name>PageSection_SetupMailFailed</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="mail_failed" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.mail_from</id>
-				<name>Mail From Section</name>
-				<class>
-					<file>api/uri/config/mail_from.php</file>
-					<name>PageSection_SetupMailFrom</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="mail_from" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.mail_html</id>
-				<name>HTML Mail Templates Section</name>
-				<class>
-					<file>api/uri/config/mail_html.php</file>
-					<name>PageSection_SetupMailHtml</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="mail_html" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.mail_import</id>
-				<name>Import Messages Section</name>
-				<class>
-					<file>api/uri/config/mail_import.php</file>
-					<name>PageSection_SetupMailImport</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="mail_import" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.setup.mail_incoming</id>
 				<name>Incoming Mail Section</name>
 				<class>
@@ -4348,58 +4576,6 @@
 				<params>
 					<param key="page_id" value="core.page.configuration" />
 					<param key="uri" value="mail_outgoing" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.mailboxes</id>
-				<name>Mailboxes Section</name>
-				<class>
-					<file>api/uri/config/mailboxes.php</file>
-					<name>PageSection_SetupMailboxes</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="mailboxes" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.mail_queue</id>
-				<name>Mail Queue Section</name>
-				<class>
-					<file>api/uri/config/mail_queue.php</file>
-					<name>PageSection_SetupMailQueue</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="mail_queue" />
-				</params>
-			</extension>
-		
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.mail_routing</id>
-				<name>Mail Routing Section</name>
-				<class>
-					<file>api/uri/config/mail_routing.php</file>
-					<name>PageSection_SetupMailRouting</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="mail_routing" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.mail_smtp</id>
-				<name>SMTP Section</name>
-				<class>
-					<file>api/uri/config/mail_smtp.php</file>
-					<name>PageSection_SetupMailSmtp</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="mail_smtp" />
 				</params>
 			</extension>
 			
@@ -4571,6 +4747,19 @@
 					<param key="uri" value="storage_profiles" />
 				</params>
 			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.setup.team</id>
+				<name>Team Section</name>
+				<class>
+					<file>api/uri/config/team.php</file>
+					<name>PageSection_SetupTeam</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.configuration" />
+					<param key="uri" value="team" />
+				</params>
+			</extension>
 		
 		<extension point="cerberusweb.page">
 			<id>core.page.preferences</id>
@@ -4599,6 +4788,19 @@
 		</extension>
 		
 			<!-- Profile Page Sections -->
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.abstract_custom_record</id>
+				<name>Abstract Custom Record Section</name>
+				<class>
+					<file>api/uri/profiles/abstract_custom_record.php</file>
+					<name>PageSection_ProfilesAbstractCustomRecord</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="abstract_custom_record" />
+				</params>
+			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.profiles.address</id>
@@ -4781,7 +4983,33 @@
 					<param key="uri" value="custom_fieldset" />
 				</params>
 			</extension>
-
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.custom_field</id>
+				<name>Custom Field Section</name>
+				<class>
+					<file>api/uri/profiles/custom_field.php</file>
+					<name>PageSection_ProfilesCustomField</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="custom_field" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.custom_record</id>
+				<name>Custom Record Section</name>
+				<class>
+					<file>api/uri/profiles/custom_record.php</file>
+					<name>PageSection_ProfilesCustomRecord</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="custom_record" />
+				</params>
+			</extension>
+			
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.profiles.context_saved_search</id>
 				<name>Saved Search Section</name>
@@ -4805,6 +5033,19 @@
 				<params>
 					<param key="page_id" value="core.page.profiles" />
 					<param key="uri" value="draft" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.email_signature</id>
+				<name>Email Signature Section</name>
+				<class>
+					<file>api/uri/profiles/email_signature.php</file>
+					<name>PageSection_ProfilesEmailSignature</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="email_signature" />
 				</params>
 			</extension>
 
@@ -4896,6 +5137,19 @@
 				<params>
 					<param key="page_id" value="core.page.profiles" />
 					<param key="uri" value="org" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.reminder</id>
+				<name>Reminder Section</name>
+				<class>
+					<file>api/uri/profiles/reminder.php</file>
+					<name>PageSection_ProfilesReminder</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="reminder" />
 				</params>
 			</extension>
 			
@@ -5381,6 +5635,16 @@
 			<class>
 				<file>api/cron.classes.php</file>
 				<name>SearchCron</name>
+			</class>
+			<params />
+		</extension>
+		
+		<extension point="cerberusweb.cron">
+			<id>cron.reminders</id>
+			<name>Reminders</name>
+			<class>
+				<file>api/cron.classes.php</file>
+				<name>Cron_Reminders</name>
 			</class>
 			<params />
 		</extension>

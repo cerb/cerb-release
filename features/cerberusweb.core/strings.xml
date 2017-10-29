@@ -472,6 +472,11 @@
 				<seg>cards</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.categories">
+			<tuv xml:lang="en_US">
+				<seg>categories</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.category">
 			<tuv xml:lang="en_US">
 				<seg>category</seg>
@@ -562,6 +567,11 @@
 				<seg>configuration</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.configure">
+			<tuv xml:lang="en_US">
+				<seg>configure</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.connected_account">
 			<tuv xml:lang="en_US">
 				<seg>connected account</seg>
@@ -629,22 +639,32 @@
 		</tu>
 		<tu tuid="common.custom_field">
 			<tuv xml:lang="en_US">
-				<seg>Custom Field</seg>
+				<seg>custom field</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.custom_fields">
 			<tuv xml:lang="en_US">
-				<seg>Custom Fields</seg>
+				<seg>custom fields</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.custom_fieldset">
 			<tuv xml:lang="en_US">
-				<seg>Custom Fieldset</seg>
+				<seg>custom fieldset</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.custom_fieldsets">
 			<tuv xml:lang="en_US">
-				<seg>Custom Fieldsets</seg>
+				<seg>custom fieldsets</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.custom_record">
+			<tuv xml:lang="en_US">
+				<seg>custom record</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.custom_records">
+			<tuv xml:lang="en_US">
+				<seg>custom records</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.customize">
@@ -665,6 +685,11 @@
 		<tu tuid="common.default">
 			<tuv xml:lang="en_US">
 				<seg>Default</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.defaults">
+			<tuv xml:lang="en_US">
+				<seg>Defaults</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.delay">
@@ -745,6 +770,26 @@
 		<tu tuid="common.email_addresses">
 			<tuv xml:lang="en_US">
 				<seg>Email Addresses</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.email_template">
+			<tuv xml:lang="en_US">
+				<seg>Email Template</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.email_templates">
+			<tuv xml:lang="en_US">
+				<seg>Email Templates</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.email_transport">
+			<tuv xml:lang="en_US">
+				<seg>email transport</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.email_transports">
+			<tuv xml:lang="en_US">
+				<seg>email transports</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.enabled">
@@ -857,6 +902,11 @@
 				<seg>field</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.fields">
+			<tuv xml:lang="en_US">
+				<seg>fields</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.fieldset">
 			<tuv xml:lang="en_US">
 				<seg>Fieldset</seg>
@@ -966,6 +1016,14 @@
 			<tuv xml:lang="en_US">
 				<seg>hours</seg>
 			</tuv>
+		</tu>
+		<tu tuid='common.html_mail_template'>
+			<tuv xml:lang="en_US">
+			<seg>HTML Template</seg></tuv>
+		</tu>
+		<tu tuid='common.html_mail_templates'>
+			<tuv xml:lang="en_US">
+			<seg>HTML Templates</seg></tuv>
 		</tu>
 		<tu tuid="common.id">
 			<tuv xml:lang="en_US">
@@ -1092,9 +1150,34 @@
 				<seg>Mail</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.mail.filtering">
+			<tuv xml:lang="en_US">
+				<seg>Mail filtering</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.mail.incoming">
+			<tuv xml:lang="en_US">
+				<seg>Incoming mail</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.mail.outgoing">
+			<tuv xml:lang="en_US">
+				<seg>Outgoing mail</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.mail.routing">
+			<tuv xml:lang="en_US">
+				<seg>Mail routing</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.mailbox">
 			<tuv xml:lang="en_US">
 				<seg>Mailbox</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.mailboxes">
+			<tuv xml:lang="en_US">
+				<seg>Mailboxes</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.manager">
@@ -1287,6 +1370,11 @@
 				<seg>owner</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.owners">
+			<tuv xml:lang="en_US">
+				<seg>owners</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.label">
 			<tuv xml:lang="en_US">
 				<seg>Label</seg>
@@ -1392,6 +1480,16 @@
 				<seg>params</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.parent">
+			<tuv xml:lang="en_US">
+				<seg>parent</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.parents">
+			<tuv xml:lang="en_US">
+				<seg>parents</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.participant">
 			<tuv xml:lang="en_US">
 				<seg>participant</seg>
@@ -1450,6 +1548,11 @@
 		<tu tuid="common.plugins">
 			<tuv xml:lang="en_US">
 				<seg>plugins</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.plural">
+			<tuv xml:lang="en_US">
+				<seg>plural</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.portal">
@@ -1537,6 +1640,16 @@
 				<seg>Quick Search</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.queue">
+			<tuv xml:lang="en_US">
+				<seg>queue</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.queues">
+			<tuv xml:lang="en_US">
+				<seg>queues</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.recipient">
 			<tuv xml:lang="en_US">
 				<seg>recipient</seg>
@@ -1580,6 +1693,26 @@
 		<tu tuid="common.refresh">
 			<tuv xml:lang="en_US">
 				<seg>refresh</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.remind">
+			<tuv xml:lang="en_US">
+				<seg>remind</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.remind_at">
+			<tuv xml:lang="en_US">
+				<seg>remind at</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.reminder">
+			<tuv xml:lang="en_US">
+				<seg>reminder</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.reminders">
+			<tuv xml:lang="en_US">
+				<seg>reminders</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.remove">
@@ -1722,6 +1855,16 @@
 				<seg>send</seg>
 			</tuv>
 		</tu>
+		<tu tuid='common.send.as'>
+			<tuv xml:lang="en_US">
+				<seg>Send as</seg>
+			</tuv>
+		</tu>
+		<tu tuid='common.send.from'>
+			<tuv xml:lang="en_US">
+				<seg>Send from</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.sender">
 			<tuv xml:lang="en_US">
 				<seg>sender</seg>
@@ -1730,6 +1873,16 @@
 		<tu tuid="common.senders">
 			<tuv xml:lang="en_US">
 				<seg>senders</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.sender_address">
+			<tuv xml:lang="en_US">
+				<seg>sender address</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.sender_addresses">
+			<tuv xml:lang="en_US">
+				<seg>sender addresses</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.service">
@@ -1788,6 +1941,11 @@
 				<seg>simulator</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.singular">
+			<tuv xml:lang="en_US">
+				<seg>singular</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.size">
 			<tuv xml:lang="en_US">
 				<seg>size</seg>
@@ -1838,6 +1996,16 @@
 				<seg>storage</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.subcategory">
+			<tuv xml:lang="en_US">
+				<seg>subcategory</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.subcategories">
+			<tuv xml:lang="en_US">
+				<seg>subcategories</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.subtotals">
 			<tuv xml:lang="en_US">
 				<seg>Subtotals</seg>
@@ -1871,6 +2039,16 @@
 		<tu tuid="common.tasks">
 			<tuv xml:lang="en_US">
 				<seg>Tasks</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.team">
+			<tuv xml:lang="en_US">
+				<seg>Team</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.teams">
+			<tuv xml:lang="en_US">
+				<seg>Teams</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.test">
@@ -1988,6 +2166,11 @@
 				<seg>upload files</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.uri">
+			<tuv xml:lang="en_US">
+				<seg>URI</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.url">
 			<tuv xml:lang="en_US">
 				<seg>URL</seg>
@@ -2063,6 +2246,11 @@
 				<seg>week</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.when">
+			<tuv xml:lang="en_US">
+				<seg>when</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.worker">
 			<tuv xml:lang="en_US">
 				<seg>worker</seg>
@@ -2114,8 +2302,6 @@
 			</tuv>
 		</tu>
 
-		<!-- DAO -->
-		
 		<!-- CalendarEvent -->
 		
 		<tu tuid="dao.calendar_event.is_available">
@@ -2213,11 +2399,6 @@
 		<tu tuid="dao.decision_node.node_type">
 			<tuv xml:lang="en_US">
 				<seg>Node Type</seg>
-			</tuv>
-		</tu>
-		<tu tuid="dao.decision_node.parent_id">
-			<tuv xml:lang="en_US">
-				<seg>Parent Id</seg>
 			</tuv>
 		</tu>
 		<tu tuid="dao.decision_node.trigger_id">
@@ -2345,6 +2526,14 @@
 		<tu tuid="error.core.no_acl.view">
 			<tuv xml:lang="en_US">
 				<seg>You do not have permission to view this record.</seg>
+			</tuv>
+		</tu>
+		
+		<!-- Warnings -->
+		
+		<tu tuid="warning.core.editor.close">
+			<tuv xml:lang="en_US">
+				<seg>Are you sure you want to close this editor without saving?</seg>
 			</tuv>
 		</tu>
 
@@ -3257,16 +3446,6 @@ For example: http://www.cerbweb.com/support/</seg>
 				<seg>Sent</seg>
 			</tuv>
 		</tu>
-		<tu tuid="mail.transport">
-			<tuv xml:lang="en_US">
-				<seg>Transport</seg>
-			</tuv>
-		</tu>
-		<tu tuid="mail.transports">
-			<tuv xml:lang="en_US">
-				<seg>Transports</seg>
-			</tuv>
-		</tu>
 		<tu tuid="mail.view.add_filter">
 			<tuv xml:lang="en_US">
 				<seg>-add filter-</seg>
@@ -3478,7 +3657,7 @@ For example: http://www.cerbweb.com/support/</seg>
 		</tu>
 		<tu tuid="prefs.address.confirm.mail.body">
 			<tuv xml:lang="en_US">
-				<seg>%s just added this email address to their Cerb6 account.
+				<seg>%s just added this email address to their Cerb account.
 
 To approve and continue, click the following link:
 %s
