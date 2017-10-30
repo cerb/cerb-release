@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2017102802);
-define("APP_VERSION", '8.2.0');
+define("APP_BUILD", 2017103001);
+define("APP_VERSION", '8.2.1');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -2328,6 +2328,13 @@ class DAO_Application extends Cerb_ORMHelper {
 
 	static function getFields() {
 		$validation = DevblocksPlatform::services()->validation();
+		
+		$validation
+			->addField('_links')
+			->string()
+			->setMaxLength(65535)
+			;
+		
 		return $validation->getFields();
 	}
 
@@ -2438,7 +2445,17 @@ class Context_Application extends Extension_DevblocksContext {
 	}
 
 	function getKeyToDaoFieldMap() {
-		return [];
+		return [
+			'links' => '_links',
+		];
+	}
+	
+	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
+		switch(DevblocksPlatform::strLower($key)) {
+			case 'links':
+				$this->_getDaoFieldsLinks($value, $out_fields, $error);
+				break;
+		}
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {

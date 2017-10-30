@@ -91,7 +91,12 @@ class DAO_Bucket extends Cerb_ORMHelper {
 			->addField(self::UPDATED_AT)
 			->timestamp()
 			;
-		
+		$validation
+			->addField('_links')
+			->string()
+			->setMaxLength(65535)
+			;
+			
 		return $validation->getFields();
 	}
 	
@@ -309,6 +314,8 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		
 		if(!isset($fields[self::UPDATED_AT]))
 			$fields[self::UPDATED_AT] = time();
+		
+		self::_updateAbstract(Context_Bucket::ID, $ids, $fields);
 		
 		// Make a diff for the requested objects in batches
 		
@@ -766,60 +773,39 @@ class Model_Bucket {
 	}
 	
 	public function getReplyFrom() {
-		$froms = DAO_Address::getLocalAddresses();
 		$default_from = DAO_Address::getDefaultLocalAddress();
-		$default_bucket = DAO_Bucket::getDefaultForGroup($this->group_id);
 		
 		// Check this bucket
 		$from_id = $this->reply_address_id;
 
+		// Cascade to group
+		if(!$from_id = false != ($group = $this->getGroup())) {
+			$from_id = $group->getReplyFrom(0);
+		}
+		
 		if($from_id && isset($froms[$from_id]))
 			return $from_id;
-
-		// Cascade to group default
-		if($default_bucket 
-				&& $default_bucket->id != $this->id
-				&& $from_id = $default_bucket->reply_address_id 
-				&& isset($froms[$from_id]))
-					return $from_id;
 		
-		// Cascade to global
-		if($default_from 
-				&& $from_id = $default_from->id
-				&& isset($froms[$from_id]))
-					return $from_id;
-			
-		return $from_id;
+		// Default
+		return $default_from->id;
 	}
 	
 	public function getReplyPersonal($worker_model=null) {
-		$froms = DAO_Address::getLocalAddresses();
-		$default_bucket = DAO_Bucket::getDefaultForGroup($this->group_id);
-		
-		// Check bucket first
-		$personal = $this->reply_personal;
-		
-		// Cascade to bucket address
-		if(empty($personal) 
-				&& $this->reply_address_id
-				&& isset($froms[$this->reply_address_id])
-				&& $from = $froms[$this->reply_address_id])
-					$personal = $from->reply_personal;
-				
-		// Cascade to group default bucket
-		if(empty($personal)
-				&& $default_bucket
-				&& $default_bucket->id != $this->id) {
-					$personal = $default_bucket->getReplyPersonal($worker_model);
-		}
-		
 		// If we have a worker model, convert template tokens
 		if(empty($worker_model))
 			$worker_model = new Model_Worker();
 		
+		// Check bucket first
+		$personal = $this->reply_personal;
+		
+		// Cascade to group
+		if(empty($personal) && false != ($group = $this->getGroup())) {
+			$personal = $group->getReplyPersonal(0, $worker_model);
+		}
+		
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-		$token_labels = array();
-		$token_values = array();
+		$token_labels = [];
+		$token_values = [];
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $worker_model, $token_labels, $token_values);
 		$personal = $tpl_builder->build($personal, $token_values);
 		
@@ -827,14 +813,11 @@ class Model_Bucket {
 	}
 	
 	public function getReplySignature($worker_model=null) {
-		$froms = DAO_Address::getLocalAddresses();
-		$group = $this->getGroup();
-		
 		// Check bucket first
 		$signature_id = $this->reply_signature_id;
 		
 		// Cascade to group
-		if(!$signature_id && $group) 
+		if(!$signature_id && false != ($group = $this->getGroup())) 
 			$signature_id = $group->reply_signature_id;
 		
 		if(!$signature_id || false == ($signature = DAO_EmailSignature::get($signature_id)))
@@ -853,22 +836,13 @@ class Model_Bucket {
 	}
 	
 	public function getReplyHtmlTemplate() {
-		$froms = DAO_Address::getLocalAddresses();
-		$default_from = DAO_Address::getDefaultLocalAddress();
 		$default_bucket = DAO_Bucket::getDefaultForGroup($this->group_id);
 		
 		// Check bucket first
 		$html_template_id = $this->reply_html_template_id;
 		
-		// Cascade to bucket address
-		if(empty($html_template_id) 
-				&& $this->reply_address_id
-				&& isset($froms[$this->reply_address_id])
-				&& $from = $froms[$this->reply_address_id])
-					$html_template_id = $from->reply_html_template_id;
-		
 		// Cascade to group default
-		if(empty($html_template_id) && false != ($group = $this->getGroup())) {
+		if(!$html_template_id && false != ($group = $this->getGroup())) {
 			$html_template_id = $group->reply_html_template_id;
 		}
 		
@@ -1116,6 +1090,7 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 			'group_id' => DAO_Bucket::GROUP_ID,
 			'id' => DAO_Bucket::ID,
 			'is_default' => DAO_Bucket::IS_DEFAULT,
+			'links' => '_links',
 			'name' => DAO_Bucket::NAME,
 			'reply_address_id' => DAO_Bucket::REPLY_ADDRESS_ID,
 			'reply_html_template_id' => DAO_Bucket::REPLY_HTML_TEMPLATE_ID,
@@ -1124,6 +1099,14 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 			'replyto_id' => DAO_Bucket::REPLY_ADDRESS_ID,
 			'updated_at' => DAO_Bucket::UPDATED_AT,
 		];
+	}
+	
+	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
+		switch(DevblocksPlatform::strLower($key)) {
+			case 'links':
+				$this->_getDaoFieldsLinks($value, $out_fields, $error);
+				break;
+		}
 	}
 	
 	function lazyLoadContextValues($token, $dictionary) {
