@@ -117,8 +117,11 @@ class _DevblocksValidationField {
 }
 
 class _DevblocksFormatters {
-	function context() {
-		return function(&$value, &$error=null) {
+	function context($allow_empty=false) {
+		return function(&$value, &$error=null) use ($allow_empty) {
+			if(empty($value) && $allow_empty)
+				return true;
+			
 			// If this is a valid fully qualified extension ID, accept
 			if(false != (Extension_DevblocksContext::get($value, false)))
 				return true;
@@ -136,6 +139,20 @@ class _DevblocksFormatters {
 }
 
 class _DevblocksValidators {
+	function context($allow_empty=false) {
+		return function($value, &$error=null) use ($allow_empty) {
+			if(empty($value) & $allow_empty)
+				return true;
+			
+			if(false == ($context_ext = Extension_DevblocksContext::getByAlias($value, false))) {
+				$error = sprintf("is not a valid context (%s)", $value);
+				return false;
+			}
+			
+			return true;
+		};
+	}
+	
 	function contextId($context, $allow_empty=false) {
 		return function($value, &$error=null) use ($context, $allow_empty) {
 			if(!is_numeric($value)) {
@@ -195,6 +212,20 @@ class _DevblocksValidators {
 			
 			if(empty($validated_emails) || !is_array($validated_emails)) {
 				$error = "is invalid. It must be a comma-separated list of properly formatted email address.";
+				return false;
+			}
+			
+			return true;
+		};
+	}
+	
+	function extension($extension_class) {
+		return function($value, &$error=null) use ($extension_class) {
+			if(false == ($ext = $extension_class::get($value))) {
+				$error = sprintf("(%s) is not a valid extension ID on (%s).",
+					$value,
+					$extension_class::POINT
+				);
 				return false;
 			}
 			
@@ -262,6 +293,37 @@ class _DevblocksValidators {
 			
 			if($size_data[1] > $max_height) {
 				$error = sprintf("must be no more than %dpx in height (%dpx).", $max_height, $size_data[1]);
+				return false;
+			}
+			
+			return true;
+		};
+	}
+	
+	function language() {
+		return function($value, &$error) {
+			$languages = DAO_Translation::getDefinedLangCodes();
+			
+			if(!$value || !isset($languages[$value])) {
+				$error = sprintf("(%s) is not a valid language. Format like: en_US",
+					$value
+				);
+				return false;
+			}
+			
+			return true;
+		};
+	}
+	
+	function timezone() {
+		return function($value, &$error) {
+			$date = DevblocksPlatform::services()->date();
+			$timezones = $date->getTimezones();
+			
+			if(!in_array($value, $timezones)) {
+				$error = sprintf("(%s) is not a valid timezone. Format like: America/Los_Angeles",
+					$value
+				);
 				return false;
 			}
 			

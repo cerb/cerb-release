@@ -171,12 +171,12 @@ class PageSection_ProfilesAddress extends Extension_PageSection {
 			@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string', '');
 			
 			// Common fields
-			$fields = array(
+			$fields = [
 				DAO_Address::CONTACT_ORG_ID => $org_id,
 				DAO_Address::CONTACT_ID => $contact_id,
 				DAO_Address::IS_BANNED => $is_banned,
 				DAO_Address::IS_DEFUNCT => $is_defunct,
-			);
+			];
 			
 			if($active_worker->is_superuser) {
 				@$mail_transport_id = DevblocksPlatform::importGPC($_REQUEST['mail_transport_id'],'integer',0);
@@ -185,16 +185,18 @@ class PageSection_ProfilesAddress extends Extension_PageSection {
 			}
 			
 			if(empty($id)) {
-				if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.address.create'))
-					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.create'));
-				
 				$fields[DAO_Address::EMAIL] = $email;
 				
 				if(!DAO_Address::validate($fields, $error))
 					throw new Exception_DevblocksAjaxValidationError($error);
+				
+				if(!DAO_Address::onBeforeUpdateByActor($active_worker, $fields, null, $error))
+					throw new Exception_DevblocksAjaxValidationError($error);
 
 				if(false == ($id = DAO_Address::create($fields)))
 					throw new Exception_DevblocksAjaxValidationError('An unexpected error occurred while trying to save the record.');
+				
+				DAO_Address::onUpdateByActor($active_worker, $fields, $id);
 				
 				// View marquee
 				if(!empty($id) && !empty($view_id)) {
@@ -202,13 +204,14 @@ class PageSection_ProfilesAddress extends Extension_PageSection {
 				}
 				
 			} else {
-				if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.address.update'))
-					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.edit'));
-				
 				if(!DAO_Address::validate($fields, $error, $id))
 					throw new Exception_DevblocksAjaxValidationError($error);
 				
+				if(!DAO_Address::onBeforeUpdateByActor($active_worker, $fields, $id, $error))
+					throw new Exception_DevblocksAjaxValidationError($error);
+				
 				DAO_Address::update($id, $fields);
+				DAO_Address::onUpdateByActor($active_worker, $fields, $id);
 			}
 	
 			if($id) {

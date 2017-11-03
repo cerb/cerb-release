@@ -20,6 +20,7 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 			->addField(self::ACCESS_KEY)
 			->string()
 			->setMaxLength(255)
+			->setEditable(false)
 			;
 		// int(10) unsigned
 		$validation
@@ -45,6 +46,7 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 			->addField(self::SECRET_KEY) // [TODO] Encrypt
 			->string()
 			->setMaxLength(255)
+			->setEditable(false)
 			;
 		$validation
 			->addField(self::UPDATED_AT)
@@ -54,6 +56,8 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 		$validation
 			->addField(self::WORKER_ID)
 			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_WORKER))
+			->setRequired(true)
 			;
 		$validation
 			->addField('_links')
@@ -66,6 +70,12 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 	
 	static function create($fields) {
 		$db = DevblocksPlatform::services()->database();
+		
+		if(!isset($fields[self::ACCESS_KEY]))
+			$fields[self::ACCESS_KEY] = DevblocksPlatform::strLower(CerberusApplication::generatePassword(12));
+		
+		if(!isset($fields[self::SECRET_KEY]))
+			$fields[self::SECRET_KEY] = DevblocksPlatform::strLower(CerberusApplication::generatePassword(32));
 		
 		$sql = "INSERT INTO webapi_credentials () VALUES ()";
 		$db->ExecuteMaster($sql);
@@ -125,6 +135,20 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('webapi_credentials', $fields, $where);
 		self::clearCache();
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		if(!CerberusContexts::isActorAnAdmin($actor)) {
+			$error = DevblocksPlatform::translate('error.core.no_acl.admin');
+			return false;
+		}
+		
+		$context = CerberusContexts::CONTEXT_WEBAPI_CREDENTIAL;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		return true;
 	}
 	
 	/**
@@ -488,6 +512,10 @@ class Model_WebApiCredentials {
 	public $secret_key;
 	public $params = [];
 	public $updated_at = 0;
+	
+	function getWorker() {
+		return DAO_Worker::get($this->worker_id);
+	}
 };
 
 class View_WebApiCredentials extends C4_AbstractView implements IAbstractView_QuickSearch {
@@ -730,7 +758,7 @@ class Context_WebApiCredentials extends Extension_DevblocksContext implements ID
 	}
 	
 	static function isWriteableByActor($models, $actor) {
-		return CerberusContexts::isWriteableByDelegateOwner($actor, self::ID, $models, 'worker_');
+		return CerberusContexts::isActorAnAdmin($actor);
 	}
 
 	function getRandom() {
@@ -796,6 +824,7 @@ class Context_WebApiCredentials extends Extension_DevblocksContext implements ID
 			'access_key' => $prefix.$translate->_('dao.webapi_credentials.access_key'),
 			'id' => $prefix.$translate->_('common.id'),
 			'name' => $prefix.$translate->_('common.name'),
+			'params' => $prefix.$translate->_('common.params'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
 		);
@@ -806,6 +835,7 @@ class Context_WebApiCredentials extends Extension_DevblocksContext implements ID
 			'access_key' => Model_CustomField::TYPE_SINGLE_LINE,
 			'id' => Model_CustomField::TYPE_NUMBER,
 			'name' => Model_CustomField::TYPE_SINGLE_LINE,
+			'params' => null,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 			'record_url' => Model_CustomField::TYPE_URL,
 		);
@@ -830,6 +860,7 @@ class Context_WebApiCredentials extends Extension_DevblocksContext implements ID
 			$token_values['access_key'] = $webapi_credentials->access_key;
 			$token_values['id'] = $webapi_credentials->id;
 			$token_values['name'] = $webapi_credentials->name;
+			$token_values['params'] = $webapi_credentials->params;
 			$token_values['updated_at'] = $webapi_credentials->updated_at;
 			$token_values['worker_id'] = $webapi_credentials->worker_id;
 			
@@ -864,6 +895,7 @@ class Context_WebApiCredentials extends Extension_DevblocksContext implements ID
 			'links' => '_links',
 			'name' => DAO_WebApiCredentials::NAME,
 			'updated_at' => DAO_WebApiCredentials::UPDATED_AT,
+			'worker_id' => DAO_WebApiCredentials::WORKER_ID,
 		];
 	}
 	
@@ -1032,6 +1064,16 @@ class Context_WebApiCredentials extends Extension_DevblocksContext implements ID
 			$tpl->assign('dict', $dict);
 			
 			$properties = $context_ext->getCardProperties();
+			
+			// If this key is owned by the current worker, show the secret hint
+			if($dict->worker_id == $active_worker->id) {
+				if(false !== ($idx = array_search('access_key', $properties))) {
+					array_splice($properties, $idx+1, 0, ['secret_key']);
+				} else {
+					$properties[] = 'secret_key';
+				}
+			}
+			
 			$tpl->assign('properties', $properties);
 			
 			$tpl->display('devblocks:cerberusweb.restapi::peek.tpl');

@@ -231,6 +231,9 @@ class DAO_TimeTrackingEntry extends Cerb_ORMHelper {
 	static function create($fields) {
 		$db = DevblocksPlatform::services()->database();
 		
+		if(!isset($fields[self::LOG_DATE]))
+			$fields[self::LOG_DATE] = time();
+		
 		$sql = sprintf("INSERT INTO timetracking_entry () ".
 			"VALUES ()"
 		);
@@ -284,6 +287,34 @@ class DAO_TimeTrackingEntry extends Cerb_ORMHelper {
 				DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_TIMETRACKING, $batch_ids);
 			}
 		}
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_TIMETRACKING;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::WORKER_ID])) {
+			$error = "A 'worker_id' is required.";
+			return false;
+		}
+		
+		if(isset($fields[self::WORKER_ID])) {
+			@$worker_id = $fields[self::WORKER_ID];
+			
+			if(!$worker_id) {
+				$error = "Invalid 'worker_id' value.";
+				return false;
+			}
+			
+			if(!CerberusContexts::isOwnableBy(CerberusContexts::CONTEXT_WORKER, $worker_id, $actor)) {
+				$error = "You do not have permission to create time entries for this worker.";
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	/**

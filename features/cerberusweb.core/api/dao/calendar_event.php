@@ -31,6 +31,7 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 		$validation
 			->addField(self::CALENDAR_ID)
 			->id()
+			->setRequired(true)
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_CALENDAR))
 			;
 		$validation
@@ -143,6 +144,35 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 	
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('calendar_event', $fields, $where);
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_CALENDAR_EVENT;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::CALENDAR_ID])) {
+			$error = "A 'calendar_id' is required.";
+			return false;
+		}
+		
+		if(isset($fields[self::CALENDAR_ID])) {
+			@$calendar_id = $fields[self::CALENDAR_ID];
+			
+			if(!$calendar_id) {
+				$error = "Invalid 'calendar_id' value.";
+				return false;
+			}
+			
+			if(!Context_Calendar::isWriteableByActor($calendar_id, $actor)) {
+				$error = "You do not have permission to create events on this calendar.";
+				return false;
+			}
+		}
+		
+		
+		return true;
 	}
 	
 	/**

@@ -80,6 +80,9 @@ class DAO_ClassifierClass extends Cerb_ORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
+		if(!isset($fields[self::UPDATED_AT]))
+			$fields[self::UPDATED_AT] = time();
+		
 		$context = CerberusContexts::CONTEXT_CLASSIFIER_CLASS;
 		self::_updateAbstract($context, $ids, $fields);
 		
@@ -121,6 +124,35 @@ class DAO_ClassifierClass extends Cerb_ORMHelper {
 	
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('classifier_class', $fields, $where);
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_CLASSIFIER_CLASS;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::CLASSIFIER_ID])) {
+			$error = "A 'classifier_id' is required.";
+			return false;
+		}
+		
+		if(isset($fields[self::CLASSIFIER_ID])) {
+			@$classifier_id = $fields[self::CLASSIFIER_ID];
+			
+			if(!$classifier_id) {
+				$error = "Invalid 'classifier_id' value.";
+				return false;
+			}
+			
+			if(!Context_Classifier::isWriteableByActor($classifier_id, $actor)) {
+				$error = "You do not have permission to create classifications on this classifier.";
+				return false;
+			}
+		}
+		
+		
+		return true;
 	}
 	
 	/**

@@ -62,6 +62,7 @@ class DAO_Group extends Cerb_ORMHelper {
 		$validation
 			->addField(self::REPLY_ADDRESS_ID)
 			->id()
+			->setRequired(true)
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS))
 			->addValidator(function($value, &$error) {
 				if(false == ($address = DAO_Address::get($value))) {
@@ -421,6 +422,20 @@ class DAO_Group extends Cerb_ORMHelper {
 		// Clear caches
 		self::clearCache();
 		DAO_Bucket::clearCache();
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_GROUP;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!CerberusContexts::isActorAnAdmin($actor)) {
+			$error = DevblocksPlatform::translate('error.core.no_acl.admin');
+			return false;
+		}
+		
+		return true;
 	}
 	
 	static function countByMemberId($worker_id) {

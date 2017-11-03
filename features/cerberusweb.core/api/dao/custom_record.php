@@ -107,6 +107,9 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
+		if(!isset($fields[self::UPDATED_AT]))
+			$fields[self::UPDATED_AT] = time();
+		
 		$context = CerberusContexts::CONTEXT_CUSTOM_RECORD;
 		self::_updateAbstract($context, $ids, $fields);
 		
@@ -119,7 +122,7 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 				
 			// Send events
 			if($check_deltas) {
-				CerberusContexts::checkpointChanges(CerberusContexts::CONTEXT_CUSTOM_RECORD, $batch_ids);
+				CerberusContexts::checkpointChanges($context, $batch_ids);
 			}
 			
 			// Make changes
@@ -139,7 +142,7 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 				);
 				
 				// Log the context update
-				DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_CUSTOM_RECORD, $batch_ids);
+				DevblocksPlatform::markContextChanged($context, $batch_ids);
 			}
 		}
 		
@@ -149,6 +152,20 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 	
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('custom_record', $fields, $where);
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_CUSTOM_RECORD;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!CerberusContexts::isActorAnAdmin($actor)) {
+			$error = DevblocksPlatform::translate('error.core.no_acl.admin');
+			return false;
+		}
+		
+		return true;
 	}
 	
 	/**
@@ -598,19 +615,8 @@ class Model_CustomRecord {
 	}
 	
 	function getRecordOwnerContexts() {
-		$results = [];
 		@$owner_contexts = $this->params['owners']['contexts'] ?: [];
-		
-		if(in_array(CerberusContexts::CONTEXT_APPLICATION, $owner_contexts))
-			$results[] = 'app';
-		if(in_array(CerberusContexts::CONTEXT_GROUP, $owner_contexts))
-			$results[] = 'group';
-		if(in_array(CerberusContexts::CONTEXT_ROLE, $owner_contexts))
-			$results[] = 'role';
-		if(in_array(CerberusContexts::CONTEXT_WORKER, $owner_contexts))
-			$results[] = 'worker';
-		
-		return $results;
+		return $owner_contexts;
 	}
 };
 

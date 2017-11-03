@@ -69,17 +69,22 @@ class DAO_FeedbackEntry extends Cerb_ORMHelper {
 		$validation
 			->addField(self::QUOTE_ADDRESS_ID)
 			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS, true))
 			;
 		// tinyint(1) unsigned
 		$validation
 			->addField(self::QUOTE_MOOD)
 			->uint(1)
+			->setMin(0)
+			->setMax(2)
+			->setRequired(true)
 			;
 		// text
 		$validation
 			->addField(self::QUOTE_TEXT)
 			->string()
 			->setMaxLength(65535)
+			->setRequired(true)
 			;
 		// varchar(255)
 		$validation
@@ -155,6 +160,15 @@ class DAO_FeedbackEntry extends Cerb_ORMHelper {
 				DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_FEEDBACK, $batch_ids);
 			}
 		}
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_FEEDBACK;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		return true;
 	}
 	
 	/**
@@ -1247,7 +1261,6 @@ if (class_exists('Extension_MessageToolbarItem',true)):
 	};
 endif;
 
-// [TODO] Move to a DAO class
 class Context_Feedback extends Extension_DevblocksContext implements IDevblocksContextPeek {
 	static function isReadableByActor($models, $actor) {
 		// Everyone can view

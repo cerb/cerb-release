@@ -118,6 +118,25 @@ class DAO_ProjectBoardColumn extends Cerb_ORMHelper {
 		parent::_updateWhere('project_board_column', $fields, $where);
 	}
 	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = Context_ProjectBoardColumn::ID;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		// Actor must have access to modify the project board
+		if(isset($fields[self::BOARD_ID])) {
+			$board_id = $fields[self::BOARD_ID];
+			
+			if(!$board_id || !Context_ProjectBoard::isWriteableByActor($board_id, $actor)) {
+				$error = "You do not have permission to add columns to this project board.";
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
 	/**
 	 * @param string $where
 	 * @param mixed $sortBy

@@ -42,6 +42,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 		$validation
 			->addField(self::CONTEXT)
 			->context()
+			->setRequired(true)
 			;
 		// int(10) unsigned
 		$validation
@@ -58,6 +59,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 			->addField(self::ENTRY_JSON)
 			->string()
 			->setMaxLength(65535)
+			->setRequired(true)
 			;
 		// int(10) unsigned
 		$validation
@@ -74,6 +76,8 @@ class DAO_Notification extends Cerb_ORMHelper {
 		$validation
 			->addField(self::WORKER_ID)
 			->id()
+			->setRequired(true)
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_WORKER))
 			;
 		$validation
 			->addField('_links')
@@ -86,6 +90,9 @@ class DAO_Notification extends Cerb_ORMHelper {
 	
 	static function create($fields) {
 		$db = DevblocksPlatform::services()->database();
+		
+		if(!isset($fields[DAO_Notification::CREATED_DATE]))
+			$fields[DAO_Notification::CREATED_DATE] = time();
 		
 		$sql = sprintf("INSERT INTO notification () ".
 			"VALUES ()"
@@ -152,6 +159,34 @@ class DAO_Notification extends Cerb_ORMHelper {
 	
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('notification', $fields, $where);
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_NOTIFICATION;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::WORKER_ID])) {
+			$error = "A 'worker_id' is required.";
+			return false;
+		}
+		
+		if(isset($fields[self::WORKER_ID])) {
+			@$worker_id = $fields[self::WORKER_ID];
+			
+			if(!$worker_id) {
+				$error = "Invalid 'worker_id' value.";
+				return false;
+			}
+			
+			if(!CerberusContexts::isOwnableBy(CerberusContexts::CONTEXT_WORKER, $worker_id, $actor)) {
+				$error = "You do not have permission to create notifications for this worker.";
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	/**
@@ -1324,7 +1359,8 @@ class Context_Notification extends Extension_DevblocksContext {
 			'is_read' => DAO_Notification::IS_READ,
 			'links' => '_links',
 			'target__context' => DAO_Notification::CONTEXT,
-			'target_id' => DAO_Notification::CONTEXT_ID
+			'target_id' => DAO_Notification::CONTEXT_ID,
+			'worker_id' => DAO_Notification::WORKER_ID,
 		];
 	}
 	

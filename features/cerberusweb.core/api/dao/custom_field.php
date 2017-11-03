@@ -69,6 +69,7 @@ class DAO_CustomField extends Cerb_ORMHelper {
 			->string()
 			->setMaxLength(1)
 			->setRequired(true)
+			->setPossibleValues(array_keys(Model_CustomField::getTypes()))
 			;
 		$validation
 			->addField(self::UPDATED_AT)
@@ -144,6 +145,50 @@ class DAO_CustomField extends Cerb_ORMHelper {
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('custom_field', $fields, $where);
 		self::clearCache();
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_CUSTOM_FIELD;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		@$custom_fieldset_id = $fields[self::CUSTOM_FIELDSET_ID];
+		
+		if(!$id || $custom_fieldset_id) {
+			// On a fieldset
+			if(!empty($custom_fieldset_id)) {
+				if(false == ($fieldset = DAO_CustomFieldset::get($custom_fieldset_id))) {
+					$error = "'custom_fieldset_id' is an invalid record.";
+					return false;
+				}
+				
+				if(!Context_CustomFieldset::isWriteableByActor($fieldset, $actor)) {
+					$error = "You do not have permission to add fields to this custom fieldset.";
+					return false;
+				}
+				
+				// Verify that the field context matches the fieldset
+				if(isset($fields[self::CONTEXT])) {
+					if($fields[self::CONTEXT] != $fieldset->context) {
+						$error = sprintf("The field type (%s) and fieldset type (%s) do not match.",
+							$fields[self::CONTEXT],
+							$fieldset->context
+						);
+						return false;
+					}
+				}
+				
+			// Global custom field
+			} else {
+				if(!CerberusContexts::isActorAnAdmin($actor)) {
+					$error = "You do not have permission to add global custom fields.";
+					return false;
+				}
+			}
+		}
+		
+		return true;
 	}
 	
 	/**
@@ -1881,7 +1926,7 @@ class Context_CustomField extends Extension_DevblocksContext implements IDevbloc
 		if(CerberusContexts::isActorAnAdmin($actor))
 			return CerberusContexts::allowEverything($models);
 		
-		if(false == ($dicts = CerberusContexts::polymorphModelsToDictionaries($models, CerberusContexts::CONTEXT_GROUP)))
+		if(false == ($dicts = CerberusContexts::polymorphModelsToDictionaries($models, CerberusContexts::CONTEXT_CUSTOM_FIELD)))
 			return CerberusContexts::denyEverything($models);
 		
 		$results = array_fill_keys(array_keys($dicts), false);
@@ -2043,6 +2088,20 @@ class Context_CustomField extends Extension_DevblocksContext implements IDevbloc
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
 				$this->_getDaoFieldsLinks($value, $out_fields, $error);
+				break;
+				
+			case 'params':
+				if(!is_array($value)) {
+					$error = 'must be an object.';
+					return false;
+				}
+				
+				if(false == ($json = json_encode($value))) {
+					$error = 'could not be JSON encoded.';
+					return false;
+				}
+				
+				$out_fields[DAO_CustomField::PARAMS_JSON] = $json;
 				break;
 		}
 		

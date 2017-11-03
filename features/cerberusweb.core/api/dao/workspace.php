@@ -34,6 +34,15 @@ class DAO_WorkspacePage extends Cerb_ORMHelper {
 			->addField(self::EXTENSION_ID)
 			->string()
 			->setMaxLength(255)
+			->setRequired(true)
+			->addValidator(function($value, &$error=null) {
+				if(false == Extension_WorkspacePage::get($value)) {
+					$error = sprintf("is not a valid workspace page extension (%s).", $value);
+					return false;
+				}
+				
+				return true;
+			})
 			;
 		// int(10) unsigned
 		$validation
@@ -46,16 +55,19 @@ class DAO_WorkspacePage extends Cerb_ORMHelper {
 			->addField(self::NAME)
 			->string()
 			->setMaxLength(255)
+			->setRequired(true)
 			;
 		// varchar(255)
 		$validation
 			->addField(self::OWNER_CONTEXT)
 			->context()
+			->setRequired(true)
 			;
 		// int(10) unsigned
 		$validation
 			->addField(self::OWNER_CONTEXT_ID)
 			->id()
+			->setRequired(true)
 			;
 		$validation
 			->addField('_links')
@@ -89,6 +101,26 @@ class DAO_WorkspacePage extends Cerb_ORMHelper {
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('workspace_page', $fields, $where);
 		self::clearCache();
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_WORKSPACE_PAGE;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		@$owner_context = $fields[self::OWNER_CONTEXT];
+		@$owner_context_id = intval($fields[self::OWNER_CONTEXT_ID]);
+		
+		// Verify that the actor can use this new owner
+		if($owner_context) {
+			if(!CerberusContexts::isOwnableBy($owner_context, $owner_context_id, $actor)) {
+				$error = DevblocksPlatform::translate('error.core.no_acl.owner');
+				return false;
+			}
+		}
+		
+		return true;
 	}
 
 	static function getAll($nocache=false) {
@@ -422,6 +454,15 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 			->addField(self::EXTENSION_ID)
 			->string()
 			->setMaxLength(255)
+			->setRequired(true)
+			->addValidator(function($value, &$error=null) {
+				if(false == Extension_WorkspaceTab::get($value)) {
+					$error = sprintf("is not a valid workspace tab extension (%s).", $value);
+					return false;
+				}
+				
+				return true;
+			})
 			;
 		// int(10) unsigned
 		$validation
@@ -434,6 +475,7 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 			->addField(self::NAME)
 			->string()
 			->setMaxLength(128)
+			->setRequired(true)
 			;
 		// text
 		$validation
@@ -450,6 +492,8 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 		$validation
 			->addField(self::WORKSPACE_PAGE_ID)
 			->id()
+			->setRequired(true)
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_WORKSPACE_PAGE))
 			;
 		$validation
 			->addField('_links')
@@ -483,6 +527,34 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('workspace_tab', $fields, $where);
 		self::clearCache();
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_WORKSPACE_TAB;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::WORKSPACE_PAGE_ID])) {
+			$error = "A 'page_id' is required.";
+			return false;
+		}
+		
+		if(isset($fields[self::WORKSPACE_PAGE_ID])) {
+			@$page_id = $fields[self::WORKSPACE_PAGE_ID];
+			
+			if(!$page_id) {
+				$error = "Invalid 'page_id' value.";
+				return false;
+			}
+			
+			if(!Context_WorkspacePage::isWriteableByActor($page_id, $actor)) {
+				$error = "You do not have permission to create tabs on this workspace page.";
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	static function getAll($nocache=false) {
@@ -1114,6 +1186,34 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 	
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('workspace_list', $fields, $where);
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_WORKSPACE_WORKLIST;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::WORKSPACE_TAB_ID])) {
+			$error = "A 'workspace_tab_id' is required.";
+			return false;
+		}
+		
+		if(isset($fields[self::WORKSPACE_TAB_ID])) {
+			@$tab_id = $fields[self::WORKSPACE_TAB_ID];
+			
+			if(!$tab_id) {
+				$error = "Invalid 'workspace_tab_id' value.";
+				return false;
+			}
+			
+			if(!Context_WorkspaceTab::isWriteableByActor($tab_id, $actor)) {
+				$error = "You do not have permission to create worklists on this workspace tab.";
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	static function random() {
@@ -1912,11 +2012,14 @@ class Context_WorkspaceTab extends Extension_DevblocksContext {
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 		
 		// View
-		$defaults = C4_AbstractViewModel::loadFromClass($this->getViewClass());
-		$defaults->id = $view_id;
-		$defaults->is_ephemeral = true;
+		if(false != ($defaults = C4_AbstractViewModel::loadFromClass($this->getViewClass()))) {
+			$defaults->id = $view_id;
+			$defaults->is_ephemeral = true;
+		}
 		
-		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
+		if(false == ($view = C4_AbstractViewLoader::getView($view_id, $defaults ?: null)))
+			return false;
+		
 		$view->name = 'Tabs';
 		
 		$view->renderSortBy = SearchFields_WorkspaceTab::ID;

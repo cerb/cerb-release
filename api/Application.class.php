@@ -39,7 +39,7 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2017103002);
+define("APP_BUILD", 2017103101);
 define("APP_VERSION", '8.2.1');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
@@ -1319,7 +1319,12 @@ class CerberusContexts {
 		}
 	}
 
-	public static function isActorAnAdmin(DevblocksDictionaryDelegate $actor) {
+	public static function isActorAnAdmin($actor) {
+		// Polymorph
+		if(!($actor instanceof DevblocksDictionaryDelegate))
+			if(false == ($actor = self::polymorphActorToDictionary($actor)))
+				return false;
+		
 		if(
 			// If it's Cerb
 			$actor->_context == CerberusContexts::CONTEXT_APPLICATION
@@ -1502,6 +1507,18 @@ class CerberusContexts {
 
 		return $context_ext::isWriteableByActor($models, $actor);
 	}
+	
+	public static function isDeleteableByActor($context, $models, $actor) {
+		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+			return self::denyEverything($models);
+		
+		if(method_exists(get_class($context_ext), 'isDeleteableByActor')) {
+			return $context_ext::isDeleteableByActor($models, $actor);
+		} else {
+			// Default to deletable by write access
+			return $context_ext::isWriteableByActor($models, $actor);
+		}
+	}
 
 	public static function isReadableByDelegateOwner($actor, $context, $models, $owner_key_prefix='owner_', $ignore_admins=false, $allow_unassigned=false) {
 		if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor)))
@@ -1591,8 +1608,9 @@ class CerberusContexts {
 	}
 
 	public static function isWriteableByDelegateOwner($actor, $context, $models, $owner_key_prefix='owner_', $ignore_admins=false, $allow_unassigned=false) {
-		if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor)))
-			CerberusContexts::denyEverything($models);
+		if(!($actor instanceof DevblocksDictionaryDelegate))
+			if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor)))
+				CerberusContexts::denyEverything($models);
 
 		// Admins can do whatever they want
 		if(!$ignore_admins && CerberusContexts::isActorAnAdmin($actor))

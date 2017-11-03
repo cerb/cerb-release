@@ -29,11 +29,14 @@ class DAO_Skill extends Cerb_ORMHelper {
 			->addField(self::NAME)
 			->string()
 			->setMaxLength(255)
+			->setRequired(true)
 			;
 		// int(10) unsigned
 		$validation
 			->addField(self::SKILLSET_ID)
 			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_SKILLSET))
+			->setRequired(true)
 			;
 		// int(10) unsigned
 		$validation
@@ -52,6 +55,9 @@ class DAO_Skill extends Cerb_ORMHelper {
 	static function create($fields) {
 		$db = DevblocksPlatform::services()->database();
 		
+		if(!isset($fields[self::CREATED_AT]))
+			$fields[self::CREATED_AT] = true;
+		
 		$sql = "INSERT INTO skill () VALUES ()";
 		$db->ExecuteMaster($sql);
 		$id = $db->LastInsertId();
@@ -64,6 +70,9 @@ class DAO_Skill extends Cerb_ORMHelper {
 	static function update($ids, $fields, $check_deltas=true) {
 		if(!is_array($ids))
 			$ids = array($ids);
+		
+		if(!isset($fields[self::UPDATED_AT]))
+			$fields[self::UPDATED_AT] = time();
 		
 		$context = CerberusContexts::CONTEXT_SKILL;
 		self::_updateAbstract($context, $ids, $fields);
@@ -107,6 +116,20 @@ class DAO_Skill extends Cerb_ORMHelper {
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('skill', $fields, $where);
 		self::clearCache();
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_SKILL;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!CerberusContexts::isActorAnAdmin($actor)) {
+			$error = DevblocksPlatform::translate('error.core.no_acl.admin');
+			return false;
+		}
+		
+		return true;
 	}
 	
 	/**
@@ -964,6 +987,7 @@ class Context_Skill extends Extension_DevblocksContext implements IDevblocksCont
 	
 	function getDefaultProperties() {
 		return array(
+			'skillset__label',
 			'updated_at',
 		);
 	}
@@ -1023,6 +1047,7 @@ class Context_Skill extends Extension_DevblocksContext implements IDevblocksCont
 			$token_values['_label'] = $skill->name;
 			$token_values['id'] = $skill->id;
 			$token_values['name'] = $skill->name;
+			$token_values['skillset_id'] = $skill->skillset_id;
 			$token_values['updated_at'] = $skill->updated_at;
 			
 			// Custom fields
@@ -1032,6 +1057,20 @@ class Context_Skill extends Extension_DevblocksContext implements IDevblocksCont
 			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=skill&id=%d-%s",$skill->id, DevblocksPlatform::strToPermalink($skill->name)), true);
 		}
+		
+		// Skillset
+		$merge_token_labels = [];
+		$merge_token_values = [];
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_SKILLSET, null, $merge_token_labels, $merge_token_values, '', true);
+
+		CerberusContexts::merge(
+			'skillset_',
+			$prefix.'Skillset:',
+			$merge_token_labels,
+			$merge_token_values,
+			$token_labels,
+			$token_values
+		);
 		
 		return true;
 	}

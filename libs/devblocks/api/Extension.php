@@ -104,10 +104,6 @@ interface IDevblocksContextAutocomplete {
 	function autocomplete($term, $query=null);
 }
 
-interface IDevblocksDaoAbstractEvents {
-	static function onAbstractUpdate($id, $fields);
-}
-
 class DevblocksMenuItemPlaceholder {
 	var $label = null;
 	var $key = null;
@@ -170,9 +166,9 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 			foreach($custom_records as $custom_record) {
 				$options = [
 					'cards' => '',
-					'create' => '',
 					'custom_fields' => '',
 					'links' => '',
+					'records' => '',
 					'search' => '',
 					'snippets' => '',
 					'va_variable' => '',
@@ -391,7 +387,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		return false;
 	}
 	
-	static function getOwnerTree(array $contexts=['app','bot','group','role','worker']) {
+	static function getOwnerTree(array $contexts=[CerberusContexts::CONTEXT_APPLICATION, CerberusContexts::CONTEXT_ROLE, CerberusContexts::CONTEXT_GROUP, CerberusContexts::CONTEXT_BOT, CerberusContexts::CONTEXT_WORKER]) {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		$bots = DAO_Bot::getWriteableByActor($active_worker);
@@ -401,7 +397,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 
 		$owners = [];
 
-		if(in_array('worker', $contexts)) {
+		if(in_array(CerberusContexts::CONTEXT_WORKER, $contexts)) {
 			$item = new DevblocksMenuItemPlaceholder();
 			$item->label = 'Me';
 			$item->l = 'Me';
@@ -412,7 +408,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		// Apps
 		
-		if(in_array('app', $contexts) && $active_worker->is_superuser) {
+		if(in_array(CerberusContexts::CONTEXT_APPLICATION, $contexts) && $active_worker->is_superuser) {
 			$item = new DevblocksMenuItemPlaceholder();
 			$item->label = 'Cerb';
 			$item->l = 'Cerb';
@@ -422,7 +418,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		// Bots
 		
-		if(in_array('bot', $contexts)) {
+		if(in_array(CerberusContexts::CONTEXT_BOT, $contexts)) {
 			$bots_menu = new DevblocksMenuItemPlaceholder();
 			
 			foreach($bots as $bot) {
@@ -438,7 +434,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		// Groups
 		
-		if(in_array('group', $contexts)) {
+		if(in_array(CerberusContexts::CONTEXT_GROUP, $contexts)) {
 			$groups_menu = new DevblocksMenuItemPlaceholder();
 			
 			foreach($groups as $group) {
@@ -457,7 +453,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		// Roles
 		
-		if(in_array('role', $contexts) && $active_worker->is_superuser) {
+		if(in_array(CerberusContexts::CONTEXT_ROLE, $contexts) && $active_worker->is_superuser) {
 			$roles_menu = new DevblocksMenuItemPlaceholder();
 			
 			foreach($roles as $role) {
@@ -473,7 +469,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		// Workers
 		
-		if(in_array('worker', $contexts)) {
+		if(in_array(CerberusContexts::CONTEXT_WORKER, $contexts)) {
 			$workers_menu = new DevblocksMenuItemPlaceholder();
 			
 			foreach($workers as $worker) {
@@ -790,12 +786,12 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 				str_replace('.','_',DevblocksPlatform::strToPermalink($this->id,'_'))
 			);
 		}
-
+		
 		if(null == ($view = C4_AbstractViewLoader::getView($view_id))) {
 			if(null == ($view = $this->getChooserView($view_id))) /* @var $view C4_AbstractViewModel */
 				return;
 		}
-
+		
 		$view->name = 'Search Results';
 		$view->renderFilters = false;
 		$view->is_ephemeral = false;
@@ -819,13 +815,14 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		if(is_array($data))
 		foreach($data as $key => $value) {
-			if(DevblocksPlatform::strStartsWith($key, 'custom_')) {
+			if(DevblocksPlatform::strStartsWith($key, 'custom_') 
+				&& false !== ($custom_field_id = mb_substr($key,strrpos($key,'_')+1))
+				&& is_numeric($custom_field_id)
+				) {
 				if(is_null($custom_fields))
 					$custom_fields = DAO_CustomField::getByContext($context);
 				
-				$custom_field_id = substr($key,strrpos($key,'_')+1);
-				
-				if(!$custom_field_id || !isset($custom_fields[$custom_field_id])) {
+				if(!isset($custom_fields[$custom_field_id])) {
 					$error = sprintf("'%s' is not a valid custom field", $key);
 					return false;
 				}

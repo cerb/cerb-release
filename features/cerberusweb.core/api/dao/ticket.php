@@ -50,6 +50,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			->addField(self::BUCKET_ID)
 			->id()
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_BUCKET))
+			->setRequired(true)
 			;
 		$validation
 			->addField(self::CLOSED_AT)
@@ -91,6 +92,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			->addField(self::GROUP_ID)
 			->id()
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_GROUP))
+			->setRequired(true)
 			;
 		$validation
 			->addField(self::ID)
@@ -642,6 +644,9 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	static function create($fields) {
 		$db = DevblocksPlatform::services()->database();
 		
+		if(!isset($fields[self::MASK]))
+			$fields[self::MASK] = CerberusApplication::generateTicketMask();
+		
 		$sql = sprintf("INSERT INTO ticket (created_date, updated_date) ".
 			"VALUES (%d,%d)",
 			time(),
@@ -1105,6 +1110,34 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_TICKET, $batch_ids);
 			}
 		}
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_TICKET;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::GROUP_ID])) {
+			$error = "A 'group_id' is required.";
+			return false;
+		}
+		
+		if(isset($fields[self::GROUP_ID])) {
+			@$group_id = $fields[self::GROUP_ID];
+			
+			if(!$group_id) {
+				$error = "Invalid 'group_id' value.";
+				return false;
+			}
+			
+			if(!Context_Group::isWriteableByActor($group_id, $actor)) {
+				$error = "You do not have permission to create tickets in this group.";
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	/**

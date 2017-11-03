@@ -120,6 +120,32 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 		self::clearCache();
 	}
 	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_EMAIL_SIGNATURE;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		@$owner_context = $fields[self::OWNER_CONTEXT];
+		@$owner_context_id = intval($fields[self::OWNER_CONTEXT_ID]);
+		
+		if($owner_context) {
+			// Signatures can be owned by app or groups
+			if(!in_array($owner_context, [ CerberusContexts::CONTEXT_APPLICATION, CerberusContexts::CONTEXT_GROUP ])) {
+				$error = "Email signatures may only be owned by Cerb or a group.";
+				return false;
+			}
+			
+			// Verify that the actor can use this new owner
+			if(!CerberusContexts::isOwnableBy($owner_context, $owner_context_id, $actor)) {
+				$error = DevblocksPlatform::translate('error.core.no_acl.owner');
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
 	/**
 	 * @param string $where
 	 * @param mixed $sortBy
@@ -1172,8 +1198,7 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 			$tpl->assign('types', $types);
 			
 			// Owner
-			$owner_contexts = ['app','group'];
-			$owners_menu = Extension_DevblocksContext::getOwnerTree($owner_contexts);
+			$owners_menu = Extension_DevblocksContext::getOwnerTree([CerberusContexts::CONTEXT_APPLICATION, CerberusContexts::CONTEXT_GROUP]);
 			$tpl->assign('owners_menu', $owners_menu);
 			
 			// View

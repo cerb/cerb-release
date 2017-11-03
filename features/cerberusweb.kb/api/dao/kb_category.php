@@ -110,17 +110,26 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		self::clearCache();
 	}
 	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_KB_CATEGORY;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		return true;
+	}
+	
 	static function getTreeMap($prune_empty=false) {
 		$db = DevblocksPlatform::services()->database();
 		
-		$categories = self::getWhere();
-		$tree = array();
+		$categories = self::getAll();
+		$tree = [];
 
 		// Fake recursion
 		foreach($categories as $cat_id => $cat) {
 			$pid = $cat->parent_id;
 			if(!isset($tree[$pid])) {
-				$tree[$pid] = array();
+				$tree[$pid] = [];
 			}
 				
 			$tree[$pid][$cat_id] = 0;
@@ -136,6 +145,9 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		while($row = mysqli_fetch_assoc($rs)) {
 			$count_cat = intval($row['kb_category_id']);
 			$count_hits = intval($row['hits']);
+			
+			if(!isset($categories[$count_cat]))
+				continue;
 			
 			$pid = $count_cat;
 			while($pid) {
@@ -709,14 +721,13 @@ class Context_KbCategory extends Extension_DevblocksContext implements IDevblock
 			$token_values['_label'] = $category->name;
 			$token_values['id'] = $category->id;
 			$token_values['name'] = $category->name;
+			$token_values['parent__context'] = CerberusContexts::CONTEXT_KB_CATEGORY;
 			$token_values['parent_id'] = $category->parent_id;
 			$token_values['updated_at'] = $category->updated_at;
 			
 			// Custom fields
 			$token_values = $this->_importModelCustomFieldsAsValues($category, $token_values);
 		}
-		
-		// [TODO] Parent merge
 		
 		return true;
 	}

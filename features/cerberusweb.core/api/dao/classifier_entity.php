@@ -81,6 +81,9 @@ class DAO_ClassifierEntity extends Cerb_ORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
+		if(!isset($fields[self::UPDATED_AT]))
+			$fields[self::UPDATED_AT] = time();
+		
 		$context = CerberusContexts::CONTEXT_CLASSIFIER_ENTITY;
 		self::_updateAbstract($context, $ids, $fields);
 		
@@ -122,6 +125,15 @@ class DAO_ClassifierEntity extends Cerb_ORMHelper {
 	
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('classifier_entity', $fields, $where);
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_CLASSIFIER_ENTITY;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		return true;
 	}
 	
 	/**
@@ -929,6 +941,7 @@ class Context_ClassifierEntity extends Extension_DevblocksContext implements IDe
 			'description' => $prefix.$translate->_('common.description'),
 			'id' => $prefix.$translate->_('common.id'),
 			'name' => $prefix.$translate->_('common.name'),
+			'params' => $prefix.$translate->_('common.params'),
 			'type' => $prefix.$translate->_('common.type'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
@@ -940,6 +953,7 @@ class Context_ClassifierEntity extends Extension_DevblocksContext implements IDe
 			'description' => Model_CustomField::TYPE_SINGLE_LINE,
 			'id' => Model_CustomField::TYPE_NUMBER,
 			'name' => Model_CustomField::TYPE_SINGLE_LINE,
+			'params' => null,
 			'type' => Model_CustomField::TYPE_SINGLE_LINE,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 			'record_url' => Model_CustomField::TYPE_URL,
@@ -965,6 +979,7 @@ class Context_ClassifierEntity extends Extension_DevblocksContext implements IDe
 			$token_values['description'] = $classifier_entity->description;
 			$token_values['id'] = $classifier_entity->id;
 			$token_values['name'] = $classifier_entity->name;
+			$token_values['params'] = $classifier_entity->params;
 			$token_values['type'] = $classifier_entity->type;
 			$token_values['updated_at'] = $classifier_entity->updated_at;
 			
@@ -994,6 +1009,20 @@ class Context_ClassifierEntity extends Extension_DevblocksContext implements IDe
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
 				$this->_getDaoFieldsLinks($value, $out_fields, $error);
+				break;
+				
+			case 'params':
+				if(!is_array($value)) {
+					$error = 'must be an object.';
+					return false;
+				}
+				
+				if(false == ($json = json_encode($value))) {
+					$error = 'could not be JSON encoded.';
+					return false;
+				}
+				
+				$out_fields[DAO_ClassifierEntity::PARAMS_JSON] = $json;
 				break;
 		}
 		

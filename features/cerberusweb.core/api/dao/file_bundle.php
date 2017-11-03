@@ -87,6 +87,9 @@ class DAO_FileBundle extends Cerb_ORMHelper {
 		
 		$context = CerberusContexts::CONTEXT_FILE_BUNDLE;
 		self::_updateAbstract($context, $ids, $fields);
+		
+		if(!isset($fields[self::UPDATED_AT]))
+			$fields[self::UPDATED_AT] = time();
 
 		// Make a diff for the requested objects in batches
 
@@ -97,7 +100,7 @@ class DAO_FileBundle extends Cerb_ORMHelper {
 
 			// Send events
 			if($check_deltas) {
-				CerberusContexts::checkpointChanges(CerberusContexts::CONTEXT_FILE_BUNDLE, $batch_ids);
+				CerberusContexts::checkpointChanges($context, $batch_ids);
 			}
 				
 			// Make changes
@@ -117,7 +120,7 @@ class DAO_FileBundle extends Cerb_ORMHelper {
 				);
 
 				// Log the context update
-				DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_FILE_BUNDLE, $batch_ids);
+				DevblocksPlatform::markContextChanged($context, $batch_ids);
 			}
 		}
 		
@@ -127,6 +130,26 @@ class DAO_FileBundle extends Cerb_ORMHelper {
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('file_bundle', $fields, $where);
 		self::clearCache();
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_FILE_BUNDLE;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		@$owner_context = $fields[self::OWNER_CONTEXT];
+		@$owner_context_id = intval($fields[self::OWNER_CONTEXT_ID]);
+		
+		// Verify that the actor can use this new owner
+		if($owner_context) {
+			if(!CerberusContexts::isOwnableBy($owner_context, $owner_context_id, $actor)) {
+				$error = DevblocksPlatform::translate('error.core.no_acl.owner');
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	/**
@@ -1160,6 +1183,8 @@ class Context_FileBundle extends Extension_DevblocksContext implements IDevblock
 			'id' => DAO_FileBundle::ID,
 			'links' => '_links',
 			'name' => DAO_FileBundle::NAME,
+			'owner__context' => DAO_FileBundle::OWNER_CONTEXT,
+			'owner_id' => DAO_FileBundle::OWNER_CONTEXT_ID,
 			'tag' => DAO_FileBundle::TAG,
 			'updated_at' => DAO_FileBundle::UPDATED_AT,
 		];
@@ -1228,35 +1253,6 @@ class Context_FileBundle extends Extension_DevblocksContext implements IDevblock
 		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
 		$view->name = 'File Bundles';
 
-		$params_required = array();
-		
-		$worker_group_ids = array_keys($active_worker->getMemberships());
-		$worker_role_ids = array_keys(DAO_WorkerRole::getRolesByWorker($active_worker->id));
-		
-		// Restrict owners
-		$param_ownership = array(
-			DevblocksSearchCriteria::GROUP_OR,
-			SearchFields_FileBundle::OWNER_CONTEXT => new DevblocksSearchCriteria(SearchFields_FileBundle::OWNER_CONTEXT,DevblocksSearchCriteria::OPER_EQ,CerberusContexts::CONTEXT_APPLICATION),
-			array(
-				DevblocksSearchCriteria::GROUP_AND,
-				SearchFields_FileBundle::OWNER_CONTEXT => new DevblocksSearchCriteria(SearchFields_FileBundle::OWNER_CONTEXT,DevblocksSearchCriteria::OPER_EQ,CerberusContexts::CONTEXT_WORKER),
-				SearchFields_FileBundle::OWNER_CONTEXT_ID => new DevblocksSearchCriteria(SearchFields_FileBundle::OWNER_CONTEXT_ID,DevblocksSearchCriteria::OPER_EQ,$active_worker->id),
-			),
-			array(
-				DevblocksSearchCriteria::GROUP_AND,
-				SearchFields_FileBundle::OWNER_CONTEXT => new DevblocksSearchCriteria(SearchFields_FileBundle::OWNER_CONTEXT,DevblocksSearchCriteria::OPER_EQ,CerberusContexts::CONTEXT_GROUP),
-				SearchFields_FileBundle::OWNER_CONTEXT_ID => new DevblocksSearchCriteria(SearchFields_FileBundle::OWNER_CONTEXT_ID,DevblocksSearchCriteria::OPER_IN,$worker_group_ids),
-			),
-			array(
-				DevblocksSearchCriteria::GROUP_AND,
-				SearchFields_FileBundle::OWNER_CONTEXT => new DevblocksSearchCriteria(SearchFields_FileBundle::OWNER_CONTEXT,DevblocksSearchCriteria::OPER_EQ,CerberusContexts::CONTEXT_ROLE),
-				SearchFields_FileBundle::OWNER_CONTEXT_ID => new DevblocksSearchCriteria(SearchFields_FileBundle::OWNER_CONTEXT_ID,DevblocksSearchCriteria::OPER_IN,$worker_role_ids),
-			),
-		);
-		$params_required['_ownership'] = $param_ownership;
-		
-		$view->addParamsRequired($params_required, true);
-		
 		$view->renderSortBy = SearchFields_FileBundle::UPDATED_AT;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
@@ -1300,10 +1296,6 @@ class Context_FileBundle extends Extension_DevblocksContext implements IDevblock
 		$model = null;
 		
 		if(!empty($context_id) && null != ($model = DAO_FileBundle::get($context_id))) {
-			// ACL
-			if(!Context_FileBundle::isWriteableByActor($model, $active_worker))
-				return;
-			
 			$tpl->assign('model', $model);
 		}
 		
@@ -1321,7 +1313,7 @@ class Context_FileBundle extends Extension_DevblocksContext implements IDevblock
 	
 			// Ownership
 	
-			$owners_menu = Extension_DevblocksContext::getOwnerTree(['app','group','role','worker']);
+			$owners_menu = Extension_DevblocksContext::getOwnerTree([CerberusContexts::CONTEXT_APPLICATION, CerberusContexts::CONTEXT_ROLE, CerberusContexts::CONTEXT_GROUP, CerberusContexts::CONTEXT_WORKER]);
 			$tpl->assign('owners_menu', $owners_menu);
 			
 			// Attachments

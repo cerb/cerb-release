@@ -67,6 +67,7 @@ class DAO_CalendarRecurringProfile extends Cerb_ORMHelper {
 			->addField(self::PATTERNS)
 			->string()
 			->setMaxLength(16777215)
+			->setRequired(true)
 			;
 		$validation
 			->addField(self::RECUR_END)
@@ -80,6 +81,7 @@ class DAO_CalendarRecurringProfile extends Cerb_ORMHelper {
 			->addField(self::TZ)
 			->string()
 			->setMaxLength(128)
+			->addValidator($validation->validators()->timezone())
 			;
 		$validation
 			->addField('_links')
@@ -170,6 +172,35 @@ class DAO_CalendarRecurringProfile extends Cerb_ORMHelper {
 	
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('calendar_recurring_profile', $fields, $where);
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_CALENDAR_EVENT_RECURRING;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::CALENDAR_ID])) {
+			$error = "A 'calendar_id' is required.";
+			return false;
+		}
+		
+		if(isset($fields[self::CALENDAR_ID])) {
+			@$calendar_id = $fields[self::CALENDAR_ID];
+			
+			if(!$calendar_id) {
+				$error = "Invalid 'calendar_id' value.";
+				return false;
+			}
+			
+			if(!Context_Calendar::isWriteableByActor($calendar_id, $actor)) {
+				$error = "You do not have permission to create recurring events on this calendar.";
+				return false;
+			}
+		}
+		
+		
+		return true;
 	}
 	
 	/**

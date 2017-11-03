@@ -119,6 +119,34 @@ class DAO_WorkspaceWidget extends Cerb_ORMHelper {
 		parent::_updateWhere('workspace_widget', $fields, $where);
 	}
 	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_WORKSPACE_WIDGET;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::WORKSPACE_TAB_ID])) {
+			$error = "A 'workspace_tab_id' is required.";
+			return false;
+		}
+		
+		if(isset($fields[self::WORKSPACE_TAB_ID])) {
+			@$tab_id = $fields[self::WORKSPACE_TAB_ID];
+			
+			if(!$tab_id) {
+				$error = "Invalid 'workspace_tab_id' value.";
+				return false;
+			}
+			
+			if(!Context_WorkspaceTab::isWriteableByActor($tab_id, $actor)) {
+				$error = "You do not have permission to create widgets on this workspace tab.";
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
 	/**
 	 * @param string $where
 	 * @param mixed $sortBy

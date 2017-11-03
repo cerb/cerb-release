@@ -52,6 +52,15 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 			->addField(self::EVENT_POINT)
 			->string()
 			->setMaxLength(255)
+			->setRequired(true)
+			->addValidator(function($value, &$error=null) {
+				if(false == (Extension_DevblocksEvent::get($value, false))) {
+					$error = sprintf("'%s' is an invalid event point.", $value);
+					return false;
+				}
+				
+				return true;
+			})
 			;
 		// int(10) unsigned
 		$validation
@@ -127,6 +136,34 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('trigger_event', $fields, $where);
 		self::clearCache();
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_BEHAVIOR;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::BOT_ID])) {
+			$error = "A 'bot_id' is required.";
+			return false;
+		}
+		
+		if(isset($fields[self::BOT_ID])) {
+			@$bot_id = $fields[self::BOT_ID];
+			
+			if(!$bot_id || false == ($bot = DAO_Bot::get($bot_id))) {
+				$error = "Invalid 'bot_id' value.";
+				return false;
+			}
+			
+			if(!CerberusContexts::isOwnableBy($bot->owner_context, $bot->owner_context_id, $actor)) {
+				$error = "You do not have permission to create behaviors on this bot.";
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	static function recursiveImportDecisionNodes($nodes, $behavior_id, $parent_id) {

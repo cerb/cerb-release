@@ -22,6 +22,17 @@ class DAO_ConnectedAccount extends Cerb_ORMHelper {
 			->addField(self::EXTENSION_ID)
 			->string()
 			->setRequired(true)
+			->addValidator(function($value, &$error) {
+				if(false == ($extension = Extension_ServiceProvider::get($value))) {
+					$error = sprintf("(%s) is not a valid service provider (%s) extension ID.",
+						$value,
+						Extension_ServiceProvider::POINT
+					);
+					return false;
+				}
+				
+				return true;
+			})
 			;
 		$validation
 			->addField(self::ID)
@@ -122,6 +133,26 @@ class DAO_ConnectedAccount extends Cerb_ORMHelper {
 	
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('connected_account', $fields, $where);
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_CONNECTED_ACCOUNT;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		@$owner_context = $fields[self::OWNER_CONTEXT];
+		@$owner_context_id = intval($fields[self::OWNER_CONTEXT_ID]);
+		
+		// Verify that the actor can use this new owner
+		if($owner_context) {
+			if(!CerberusContexts::isOwnableBy($owner_context, $owner_context_id, $actor)) {
+				$error = DevblocksPlatform::translate('error.core.no_acl.owner');
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	static function getByExtension($extension_id) {
@@ -1170,6 +1201,7 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 	
 	function getKeyToDaoFieldMap() {
 		return [
+			'extension_id' => DAO_ConnectedAccount::EXTENSION_ID,
 			'id' => DAO_ConnectedAccount::ID,
 			'links' => '_links',
 			'name' => DAO_ConnectedAccount::NAME,
@@ -1354,7 +1386,7 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 			$tpl->assign('types', $types);
 			
 			// Owner
-			$owners_menu = Extension_DevblocksContext::getOwnerTree(['app','group','role','worker']);
+			$owners_menu = Extension_DevblocksContext::getOwnerTree([CerberusContexts::CONTEXT_APPLICATION, CerberusContexts::CONTEXT_ROLE, CerberusContexts::CONTEXT_GROUP, CerberusContexts::CONTEXT_WORKER]);
 			$tpl->assign('owners_menu', $owners_menu);
 			
 			// View

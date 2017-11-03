@@ -117,6 +117,26 @@ class DAO_Calendar extends Cerb_ORMHelper {
 		self::clearCache();
 	}
 	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_CALENDAR;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		@$owner_context = $fields[self::OWNER_CONTEXT];
+		@$owner_context_id = intval($fields[self::OWNER_CONTEXT_ID]);
+		
+		// Verify that the actor can use this new owner
+		if($owner_context) {
+			if(!CerberusContexts::isOwnableBy($owner_context, $owner_context_id, $actor)) {
+				$error = DevblocksPlatform::translate('error.core.no_acl.owner');
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
 	static function getByContext($context, $context_ids) {
 		if(!is_array($context_ids))
 			$context_ids = array($context_ids);
@@ -565,30 +585,6 @@ class Model_Calendar {
 	public $owner_context_id;
 	public $params;
 	public $updated_at;
-	
-	function getCreateContexts() {
-		$context_extensions = Extension_DevblocksContext::getAll(false, array('create'));
-		$contexts = array();
-			
-		if(!isset($this->params['manual_disabled']) || empty($this->params['manual_disabled'])) {
-			$contexts[CerberusContexts::CONTEXT_CALENDAR_EVENT] = $context_extensions[CerberusContexts::CONTEXT_CALENDAR_EVENT];
-			$contexts[CerberusContexts::CONTEXT_CALENDAR_EVENT_RECURRING] = $context_extensions[CerberusContexts::CONTEXT_CALENDAR_EVENT_RECURRING];
-		}
-		
-		if(isset($this->params['series']))
-		foreach($this->params['series'] as $series) {
-			if(isset($series['datasource']))
-			switch($series['datasource']) {
-				case 'calendar.datasource.worklist':
-					if(null != (@$worklist_context = $series['worklist_model']['context']))
-						if(isset($context_extensions[$worklist_context]))
-							$contexts[$worklist_context] = $context_extensions[$worklist_context];
-					break;
-			}
-		}
-		
-		return $contexts;
-	}
 	
 	function getEvents($date_from, $date_to) {
 		if(isset($this->params['manual_disabled']) && !empty($this->params['manual_disabled'])) {

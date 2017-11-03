@@ -54,11 +54,13 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 		$validation
 			->addField(self::OWNER_CONTEXT)
 			->context()
+			->setRequired(true)
 			;
 		// int(11)
 		$validation
 			->addField(self::OWNER_CONTEXT_ID)
 			->id()
+			->setRequired(true)
 			;
 		// mediumtext
 		$validation
@@ -141,6 +143,31 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('mail_html_template', $fields, $where);
 		self::clearCache();
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		if(!CerberusContexts::isActorAnAdmin($actor)) {
+			$error = DevblocksPlatform::translate('error.core.no_acl.admin');
+			return false;
+		}
+		
+		$context = CerberusContexts::CONTEXT_MAIL_HTML_TEMPLATE;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		@$owner_context = $fields[self::OWNER_CONTEXT];
+		@$owner_context_id = intval($fields[self::OWNER_CONTEXT_ID]);
+		
+		// Verify that the actor can use this new owner
+		if($owner_context) {
+			if(!CerberusContexts::isOwnableBy($owner_context, $owner_context_id, $actor)) {
+				$error = DevblocksPlatform::translate('error.core.no_acl.owner');
+				return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	/**
@@ -981,6 +1008,7 @@ class Context_MailHtmlTemplate extends Extension_DevblocksContext implements IDe
 	
 	function getDefaultProperties() {
 		return array(
+			'owner__label',
 			'updated_at',
 		);
 	}

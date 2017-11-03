@@ -102,6 +102,9 @@ class DAO_Bot extends Cerb_ORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
+		if(!isset($fields[self::UPDATED_AT]))
+			$fields[self::UPDATED_AT] = time();
+		
 		self::_updateAbstract(Context_Bot::ID, $ids, $fields);
 		
 		// Make a diff for the requested objects in batches
@@ -143,6 +146,20 @@ class DAO_Bot extends Cerb_ORMHelper {
 	
 	static function updateWhere($fields, $where) {
 		parent::_updateWhere('bot', $fields, $where);
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_BOT;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!CerberusContexts::isActorAnAdmin($actor)) {
+			$error = DevblocksPlatform::translate('error.core.no_acl.admin');
+			return false;
+		}
+		
+		return true;
 	}
 	
 	static function autocomplete($term, $as='models') {
@@ -1138,7 +1155,16 @@ class Context_Bot extends Extension_DevblocksContext implements IDevblocksContex
 	}
 	
 	static function isWriteableByActor($models, $actor, $ignore_admins=false) {
-		return CerberusContexts::isWriteableByDelegateOwner($actor, CerberusContexts::CONTEXT_BOT, $models, 'owner_', $ignore_admins);
+		// Only admins can modify
+
+		if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor)))
+			CerberusContexts::denyEverything($models);
+
+		// Admins can do whatever they want
+		if(CerberusContexts::isActorAnAdmin($actor))
+			return CerberusContexts::allowEverything($models);
+
+		return CerberusContexts::denyEverything($models);
 	}
 	
 	function getRandom() {
@@ -1499,7 +1525,7 @@ class Context_Bot extends Extension_DevblocksContext implements IDevblocksContex
 			$tpl->assign('types', $types);
 			
 			// Owner
-			$owners_menu = Extension_DevblocksContext::getOwnerTree(['app','group','role','worker']);
+			$owners_menu = Extension_DevblocksContext::getOwnerTree([CerberusContexts::CONTEXT_APPLICATION, CerberusContexts::CONTEXT_GROUP, CerberusContexts::CONTEXT_ROLE, CerberusContexts::CONTEXT_WORKER]);
 			$tpl->assign('owners_menu', $owners_menu);
 			
 			// VA Events

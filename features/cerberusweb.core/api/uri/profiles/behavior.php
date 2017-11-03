@@ -134,10 +134,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 				if(false == ($behavior = DAO_TriggerEvent::get($id)))
 					throw new Exception_DevblocksAjaxValidationError("Record not found.");
 				
-				if(false == ($bot = $behavior->getBot()))
-					throw new Exception_DevblocksAjaxValidationError("Bot record not found.");
-				
-				if(!Context_Bot::isWriteableByActor($bot, $active_worker))
+				if(!Context_TriggerEvent::isWriteableByActor($behavior, $active_worker))
 					throw new Exception_DevblocksAjaxValidationError("You don't have permission to delete this record.");
 				
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_BEHAVIOR)))
@@ -190,15 +187,12 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 							throw new Exception_DevblocksAjaxValidationError("The destination bot doesn't exist.");
 						}
 						
-						// Verify that the VA is allowed to make these events
-						
-						if(!Context_Bot::isWriteableByActor($bot, $active_worker))
-							throw new Exception_DevblocksAjaxValidationError("You don't have access to modify this bot.");
-						
-						// Verify that the active worker has access to make events for this context
+						// Verify that the bot is allowed to make these events
 						
 						if(!$bot->canUseEvent($event_point))
 							throw new Exception_DevblocksAjaxValidationError("This bot can't listen for this event.");
+						
+						// Verify that the active worker has access to make events for this context
 						
 						if(
 							!isset($event->manifest->params['contexts'])
@@ -243,7 +237,6 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 						}
 						
 						// Create behavior record
-						// [TODO] We need to sanitize this data
 						
 						$fields = array(
 							DAO_TriggerEvent::TITLE => $json['behavior']['title'],
@@ -257,7 +250,17 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 							DAO_TriggerEvent::UPDATED_AT => time(),
 						);
 						
+						// Validate
+						if(!DAO_TriggerEvent::validate($fields, $error))
+							throw new Exception_DevblocksAjaxValidationError($error);
+						
+						// Check permissions
+						if(!DAO_TriggerEvent::onBeforeUpdateByActor($active_worker, $fields, null, $error))
+							throw new Exception_DevblocksAjaxValidationError($error);
+						
 						$behavior_id = DAO_TriggerEvent::create($fields);
+						
+						DAO_TriggerEvent::onUpdateByActor($active_worker, $fields, $behavior_id);
 						
 						// Create records for all child nodes and link them to the proper parents
 			
@@ -323,25 +326,13 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 						
 						// Create behavior
 						if(empty($id)) {
-							if(!$active_worker->hasPriv(sprintf("contexts.%s.create", CerberusContexts::CONTEXT_BEHAVIOR)))
-								throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.create'));
-							
 							@$bot_id = DevblocksPlatform::importGPC($_REQUEST['bot_id'], 'integer', 0);
 							@$event_point = DevblocksPlatform::importGPC($_REQUEST['event_point'],'string', '');
 							
 							// Make sure the extension is valid
 							
-							if(empty($bot_id))
-								throw new Exception_DevblocksAjaxValidationError("The 'Bot' field is required.", 'bot_id');
-							
 							if(false == ($bot = DAO_Bot::get($bot_id)))
 								throw new Exception_DevblocksAjaxValidationError("Invalid bot.");
-							
-							if(!Context_Bot::isWriteableByActor($bot, $active_worker))
-								throw new Exception_DevblocksAjaxValidationError("You don't have permission to modify this record.");
-
-							if(empty($event_point))
-								throw new Exception_DevblocksAjaxValidationError("The 'Event' field is required.", 'event_point');
 							
 							if(null == ($ext = Extension_DevblocksEvent::get($event_point, true)))
 								throw new Exception_DevblocksAjaxValidationError("Invalid event.", 'event_point');
@@ -365,26 +356,26 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 								DAO_TriggerEvent::UPDATED_AT => time(),
 							];
 							
+							// Validate
 							if(!DAO_TriggerEvent::validate($fields, $error))
 								throw new Exception_DevblocksAjaxValidationError($error);
 							
+							// Check permissions
+							if(!DAO_TriggerEvent::onBeforeUpdateByActor($active_worker, $fields, null, $error))
+								throw new Exception_DevblocksAjaxValidationError($error);
+							
 							$id = DAO_TriggerEvent::create($fields);
+							DAO_TriggerEvent::onUpdateByActor($active_worker, $fields, $id);
 							
 							if(!empty($view_id) && !empty($id))
 								C4_AbstractView::setMarqueeContextCreated($view_id, CerberusContexts::CONTEXT_BEHAVIOR, $id);
 							
 						// Update trigger
 						} else {
-							if(!$active_worker->hasPriv(sprintf("contexts.%s.update", CerberusContexts::CONTEXT_BEHAVIOR)))
-								throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.edit'));
-							
 							if(false == ($behavior = DAO_TriggerEvent::get($id)))
 								throw new Exception_DevblocksAjaxValidationError("Invalid behavior.");
 								
-							if(false == ($bot = $behavior->getBot()))
-								throw new Exception_DevblocksAjaxValidationError("Invalid bot.");
-							
-							if(!Context_Bot::isWriteableByActor($bot, $active_worker))
+							if(!Context_TriggerEvent::isWriteableByActor($behavior, $active_worker))
 								throw new Exception_DevblocksAjaxValidationError("You don't have permission to modify this record.");
 		
 							if(null == ($ext = $behavior->getEvent()))
@@ -415,7 +406,11 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 							if(!DAO_TriggerEvent::validate($fields, $error, $behavior->id))
 								throw new Exception_DevblocksAjaxValidationError($error);
 							
+							if(!DAO_TriggerEvent::onBeforeUpdateByActor($active_worker, $fields, $behavior->id, $error))
+								throw new Exception_DevblocksAjaxValidationError($error);
+							
 							DAO_TriggerEvent::update($behavior->id, $fields);
+							DAO_TriggerEvent::onUpdateByActor($active_worker, $fields, $behavior->id);
 						}
 						
 						if($id) {

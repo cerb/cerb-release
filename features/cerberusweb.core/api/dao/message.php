@@ -15,7 +15,7 @@
 |	http://cerb.ai	    http://webgroup.media
 ***********************************************************************/
 
-class DAO_Message extends Cerb_ORMHelper implements IDevblocksDaoAbstractEvents {
+class DAO_Message extends Cerb_ORMHelper {
 	const ADDRESS_ID = 'address_id';
 	const CREATED_DATE = 'created_date';
 	const HASH_HEADER_MESSAGE_ID = 'hash_header_message_id';
@@ -45,6 +45,8 @@ class DAO_Message extends Cerb_ORMHelper implements IDevblocksDaoAbstractEvents 
 		$validation
 			->addField(self::ADDRESS_ID)
 			->id()
+			->setRequired(true)
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS))
 			;
 		// int(10) unsigned
 		$validation
@@ -61,6 +63,7 @@ class DAO_Message extends Cerb_ORMHelper implements IDevblocksDaoAbstractEvents 
 		$validation
 			->addField(self::HTML_ATTACHMENT_ID)
 			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ATTACHMENT, true))
 			;
 		// int(10) unsigned
 		$validation
@@ -114,6 +117,8 @@ class DAO_Message extends Cerb_ORMHelper implements IDevblocksDaoAbstractEvents 
 		$validation
 			->addField(self::TICKET_ID)
 			->id()
+			->setRequired(true)
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_TICKET))
 			;
 		// tinyint(1)
 		$validation
@@ -129,18 +134,21 @@ class DAO_Message extends Cerb_ORMHelper implements IDevblocksDaoAbstractEvents 
 		$validation
 			->addField(self::WORKER_ID)
 			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_WORKER, true))
 			;
 		// text
 		$validation
 			->addField(self::_CONTENT)
 			->string()
 			->setMaxLength(16777215)
+			->setRequired(true)
 			;
 		// text
 		$validation
 			->addField(self::_HEADERS)
 			->string()
 			->setMaxLength(16777215)
+			->setRequired(true)
 			;
 		$validation
 			->addField('_links')
@@ -153,6 +161,9 @@ class DAO_Message extends Cerb_ORMHelper implements IDevblocksDaoAbstractEvents 
 	
 	static function create($fields) {
 		$db = DevblocksPlatform::services()->database();
+		
+		if(!isset($fields[self::CREATED_DATE]))
+			$fields[self::CREATED_DATE] = time();
 		
 		$sql = "INSERT INTO message () VALUES ()";
 		if(false == ($db->ExecuteMaster($sql)))
@@ -190,9 +201,39 @@ class DAO_Message extends Cerb_ORMHelper implements IDevblocksDaoAbstractEvents 
 		parent::_update($ids, 'message', $fields);
 	}
 	
-	static function onAbstractUpdate($id, $fields) {
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_MESSAGE;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		if(!$id && !isset($fields[self::TICKET_ID])) {
+			$error = "A 'ticket_id' is required.";
+			return false;
+		}
+		
 		if(isset($fields[self::TICKET_ID])) {
-			DAO_Ticket::rebuild($fields[self::TICKET_ID]);
+			@$ticket_id = $fields[self::TICKET_ID];
+			
+			if(!$ticket_id) {
+				$error = "Invalid 'ticket_id' value.";
+				return false;
+			}
+			
+			if(!Context_Ticket::isWriteableByActor($ticket_id, $actor)) {
+				$error = "You do not have permission to create messages on this ticket.";
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	static function onUpdateByActor($actor, $fields, $id) {
+		@$ticket_id = $fields[self::TICKET_ID];
+		
+		if($ticket_id) {
+			DAO_Ticket::rebuild($ticket_id);
 		}
 	}
 

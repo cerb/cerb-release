@@ -78,6 +78,11 @@ class DAO_Attachment extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_content')
+			->string()
+			->setMaxLength('32 bits')
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -100,12 +105,46 @@ class DAO_Attachment extends Cerb_ORMHelper {
 	}
 	
 	public static function update($ids, $fields) {
+		if(!is_array($ids))
+			$ids = [$ids];
+		
 		if(!isset($fields[self::UPDATED]))
 			$fields[self::UPDATED] = time();
 		
 		self::_updateAbstract(Context_Attachment::ID, $ids, $fields);
+		self::_updateContent($ids, $fields);
 		
 		self::_update($ids, 'attachment', $fields);
+	}
+	
+	private static function _updateContent($ids, &$fields) {
+		if(!isset($fields['_content']))
+			return;
+			
+		@$content = $fields['_content'];
+		unset($fields['_content']);
+		
+		// If base64 encoded
+		if(DevblocksPlatform::strStartsWith($content, 'data:')) {
+			if(false !== ($idx = strpos($content, ';base64,'))) {
+				$content = base64_decode(substr($content, $idx + strlen(';base64,')));
+			}
+		}
+		
+		$fields[self::STORAGE_SHA1HASH] = sha1($content);
+		
+		foreach($ids as $id) {
+			Storage_Attachments::put($id, $content);
+		}
+	}
+	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_ATTACHMENT;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		return true;
 	}
 	
 	/**
@@ -1390,6 +1429,22 @@ class View_Attachment extends C4_AbstractView implements IAbstractView_Subtotals
 class Context_Attachment extends Extension_DevblocksContext implements IDevblocksContextPeek, IDevblocksContextProfile {
 	const ID = CerberusContexts::CONTEXT_ATTACHMENT;
 	
+	static function isReadableByActor($models, $actor) {
+		// Everyone can view attachment meta
+		return CerberusContexts::allowEverything($models);
+	}
+	
+	static function isWriteableByActor($models, $actor) {
+		// Only admins can edit attachment meta
+		if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor)))
+			return CerberusContexts::denyEverything($models);
+		
+		if(CerberusContexts::isActorAnAdmin($actor))
+			return CerberusContexts::allowEverything($models);
+			
+		return CerberusContexts::denyEverything($models);
+	}
+	
 	static function isDownloadableByActor($models, $actor) {
 		if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor)))
 			return CerberusContexts::denyEverything($models);
@@ -1489,22 +1544,6 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 		} else {
 			return array_shift($results);
 		}
-	}
-	
-	static function isReadableByActor($models, $actor) {
-		// Everyone can view attachment meta
-		return CerberusContexts::allowEverything($models);
-	}
-	
-	static function isWriteableByActor($models, $actor) {
-		// Only admins can edit attachment meta
-		if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor)))
-			return CerberusContexts::denyEverything($models);
-		
-		if(CerberusContexts::isActorAnAdmin($actor))
-			return CerberusContexts::allowEverything($models);
-			
-		return CerberusContexts::denyEverything($models);
 	}
 	
 	function profileGetUrl($context_id) {
@@ -1643,6 +1682,7 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 
 	function getKeyToDaoFieldMap() {
 		return [
+			'content' => '_content',
 			'id' => DAO_Attachment::ID,
 			'links' => '_links',
 			'mime_type' => DAO_Attachment::MIME_TYPE,
@@ -1656,6 +1696,10 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
+			case 'content':
+				$out_fields['_content'] = $value;
+				break;
+				
 			case 'links':
 				$this->_getDaoFieldsLinks($value, $out_fields, $error);
 				break;

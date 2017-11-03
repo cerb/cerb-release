@@ -204,6 +204,15 @@ class DAO_Address extends Cerb_ORMHelper {
 		parent::_updateWhere('address', $fields, $where);
 	}
 	
+	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+		$context = CerberusContexts::CONTEXT_ADDRESS;
+		
+		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
+			return false;
+		
+		return true;
+	}
+	
 	/**
 	 * @param Model_ContextBulkUpdate $update
 	 * @return boolean
@@ -1788,6 +1797,11 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 	static function isWriteableByActor($models, $actor) {
 		// Everyone can modify
 		return CerberusContexts::allowEverything($models);
+	}
+	
+	// Email addresses can't be deleted through normal means
+	static function isDeleteableByActor($models, $actor) {
+		return false;
 	}
 	
 	static function searchInboundLinks($from_context, $from_context_id) {
