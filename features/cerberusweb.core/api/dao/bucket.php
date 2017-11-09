@@ -388,6 +388,33 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		return self::_getRandom('bucket');
 	}
 	
+	static function countByEmailFromId($email_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$sql = sprintf("SELECT count(id) FROM bucket WHERE reply_address_id = %d",
+			$email_id
+		);
+		return intval($db->GetOneSlave($sql));
+	}
+	
+	static function countByEmailSignatureId($sig_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$sql = sprintf("SELECT count(id) FROM bucket WHERE reply_signature_id = %d",
+			$sig_id
+		);
+		return intval($db->GetOneSlave($sql));
+	}
+	
+	static function countByEmailTemplateId($template_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$sql = sprintf("SELECT count(id) FROM bucket WHERE reply_html_template_id = %d",
+			$template_id
+		);
+		return intval($db->GetOneSlave($sql));
+	}
+	
 	static function countByGroupId($group_id) {
 		$db = DevblocksPlatform::services()->database();
 		
@@ -1502,6 +1529,35 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_Bucket::NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
 				),
+			'send.as' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'options' => array('param_key' => SearchFields_Bucket::REPLY_PERSONAL, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'send.from.id' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'options' => array('param_key' => SearchFields_Bucket::REPLY_ADDRESS_ID),
+					'examples' => [
+						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_ADDRESS, 'q' => 'mailTransport.id:>0'],
+					]
+				),
+			'signature.id' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'options' => array('param_key' => SearchFields_Bucket::REPLY_SIGNATURE_ID),
+					'examples' => [
+						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_EMAIL_SIGNATURE, 'q' => ''],
+					]
+				),
+			'template.id' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'options' => array('param_key' => SearchFields_Bucket::REPLY_HTML_TEMPLATE_ID),
+					'examples' => [
+						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_MAIL_HTML_TEMPLATE, 'q' => ''],
+					]
+				),
 			'updated' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
@@ -1658,6 +1714,31 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 					$strings[] = DevblocksPlatform::strEscapeHtml($groups[$val]->name);
 				}
 				echo implode(", ", $strings);
+				break;
+				
+			case SearchFields_Bucket::REPLY_ADDRESS_ID:
+				$label_map = function($values) {
+					if(!is_array($values))
+						return [];
+					
+					if(false == ($addresses = DAO_Address::getIds($values)))
+						return [];
+					
+					return array_column($addresses, 'email', 'id');
+				};
+				parent::_renderCriteriaParamString($param, $label_map);
+				break;
+				
+			case SearchFields_Bucket::REPLY_SIGNATURE_ID:
+				$signatures = DAO_EmailSignature::getAll();
+				$label_map = array_column($signatures, 'name', 'id');
+				parent::_renderCriteriaParamString($param, $label_map);
+				break;
+				
+			case SearchFields_Bucket::REPLY_HTML_TEMPLATE_ID:
+				$templates = DAO_MailHtmlTemplate::getAll();
+				$label_map = array_column($templates, 'name', 'id');
+				parent::_renderCriteriaParamString($param, $label_map);
 				break;
 			
 			default:

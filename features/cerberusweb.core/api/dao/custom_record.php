@@ -319,45 +319,59 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 	static function delete($ids) {
 		$db = DevblocksPlatform::services()->database();
 
-		// [TODO] Have to delete all records first?
-		
 		if(!is_array($ids))
 			$ids = [$ids];
 		
 		if(empty($ids))
 			return;
 		
-		$ids_list = implode(',', $ids);
-		
-		$db->ExecuteMaster(sprintf("DELETE FROM custom_record WHERE id IN (%s)", $ids_list));
-		
 		if(is_array($ids))
 		foreach($ids as $id) {
+			$context = sprintf('contexts.custom_record.%d', $id);
+			$table_name = sprintf('custom_record_%d', $id);
+			
+			$sql = sprintf("SELECT count(id) FROM %s",
+				$db->escape($table_name)
+			);
+			$count = $db->GetOneMaster($sql);
+			
+			// All records must be deleted first, or we refuse to delete the record type
+			if($count)
+				continue;
+			
 			// Drop the table
-			$sql = sprintf("DROP TABLE custom_record_%d", $id);
+			$sql = sprintf("DROP TABLE %s", $table_name);
 			$db->ExecuteMaster($sql);
 			
 			// Remove the PHP class
 			@unlink(APP_STORAGE_PATH . sprintf('classes/abstract_record_%d', $id));
 			
-			// Remove links
-			// [TODO] Delete custom fields and fieldsets, context links, activity logs, etc
-			//DAO_ContextLink::delete($context, $context_ids)
-			//DAO_Comment::deleteByContext($context, $context_ids)
-			//DAO_ContextActivityLog::deleteByContext($context, $context_ids)
-		}
-		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_CUSTOM_RECORD,
-					'context_ids' => $ids
+			// Delete custom record custom fields
+			
+			$custom_fields = DAO_CustomField::getByContext($context, true, false);
+			$custom_fieldset_ids = array_diff(array_column($custom_fields, 'custom_fieldset_id'), [0]);
+			$custom_field_ids = array_keys($custom_fields);
+			
+			if($custom_field_ids)
+				DAO_CustomField::delete($custom_field_ids);
+			
+			if($custom_fieldset_ids)
+				DAO_CustomFieldset::delete($custom_fieldset_ids);
+			
+			$db->ExecuteMaster(sprintf("DELETE FROM custom_record WHERE id = %d", $id));
+			
+			// Fire event
+			$eventMgr = DevblocksPlatform::services()->event();
+			$eventMgr->trigger(
+				new Model_DevblocksEvent(
+					'context.delete',
+					array(
+						'context' => CerberusContexts::CONTEXT_CUSTOM_RECORD,
+						'context_ids' => [$id]
+					)
 				)
-			)
-		);
+			);
+		}
 		
 		self::clearCache();
 		
@@ -974,6 +988,36 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 		
 		return CerberusContexts::denyEverything($models);
 	}
+	
+	static function isDeleteableByActor($models, $actor) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$dicts = CerberusContexts::polymorphModelsToDictionaries($models, self::ID);
+		
+		// Default our results to write access
+		$results = self::isWriteableByActor($dicts, $actor);
+		
+		// Only allow a custom record to be deleted if it's empty
+		foreach($dicts as $dict_id => $dict) {
+			// If not writeable, skip
+			if(!$results[$dict_id])
+				continue;
+			
+			// If writeable, there must be no records of this type left
+			$sql = sprintf("SELECT count(id) FROM custom_record_%d",
+				$dict_id
+			);
+			$count = $db->GetOneMaster($sql);
+
+			$results[$dict_id] = empty($count);
+		}
+		
+		if(is_array($models)) {
+			return $results;
+		} else {
+			return reset($results);
+		}
+	}
 
 	function getRandom() {
 		return DAO_CustomRecord::random();
@@ -1215,6 +1259,14 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 			
 			$types = Model_CustomField::getTypes();
 			$tpl->assign('types', $types);
+			
+			if(empty($context_id)) {
+				$roles = DAO_WorkerRole::getAll();
+				$roles = array_filter($roles, function($role) { /* @var $role Model_WorkerRole */
+					return 'itemized' == @$role->params['what'];
+				});
+				$tpl->assign('roles', $roles);
+			}
 			
 			// View
 			$tpl->assign('id', $context_id);
