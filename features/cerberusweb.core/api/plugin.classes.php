@@ -1274,6 +1274,10 @@ class BotAction_RecordCreate extends Extension_DevblocksEventAction {
 		@$changeset_json = $tpl_builder->build(DevblocksPlatform::importVar($params['changeset_json'],'string',''), $dict);
 		@$object_placeholder = $params['object_placeholder'];
 		
+		if(!empty($object_placeholder)) {
+			$dict->$object_placeholder = null;
+		}
+		
 		if(false == (@$changeset = json_decode($changeset_json, true)))
 			return false;
 		
@@ -1412,6 +1416,10 @@ class BotAction_RecordUpdate extends Extension_DevblocksEventAction {
 		@$id = $tpl_builder->build(DevblocksPlatform::importVar($params['id'],'string',''), $dict);
 		@$changeset_json = $tpl_builder->build(DevblocksPlatform::importVar($params['changeset_json'],'string',''), $dict);
 		@$object_placeholder = $params['object_placeholder'];
+		
+		if(!empty($object_placeholder)) {
+			$dict->$object_placeholder = null;
+		}
 		
 		if(false == (@$changeset = json_decode($changeset_json, true)))
 			return false;
@@ -1748,6 +1756,10 @@ class BotAction_RecordRetrieve extends Extension_DevblocksEventAction {
 		@$id = $tpl_builder->build(DevblocksPlatform::importVar($params['id'],'string',''), $dict);
 		@$object_placeholder = $params['object_placeholder'];
 		
+		if(!empty($object_placeholder)) {
+			$dict->$object_placeholder = null;
+		}
+		
 		if(!$id)
 			return false;
 		
@@ -1874,6 +1886,10 @@ class BotAction_RecordSearch extends Extension_DevblocksEventAction {
 		@$expands = DevblocksPlatform::parseCrlfString($tpl_builder->build(DevblocksPlatform::importVar($params['expand'],'string',''), $dict));
 		@$object_placeholder = $params['object_placeholder'];
 		
+		if(!empty($object_placeholder)) {
+			$dict->$object_placeholder = [];
+		}
+		
 		if(!$context || false == ($context = Extension_DevblocksContext::getByAlias($context, false)))
 			return false;
 		
@@ -1887,27 +1903,22 @@ class BotAction_RecordSearch extends Extension_DevblocksEventAction {
 		
 		// Fail if there's no DAO::getIds() method
 		if(!method_exists($dao_class, 'getIds'))
-			return "This record type is not supported";
+			return false;
 		
 		// Load a view
 		if(false == ($view = $context_ext->getChooserView()))
-			return "Failed to load a worklist of this record type.";
+			return false;
 		
 		// Set query filter
 		$view->addParamsWithQuickSearch($query, true);
 		$view->view_columns = [];
 		
-		$out = sprintf(">>> Searching %s\nQuery: %s\n\n", $context_ext->manifest->name, $query);
-		
 		list($results, $total) = $view->getData();
 		
 		$ids = array_keys($results);
 		
-		if(empty($ids))
-			return "No results.";
-		
-		if(false == ($models = $dao_class::getIds($ids)))
-			return sprintf("Unable to load %s records.", $context_ext->manifest->name);
+		if(empty($ids) || false == ($models = $dao_class::getIds($ids)))
+			return false;
 		
 		if($object_placeholder) {
 			$total_placeholder = $object_placeholder . '__total';
