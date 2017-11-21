@@ -4,7 +4,7 @@
 	var loaded = false;
 	if(!(j = window.jQuery) || version > j.fn.jquery || callback(j, loaded)) {
 		$jquery.type = 'text/javascript';
-		$jquery.src = 'https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js';
+		$jquery.src = 'https://code.jquery.com/jquery-3.2.1.min.js';
 		$jquery.onload = $jquery.onreadystatechange = function() {
 			if(!(d = this.readyState) || d == 'loaded' || d == 'complete') {
 				callback((j = window.jQuery).noConflict(1), loaded = true);
@@ -24,7 +24,7 @@
 	
 	// [TODO] CSS from embed!
 	var $css = $('<link rel="stylesheet" type="text/css"/>')
-		.attr('href', base_url + 'resource/cerb.bots.portal.widget/css/style.css?v=69')
+		.attr('href', base_url + 'resource/cerb.bots.portal.widget/css/style.css?v=70')
 		.attr('async', 'true')
 		;
 	
@@ -135,7 +135,10 @@
 	
 	embedder.dispatchEvent(event)
 	
-	if(window.location.hash) {
+	var handleHashChange = function(e) {
+		if(!window.location.hash)
+			return;
+		
 		var hash = window.location.hash;
 		
 		if(hash.substring(0, 5) == '#bot/') {
@@ -159,5 +162,11 @@
 			evt.interaction_params = interaction_params;
 			$embedder.trigger(evt);
 		}
-	}
+	};
+	
+	window.onhashchange = handleHashChange;
+	
+	// If our initial URL has a #bot anchor
+	if(window.location.hash)
+		handleHashChange();
 });
