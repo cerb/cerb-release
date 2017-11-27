@@ -28,6 +28,7 @@ class DAO_Group extends Cerb_ORMHelper {
 	const UPDATED = 'updated';
 	
 	const _IMAGE = '_image';
+	const _MEMBERS = '_members';
 	
 	const CACHE_ALL = 'cerberus_cache_groups_all';
 	const CACHE_ROSTERS = 'ch_group_rosters';
@@ -62,7 +63,6 @@ class DAO_Group extends Cerb_ORMHelper {
 		$validation
 			->addField(self::REPLY_ADDRESS_ID)
 			->id()
-			->setRequired(true)
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS))
 			->addValidator(function($value, &$error) {
 				if(false == ($address = DAO_Address::get($value))) {
@@ -100,6 +100,11 @@ class DAO_Group extends Cerb_ORMHelper {
 		$validation
 			->addField(self::_IMAGE)
 			->image('image/png', 50, 50, 500, 500, 100000)
+			;
+		$validation
+			->addField(self::_MEMBERS)
+			->string()
+			->setMaxLength(65535)
 			;
 		$validation
 			->addField('_links')
@@ -342,22 +347,10 @@ class DAO_Group extends Cerb_ORMHelper {
 		if(!isset($fields[self::CREATED]))
 			$fields[self::CREATED] = time();
 		
+		if(!isset($fields[self::REPLY_ADDRESS_ID]) && false !== ($default_sender = DAO_Address::getDefaultLocalAddress()))
+			$fields[self::REPLY_ADDRESS_ID] = $default_sender->id;
+		
 		self::update($id, $fields);
-		
-		// Create the default inbox bucket for the new group
-		
-		$bucket_fields = array(
-			DAO_Bucket::NAME => 'Inbox',
-			DAO_Bucket::GROUP_ID => $id,
-			DAO_Bucket::IS_DEFAULT => 1,
-			DAO_Bucket::UPDATED_AT => time(),
-		);
-		$bucket_id = DAO_Bucket::create($bucket_fields);
-
-		// Kill the group and bucket cache
-		
-		self::clearCache();
-		DAO_Bucket::clearCache();
 		
 		return $id;
 	}
@@ -383,6 +376,32 @@ class DAO_Group extends Cerb_ORMHelper {
 				DAO_ContextAvatar::upsertWithImage(CerberusContexts::CONTEXT_GROUP, $id, $fields[self::_IMAGE]);
 			}
 			unset($fields[self::_IMAGE]);
+		}
+		
+		// Handle membership changes
+		if(isset($fields[self::_MEMBERS])) {
+			if(false != (@$roster_changes = json_decode($fields[self::_MEMBERS], true))) {
+				@$roster_managers = DevblocksPlatform::parseCsvString($roster_changes['manager']);
+				@$roster_members = DevblocksPlatform::parseCsvString($roster_changes['member']);
+				@$roster_remove = DevblocksPlatform::parseCsvString($roster_changes['remove']);
+				
+				if(is_array($roster_managers))
+				foreach($ids as $group_id)
+					foreach($roster_managers as $worker_id)
+						DAO_Group::setGroupMember($group_id, $worker_id, true);
+				
+				if(is_array($roster_members))
+				foreach($ids as $group_id)
+					foreach($roster_members as $worker_id)
+						DAO_Group::setGroupMember($group_id, $worker_id, false);
+				
+				if(is_array($roster_remove))
+				foreach($ids as $group_id)
+					foreach($roster_remove as $worker_id)
+						DAO_Group::unsetGroupMember($group_id, $worker_id);
+			}
+			
+			unset($fields[self::_MEMBERS]);
 		}
 		
 		// Make a diff for the requested objects in batches
@@ -1967,6 +1986,10 @@ class Context_Group extends Extension_DevblocksContext implements IDevblocksCont
 			case 'links':
 				$this->_getDaoFieldsLinks($value, $out_fields, $error);
 				break;
+				
+			case 'members':
+				$out_fields[DAO_Group::_MEMBERS] = json_encode($value);
+				break;
 		}
 		
 		return true;
@@ -2178,8 +2201,14 @@ class Context_Group extends Extension_DevblocksContext implements IDevblocksCont
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
-		if(!empty($context_id) && null != ($group = DAO_Group::get($context_id))) {
-			$tpl->assign('group', $group);
+		if($context_id) {
+			if(null != ($group = DAO_Group::get($context_id))) {
+				$tpl->assign('group', $group);
+			} else {
+				$tpl->assign('error_message', DevblocksPlatform::translate('error.core.record.not_found'));
+				$tpl->display('devblocks:cerberusweb.core::internal/peek/peek_error.tpl');
+				return;
+			}
 		}
 		
 		// Members

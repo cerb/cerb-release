@@ -16,7 +16,7 @@
 	<br>
 	<br>
 	
-	<b><a href="https://cerb.ai/download/" target="_blank">Introduce yourself</a> on our website and we'll send over a free 3-seat license to help you get started. Your free license will never expire for version {$smarty.const.APP_VERSION}.</b></b>
+	<b><a href="https://cerb.ai/try/#bot/license.free" target="_blank">Introduce yourself</a> on our website and we'll send over a free 3-seat license to help you get started. Your free license will never expire for version {$smarty.const.APP_VERSION}.</b></b>
 	<br>
 	<br>
 	
@@ -25,7 +25,7 @@
 </div>
 <br>
 
-<input type="submit" value="Continue &gt;&gt;">
+<button type="submit">Continue &raquo;</button>
 <br>
 <br>
 

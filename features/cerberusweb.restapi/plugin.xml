@@ -4,7 +4,7 @@
 	<name>Web Services API (JSON/XML)</name>
 	<description>A RESTful JSON/XML interface for integrating Cerb with other applications and tools.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>8.2.3</version>
+	<version>8.2.4</version>
 	<link>http://wiki.cerbweb.com/Features:Web_Services_API</link>
 	<image>plugin.png</image>
 
@@ -272,6 +272,18 @@
 			</class>
 			<params>
 				<param key="uri" value="orgs" />
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.rest.controller">
+			<id>cerberusweb.rest.controller.packages</id>
+			<name>Packages</name>
+			<class>
+				<file>api/rest/packages.php</file>
+				<name>ChRest_Packages</name>
+			</class>
+			<params>
+				<param key="uri" value="packages" />
 			</params>
 		</extension>
 		

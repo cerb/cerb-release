@@ -50,7 +50,6 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			->addField(self::BUCKET_ID)
 			->id()
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_BUCKET))
-			->setRequired(true)
 			;
 		$validation
 			->addField(self::CLOSED_AT)
@@ -1072,6 +1071,13 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			if($participant_models)
 			foreach($ids as $id) {
 				DAO_Ticket::addParticipantIds($id, array_keys($participant_models));
+			}
+		}
+		
+		// If we were given a group but not a bucket, use the default bucket
+		if(isset($fields[self::GROUP_ID]) && (!isset($fields[self::BUCKET_ID]) || !$fields[self::BUCKET_ID])) {
+			if(false !== ($dest_group = DAO_Group::get($fields[self::GROUP_ID]))) {
+				$fields[self::BUCKET_ID] = $dest_group->getDefaultBucket()->id;
 			}
 		}
 		
@@ -4736,6 +4742,15 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		switch($dict_key) {
 			case 'links':
 				$this->_getDaoFieldsLinks($value, $out_fields, $error);
+				break;
+			
+			case 'org':
+				if(false == ($org_id = DAO_ContactOrg::lookup($value, true))) {
+					$error = sprintf("Failed to lookup org: %s", $value);
+					return false;
+				}
+				
+				$out_fields[DAO_Ticket::ORG_ID] = $org_id;
 				break;
 			
 			case 'participants':

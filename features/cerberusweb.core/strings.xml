@@ -1295,6 +1295,11 @@
 				<seg>Last Name</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.neither">
+			<tuv xml:lang="en_US">
+				<seg>Neither</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.never">
 			<tuv xml:lang="en_US">
 				<seg>Never</seg>
@@ -2556,6 +2561,12 @@
 		<tu tuid="error.core.no_acl.view">
 			<tuv xml:lang="en_US">
 				<seg>You do not have permission to view this record.</seg>
+			</tuv>
+		</tu>
+		
+		<tu tuid="error.core.record.not_found">
+			<tuv xml:lang="en_US">
+				<seg>Record not found.</seg>
 			</tuv>
 		</tu>
 		

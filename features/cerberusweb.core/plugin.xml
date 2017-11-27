@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>8.2.3</version>
+	<version>8.2.4</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -69,6 +69,10 @@
 	<!-- Exported Classes -->
 	
 	<class_loader>
+		<file path="api/packages.php">
+			<class name="Cerb_Packages" />
+		</file>
+		
 		<file path="api/listeners.classes.php">
 			<class name="EventListener_Triggers" />
 		</file>
@@ -2259,7 +2263,6 @@
 				<param key="view_class" value="View_Notification" />
 				<param key="options">
 					<value>
-						<data key="cards" />
 						<data key="links" />
 						<data key="records" />
 						<data key="search" />
@@ -5712,16 +5715,6 @@
 			<class>
 				<file>api/cron.classes.php</file>
 				<name>HeartbeatCron</name>
-			</class>
-			<params />
-		</extension>
-		
-		<extension point="cerberusweb.cron">
-			<id>cron.import</id>
-			<name>Background Importing and Synchronization</name>
-			<class>
-				<file>api/cron.classes.php</file>
-				<name>ImportCron</name>
 			</class>
 			<params />
 		</extension>

@@ -190,6 +190,14 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 					$group_id = DAO_Group::create($fields);
 					DAO_Group::onUpdateByActor($active_worker, $fields, $group_id);
 					
+					$bucket_fields = array(
+						DAO_Bucket::NAME => 'Inbox',
+						DAO_Bucket::GROUP_ID => $group_id,
+						DAO_Bucket::IS_DEFAULT => 1,
+						DAO_Bucket::UPDATED_AT => time(),
+					);
+					$bucket_id = DAO_Bucket::create($bucket_fields);
+					
 					// View marquee
 					if(!empty($group_id) && !empty($view_id)) {
 						C4_AbstractView::setMarqueeContextCreated($view_id, CerberusContexts::CONTEXT_GROUP, $group_id);
@@ -208,19 +216,14 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 				
 				// Members
 				
-				@$member_ids = DevblocksPlatform::sanitizeArray(DevblocksPlatform::importGPC($_REQUEST['member_ids'], 'array', array()), 'int');
-				@$member_levels = DevblocksPlatform::sanitizeArray(DevblocksPlatform::importGPC($_REQUEST['member_levels'], 'array', array()), 'int');
-	
-				// Load the current group members
+				@$group_memberships = DevblocksPlatform::sanitizeArray(DevblocksPlatform::importGPC($_REQUEST['group_memberships'], 'array', []), 'int');
 				$group_members = DAO_Group::getGroupMembers($group_id);
 				
-				if(is_array($member_ids))
-				foreach($member_ids as $idx => $member_id) {
-					if(!isset($member_levels[$idx]))
-						continue;
-					
-					$is_member = 0 != $member_levels[$idx];
-					$is_manager = 2 == $member_levels[$idx];
+				// Update group memberships
+				if(is_array($group_memberships))
+				foreach($group_memberships as $member_id => $membership) {
+					$is_member = 0 != $membership;
+					$is_manager = 2 == $membership;
 					
 					// If this worker shouldn't be a member
 					if(!$is_member) {
@@ -239,7 +242,7 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 						}
 					}
 				}
-		
+				
 				if($group_id) {
 					// Settings
 					

@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2017112001);
-define("APP_VERSION", '8.2.3');
+define("APP_BUILD", 2017112402);
+define("APP_VERSION", '8.2.4');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -324,14 +324,6 @@ class CerberusApplication extends DevblocksApplication {
 			$errors[] = APP_STORAGE_PATH ." is not writeable by the webserver.  Please adjust permissions and reload this page.";
 		}
 
-		if(!is_writeable(APP_STORAGE_PATH . "/import/fail")) {
-			$errors[] = APP_STORAGE_PATH . "/import/fail/" ." is not writeable by the webserver.  Please adjust permissions and reload this page.";
-		}
-
-		if(!is_writeable(APP_STORAGE_PATH . "/import/new")) {
-			$errors[] = APP_STORAGE_PATH . "/import/new/" ." is not writeable by the webserver.  Please adjust permissions and reload this page.";
-		}
-
 		if(!is_writeable(APP_STORAGE_PATH . "/mail/new/")) {
 			$errors[] = APP_STORAGE_PATH . "/mail/new/" ." is not writeable by the webserver.  Please adjust permissions and reload this page.";
 		}
@@ -469,7 +461,11 @@ class CerberusApplication extends DevblocksApplication {
 
 		return $errors;
 	}
-
+	
+	static function packages() {
+		return new _CerbApplication_Packages();
+	}
+	
 	static function update() {
 		// Update the platform
 		if(!DevblocksPlatform::update())
@@ -3106,5 +3102,15 @@ class Cerb_ORMHelper extends DevblocksORMHelper {
 				$where_sql .= 'AND (' . implode(' OR ', $where_contexts) . ') ';
 				break;
 		}
+	}
+};
+
+class _CerbApplication_Packages {
+	function prompts($json) {
+		return Cerb_Packages::getPromptsFromjson($json);
+	}
+	
+	function import($json, array $prompts=[], &$records_created=null) {
+		return Cerb_Packages::importFromJson($json, $prompts, $records_created);
 	}
 };

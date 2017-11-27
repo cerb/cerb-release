@@ -55,9 +55,9 @@ define('STEP_LICENSE', 2);
 define('STEP_DATABASE', 3);
 define('STEP_SAVE_CONFIG_FILE', 4);
 define('STEP_INIT_DB', 5);
-define('STEP_CONTACT', 6);
-define('STEP_OUTGOING_MAIL', 7);
-define('STEP_DEFAULTS', 8);
+define('STEP_OUTGOING_MAIL', 6);
+define('STEP_DEFAULTS', 7);
+define('STEP_PACKAGES', 8);
 define('STEP_REGISTER', 9);
 define('STEP_UPGRADE', 10);
 define('STEP_FINISHED', 11);
@@ -65,13 +65,7 @@ define('STEP_FINISHED', 11);
 define('TOTAL_STEPS', 11);
 
 // Import GPC variables to determine our scope/step.
-@$step = DevblocksPlatform::importGPC($_REQUEST['step'],'integer');
-
-/*
- * [TODO] We can run some quick tests to bypass steps we've already passed
- * even when returning to the page with a NULL step.
- */
-if(empty($step)) $step = STEP_ENVIRONMENT;
+@$step = DevblocksPlatform::importGPC($_REQUEST['step'],'integer',0) ?: STEP_ENVIRONMENT;
 
 // [TODO] Could convert to CerberusApplication::checkRequirements()
 
@@ -104,14 +98,6 @@ if(!is_writeable(APP_TEMP_PATH . "/cache/")) {
 
 if(!is_writeable(APP_STORAGE_PATH)) {
 	DevblocksPlatform::dieWithHttpError(APP_STORAGE_PATH . " is not writeable by the webserver.  Please adjust permissions and reload this page.", 500);
-}
-
-if(!is_writeable(APP_STORAGE_PATH . "/import/fail/")) {
-	DevblocksPlatform::dieWithHttpError(APP_STORAGE_PATH . "/import/fail/ is not writeable by the webserver.  Please adjust permissions and reload this page.", 500);
-}
-
-if(!is_writeable(APP_STORAGE_PATH . "/import/new/")) {
-	DevblocksPlatform::dieWithHttpError(APP_STORAGE_PATH . "/import/new/ is not writeable by the webserver.  Please adjust permissions and reload this page.", 500);
 }
 
 if(!is_writeable(APP_STORAGE_PATH . "/mail/new/")) {
@@ -325,7 +311,6 @@ switch($step) {
 			break;
 	
 	// Configure and test the database connection
-	// [TODO] This should remind the user to make a backup (and refer to a wiki article how)
 	case STEP_DATABASE:
 		// Import scope (if post)
 		@$db_driver = DevblocksPlatform::importGPC($_POST['db_driver'],'string');
@@ -350,8 +335,6 @@ switch($step) {
 			$drivers['mysqli'] = 'MySQLi';
 		
 		$tpl->assign('drivers', $drivers);
-		
-		// [JAS]: Possible storage engines
 		
 		$engines = array(
 			'innodb' => 'InnoDB (Recommended)',
@@ -547,8 +530,6 @@ switch($step) {
 		
 		$tables = $db->metaTables();
 		
-		// [TODO] Add current user to patcher/upgrade authorized IPs
-		
 		if(empty($tables)) { // install
 			try {
 				DevblocksPlatform::update();
@@ -572,6 +553,7 @@ switch($step) {
 					case 'cerberusweb.feedback':
 					case 'cerberusweb.kb':
 					case 'cerberusweb.reports':
+					case 'cerberusweb.restapi':
 					case 'cerberusweb.support_center':
 					case 'cerberusweb.simulator':
 					case 'cerberusweb.timetracking':
@@ -596,12 +578,17 @@ switch($step) {
 				// Reload plugin translations
 				DAO_Translation::reloadPluginStrings();
 				
-				// Success
-				$tpl->assign('step', STEP_CONTACT);
-				$tpl->display('steps/redirect.tpl');
-				exit;
+				// Update the cached version to prevent /update
+				$path = APP_STORAGE_PATH . '/version.php';
+				$contents = sprintf('<?php define(\'APP_BUILD_CACHED\', %s);', APP_BUILD);
+				file_put_contents($path, $contents);
 				
 				// [TODO] Verify the database
+				
+				// Success
+				$tpl->assign('step', STEP_OUTGOING_MAIL);
+				$tpl->display('steps/redirect.tpl');
+				exit;
 				
 			} catch(Exception $e) {
 				$tpl->assign('error', $e->getMessage());
@@ -622,59 +609,13 @@ switch($step) {
 			
 		break;
 		
-
-	// Personalize system information (title, timezone, language)
-	case STEP_CONTACT:
-		$settings = DevblocksPlatform::services()->pluginSettings();
-		
-		@$default_reply_from = DevblocksPlatform::importGPC($_POST['default_reply_from'],'string','do-not-reply@localhost');
-		@$default_reply_personal = DevblocksPlatform::importGPC($_POST['default_reply_personal'],'string','');
-		@$helpdesk_title = DevblocksPlatform::importGPC($_POST['helpdesk_title'],'string',$settings->get('cerberusweb.core',CerberusSettings::HELPDESK_TITLE,CerberusSettingsDefaults::HELPDESK_TITLE));
-		@$form_submit = DevblocksPlatform::importGPC($_POST['form_submit'],'integer');
-		
-		if(!empty($form_submit) && !empty($default_reply_from)) {
-			$validate = imap_rfc822_parse_adrlist(sprintf("<%s>", $default_reply_from),"localhost");
-
-			$fields = [
-				DAO_EmailSignature::NAME => 'Default',
-				DAO_EmailSignature::IS_DEFAULT => 1,
-				DAO_EmailSignature::SIGNATURE => "-- \n{{first_name}}{% if title %}, {{title}}{% endif %}\n",
-				DAO_EmailSignature::UPDATED_AT => time(),
-			];
-			$sig_id = DAO_EmailSignature::create($fields);
-			
-			if(!empty($default_reply_from) && is_array($validate) && 1==count($validate)) {
-				if(null != ($address = DAO_Address::lookupAddress($default_reply_from, true))) {
-					DevblocksPlatform::setPluginSetting('cerberusweb.core', CerberusSettings::MAIL_DEFAULT_FROM_ID, $address->id);
-				}
-			}
-			
-			if(!empty($default_reply_personal)) {
-				DevblocksPlatform::setPluginSetting('cerberusweb.core', 'mail_default_from_personal', $default_reply_personal);
-			}
-			
-			if(!empty($helpdesk_title))
-				$settings->set('cerberusweb.core',CerberusSettings::HELPDESK_TITLE, $helpdesk_title);
-			
-			$tpl->assign('step', STEP_OUTGOING_MAIL);
-			$tpl->display('steps/redirect.tpl');
-			exit;
-		}
-		
-		if(!empty($form_submit) && empty($default_reply_from)) {
-			$tpl->assign('failed', true);
-		}
-		
-		$tpl->assign('default_reply_from', $default_reply_from);
-		$tpl->assign('default_reply_personal', $default_reply_personal);
-		$tpl->assign('helpdesk_title', $helpdesk_title);
-		
-		$tpl->assign('template', 'steps/step_contact.tpl');
-		
-		break;
-	
 	// Set up and test the outgoing SMTP
 	case STEP_OUTGOING_MAIL:
+		$settings = DevblocksPlatform::services()->pluginSettings();
+		
+		@$default_reply_from = DevblocksPlatform::importGPC($_POST['default_reply_from'],'string','noreply@cerb.example');
+		@$default_reply_personal = DevblocksPlatform::importGPC($_POST['default_reply_personal'],'string','');
+		
 		@$extension_id = DevblocksPlatform::importGPC($_POST['extension_id'],'string');
 		@$smtp_host = DevblocksPlatform::importGPC($_POST['smtp_host'],'string');
 		@$smtp_port = DevblocksPlatform::importGPC($_POST['smtp_port'],'integer');
@@ -686,7 +627,23 @@ switch($step) {
 		@$passed = DevblocksPlatform::importGPC($_POST['passed'],'integer');
 		
 		if(!empty($form_submit)) {
+			if(!$default_reply_from)
+				throw new Exception_CerbInstaller("The default sender is required.");
+				
+			$validate = imap_rfc822_parse_adrlist(sprintf("<%s>", $default_reply_from),"localhost");
+			
+			if(!is_array($validate) || 1 != count($validate))
+				throw new Exception_CerbInstaller("The default sender is invalid.");
 
+			if(false == ($address = DAO_Address::lookupAddress($default_reply_from, true)))
+				throw new Exception_CerbInstaller("The default sender is invalid.");
+				
+			DevblocksPlatform::setPluginSetting('cerberusweb.core', CerberusSettings::MAIL_DEFAULT_FROM_ID, $address->id);
+			
+			if(!empty($default_reply_personal)) {
+				DevblocksPlatform::setPluginSetting('cerberusweb.core', 'mail_default_from_personal', $default_reply_personal);
+			}
+			
 			// Test the given mail transport details
 			try {
 				if(false == ($mail_transport = Extension_MailTransport::get($extension_id)))
@@ -744,6 +701,9 @@ switch($step) {
 			} catch (Exception_CerbInstaller $e) {
 				$error = $e->getMessage();
 				
+				$tpl->assign('default_reply_from', $default_reply_from);
+				$tpl->assign('default_reply_personal', $default_reply_personal);
+				
 				$tpl->assign('extension_id', $extension_id);
 				$tpl->assign('smtp_host', $smtp_host);
 				$tpl->assign('smtp_port', $smtp_port);
@@ -752,11 +712,14 @@ switch($step) {
 				$tpl->assign('smtp_enc', $smtp_enc);
 				$tpl->assign('form_submit', true);
 				
-				$tpl->assign('error_display', 'SMTP Connection Failed! ' . $e->getMessage());
+				$tpl->assign('error_display', 'SMTP Connection Failed! ' . $error);
 				$tpl->assign('template', 'steps/step_outgoing_mail.tpl');
 			}
 			
 		} else {
+			$tpl->assign('default_reply_from', $default_reply_from);
+			$tpl->assign('default_reply_personal', $default_reply_personal);
+			
 			$tpl->assign('template', 'steps/step_outgoing_mail.tpl');
 		}
 		
@@ -765,6 +728,7 @@ switch($step) {
 	// Set up the default objects
 	case STEP_DEFAULTS:
 		@$form_submit = DevblocksPlatform::importGPC($_POST['form_submit'],'integer');
+		@$org_name = DevblocksPlatform::importGPC($_POST['org_name'],'string');
 		@$worker_email = DevblocksPlatform::importGPC($_POST['worker_email'],'string');
 		@$worker_firstname = DevblocksPlatform::importGPC($_POST['worker_firstname'],'string');
 		@$worker_lastname = DevblocksPlatform::importGPC($_POST['worker_lastname'],'string');
@@ -779,6 +743,7 @@ switch($step) {
 		
 		if(!empty($form_submit)) {
 			// Persist form scope
+			$tpl->assign('org_name', $org_name);
 			$tpl->assign('worker_firstname', $worker_firstname);
 			$tpl->assign('worker_lastname', $worker_lastname);
 			$tpl->assign('worker_email', $worker_email);
@@ -788,173 +753,19 @@ switch($step) {
 			
 			// Sanity/Error checking
 			if(!empty($worker_email) && !empty($worker_pass) && $worker_pass == $worker_pass2) {
-				// If we have no groups, make a Dispatch group
-				$groups = DAO_Group::getAll(true);
-				$mail_from_address = DAO_Address::getDefaultLocalAddress();
+				$encrypt = DevblocksPlatform::services()->encryption();
 				
-				if(empty($groups)) {
-					// Dispatch Group
-					$dispatch_gid = DAO_Group::create(array(
-						DAO_Group::NAME => 'Dispatch',
-						DAO_Group::REPLY_ADDRESS_ID => intval($mail_from_address->id),
-						DAO_Group::REPLY_PERSONAL => '',
-						DAO_Group::REPLY_HTML_TEMPLATE_ID => 0,
-						DAO_Group::REPLY_SIGNATURE_ID => 1,
-						DAO_Group::IS_DEFAULT => 1,
-					));
-					
-					// Support Group
-					$support_gid = DAO_Group::create(array(
-						DAO_Group::NAME => 'Support',
-						DAO_Group::REPLY_ADDRESS_ID => intval($mail_from_address->id),
-						DAO_Group::REPLY_PERSONAL => '',
-						DAO_Group::REPLY_HTML_TEMPLATE_ID => 0,
-						DAO_Group::REPLY_SIGNATURE_ID => 1,
-					));
-
-					// Sales Group
-					$sales_gid = DAO_Group::create(array(
-						DAO_Group::NAME => 'Sales',
-						DAO_Group::REPLY_ADDRESS_ID => intval($mail_from_address->id),
-						DAO_Group::REPLY_PERSONAL => '',
-						DAO_Group::REPLY_HTML_TEMPLATE_ID => 0,
-						DAO_Group::REPLY_SIGNATURE_ID => 1,
-					));
-				}
-
-				// Default role
-				$roles = DAO_WorkerRole::getAll();
+				// Set the configuration details in the session
+				file_put_contents(APP_TEMP_PATH . '/setup.json', $encrypt->encrypt(json_encode([
+					'admin_name_first' => $worker_firstname ?: 'Admin',
+					'admin_name_last' => $worker_lastname ?: '',
+					'admin_email' => $worker_email,
+					'admin_pass' => $worker_pass,
+					'admin_timezone' => $timezone ?: 'America/Los_Angeles',
+					'org_name' => $org_name ?: 'Example, Inc.',
+				])));
 				
-				if(empty($roles)) {
-					$fields = array(
-						DAO_WorkerRole::NAME => 'Default',
-						DAO_WorkerRole::PARAMS_JSON => json_encode(array(
-							'who' => 'all',
-							'what' => 'all',
-						)),
-					);
-					DAO_WorkerRole::create($fields);
-				}
-				
-				// If this worker doesn't exist, create them
-				if(null == ($lookup = DAO_Worker::getByEmail($worker_email))) {
-					$email_id = 0;
-					
-					// Add the worker e-mail to the addresses table
-					if(!empty($worker_email))
-						if(false != ($address = DAO_Address::lookupAddress($worker_email, true)))
-							$email_id = $address->id;
-					
-					// [TODO] If the email address creation fails, report an error
-					
-					$fields = array(
-						DAO_Worker::EMAIL_ID => $email_id,
-						DAO_Worker::FIRST_NAME => 'Super',
-						DAO_Worker::LAST_NAME => 'User',
-						DAO_Worker::TITLE => 'Administrator',
-						DAO_Worker::IS_SUPERUSER => 1,
-						DAO_Worker::AUTH_EXTENSION_ID => 'login.password',
-						DAO_Worker::TIME_FORMAT => 'D, d M Y h:i a',
-						DAO_Worker::LANGUAGE => 'en_US',
-					);
-					
-					if(!empty($worker_firstname)) {
-						$fields[DAO_Worker::FIRST_NAME] = $worker_firstname;
-						$fields[DAO_Worker::AT_MENTION_NAME] = $worker_firstname;
-					}
-					
-					if(!empty($worker_lastname))
-						$fields[DAO_Worker::LAST_NAME] = $worker_lastname;
-					
-					if(!empty($timezone))
-						$fields[DAO_Worker::TIMEZONE] = $timezone;
-					
-					$worker_id = DAO_Worker::create($fields);
-					
-					DAO_Worker::setAuth($worker_id, $worker_pass);
-					
-					// Default group memberships
-					
-					if(!empty($dispatch_gid))
-						DAO_Group::setGroupMember($dispatch_gid,$worker_id,true);
-					if(!empty($support_gid))
-						DAO_Group::setGroupMember($support_gid,$worker_id,true);
-					if(!empty($sales_gid))
-						DAO_Group::setGroupMember($sales_gid,$worker_id,true);
-					
-					// Create a default calendar
-					
-					if(!empty($worker_firstname))
-						$label = sprintf("%s%s's Calendar", $worker_firstname, $worker_lastname ? (' ' . $worker_lastname) : '');
-					else
-						$label = 'My Calendar';
-					
-					$fields = array(
-						DAO_Calendar::NAME => $label,
-						DAO_Calendar::OWNER_CONTEXT => CerberusContexts::CONTEXT_WORKER,
-						DAO_Calendar::OWNER_CONTEXT_ID => $worker_id,
-						DAO_Calendar::PARAMS_JSON => json_encode(array(
-							"manual_disabled" => "0",
-							"sync_enabled" => "0",
-							"start_on_mon" => "1",
-							"hide_start_time" => "0",
-							"color_available" => "#A0D95B",
-							"color_busy" => "#C8C8C8",
-							"series" => array(
-								array("datasource"=>""),
-								array("datasource"=>""),
-								array("datasource"=>""),
-							)
-						)),
-						DAO_Calendar::UPDATED_AT => time(),
-					);
-					$calendar_id = DAO_Calendar::create($fields);
-					
-					DAO_Worker::update($worker_id, array(
-						DAO_Worker::CALENDAR_ID => $calendar_id,
-					));
-				}
-				
-				// Send a first ticket which allows people to reply for support
-				$replyto_default = DAO_Address::getDefaultLocalAddress();
-				
-				if(null != $replyto_default) {
-					$message = new CerberusParserMessage();
-						$message->headers['from'] = '"Webgroup Media, LLC." <support@webgroupmedia.com>';
-						$message->headers['to'] = $replyto_default->email;
-						$message->headers['subject'] = "Welcome to Cerb!";
-						$message->headers['date'] = date('r');
-						$message->headers['message-id'] = CerberusApplication::generateMessageId();
-						$message->body = <<< EOF
-Welcome to Cerb!
-
-We automatically set up a few things for you during the installation process.
-
-You'll notice that you have three groups:
-* Dispatch: All your mail will be delivered to this group by default.
-* Support: This is a group for holding tickets related to customer service.
-* Sales: This is a group for holding tickets relates to sales.
-
-If these default groups don't meet your needs, feel free to change them by clicking 'Search' in the top-right and selecting the 'Groups' from the menu.
-
-Simply reply to this message if you have any questions.  Our response will show up on this page as a new message.
-
-For project news, training resources, sneak peeks of development progress, tips & tricks, and more:
- * https://cerb.ai/docs/home/
- * http://www.facebook.com/cerbapp
- * http://twitter.com/cerb_ai
- * https://vimeo.com/channels/cerb
-
-Enjoy!
--- 
-the Cerb team
-Webgroup Media, LLC.
-https://cerb.ai/
-EOF;
-					CerberusParser::parseMessage($message);
-				}
-				
-				$tpl->assign('step', STEP_REGISTER);
+				$tpl->assign('step', STEP_PACKAGES);
 				$tpl->display('steps/redirect.tpl');
 				exit;
 				
@@ -962,14 +773,94 @@ EOF;
 				$tpl->assign('failed', true);
 				
 			}
-			
-		} else {
-			// Defaults
-			
 		}
 		
 		$tpl->assign('template', 'steps/step_defaults.tpl');
 		
+		break;
+		
+	case STEP_PACKAGES:
+		@$form_submit = DevblocksPlatform::importGPC($_POST['form_submit'],'integer');
+		
+		if(!empty($form_submit)) {
+			@$package = DevblocksPlatform::importGPC($_POST['package'],'string', '');
+			@$optional_packages = DevblocksPlatform::importGPC($_POST['optional_packages'],'array', []);
+			
+			$encrypt = DevblocksPlatform::services()->encryption();
+			@$setup_defaults = json_decode($encrypt->decrypt(file_get_contents(APP_TEMP_PATH . '/setup.json')), true) ?: [];
+			
+			$records_created = [];
+			
+			switch($package) {
+				case 'tutorial':
+					$json = file_get_contents(APP_PATH . '/install/packages/install_tutorial_package.json');
+					$prompts = $setup_defaults;
+					CerberusApplication::packages()->import($json, $prompts, $records_created);
+					
+					// Set password
+					@$worker = $records_created[CerberusContexts::CONTEXT_WORKER]['worker_admin'];
+					if(is_array($worker))
+						DAO_Worker::setAuth($worker['id'], $setup_defaults['admin_pass']);
+					
+					break;
+					
+				case 'standard':
+					$json = file_get_contents(APP_PATH . '/install/packages/install_standard_package.json');
+					$prompts = $setup_defaults;
+					CerberusApplication::packages()->import($json, $prompts, $records_created);
+					
+					// Set password
+					@$worker = $records_created[CerberusContexts::CONTEXT_WORKER]['worker_admin'];
+					if(is_array($worker))
+						DAO_Worker::setAuth($worker['id'], $setup_defaults['admin_pass']);
+					break;
+			}
+			
+			if($optional_packages && is_array($optional_packages)) {
+				foreach($optional_packages as $package) {
+					switch($package) {
+						case 'autoreply_bot':
+							$prompts = [
+								'org_name' => $setup_defaults['org_name'],
+							];
+							$json = file_get_contents(APP_PATH . '/install/packages/autoreply_bot_package.json');
+							$results = [];
+							CerberusApplication::packages()->import($json, $prompts, $results);
+							break;
+							
+						case 'chat_bot':
+							$prompts = [];
+							$json = file_get_contents(APP_PATH . '/install/packages/chat_bot_package.json');
+							$results = [];
+							CerberusApplication::packages()->import($json, $prompts, $results);
+							break;
+							
+						case 'customer_satisfaction':
+							$prompts = [
+								'product_name' => $setup_defaults['org_name'],
+								'portal_url' => 'https://portal.example/',
+							];
+							$json = file_get_contents(APP_PATH . '/install/packages/customer_satisfaction_package.json');
+							$results = [];
+							CerberusApplication::packages()->import($json, $prompts, $results);
+							break;
+							
+						case 'reminder_bot':
+							$prompts = [];
+							$json = file_get_contents(APP_PATH . '/install/packages/reminder_bot_package.json');
+							$results = [];
+							CerberusApplication::packages()->import($json, $prompts, $results);
+							break;
+					}
+				}
+			}
+			
+			$tpl->assign('step', STEP_REGISTER);
+			$tpl->display('steps/redirect.tpl');
+			exit;
+		}
+		
+		$tpl->assign('template', 'steps/step_packages.tpl');
 		break;
 		
 	case STEP_REGISTER:
@@ -990,6 +881,7 @@ EOF;
 		break;
 		
 	case STEP_FINISHED:
+		@unlink(APP_TEMP_PATH . '/setup.json');
 		
 		// Set up the default cron jobs
 		$crons = DevblocksPlatform::getExtensions('cerberusweb.cron', true);
@@ -1027,7 +919,5 @@ EOF;
 		$tpl->assign('template', 'steps/step_finished.tpl');
 		break;
 }
-
-// [TODO] Check apache rewrite (somehow)
 
 $tpl->display('base.tpl');
