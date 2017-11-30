@@ -37,6 +37,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 	const UPDATED = 'updated';
 	
 	const _IMAGE = '_image';
+	const _PASSWORD = '_password';
 	
 	const CACHE_ALL = 'ch_workers';
 	
@@ -187,6 +188,11 @@ class DAO_Worker extends Cerb_ORMHelper {
 		$validation
 			->addField(self::_IMAGE)
 			->image('image/png', 50, 50, 500, 500, 100000)
+			;
+		// string
+		$validation
+			->addField(self::_PASSWORD)
+			->string()
 			;
 		$validation
 			->addField('_links')
@@ -656,6 +662,14 @@ class DAO_Worker extends Cerb_ORMHelper {
 			unset($fields[self::_IMAGE]);
 		}
 		
+		// Handle password updates
+		if(isset($fields[self::_PASSWORD])) {
+			foreach($ids as $id) {
+				DAO_Worker::setAuth($id, $fields[self::_PASSWORD]);
+			}
+			unset($fields[self::_PASSWORD]);
+		}
+		
 		// Make a diff for the requested objects in batches
 		
 		$chunks = array_chunk($ids, 100, true);
@@ -917,6 +931,9 @@ class DAO_Worker extends Cerb_ORMHelper {
 			return false;
 		
 		DAO_AddressToWorker::unassignAll($id);
+		
+		$sql = sprintf("DELETE FROM webapi_credentials WHERE worker_id = %d", $id);
+		$db->ExecuteMaster($sql);
 		
 		$sql = sprintf("DELETE FROM worker_to_group WHERE worker_id = %d", $id);
 		if(false == ($db->ExecuteMaster($sql)))
@@ -3033,6 +3050,10 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 				
 			case 'links':
 				$this->_getDaoFieldsLinks($value, $out_fields, $error);
+				break;
+				
+			case 'password':
+				$out_fields[DAO_Worker::_PASSWORD] = $value;
 				break;
 		}
 		
