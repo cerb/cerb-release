@@ -1447,9 +1447,9 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			
 			switch($field_key) {
 				// Fields
-//				case SearchFields_Bucket::EXAMPLE:
-//					$pass = true;
-//					break;
+				case SearchFields_Bucket::GROUP_ID:
+					$pass = true;
+					break;
 					
 				// Virtuals
 				case SearchFields_Bucket::VIRTUAL_CONTEXT_LINK:
@@ -1481,6 +1481,12 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			return array();
 		
 		switch($column) {
+			case SearchFields_Bucket::GROUP_ID:
+				$groups = DAO_Group::getAll();
+				$label_map = array_column($groups, 'name', 'id');
+				$counts = $this->_getSubtotalCountForStringColumn($context, SearchFields_Bucket::GROUP_ID, $label_map, '=', 'value');
+				break;
+				
 			case SearchFields_Bucket::VIRTUAL_CONTEXT_LINK:
 				$counts = $this->_getSubtotalCountForContextLinkColumn($context, $column);
 				break;
@@ -1513,6 +1519,14 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_Bucket::NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'group.id' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'options' => array('param_key' => SearchFields_Bucket::GROUP_ID),
+					'examples' => [
+						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_GROUP, 'q' => ''],
+					]
 				),
 			'group' => 
 				array(
@@ -1790,6 +1804,7 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
 				
+			case SearchFields_Bucket::GROUP_ID:
 			case SearchFields_Bucket::ID:
 			case SearchFields_Bucket::REPLY_ADDRESS_ID:
 			case SearchFields_Bucket::REPLY_HTML_TEMPLATE_ID:
@@ -1804,9 +1819,6 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			case SearchFields_Bucket::IS_DEFAULT:
 				@$bool = DevblocksPlatform::importGPC($_REQUEST['bool'],'integer',1);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$bool);
-				break;
-				
-			case SearchFields_Bucket::GROUP_ID:
 				break;
 				
 			case SearchFields_Bucket::VIRTUAL_CONTEXT_LINK:
