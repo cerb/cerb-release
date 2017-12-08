@@ -664,6 +664,7 @@ class VaAction_HttpRequest extends Extension_DevblocksEventAction {
 		
 		$response_headers = [];
 		
+		// See: https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
 		curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use (&$response_headers) {
 			$len = strlen($header);
 			
@@ -678,11 +679,9 @@ class VaAction_HttpRequest extends Extension_DevblocksEventAction {
 			if(!isset($response_headers[$header_name])) {
 				$response_headers[$header_name] = $header_value;
 			} else {
-				if(!isset($response_headers[$header_name]))
-					$response_headers[$header_name] = [];
-				
-				$response_headers[$header_name][] = $header_value;
+				$response_headers[$header_name] .= ', ' . $header_value;
 			}
+			
 			return $len;
 		});
 		
@@ -715,7 +714,14 @@ class VaAction_HttpRequest extends Extension_DevblocksEventAction {
 			
 		} elseif (isset($info['content_type'])) {
 			// Split content_type + charset in the header
-			@list($content_type, $content_charset) = explode(';', DevblocksPlatform::strLower($info['content_type']));
+			@list($content_type, $content_attributes) = explode(';', $info['content_type'], 2);
+			
+			$content_type = trim(DevblocksPlatform::strLower($content_type));
+			$content_attributes = DevblocksPlatform::parseHttpHeaderAttributes($content_attributes);
+			
+			// Fix bad encodings
+			if(isset($content_attributes['charset']))
+				$out = mb_convert_encoding($out, $content_attributes['charset']);
 			
 			// Auto-convert the response body based on the type
 			if(!(isset($options['raw_response_body']) && $options['raw_response_body'])) {
@@ -757,13 +763,15 @@ class VaAction_HttpRequest extends Extension_DevblocksEventAction {
 		
 		curl_close($ch);
 		
-		return [
+		$result = [
 			'content_type' => $content_type,
 			'headers' => $response_headers,
 			'body' => $out,
 			'info' => $info,
 			'error' => $error,
 		];
+		
+		return $result;
 	}
 };
 
