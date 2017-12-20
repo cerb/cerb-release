@@ -853,6 +853,7 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 			return;
 		
 		// Core
+		DAO_Attachment::deleteLinks($context, $context_ids);
 		DAO_Calendar::deleteByContext($context, $context_ids);
 		DAO_Comment::deleteByContext($context, $context_ids);
 		DAO_ContextActivityLog::deleteByContext($context, $context_ids);
@@ -1011,6 +1012,7 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 		DAO_WorkspaceTab::maint();
 		DAO_WorkerViewModel::flush();
 		DAO_ContextBulkUpdate::maint();
+		DAO_MailQueue::maint();
 	}
 	
 	private function _handleCronHeartbeat($event) {

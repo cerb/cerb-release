@@ -775,6 +775,102 @@ class VaAction_HttpRequest extends Extension_DevblocksEventAction {
 	}
 };
 
+class BotAction_EmailParser extends Extension_DevblocksEventAction {
+	function render(Extension_DevblocksEvent $event, Model_TriggerEvent $trigger, $params=array(), $seq=null) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('params', $params);
+		
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!is_null($seq))
+			$tpl->assign('namePrefix', 'action'.$seq);
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/decisions/actions/_action_email_parser.tpl');
+	}
+	
+	function simulate($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+
+		$out = null;
+		
+		@$message_source = $tpl_builder->build($params['message_source'], $dict);
+		@$run_in_simulator = $params['run_in_simulator'];
+		@$response_placeholder = $params['response_placeholder'];
+		
+		if(empty($message_source))
+			return "[ERROR] Message source is required.";
+		
+		if(empty($response_placeholder))
+			return "[ERROR] Return placeholder is required.";
+		
+		// Output
+		$out = sprintf(">>> Executing email parser:\n\n%s\n\n",
+			$message_source
+		);
+		
+		if($run_in_simulator) {
+			// Run the parser
+			$this->run($token, $trigger, $params, $dict);
+			
+			$response = $dict->$response_placeholder;
+			
+			if(isset($response['error']) && !empty($response['error'])) {
+				$out .= sprintf(">>> Error:\n%s\n", $response['error']);
+				
+			} else {
+				$out .= sprintf(">>> Response:\n%s\n\n", DevblocksPlatform::strFormatJson(json_encode($response)));
+			}
+			
+		} else {
+			$out .= ">>> NOTE: The email parser is not configured to run in the simulator.\n";
+		}
+		
+		return $out;
+	}
+	
+	function run($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
+		$result = [];
+		
+		// Stash the current state
+		$node_log = EventListener_Triggers::getNodeLog();
+		
+		try {
+			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+			@$message_source = $tpl_builder->build($params['message_source'], $dict);
+			@$response_placeholder = $params['response_placeholder'];
+			
+			if(empty($message_source))
+				throw new Exception_DevblocksValidationError("The message is empty.");
+			
+			if(false == ($message = CerberusParser::parseMimeString($message_source)))
+				throw new Exception_DevblocksValidationError("Failed to parse MIME message.");
+			
+			if(false == ($ticket_id = CerberusParser::parseMessage($message)))
+				throw new Exception_DevblocksValidationError("Failed to parse message into ticket.");
+			
+			if(empty($response_placeholder))
+				throw new Exception_DevblocksValidationError("The response placeholder is empty.");
+			
+			$result = [
+				'success' => true,
+				'ticket_id' => $ticket_id,
+			];
+			
+		} catch(Exception_DevblocksValidationError $e) {
+			$result = ['error' => $e->getMessage()];
+			
+			// Pop the current state
+			EventListener_Triggers::setNodeLog($node_log);
+		}
+		
+		// Pop the current state
+		EventListener_Triggers::setNodeLog($node_log);
+		
+		// Set the result
+		$dict->$response_placeholder = $result;
+	}
+};
+
 class BotAction_ScheduleInteractionProactive extends Extension_DevblocksEventAction {
 	const ID = 'core.bot.action.interaction_proactive.schedule';
 	
@@ -1974,6 +2070,111 @@ class BotAction_RecordSearch extends Extension_DevblocksEventAction {
 			
 			// Set the preferred placeholder
 			$dict->$object_placeholder = $dicts;
+		}
+	}
+};
+
+class BotAction_PackageImport extends Extension_DevblocksEventAction {
+	const ID = 'core.bot.action.package.import';
+	
+	function render(Extension_DevblocksEvent $event, Model_TriggerEvent $trigger, $params=[], $seq=null) {
+		$actor = $trigger->getBot();
+		
+		// [TODO] When roles apply to bots, we'll allow non-admins to import packages
+		if(!CerberusContexts::isActorAnAdmin($actor)) {
+			echo "This action is only available to administrators.";
+			return false;
+		}
+		
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('params', $params);
+		
+		if(!is_null($seq))
+			$tpl->assign('namePrefix', 'action'.$seq);
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/decisions/actions/_action_package_import.tpl');
+	}
+	
+	function simulate($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$actor = $trigger->getBot();
+
+		$out = null;
+		
+		if(!CerberusContexts::isActorAnAdmin($actor)) {
+			$error = "This action is only available to administrators.";
+			return $error;
+		}
+		
+		@$package_json = DevblocksPlatform::importVar($params['package_json'],'string','');
+		@$prompts_json = $tpl_builder->build(DevblocksPlatform::importVar($params['prompts_json'],'string',''), $dict);
+		@$object_placeholder = DevblocksPlatform::importVar($params['object_placeholder'],'string','');
+		
+		$records_created = [];
+		
+		if(!$package_json || false == @json_decode($package_json, true))
+			return "Invalid package JSON: " . json_last_error_msg();
+		
+		if(false === @json_decode($prompts_json, true))
+			return "Invalid prompts JSON: " . json_last_error_msg();
+		
+		$out = sprintf(">>> Importing package\n%s\n", $package_json);
+		
+		if($prompts_json)
+			$out .= sprintf("\n>>> Configuration\n%s\n", $prompts_json);
+		
+		// Run in simulator
+		@$run_in_simulator = !empty($params['run_in_simulator']);
+		if($run_in_simulator) {
+			$this->run($token, $trigger, $params, $dict);
+			
+			if($object_placeholder) {
+				$out .= sprintf("\n>>> Setting placeholder {{%s}}:\n%s",
+					$object_placeholder,
+					DevblocksPlatform::strFormatJson(json_encode($dict->$object_placeholder))
+				);
+			}
+		}
+		
+		return $out;
+	}
+	
+	function run($token, Model_TriggerEvent $trigger, $params, DevblocksDictionaryDelegate $dict) {
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$actor = $trigger->getBot();
+		
+		$response = [];
+		
+		try {
+			if(!CerberusContexts::isActorAnAdmin($actor))
+				throw new Exception_DevblocksValidationError("This action is only available to administrators.");
+			
+			@$package_json = DevblocksPlatform::importVar($params['package_json'],'string','');
+			@$prompts_json = @json_decode($tpl_builder->build(DevblocksPlatform::importVar($params['prompts_json'],'string',''), $dict), true);
+			@$object_placeholder = DevblocksPlatform::importVar($params['object_placeholder'],'string','');
+			
+			if(!is_array($prompts_json))
+				$prompts_json = [];
+			
+			CerberusApplication::packages()->import($package_json, $prompts_json, $response);
+			
+		} catch(Exception_DevblocksValidationError $e) {
+			$response = [
+				'_status' => false,
+				'error' => $e->getMessage()
+			];
+			
+		} catch(Exception $e) {
+			$response = [
+				'_status' => false,
+				'error' => "An unexpected error occurred."
+			];
+		}
+		
+		// Set placeholder with object meta
+		
+		if(!empty($object_placeholder)) {
+			$dict->$object_placeholder = $response;
 		}
 	}
 };
