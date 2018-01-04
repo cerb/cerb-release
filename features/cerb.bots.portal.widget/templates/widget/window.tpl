@@ -9,7 +9,7 @@
 	<div class="cerb-bot-chat-window-input">
 		<form class="cerb-bot-chat-window-input-form" action="javascript:;" onsubmit="return false;">
 			<input type="hidden" name="session_id" value="{$session_id}">
-			<input type="hidden" name="message" value="">
+			<textarea name="message" style="display:none;"></textarea>
 		</form>
 	</div>
 </div>
@@ -22,9 +22,39 @@
 	var $close = $window.find('div.cerb-bot-chat-window-close');
 	var $convo = $window.find('div.cerb-bot-chat-window-convo');
 	var $form = $window.find('form');
-	var $msg = $form.find('input:hidden[name=message]');
+	var $msg = $form.find('textarea[name=message]');
 	
 	var $spinner = $('<div class="cerb-bot-chat-message cerb-bot-chat-left"><div class="cerb-bot-chat-message-bubble"><span class="cerb-ajax-spinner" style="zoom:0.5;-moz-transform:scale(0.5);"></span></div></div>');
+	
+	var message_queue = (function() {
+		var API;
+		var queue = [];
+		var job = null;
+		var timer;
+		
+		function next() {
+			if(job !== null) {
+				job.func();
+				job = null;
+			}
+			
+			if(0 < queue.length) {
+				job = queue.shift();
+				timer = setTimeout(next, job.delay_ms);
+				
+			} else {
+				timer = setTimeout(next, 250);
+			}
+		}
+		
+		timer = setTimeout(next, 0);
+		
+		return API = {
+			add: function(func, delay_ms) {
+				queue.push({ func: func, delay_ms: delay_ms });
+			}
+		}
+	})();
 	
 	$close.on('click', function(e) {
 		e.stopPropagation();
@@ -55,7 +85,6 @@
 			
 		}).done(function(html) {
 			var $response = $(html);
-			var delay_ms = 0;
 			
 			if(0 == $response.length) {
 				$spinner.hide();
@@ -81,10 +110,8 @@
 						$convo.trigger('update');
 					}
 					
-					setTimeout(func, delay_ms);
+					message_queue.add(func, 0);
 				}
-				
-				delay_ms += parseInt(delay);
 				
 				var func = function() {
 					$object.appendTo($convo).hide().fadeIn();
@@ -92,7 +119,7 @@
 					$convo.trigger('update');
 				}
 				
-				setTimeout(func, delay_ms);
+				message_queue.add(func, parseInt(delay));
 			});
 		});
 	});
@@ -104,12 +131,20 @@
 		
 		if(txt.length > 0) {
 			// Create outgoing message in log
-			var $new_msg = $('<div class="cerb-bot-chat-message cerb-bot-chat-right"></div>');
-			var $bubble = $('<div class="cerb-bot-chat-message-bubble"></div>');
+			var $new_msg = document.createElement('div');
+			$new_msg.className = 'cerb-bot-chat-message cerb-bot-chat-right';
 			
-			$bubble.text(txt).appendTo($new_msg.appendTo($convo));
+			var $bubble = document.createElement('div');
+			$bubble.className = 'cerb-bot-chat-message-bubble';
+			$bubble.innerText = txt;
 			
-			$('<br clear="all">').insertAfter($new_msg);
+			$new_msg.appendChild($bubble);
+			
+			$br = document.createElement('br');
+			$br.setAttribute('clear', 'all');
+			
+			$convo.append($new_msg);
+			$convo.append($br);
 		}
 		
 		$convo.trigger('cerb-bot-chat-message-send');

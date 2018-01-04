@@ -6,7 +6,7 @@
 			<input type="hidden" name="c" value="internal">
 			<input type="hidden" name="a" value="consoleSendMessage">
 			<input type="hidden" name="layer" value="{$layer}">
-			<input type="hidden" name="message" value="">
+			<textarea name="message" style="display:none;"></textarea>
 			<input type="hidden" name="session_id" value="{$session_id}">
 			<input type="hidden" name="_csrf_token" value="{$session.csrf_token}">
 		</form>
@@ -37,7 +37,7 @@ $(function() {
 		var $window = $popup.closest('div.ui-dialog');
 		var $chat_window_convo = $popup.find('div.bot-chat-window-convo');
 		var $chat_window_input_form = $('#{$layer} form.bot-chat-window-input-form');
-		var $chat_message = $chat_window_input_form.find('input:hidden[name=message]');
+		var $chat_message = $chat_window_input_form.find('textarea[name=message]');
 		
 		// Responsive scaling
 		
@@ -56,6 +56,38 @@ $(function() {
 		} else {
 			$window.position({ my: "right bottom", at: "right-25 bottom-25", of: $(window) });
 		}
+		
+		// Message queue
+		
+		var message_queue = (function() {
+			var API;
+			var queue = [];
+			var job = null;
+			var timer;
+			
+			function next() {
+				if(job !== null) {
+					job.func();
+					job = null;
+				}
+				
+				if(0 < queue.length) {
+					job = queue.shift();
+					timer = setTimeout(next, job.delay_ms);
+					
+				} else {
+					timer = setTimeout(next, 250);
+				}
+			}
+			
+			timer = setTimeout(next, 0);
+			
+			return API = {
+				add: function(func, delay_ms) {
+					queue.push({ func: func, delay_ms: delay_ms });
+				}
+			}
+		})();
 		
 		// Chat window actions
 		
@@ -81,7 +113,6 @@ $(function() {
 			
 			genericAjaxPost($chat_window_input_form, '', null, function(html) {
 				var $response = $(html);
-				var delay_ms = 0;
 				
 				if(0 == $response.length) {
 					$spinner.hide();
@@ -111,10 +142,8 @@ $(function() {
 							$chat_window_convo.trigger('update');
 						}
 						
-						setTimeout(func, delay_ms);
+						message_queue.add(func, 0);
 					}
-					
-					delay_ms += parseInt(delay);
 					
 					var func = function() {
 						$spinner.hide();
@@ -122,22 +151,30 @@ $(function() {
 						$chat_window_convo.trigger('update');
 					}
 					
-					setTimeout(func, delay_ms);
+					message_queue.add(func, parseInt(delay));
 				});
 			});
 		});
 		
 		$chat_window_input_form.submit(function() {
 			var txt = $chat_message.val();
-		
+			
 			if(txt.length > 0) {
 				// Create outgoing message in log
-				var $msg = $('<div class="bot-chat-message bot-chat-right"></div>');
-				var $bubble = $('<div class="bot-chat-message-bubble"></div>');
+				var $new_msg = document.createElement('div');
+				$new_msg.className = 'bot-chat-message bot-chat-right';
 				
-				$bubble.text(txt).appendTo($msg.appendTo($chat_window_convo));
+				var $bubble = document.createElement('div');
+				$bubble.className = 'bot-chat-message-bubble';
+				$bubble.innerText = txt;
 				
-				$('<br clear="all">').insertAfter($msg);
+				$new_msg.appendChild($bubble);
+				
+				$br = document.createElement('br');
+				$br.setAttribute('clear', 'all');
+				
+				$chat_window_convo.append($new_msg);
+				$chat_window_convo.append($br);
 			}
 			
 			$chat_window_convo.trigger('bot-chat-message-send');

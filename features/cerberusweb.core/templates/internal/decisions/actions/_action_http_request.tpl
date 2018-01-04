@@ -71,8 +71,7 @@
 
 <script type="text/javascript">
 $(function() {
-	var $action = $('fieldset#{$namePrefix}');
-	$action.find('textarea').autosize();
+	var $action = $('#{$namePrefix}_{$nonce}');
 	
 	$action.find('.chooser-abstract')
 		.cerbChooserTrigger()
@@ -84,7 +83,7 @@ $(function() {
 		var val = $(this).val();
 		
 		if(val == 'post' || val == 'put' || val == 'patch')
-			$div_httpbody.show().find('textarea').autosize();
+			$div_httpbody.show();
 		else
 			$div_httpbody.fadeOut();
 	});

@@ -41,11 +41,9 @@
 
 <script type="text/javascript">
 $(function(e) {
-	var $action = $('fieldset#{$namePrefix}');
+	var $action = $('#{$namePrefix}_{$nonce}');
 	var $on = $action.find('select:first');
 	var $snippet_preview = $action.find('div.snippet-preview');
-	
-	$action.find('textarea').autosize();
 	
 	// Snippet insert menu
 	$action.find('.chooser-snippet')

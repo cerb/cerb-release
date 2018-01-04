@@ -322,7 +322,7 @@ class ChInternalController extends DevblocksControllerExtension {
 			
 			// Return to the caller if we have one
 			@$caller = array_pop($interaction->session_data['callers']);
-			$interaction->session_data['behavior_has_parent'] = 0;
+			$interaction->session_data['behavior_has_parent'] = !empty($interaction->session_data['callers']) ? 1 : 0;
 			
 			if(is_array($caller)) {
 				$caller_behavior_id = $caller['behavior_id'];
@@ -468,12 +468,16 @@ class ChInternalController extends DevblocksControllerExtension {
 					
 				case 'prompt.text':
 					@$placeholder = $params['placeholder'];
+					@$default = $params['default'];
+					@$mode = $params['mode'];
 					
 					if(empty($placeholder))
 						$placeholder = 'say something';
 					
 					$tpl->assign('delay_ms', 0);
 					$tpl->assign('placeholder', $placeholder);
+					$tpl->assign('default', $default);
+					$tpl->assign('mode', $mode);
 					$tpl->display('devblocks:cerberusweb.core::console/prompt_text.tpl');
 					break;
 					
@@ -3724,6 +3728,11 @@ class ChInternalController extends DevblocksControllerExtension {
 					$tpl->assign('values', $values);
 				}
 				
+				// Nonce scope
+				$nonce = uniqid();
+				$tpl->assign('nonce', $nonce);
+
+				// Template
 				$tpl->display('devblocks:cerberusweb.core::internal/decisions/editors/outcome.tpl');
 				break;
 				
@@ -3755,6 +3764,10 @@ class ChInternalController extends DevblocksControllerExtension {
 				
 				// Workers
 				$tpl->assign('workers', DAO_Worker::getAll());
+				
+				// Nonce scope
+				$nonce = uniqid();
+				$tpl->assign('nonce', $nonce);
 				
 				// Template
 				$tpl->display('devblocks:cerberusweb.core::internal/decisions/editors/action.tpl');
@@ -4015,6 +4028,7 @@ class ChInternalController extends DevblocksControllerExtension {
 		@$condition = DevblocksPlatform::importGPC($_REQUEST['condition'],'string', '');
 		@$trigger_id = DevblocksPlatform::importGPC($_REQUEST['trigger_id'],'integer', 0);
 		@$seq = DevblocksPlatform::importGPC($_REQUEST['seq'],'integer', 0);
+		@$nonce = DevblocksPlatform::importGPC($_REQUEST['nonce'],'string', '');
 
 		$tpl = DevblocksPlatform::services()->template();
 
@@ -4027,6 +4041,7 @@ class ChInternalController extends DevblocksControllerExtension {
 		$tpl->assign('trigger', $trigger);
 		$tpl->assign('event', $event);
 		$tpl->assign('seq', $seq);
+		$tpl->assign('nonce', $nonce);
 			
 		$event->renderCondition($condition, $trigger, null, $seq);
 	}
@@ -4035,6 +4050,7 @@ class ChInternalController extends DevblocksControllerExtension {
 		@$action = DevblocksPlatform::importGPC($_REQUEST['action'],'string', '');
 		@$trigger_id = DevblocksPlatform::importGPC($_REQUEST['trigger_id'],'integer', 0);
 		@$seq = DevblocksPlatform::importGPC($_REQUEST['seq'],'integer', 0);
+		@$nonce = DevblocksPlatform::importGPC($_REQUEST['nonce'],'string', '');
 
 		$tpl = DevblocksPlatform::services()->template();
 
@@ -4047,7 +4063,8 @@ class ChInternalController extends DevblocksControllerExtension {
 		$tpl->assign('trigger', $trigger);
 		$tpl->assign('event', $event);
 		$tpl->assign('seq', $seq);
-			
+		$tpl->assign('nonce', $nonce);
+		
 		$event->renderAction($action, $trigger, null, $seq);
 	}
 

@@ -30,10 +30,8 @@
 
 <script type="text/javascript">
 $(function() {
-	var $action = $('fieldset#{$namePrefix}');
+	var $action = $('#{$namePrefix}_{$nonce}');
 	var $textarea = $action.find('textarea').first();
-	
-	$textarea.autosize();
 	
 	var atwho_workers = {CerberusApplication::getAtMentionsWorkerDictionaryJson() nofilter};
 
