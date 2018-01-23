@@ -1156,7 +1156,7 @@ class DevblocksEventHelper {
 		
 		if(empty($var) || !is_array($var))
 			return;
-
+		
 		@$var_type = $var['type'];
 		
 		// Handle abstract lists
@@ -1172,13 +1172,22 @@ class DevblocksEventHelper {
 			@$objects = $dict->$token;
 			
 			if(empty($objects)) {
-				return sprintf(">>> Setting empty list %s\n",
+				$out = sprintf(">>> Setting empty list %s\n",
 					$token
 				);
+				
+				if(@$params['search_mode'] == 'quick_search' && @$params['quick_search']) {
+					$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+					$query = $tpl_builder->build($params['quick_search'], $dict);
+					$out .= sprintf("Query: %s\n",
+						$query
+					);
+				}
+				
+				return $out;
 			}
 			
 			$context_extid = substr($var_type,4);
-			//$context_ext = Extension_DevblocksContext::get($context_extid);
 			$context_ext = Extension_DevblocksContext::get($context_extid, false);
 			
 			$out = sprintf(">>> Putting %d objects in %s list '%s':\n",
@@ -1187,8 +1196,16 @@ class DevblocksEventHelper {
 				$token
 			);
 			
-			$fields = array();
-			$null = array();
+			if(@$params['search_mode'] == 'quick_search' && @$params['quick_search']) {
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				$query = $tpl_builder->build($params['quick_search'], $dict);
+				$out .= sprintf("Query: %s\n",
+					$query
+				);
+			}
+			
+			$fields = [];
+			$null = [];
 			CerberusContexts::getContext($context_extid, null, $fields, $null, null, true);
 
 			$out .= "\n";
@@ -3337,7 +3354,11 @@ class DevblocksEventHelper {
 
 		// Placeholder?
 		if(!is_numeric($owner_id) && $dict->exists($owner_id)) {
-			@$owner_id = intval($dict->$owner_id);
+			if(is_array($dict->$owner_id)) {
+				$owner_id = intval(key($dict->$owner_id));
+			} else {
+				$owner_id = intval($dict->$owner_id);
+			}
 		}
 		
 		if(empty($owner_id)) {
@@ -3361,7 +3382,11 @@ class DevblocksEventHelper {
 		
 		// Placeholder?
 		if(!is_numeric($owner_id) && $dict->exists($owner_id)) {
-			@$owner_id = intval($dict->$owner_id);
+			if(is_array($dict->$owner_id)) {
+				$owner_id = intval(key($dict->$owner_id));
+			} else {
+				$owner_id = intval($dict->$owner_id);
+			}
 		}
 		
 		if(empty($owner_id) || null != ($owner_model = DAO_Worker::get($owner_id))) {
