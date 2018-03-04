@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -18,41 +18,6 @@
 if(class_exists('Extension_PageSection')):
 class PageSection_InternalCustomFieldsets extends Extension_PageSection {
 	function render() {}
-	
-	function showTabCustomFieldsetsAction() {
-		@$point = DevblocksPlatform::importGPC($_REQUEST['point'],'string','');
-		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string','');
-		@$context_id = DevblocksPlatform::importGPC($_REQUEST['context_id'],'integer',null);
-		
-		$active_worker = CerberusApplication::getActiveWorker();
-		$tpl = DevblocksPlatform::services()->template();
-
-		$tpl->assign('owner_context', $context);
-		$tpl->assign('owner_context_id', $context_id);
-		
-		$view_id = str_replace('.','_',$point) . '_cfield_sets';
-		
-		$view = C4_AbstractViewLoader::getView($view_id);
-		
-		if(null == $view) {
-			$ctx = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_CUSTOM_FIELDSET);
-			$view = $ctx->getChooserView($view_id);
-		}
-		
-		if($active_worker->is_superuser && 0 == strcasecmp($context, 'all')) {
-			$view->addParamsRequired(array(), true);
-			
-		} else {
-			$view->addParamsRequired(array(
-				SearchFields_CustomFieldset::OWNER_CONTEXT => new DevblocksSearchCriteria(SearchFields_CustomFieldset::OWNER_CONTEXT, DevblocksSearchCriteria::OPER_EQ, $context),
-				SearchFields_CustomFieldset::OWNER_CONTEXT_ID => new DevblocksSearchCriteria(SearchFields_CustomFieldset::OWNER_CONTEXT_ID, DevblocksSearchCriteria::OPER_EQ, $context_id),
-			), true);
-		}
-		
-		$tpl->assign('view', $view);
-		
-		$tpl->display('devblocks:cerberusweb.core::internal/views/search_and_view.tpl');
-	}
 	
 	function getCustomFieldSetAction() {
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);

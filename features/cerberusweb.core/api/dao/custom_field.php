@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -621,6 +621,8 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 				break;
 			// number
 			case Model_CustomField::TYPE_CHECKBOX:
+			case Model_CustomField::TYPE_CURRENCY:
+			case Model_CustomField::TYPE_DECIMAL:
 			case Model_CustomField::TYPE_DATE:
 			case Model_CustomField::TYPE_FILE:
 			case Model_CustomField::TYPE_FILES:
@@ -715,6 +717,19 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 					}
 					break;
 
+				case Model_CustomField::TYPE_CURRENCY:
+					@$currency_id = $field->params['currency_id'];
+					
+					if($currency_id && false !=  ($currency = DAO_Currency::get($currency_id))) {
+						$value = DevblocksPlatform::strParseDecimal($value, $currency->decimal_at, '.');
+					}
+					break;
+					
+				case Model_CustomField::TYPE_DECIMAL:
+					@$decimal_at = $field->params['decimal_at'];
+					$value = DevblocksPlatform::strParseDecimal($value, $decimal_at, '.');
+					break;
+					
 				case Model_CustomField::TYPE_FILE:
 				case Model_CustomField::TYPE_NUMBER:
 				case Model_CustomField::TYPE_WORKER:
@@ -909,6 +924,21 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 					self::setFieldValue($context, $context_id, $field_id, $value);
 					break;
 
+				case Model_CustomField::TYPE_CURRENCY:
+					@$currency_id = $field->params['currency_id'];
+					
+					if($currency_id && false !=  ($currency = DAO_Currency::get($currency_id))) {
+						$value = DevblocksPlatform::strParseDecimal($value, $currency->decimal_at, '.');
+						self::setFieldValue($context, $context_id, $field_id, $value);
+					}
+					break;
+					
+				case Model_CustomField::TYPE_DECIMAL:
+					@$decimal_at = $field->params['decimal_at'];
+					$value = DevblocksPlatform::strParseDecimal($value, $decimal_at, '.');
+					self::setFieldValue($context, $context_id, $field_id, $value);
+					break;
+					
 				case Model_CustomField::TYPE_FILE:
 				case Model_CustomField::TYPE_LINK:
 				case Model_CustomField::TYPE_NUMBER:
@@ -953,6 +983,8 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 				if(255 < strlen($value))
 					$value = substr($value,0,255);
 				break;
+			case Model_CustomField::TYPE_CURRENCY:
+			case Model_CustomField::TYPE_DECIMAL:
 			case Model_CustomField::TYPE_FILE:
 			case Model_CustomField::TYPE_LINK:
 			case Model_CustomField::TYPE_NUMBER:
@@ -1064,6 +1096,8 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 					$do['cf_'.$field_id] = array('value' => $field_value);
 					break;
 					
+				case Model_CustomField::TYPE_CURRENCY:
+				case Model_CustomField::TYPE_DECIMAL:
 				case Model_CustomField::TYPE_FILE:
 				case Model_CustomField::TYPE_LINK:
 				case Model_CustomField::TYPE_NUMBER:
@@ -1127,7 +1161,9 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 					break;
 					
 				case Model_CustomField::TYPE_CHECKBOX:
+				case Model_CustomField::TYPE_CURRENCY:
 				case Model_CustomField::TYPE_DATE:
+				case Model_CustomField::TYPE_DECIMAL:
 				case Model_CustomField::TYPE_DROPDOWN:
 				case Model_CustomField::TYPE_FILE:
 				case Model_CustomField::TYPE_MULTI_LINE:
@@ -1147,8 +1183,25 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 		return $results;
 	}
 	
-	public static function handleFormPost($context, $context_id, $field_ids) {
+	public static function handleFormPost($context, $context_id, $field_ids, &$error) {
 		$field_values = self::parseFormPost($context, $field_ids);
+		
+		if(false == ($context_ext = Extension_DevblocksContext::get($context, true)))
+			return false;
+		
+		// This will have to change when we require fields
+		$field_values_to_validate = array_filter($field_values, function($value) {
+			// Only return non-empty values
+			return (is_array($value) || 0 != strlen($value));
+		});
+		
+		// Format values before validation
+		$field_values_to_validate = self::formatFieldValues($field_values_to_validate);
+		
+		// Validate
+		if(!DevblocksORMHelper::validateCustomFields($field_values_to_validate, $context, $error, $context_id))
+			return false;
+		
 		self::formatAndSetFieldValues($context, $context_id, $field_values);
 		return true;
 	}
@@ -1361,7 +1414,9 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 
 class Model_CustomField {
 	const TYPE_CHECKBOX = 'C';
+	const TYPE_CURRENCY = 'Y';
 	const TYPE_DATE = 'E';
+	const TYPE_DECIMAL = 'O';
 	const TYPE_DROPDOWN = 'D';
 	const TYPE_FILE = 'F';
 	const TYPE_FILES = 'I';
@@ -1388,7 +1443,9 @@ class Model_CustomField {
 		
 		$fields = array(
 			self::TYPE_CHECKBOX => 'Checkbox',
+			self::TYPE_CURRENCY => 'Currency',
 			self::TYPE_DATE => 'Date',
+			self::TYPE_DECIMAL => 'Decimal',
 			self::TYPE_DROPDOWN => 'Picklist',
 			self::TYPE_FILE => 'File',
 			self::TYPE_FILES => 'Files: Multiple',
@@ -1408,8 +1465,23 @@ class Model_CustomField {
 	}
 	
 	static function hasMultipleValues($type) {
-		$multiple_types = [Model_CustomField::TYPE_MULTI_CHECKBOX, Model_CustomField::TYPE_FILES, Model_CustomField::TYPE_LIST];
+		$multiple_types = [
+			Model_CustomField::TYPE_MULTI_CHECKBOX,
+			Model_CustomField::TYPE_FILES,
+			Model_CustomField::TYPE_LIST,
+		];
 		return in_array($type, $multiple_types);
+	}
+	
+	function getName() {
+		$label = '';
+		
+		if(false != ($fieldset = self::getFieldset()))
+			$label = $fieldset->name . ' ';
+		
+		$label .= $this->name;
+		
+		return $label;
 	}
 	
 	function getFieldset() {
@@ -2156,7 +2228,6 @@ class Context_CustomField extends Extension_DevblocksContext implements IDevbloc
 		$view->renderSortBy = SearchFields_CustomField::UPDATED_AT;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;

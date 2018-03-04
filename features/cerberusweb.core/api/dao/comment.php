@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -1463,7 +1463,6 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 		$view->renderSortBy = SearchFields_Comment::CREATED;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;

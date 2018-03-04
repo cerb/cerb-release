@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -178,8 +178,8 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 		$deleted = false;
 
 		if(is_array($do))
@@ -945,6 +945,14 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
 					]
 				),
+			'worker.id' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'options' => array('param_key' => SearchFields_MailQueue::WORKER_ID),
+					'examples' => [
+						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => 'isDisabled:n'],
+					]
+				),
 		);
 		
 		// Add searchable custom fields
@@ -1380,7 +1388,6 @@ class Context_Draft extends Extension_DevblocksContext {
 		$view->renderSortBy = SearchFields_MailQueue::UPDATED;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		return $view;
 	}

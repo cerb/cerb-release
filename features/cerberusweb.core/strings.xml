@@ -79,9 +79,9 @@
 				<seg>Mailbox {{target}} has failed to download mail on {{count}} consecutive attempts: {{error}}</seg>
 			</tuv>
 		</tu>
-		<tu tuid="activities.org.merge">
+		<tu tuid="activities.record.merge">
 			<tuv xml:lang="en_US">
-				<seg>{{actor}} merged organization {{source}} with organization {{target}}</seg>
+				<seg>{{actor}} merged {{context_label}} {{source}} into {{context_label}} {{target}}</seg>
 			</tuv>
 		</tu>
 		<tu tuid="activities.task.created">
@@ -247,6 +247,11 @@
 				<seg>Activity Log</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.activity_logs">
+			<tuv xml:lang="en_US">
+				<seg>activity logs</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.actor">
 			<tuv xml:lang="en_US">
 				<seg>Actor</seg>
@@ -395,6 +400,11 @@
 		<tu tuid="common.buckets">
 			<tuv xml:lang="en_US">
 				<seg>Buckets</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.build">
+			<tuv xml:lang="en_US">
+				<seg>build</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.builder">
@@ -562,6 +572,11 @@
 				<seg>comments</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.compose">
+			<tuv xml:lang="en_US">
+				<seg>compose</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.condition">
 			<tuv xml:lang="en_US">
 				<seg>condition</seg>
@@ -652,6 +667,16 @@
 				<seg>created</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.currency">
+			<tuv xml:lang="en_US">
+				<seg>currency</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.currencies">
+			<tuv xml:lang="en_US">
+				<seg>currencies</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.custom_field">
 			<tuv xml:lang="en_US">
 				<seg>custom field</seg>
@@ -717,6 +742,11 @@
 				<seg>delete</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.deploy">
+			<tuv xml:lang="en_US">
+				<seg>deploy</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.description">
 			<tuv xml:lang="en_US">
 				<seg>Description</seg>
@@ -775,6 +805,16 @@
 		<tu tuid="common.email">
 			<tuv xml:lang="en_US">
 				<seg>Email</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.emails">
+			<tuv xml:lang="en_US">
+				<seg>emails</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.emails.alternate">
+			<tuv xml:lang="en_US">
+				<seg>alternate emails</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.email_address">
@@ -950,6 +990,11 @@
 		<tu tuid="common.filter.add">
 			<tuv xml:lang="en_US">
 				<seg>Add Filter</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.filtering">
+			<tuv xml:lang="en_US">
+				<seg>filtering</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.filters">
@@ -1500,6 +1545,16 @@
 				<seg>packages</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.page">
+			<tuv xml:lang="en_US">
+				<seg>page</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.pages">
+			<tuv xml:lang="en_US">
+				<seg>pages</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.param">
 			<tuv xml:lang="en_US">
 				<seg>param</seg>
@@ -1538,6 +1593,11 @@
 		<tu tuid="common.password.salt">
 			<tuv xml:lang="en_US">
 				<seg>Password Salt</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.path">
+			<tuv xml:lang="en_US">
+				<seg>path</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.permalink">
@@ -2061,14 +2121,34 @@
 				<seg>Synchronize</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.tab">
+			<tuv xml:lang="en_US">
+				<seg>tab</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.tabs">
+			<tuv xml:lang="en_US">
+				<seg>tabs</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.tag">
 			<tuv xml:lang="en_US">
-				<seg>Tag</seg>
+				<seg>tag</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.tags">
+			<tuv xml:lang="en_US">
+				<seg>tags</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.target">
 			<tuv xml:lang="en_US">
 				<seg>Target</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.targets">
+			<tuv xml:lang="en_US">
+				<seg>targets</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.task">
@@ -2291,6 +2371,16 @@
 				<seg>when</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.widget">
+			<tuv xml:lang="en_US">
+				<seg>widget</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.widgets">
+			<tuv xml:lang="en_US">
+				<seg>widgets</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.worker">
 			<tuv xml:lang="en_US">
 				<seg>worker</seg>
@@ -2306,9 +2396,54 @@
 				<seg>worklist</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.worklists">
+			<tuv xml:lang="en_US">
+				<seg>worklists</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.workspace">
 			<tuv xml:lang="en_US">
 				<seg>Workspace</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.workspace.page">
+			<tuv xml:lang="en_US">
+				<seg>workspace page</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.workspace.pages">
+			<tuv xml:lang="en_US">
+				<seg>workspace pages</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.workspace.tab">
+			<tuv xml:lang="en_US">
+				<seg>workspace tab</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.workspace.tabs">
+			<tuv xml:lang="en_US">
+				<seg>workspace tabs</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.workspace.widget">
+			<tuv xml:lang="en_US">
+				<seg>workspace widget</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.workspace.widgets">
+			<tuv xml:lang="en_US">
+				<seg>workspace widgets</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.workspace.worklist">
+			<tuv xml:lang="en_US">
+				<seg>workspace worklist</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.workspace.worklists">
+			<tuv xml:lang="en_US">
+				<seg>workspace worklists</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.workspaces">
@@ -2432,6 +2567,21 @@
 		
 		<tu tuid='dao.classifier_example.expression'>
 			<tuv xml:lang="en_US"><seg>Expression</seg></tuv>
+		</tu>
+		
+		<!-- Currency -->
+		
+		<tu tuid='dao.currency.code'>
+			<tuv xml:lang="en_US">
+			<seg>Code</seg></tuv>
+		</tu>
+		<tu tuid='dao.currency.symbol'>
+			<tuv xml:lang="en_US">
+			<seg>Symbol</seg></tuv>
+		</tu>
+		<tu tuid='dao.currency.decimal_at'>
+			<tuv xml:lang="en_US">
+			<seg>Decimal Places</seg></tuv>
 		</tu>
 
 		<!-- DecisionNode -->
@@ -2709,11 +2859,6 @@
 				<seg>People</seg>
 			</tuv>
 		</tu>
-		<tu tuid="addy_book.peek.compose">
-			<tuv xml:lang="en_US">
-				<seg>compose</seg>
-			</tuv>
-		</tu>
 		<tu tuid="addy_book.peek.count.open_tickets">
 			<tuv xml:lang="en_US">
 				<seg>%s open ticket(s)</seg>
@@ -2782,7 +2927,7 @@
 		
 		<tu tuid="community_portal.code">
 			<tuv xml:lang="en_US">
-				<seg>Profile ID</seg>
+				<seg>Code</seg>
 			</tuv>
 		</tu>
 
@@ -2798,25 +2943,14 @@
 				<seg>Are you sure you want to permanently delete this community portal?</seg>
 			</tuv>
 		</tu>
-		<tu tuid="portal.cfg.htaccess_hint">
-			<tuv xml:lang="en_US">
-				<seg>(optional, friendly URLs for Apache Web Server users)</seg>
-			</tuv>
-		</tu>
 		<tu tuid="portal.cfg.installation">
 			<tuv xml:lang="en_US">
 				<seg>Installation</seg>
 			</tuv>
 		</tu>
-		<tu tuid="portal.cfg.installation_instructions">
-			<tuv xml:lang="en_US">
-				<seg>Place the index.php file in a new directory on the appropriate public website.  This directory can be named anything but will usually describe the portal.
-For example: http://www.cerbweb.com/support/</seg>
-			</tuv>
-		</tu>
 		<tu tuid="portal.cfg.profile_id">
 			<tuv xml:lang="en_US">
-				<seg>Profile ID:</seg>
+				<seg>Code:</seg>
 			</tuv>
 		</tu>
 
@@ -3410,11 +3544,6 @@ For example: http://www.cerbweb.com/support/</seg>
 		<tu tuid="mail.log_message.send_to_requesters">
 			<tuv xml:lang="en_US">
 				<seg>Send a copy of this message to the participants.</seg>
-			</tuv>
-		</tu>
-		<tu tuid="mail.merge">
-			<tuv xml:lang="en_US">
-				<seg>Merge</seg>
 			</tuv>
 		</tu>
 		<tu tuid="mail.nav.search_mail">
@@ -4230,7 +4359,7 @@ For example: *receipt*</seg>
 		</tu>
 		<tu tuid="preferences.account.email.associated">
 			<tuv xml:lang="en_US">
-				<seg>These email addresses are associated with your account:</seg>
+				<seg>Associate these email addresses with your account:</seg>
 			</tuv>
 		</tu>
 		<tu tuid="preferences.account.email.address">

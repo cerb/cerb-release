@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -276,8 +276,9 @@ class UmScKbController extends Extension_UmScController {
 		
 	}
 	
-	function configure(Model_CommunityTool $instance) {
-		$tpl = DevblocksPlatform::services()->templateSandbox();
+	function configure(Model_CommunityTool $portal) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('portal', $portal);
 
 		// Knowledgebase
 		
@@ -290,17 +291,17 @@ class UmScKbController extends Extension_UmScController {
 		$categories = DAO_KbCategory::getAll();
 		$tpl->assign('categories', $categories);
 		
-		$sKbRoots = DAO_CommunityToolProperty::get($instance->code,self::PARAM_KB_ROOTS, '');
+		$sKbRoots = DAO_CommunityToolProperty::get($portal->code,self::PARAM_KB_ROOTS, '');
 		$kb_roots = !empty($sKbRoots) ? unserialize($sKbRoots) : array();
 		$tpl->assign('kb_roots', $kb_roots);
 
-		$prop_kb_view_numrows = DAO_CommunityToolProperty::get($instance->code,self::PARAM_KB_VIEW_NUMROWS, 10);
+		$prop_kb_view_numrows = DAO_CommunityToolProperty::get($portal->code,self::PARAM_KB_VIEW_NUMROWS, 10);
 		$tpl->assign('kb_view_numrows', max(intval($prop_kb_view_numrows), 5));
 		
 		// Worklist columns
 		
 		$params = array(
-			'columns' => DAO_CommunityToolProperty::get($instance->code, self::PARAM_WORKLIST_COLUMNS_JSON, '[]', true),
+			'columns' => DAO_CommunityToolProperty::get($portal->code, self::PARAM_WORKLIST_COLUMNS_JSON, '[]', true),
 		);
 		$tpl->assign('kb_params', $params);
 		
@@ -314,9 +315,15 @@ class UmScKbController extends Extension_UmScController {
 			}
 		);
 		
-		DevblocksPlatform::sortObjects($columns, 'db_label');
+		$columns_selected = [];
+		if(is_array($params['columns']))
+		foreach($params['columns'] as $column_key)
+			$columns_selected[$column_key] = $columns[$column_key];
 		
-		$tpl->assign('kb_columns', $columns);
+		$columns_available = array_diff_key($columns, $columns_selected);
+		DevblocksPlatform::sortObjects($columns_available, 'db_label');
+		
+		$tpl->assign('kb_columns', array_merge($columns_selected, $columns_available));
 		
 		// Template
 		
@@ -400,6 +407,9 @@ class UmSc_KbArticleView extends C4_AbstractView {
 		
 		$custom_fields = DAO_CustomField::getAll();
 		$tpl->assign('custom_fields', $custom_fields);
+		
+		$currencies = DAO_Currency::getAll();
+		$tpl->assign('currencies', $currencies);
 		
 		$workers = DAO_Worker::getAll();
 		$tpl->assign('workers', $workers);

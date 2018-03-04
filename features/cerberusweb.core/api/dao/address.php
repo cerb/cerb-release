@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -27,8 +27,10 @@ class DAO_Address extends Cerb_ORMHelper {
 	const NUM_NONSPAM = 'num_nonspam';
 	const NUM_SPAM = 'num_spam';
 	const UPDATED = 'updated';
+	const WORKER_ID = 'worker_id';
 	
 	const _CACHE_LOCAL_ADDRESSES = 'addresses_local';
+	const _CACHE_WORKER_ADDRESSES = 'addresses_worker';
 	
 	private function __construct() {}
 	
@@ -88,6 +90,11 @@ class DAO_Address extends Cerb_ORMHelper {
 		$validation
 			->addField(self::UPDATED)
 			->timestamp()
+			;
+		$validation
+			->addField(self::WORKER_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_WORKER, true))
 			;
 		$validation
 			->addField('_links')
@@ -195,9 +202,28 @@ class DAO_Address extends Cerb_ORMHelper {
 			}
 		}
 		
-		if(isset($fields[self::MAIL_TRANSPORT_ID])) {
-			self::clearCache();
+		self::clearCache();
+	}
+	
+	static function updateForWorkerId($worker_id, array $email_ids=[]) {
+		$db = DevblocksPlatform::services()->database();
+		
+		// Clear existing email IDs
+		$db->ExecuteMaster(sprintf(
+			"UPDATE address SET worker_id = 0 WHERE worker_id = %d",
+			$worker_id
+		));
+		
+		// Insert new email IDs
+		if(false != ($email_ids = DevblocksPlatform::sanitizeArray($email_ids, 'int'))) {
+			$db->ExecuteMaster(sprintf(
+				"UPDATE address SET worker_id = %d, mail_transport_id = 0 WHERE id IN (%s)",
+				$worker_id,
+				implode(',', $email_ids)
+			));
 		}
+		
+		return true;
 	}
 	
 	static function updateWhere($fields, $where) {
@@ -229,8 +255,8 @@ class DAO_Address extends Cerb_ORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 
 		if(is_array($do))
 		foreach($do as $k => $v) {
@@ -246,7 +272,7 @@ class DAO_Address extends Cerb_ORMHelper {
 					break;
 				default:
 					// Custom fields
-					if(substr($k,0,3)=="cf_") {
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
 						$custom_fields[substr($k,3)] = $v;
 					}
 			}
@@ -263,7 +289,7 @@ class DAO_Address extends Cerb_ORMHelper {
 		
 		// Broadcast
 		if(isset($do['broadcast']))
-			C4_AbstractView::_doBulkBroadcast(CerberusContexts::CONTEXT_ADDRESS, $do['broadcast'], $ids, 'address');
+			C4_AbstractView::_doBulkBroadcast(CerberusContexts::CONTEXT_ADDRESS, $do['broadcast'], $ids);
 		
 		$update->markCompleted();
 		return true;
@@ -274,9 +300,9 @@ class DAO_Address extends Cerb_ORMHelper {
 		$logger = DevblocksPlatform::services()->log();
 		$tables = DevblocksPlatform::getDatabaseTables();
 		
-		$sql = "DELETE FROM address_to_worker WHERE worker_id NOT IN (SELECT id FROM worker)";
+		$sql = "UPDATE address SET worker_id = 0 WHERE worker_id != 0 AND worker_id NOT IN (SELECT id FROM worker)";
 		$db->ExecuteMaster($sql);
-		$logger->info('[Maint] Purged ' . $db->Affected_Rows() . ' address_to_worker records.');
+		$logger->info('[Maint] Corrected ' . $db->Affected_Rows() . ' missing workers on address records.');
 
 		// Search indexes
 		if(isset($tables['fulltext_address'])) {
@@ -296,6 +322,101 @@ class DAO_Address extends Cerb_ORMHelper {
 				)
 			)
 		);
+	}
+	
+	static function mergeIds($from_ids, $to_id) {
+		$db = DevblocksPlatform::services()->database();
+
+		$context = CerberusContexts::CONTEXT_ADDRESS;
+		
+		if(empty($from_ids) || empty($to_id))
+			return false;
+			
+		if(!is_numeric($to_id) || !is_array($from_ids))
+			return false;
+		
+		self::_mergeIds($context, $from_ids, $to_id);
+		
+		// Merge bucket
+		$db->ExecuteMaster(sprintf("UPDATE bucket SET reply_address_id = %d WHERE reply_address_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		// Merge contact primary
+		$db->ExecuteMaster(sprintf("UPDATE contact SET primary_email_id = %d WHERE primary_email_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		// Merge org primary
+		$db->ExecuteMaster(sprintf("UPDATE contact_org SET email_id = %d WHERE email_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		// Merge crm_opportunity
+		$db->ExecuteMaster(sprintf("UPDATE IGNORE crm_opportunity SET primary_email_id = %d WHERE primary_email_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		// Merge feedback_entry
+		$db->ExecuteMaster(sprintf("UPDATE feedback_entry SET quote_address_id = %d WHERE quote_address_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		// Merge message sender
+		$db->ExecuteMaster(sprintf("UPDATE message SET address_id = %d WHERE address_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		// Merge requester
+		$db->ExecuteMaster(sprintf("UPDATE IGNORE requester SET address_id = %d WHERE address_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		$db->ExecuteMaster(sprintf("DELETE FROM requester WHERE address_id IN (%s)",
+			implode(',', $from_ids)
+		));
+		
+		// Merge supportcenter_address_share
+		$db->ExecuteMaster(sprintf("UPDATE IGNORE supportcenter_address_share SET share_address_id = %d WHERE share_address_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		$db->ExecuteMaster(sprintf("UPDATE IGNORE supportcenter_address_share SET with_address_id = %d WHERE with_address_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		// Merge ticket first wrote
+		$db->ExecuteMaster(sprintf("UPDATE ticket SET first_wrote_address_id = %d WHERE first_wrote_address_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		// Merge ticket last wrote
+		$db->ExecuteMaster(sprintf("UPDATE ticket SET last_wrote_address_id = %d WHERE last_wrote_address_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		// Merge worker
+		$db->ExecuteMaster(sprintf("UPDATE worker SET email_id = %d WHERE email_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		// Merge worker_group
+		$db->ExecuteMaster(sprintf("UPDATE worker_group SET reply_address_id = %d WHERE reply_address_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		return true;
 	}
 	
 	static function delete($ids) {
@@ -329,14 +450,13 @@ class DAO_Address extends Cerb_ORMHelper {
 			)
 		);
 
-		if(isset($fields[self::MAIL_TRANSPORT_ID])) {
-			self::clearCache();
-		}
+		self::clearCache();
 	}
 	
 	static function clearCache() {
 		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::_CACHE_LOCAL_ADDRESSES);
+		$cache->remove(self::_CACHE_WORKER_ADDRESSES);
 	}
 	
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null) {
@@ -345,7 +465,7 @@ class DAO_Address extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
 		// SQL
-		$sql = "SELECT id, email, host, contact_id, contact_org_id, mail_transport_id, num_spam, num_nonspam, is_banned, is_defunct, updated ".
+		$sql = "SELECT id, email, host, contact_id, contact_org_id, mail_transport_id, worker_id, num_spam, num_nonspam, is_banned, is_defunct, updated ".
 			"FROM address ".
 			$where_sql.
 			$sort_sql.
@@ -381,6 +501,7 @@ class DAO_Address extends Cerb_ORMHelper {
 			$object->is_banned = intval($row['is_banned']);
 			$object->is_defunct = intval($row['is_defunct']);
 			$object->updated = intval($row['updated']);
+			$object->worker_id = intval($row['worker_id']);
 			$objects[$object->id] = $object;
 		}
 		
@@ -406,6 +527,75 @@ class DAO_Address extends Cerb_ORMHelper {
 		return NULL;
 	}
 	
+	/**
+	 * @return Model_Address[]
+	 */
+	static function getByEmails(array $emails) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$in_emails = implode(',', $db->qstrArray(array_map(function($email) {
+			return DevblocksPlatform::strLower($email);
+		}, $emails)));
+		
+		$results = self::getWhere(sprintf("%s IN (%s)",
+			self::EMAIL,
+			$in_emails
+		));
+		
+		return $results;
+	}
+	
+	static function getAllWithWorker() {
+		$cache = DevblocksPlatform::services()->cache();
+		
+		if(null == ($results = $cache->load(self::_CACHE_WORKER_ADDRESSES))) {
+			$results = self::getWhere(
+				sprintf("%s > 0",
+					self::WORKER_ID
+				),
+				self::EMAIL,
+				true
+			);
+			
+			$cache->save($sender_addresses, self::_CACHE_WORKER_ADDRESSES);
+		}
+		
+		return $results;
+	}
+	
+	static function getByWorkerId($worker_id) {
+		if(empty($worker_id))
+			return [];
+		
+		$results = self::getWhere(
+			sprintf("%s = %d",
+				self::WORKER_ID,
+				$worker_id
+			),
+			self::EMAIL,
+			true
+		);
+		
+		return $results;
+	}
+	
+	static function getByWorkers() {
+		$addys = self::getAllWithWorker();
+		$workers = DAO_Worker::getAll();
+		
+		array_walk($addys, function($addy) use ($workers) {
+			if(!isset($workers[$addy->worker_id]))
+				return;
+			
+			if(!isset($workers[$addy->worker_id]->relay_emails))
+				$workers[$addy->worker_id]->relay_emails = [];
+				
+			$workers[$addy->worker_id]->relay_emails[] = $addy->id;
+		});
+		
+		return $workers;
+	}
+	
 	static function countByTicketId($ticket_id) {
 		$db = DevblocksPlatform::services()->database();
 		
@@ -420,6 +610,15 @@ class DAO_Address extends Cerb_ORMHelper {
 		
 		$sql = sprintf("SELECT count(id) FROM address WHERE mail_transport_id = %d",
 			$transport_id
+		);
+		return intval($db->GetOneSlave($sql));
+	}
+	
+	static function countByWorkerId($worker_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$sql = sprintf("SELECT count(id) FROM address WHERE worker_id = %d",
+			$worker_id
 		);
 		return intval($db->GetOneSlave($sql));
 	}
@@ -603,6 +802,7 @@ class DAO_Address extends Cerb_ORMHelper {
 			"a.contact_id as %s, ".
 			"a.contact_org_id as %s, ".
 			"a.mail_transport_id as %s, ".
+			"a.worker_id as %s, ".
 			"a.num_spam as %s, ".
 			"a.num_nonspam as %s, ".
 			"a.is_banned as %s, ".
@@ -614,6 +814,7 @@ class DAO_Address extends Cerb_ORMHelper {
 				SearchFields_Address::CONTACT_ID,
 				SearchFields_Address::CONTACT_ORG_ID,
 				SearchFields_Address::MAIL_TRANSPORT_ID,
+				SearchFields_Address::WORKER_ID,
 				SearchFields_Address::NUM_SPAM,
 				SearchFields_Address::NUM_NONSPAM,
 				SearchFields_Address::IS_BANNED,
@@ -796,6 +997,7 @@ class SearchFields_Address extends DevblocksSearchFields {
 	const IS_BANNED = 'a_is_banned';
 	const IS_DEFUNCT = 'a_is_defunct';
 	const UPDATED = 'a_updated';
+	const WORKER_ID = 'a_worker_id';
 	
 	const ORG_NAME = 'o_name';
 
@@ -907,6 +1109,7 @@ class SearchFields_Address extends DevblocksSearchFields {
 			self::IS_BANNED => new DevblocksSearchField(self::IS_BANNED, 'a', 'is_banned', $translate->_('address.is_banned'), Model_CustomField::TYPE_CHECKBOX, true),
 			self::IS_DEFUNCT => new DevblocksSearchField(self::IS_DEFUNCT, 'a', 'is_defunct', $translate->_('address.is_defunct'), Model_CustomField::TYPE_CHECKBOX, true),
 			self::UPDATED => new DevblocksSearchField(self::UPDATED, 'a', 'updated', $translate->_('common.updated'), Model_CustomField::TYPE_DATE, true),
+			self::WORKER_ID => new DevblocksSearchField(self::WORKER_ID, 'a', 'worker_id', $translate->_('common.worker'), Model_CustomField::TYPE_NUMBER, true),
 			
 			self::CONTACT_ORG_ID => new DevblocksSearchField(self::CONTACT_ORG_ID, 'a', 'contact_org_id', $translate->_('common.organization') . ' ' . $translate->_('common.id'), Model_CustomField::TYPE_NUMBER, true),
 			self::ORG_NAME => new DevblocksSearchField(self::ORG_NAME, 'o', 'name', $translate->_('common.organization'), Model_CustomField::TYPE_SINGLE_LINE, true),
@@ -1113,6 +1316,7 @@ class Model_Address {
 	public $num_nonspam = 0;
 	public $num_spam = 0;
 	public $updated = 0;
+	public $worker_id = 0;
 	
 	private $_contact_model = null;
 	private $_org_model = null;
@@ -1176,6 +1380,13 @@ class Model_Address {
 	function getMailTransport() {
 		if($this->mail_transport_id && false != ($transport = DAO_MailTransport::get($this->mail_transport_id)))
 			return $transport;
+		
+		return null;
+	}
+	
+	function getWorker() {
+		if($this->worker_id && false != ($worker = DAO_Worker::get($this->worker_id)))
+			return $worker;
 		
 		return null;
 	}
@@ -1263,6 +1474,7 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				case SearchFields_Address::IS_DEFUNCT:
 				case SearchFields_Address::CONTACT_ORG_ID:
 				case SearchFields_Address::MAIL_TRANSPORT_ID:
+				case SearchFields_Address::WORKER_ID:
 					$pass = true;
 					break;
 					
@@ -1317,6 +1529,15 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				$mail_transports = DAO_MailTransport::getAll();
 				$label_map = array_column($mail_transports, 'name', 'id');
 				$counts = $this->_getSubtotalCountForStringColumn($context, SearchFields_Address::MAIL_TRANSPORT_ID, $label_map, '=', 'value');
+				break;
+				
+			case SearchFields_Address::WORKER_ID:
+				$label_map = function($ids) {
+					return array_map(function($worker) {
+						return $worker->getName();
+					}, DAO_Worker::getIds($ids));
+				};
+				$counts = $this->_getSubtotalCountForStringColumn($context, SearchFields_Address::WORKER_ID, $label_map, '=', 'value');
 				break;
 				
 			// Virtuals
@@ -1407,6 +1628,9 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
 					'options' => array('param_key' => SearchFields_Address::MAIL_TRANSPORT_ID),
+					'examples' => [
+						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_MAIL_TRANSPORT, 'q' => ''],
+					]
 				),
 			'nonspam' =>
 				array(
@@ -1454,6 +1678,14 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
 					'options' => array('param_key' => SearchFields_Address::UPDATED),
+				),
+			'worker.id' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'options' => array('param_key' => SearchFields_Address::WORKER_ID),
+					'examples' => [
+						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					]
 				),
 			'watchers' =>
 				array(
@@ -1572,6 +1804,9 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 		$mail_transports = DAO_MailTransport::getAll();
 		$tpl->assign('mail_transports', $mail_transports);
 		
+		$workers = DAO_Worker::getAll();
+		$tpl->assign('workers', $workers);
+		
 		switch($this->renderTemplate) {
 			case 'contextlinks_chooser':
 			default:
@@ -1594,10 +1829,11 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
 				break;
 				
-			case SearchFields_Address::MAIL_TRANSPORT_ID:
-			case SearchFields_Address::NUM_SPAM:
-			case SearchFields_Address::NUM_NONSPAM:
 			case SearchFields_Address::CONTACT_ORG_ID:
+			case SearchFields_Address::MAIL_TRANSPORT_ID:
+			case SearchFields_Address::NUM_NONSPAM:
+			case SearchFields_Address::NUM_SPAM:
+			case SearchFields_Address::WORKER_ID:
 				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
 				break;
 				
@@ -1735,6 +1971,15 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				parent::_renderCriteriaParamString($param, $label_map);
 				break;
 				
+			case SearchFields_Address::WORKER_ID:
+				$label_map = function($ids) {
+					return array_map(function($worker) {
+						return $worker->getName();
+					}, DAO_Worker::getIds($ids));
+				};
+				parent::_renderCriteriaParamString($param, $label_map);
+				break;
+				
 			default:
 				parent::renderCriteriaParam($param);
 				break;
@@ -1755,8 +2000,9 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				break;
 				
 			case SearchFields_Address::MAIL_TRANSPORT_ID:
-			case SearchFields_Address::NUM_SPAM:
 			case SearchFields_Address::NUM_NONSPAM:
+			case SearchFields_Address::NUM_SPAM:
+			case SearchFields_Address::WORKER_ID:
 				$criteria = new DevblocksSearchCriteria($field,$oper,$value);
 				break;
 				
@@ -1810,7 +2056,7 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 	}
 };
 
-class Context_Address extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextImport, IDevblocksContextAutocomplete {
+class Context_Address extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextImport, IDevblocksContextBroadcast, IDevblocksContextMerge, IDevblocksContextAutocomplete {
 	static function isReadableByActor($models, $actor) {
 		// Everyone can read
 		return CerberusContexts::allowEverything($models);
@@ -1910,6 +2156,7 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 			'num_nonspam',
 			'num_spam',
 			'mail_transport__label',
+			'worker__label',
 			'updated',
 		];
 	}
@@ -2056,6 +2303,9 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 			
 			// Transport
 			$token_values['mail_transport_id'] = $address->mail_transport_id;
+			
+			// Worker
+			$token_values['worker_id'] = $address->worker_id;
 		}
 		
 		$context_stack = CerberusContexts::getStack();
@@ -2111,6 +2361,23 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 			);
 		}
 		
+		// Worker
+		// Only link worker placeholders if the worker isn't nested under an address already
+		if(1 == count($context_stack) || !in_array(CerberusContexts::CONTEXT_ADDRESS, $context_stack)) {
+			$merge_token_labels = [];
+			$merge_token_values = [];
+			CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, null, $merge_token_labels, $merge_token_values, null, true);
+	
+			CerberusContexts::merge(
+				'worker_',
+				$prefix,
+				$merge_token_labels,
+				$merge_token_values,
+				$token_labels,
+				$token_values
+			);
+		}
+		
 		return true;
 	}
 	
@@ -2128,6 +2395,7 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 			'num_spam' => DAO_Address::NUM_SPAM,
 			'org_id' => DAO_Address::CONTACT_ORG_ID,
 			'updated' => DAO_Address::UPDATED,
+			'worker_id' => DAO_Address::WORKER_ID,
 		];
 	}
 	
@@ -2219,7 +2487,6 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 		$view->renderSortBy = SearchFields_Address::EMAIL;
 		$view->renderSortAsc = true;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;
@@ -2356,6 +2623,42 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 		}
 	}
 	
+	function mergeGetKeys() {
+		$keys = [
+			'is_banned',
+			'is_defunct',
+			'contact__label',
+			'org__label',
+			'mail_transport__label',
+			'worker__label',
+		];
+		
+		return $keys;
+	}
+	
+	function broadcastRecipientFieldsGet() {
+		$token_labels = $token_values = [];
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_ADDRESS, $token_labels, $token_labels, $token_values, null, true);
+		
+		$results = $this->_broadcastRecipientFieldsGet(CerberusContexts::CONTEXT_ADDRESS, 'Email', [
+			'address',
+			'org_email_address',
+		]);
+		
+		asort($results);
+		return $results;
+	}
+	
+	function broadcastPlaceholdersGet() {
+		$token_values = $this->_broadcastPlaceholdersGet(CerberusContexts::CONTEXT_ADDRESS);
+		return $token_values;
+	}
+	
+	function broadcastRecipientFieldsToEmails(array $fields, DevblocksDictionaryDelegate $dict) {
+		$emails = $this->_broadcastRecipientFieldsToEmails($fields, $dict);
+		return $emails;
+	}
+	
 	function importGetKeys() {
 		// [TODO] Translate
 	
@@ -2401,6 +2704,11 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 				'label' => 'Updated',
 				'type' => Model_CustomField::TYPE_DATE,
 				'param' => SearchFields_Address::UPDATED,
+			),
+			'worker_id' => array(
+				'label' => 'Worker',
+				'type' => Model_CustomField::TYPE_NUMBER,
+				'param' => SearchFields_Address::WORKER_ID,
 			),
 		);
 	

@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -840,6 +840,8 @@ class Model_TriggerEvent {
 				$value = !empty($value) ? 1 : 0;
 				break;
 				
+			case Model_CustomField::TYPE_CURRENCY:
+			case Model_CustomField::TYPE_DECIMAL:
 			case Model_CustomField::TYPE_LINK:
 			case Model_CustomField::TYPE_NUMBER:
 				settype($value, 'integer');
@@ -2112,7 +2114,6 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 		$view->renderSortBy = SearchFields_TriggerEvent::PRIORITY;
 		$view->renderSortAsc = true;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;

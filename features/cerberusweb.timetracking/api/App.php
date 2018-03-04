@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -88,11 +88,11 @@ class ChTimeTrackingEventListener extends DevblocksEventListenerExtension {
 				DAO_TimeTrackingEntry::maint();
 				break;
 				
-			case 'ticket.action.merge':
-				$new_ticket_id = $event->params['new_ticket_id'];
-				$old_ticket_ids = $event->params['old_ticket_ids'];
-				
+			case 'record.merge':
+				$context = $event->params['context'];
 				// [TODO]
+				//$new_ticket_id = $event->params['new_ticket_id'];
+				//$old_ticket_ids = $event->params['old_ticket_ids'];
 				break;
 		}
 	}

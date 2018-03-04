@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -865,7 +865,6 @@ switch($step) {
 						case 'customer_satisfaction':
 							$prompts = [
 								'product_name' => $setup_defaults['org_name'],
-								'portal_url' => 'https://portal.example/',
 							];
 							$json = file_get_contents(APP_PATH . '/install/packages/customer_satisfaction_package.json');
 							$results = [];

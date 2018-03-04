@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -305,6 +305,55 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		$tpl->assign('raw_headers', $raw_headers);
 		
 		$tpl->display('devblocks:cerberusweb.core::messages/popup_full_headers.tpl');
+	}
+	
+	function showResendMessagePopupAction() {
+		$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
+		
+		if(empty($id) || false == ($message = DAO_Message::get($id)))
+			return;
+		
+		$tpl = DevblocksPlatform::services()->template();
+		
+		$tpl->assign('message', $message);
+		
+		$error = null;
+		$source = CerberusMail::resend($message, $error, true);
+		$tpl->assign('source', $source);
+		
+		$tpl->display('devblocks:cerberusweb.core::messages/resend_popup.tpl');
+	}
+	
+	function saveResendMessagePopupJsonAction() {
+		$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
+		
+		header('Content-Type: application/json; charset=utf-8');
+		
+		try {
+			if(empty($id) || false == ($message = DAO_Message::get($id)))
+				throw new Exception_DevblocksAjaxError("Invalid message ID.");
+			
+			$error = null;
+			
+			if(!CerberusMail::resend($message, $error))
+				throw new Exception_DevblocksAjaxError($error);
+			
+			echo json_encode([
+				'status' => true,
+			]);
+			
+		} catch (Exception_DevblocksAjaxError $e) {
+			echo json_encode([
+				'status' => false,
+				'error' => $e->getMessage(),
+			]);
+			
+		} catch (Exception $e) {
+			echo json_encode([
+				'status' => false,
+				'error' => 'An unexpected error occurred.',
+			]);
+		}
 	}
 	
 	function showBulkPopupAction() {

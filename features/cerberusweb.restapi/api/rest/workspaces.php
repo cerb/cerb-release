@@ -79,15 +79,15 @@ class ChRest_Workspaces extends Extension_RestController { // implements IExtens
 
 		$workspace_pages = DAO_WorkspacePage::getByWorker($worker);
 		
-		$results = array();
+		$results = [];
 
 		foreach($workspace_pages as $workspace_page) {
 			// We only show workspace pages at the moment
 			if(!in_array($workspace_page->extension_id, array('core.workspace.page.workspace')))
 				continue;
 			
-			$labels = array();
-			$values = array();
+			$labels = [];
+			$values = [];
 			CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKSPACE_PAGE, $workspace_page, $labels, $values, null, true);
 			
 			$results[] = $values;
@@ -113,8 +113,8 @@ class ChRest_Workspaces extends Extension_RestController { // implements IExtens
 		if(!isset($workspace_pages[$id]))
 			$this->error(self::ERRNO_CUSTOM, "You do not have permission to view this page.");
 
-		$labels = array();
-		$values = array();
+		$labels = [];
+		$values = [];
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKSPACE_PAGE, $workspace_pages[$id], $labels, $values, null, true);
 		
 		$this->success($values);
@@ -136,8 +136,8 @@ class ChRest_Workspaces extends Extension_RestController { // implements IExtens
 				$this->error(self::ERRNO_CUSTOM, "You do not have permission to view this tab.");
 		}
 		
-		$labels = array();
-		$values = array();
+		$labels = [];
+		$values = [];
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKSPACE_TAB, $workspace_tab, $labels, $values, null, true);
 		
 		$this->success($values);
@@ -162,8 +162,8 @@ class ChRest_Workspaces extends Extension_RestController { // implements IExtens
 				
 		}
 
-		$labels = array();
-		$values = array();
+		$labels = [];
+		$values = [];
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKSPACE_WIDGET, $workspace_widget, $labels, $values, null, true);
 		
 		// Force load data for direct widget requests
@@ -176,8 +176,8 @@ class ChRest_Workspaces extends Extension_RestController { // implements IExtens
 	
 	private function _getWorklist($id) {
 		$worker = CerberusApplication::getActiveWorker();
-		$param_page = max(DevblocksPlatform::importGPC($_REQUEST['page'], 'integer', 0), 1);
-		$param_limit = DevblocksPlatform::intClamp(DevblocksPlatform::importGPC($_REQUEST['limit'], 'integer', 10), 1, 100);
+		$param_page = max(@DevblocksPlatform::importGPC($_REQUEST['page'], 'integer', 0), 1);
+		$param_limit = DevblocksPlatform::intClamp(@DevblocksPlatform::importGPC($_REQUEST['limit'], 'integer', 10), 1, 100);
 		
 		if(null == ($workspace_worklist = DAO_WorkspaceList::get($id)))
 			$this->error(self::ERRNO_CUSTOM, "The requested worklist does not exist.");
@@ -192,43 +192,38 @@ class ChRest_Workspaces extends Extension_RestController { // implements IExtens
 
 			if(!isset($workspace_pages[$workspace_tab->workspace_page_id]))
 				$this->error(self::ERRNO_CUSTOM, "You do not have permission to view this worklist.");
-				
 		}
 		
 		$view_id = 'cust_' . $workspace_worklist->id;
 		
-			// Make sure our workspace source has a valid renderer class
+		// Make sure our workspace source has a valid renderer class
 		if(null == ($ext = Extension_DevblocksContext::get($workspace_worklist->context))) {
 			return;
 		}
 		
-		// [TODO] Convert this to the abstract worklist format
 		if(null == ($view = C4_AbstractViewLoader::getView($view_id))) {
-			$list_view = $workspace_worklist->list_view; /* @var $list_view Model_WorkspaceListView */
-				
 			$view = $ext->getChooserView($view_id);  /* @var $view C4_AbstractView */
 				
 			if(empty($view))
 				return;
 				
-			$view->name = $list_view->title;
-			$view->options = $list_view->options;
-			$view->renderLimit = $list_view->num_rows;
+			$view->name = $workspace_worklist->name;
+			$view->options = $workspace_worklist->options;
+			$view->renderLimit = $workspace_worklist->render_limit;
 			$view->renderPage = 0;
 			$view->is_ephemeral = 0;
-			$view->view_columns = $list_view->columns;
-			$view->addParams($list_view->params, true);
-			if(property_exists($list_view, 'params_required'))
-				$view->addParamsRequired($list_view->params_required, true);
-			$view->renderSortBy = $list_view->sort_by;
-			$view->renderSortAsc = $list_view->sort_asc;
-			$view->renderSubtotals = $list_view->subtotals;
+			$view->view_columns = $workspace_worklist->columns;
+			$view->addParams($workspace_worklist->getParamsEditable(), true);
+			$view->addParamsRequired($workspace_worklist->getParamsRequired(), true);
+			$view->renderSortBy = array_keys($workspace_worklist->render_sort);
+			$view->renderSortAsc = array_values($workspace_worklist->render_sort);
+			$view->renderSubtotals = $workspace_worklist->render_subtotals;
 		}
-	
+		
 		if(!empty($view)) {
 			if($worker) {
-				$labels = array();
-				$values = array();
+				$labels = [];
+				$values = [];
 				$worker->getPlaceholderLabelsValues($labels, $values);
 				
 				$view->setPlaceholderLabels($labels);
@@ -245,13 +240,13 @@ class ChRest_Workspaces extends Extension_RestController { // implements IExtens
 		
 		list($worklist_rows, $total) = $view->getData();
 		
-		$results = array();
+		$results = [];
 		
 		$row_ids = array_keys($worklist_rows);
 
 		foreach($row_ids as $row_id) {
-			$labels = array();
-			$values = array();
+			$labels = [];
+			$values = [];
 			CerberusContexts::getContext($workspace_worklist->context, $row_id, $labels, $values, null, true);
 			$results[] = $values;
 		}

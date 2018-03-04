@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -172,15 +172,11 @@ class PageSection_SetupStorageProfiles extends Extension_PageSection {
 			if(!empty($extension_id)) {
 				if(null != ($ext = DevblocksPlatform::getExtension($extension_id, true))) {
 					if(null != ($profile = DAO_DevblocksStorageProfile::get($id))
-					 && $ext instanceof Extension_DevblocksStorageEngine) {
+					&& $ext instanceof Extension_DevblocksStorageEngine) {
 						$ext->saveConfig($profile);
 					}
 				}
 			}
-				
-			// Custom field saves
-			//@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', array());
-			//DAO_CustomFieldValue::handleFormPost(PsCustomFieldSource_Sensor::ID, $id, $field_ids);
 		}
 		
 		if(!empty($view_id)) {

@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>8.2.11</version>
+	<version>8.3.0</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -64,6 +64,7 @@
 		<patch version="8.0.0" revision="1206" file="patches/8.x/8.0.0.php" />
 		<patch version="8.1.0" revision="1227" file="patches/8.x/8.1.0.php" />
 		<patch version="8.2.0" revision="1250" file="patches/8.x/8.2.0.php" />
+		<patch version="8.3.0" revision="1271" file="patches/8.x/8.3.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -117,11 +118,6 @@
 			<class name="Search_Address" />
 			<class name="SearchFields_Address" />
 			<class name="View_Address" />
-		</file>
-		
-		<file path="api/dao/address_to_worker.php">
-			<class name="DAO_AddressToWorker" />
-			<class name="Model_AddressToWorker" />
 		</file>
 		
 		<file path="api/dao/attachment.php">
@@ -234,6 +230,7 @@
 		</file>
 		
 		<file path="api/dao/community_portal.php">
+			<class name="Context_CommunityTool" />
 			<class name="DAO_CommunitySession" />
 			<class name="DAO_CommunityTool" />
 			<class name="DAO_CommunityToolProperty" />
@@ -322,6 +319,14 @@
 			<class name="Model_ContextScheduledBehavior" />
 			<class name="SearchFields_ContextScheduledBehavior" />
 			<class name="View_ContextScheduledBehavior" />
+		</file>
+		
+		<file path="api/dao/currency.php">
+			<class name="Context_Currency" />
+			<class name="DAO_Currency" />
+			<class name="Model_Currency" />
+			<class name="SearchFields_Currency" />
+			<class name="View_Currency" />
 		</file>
 		
 		<file path="api/dao/custom_field.php">
@@ -564,20 +569,20 @@
 			<class name="View_Notification" />
 		</file>
 		
-		<file path="api/dao/workspace.php">
+		<file path="api/dao/workspace_page.php">
 			<class name="Context_WorkspacePage" />
-			<class name="Context_WorkspaceTab" />
-			<class name="Context_WorkspaceWorklist" />
-			<class name="DAO_WorkspaceList" />
 			<class name="DAO_WorkspacePage" />
-			<class name="DAO_WorkspaceTab" />
-			<class name="Model_WorkspaceList" />
-			<class name="Model_WorkspaceListView" />
 			<class name="Model_WorkspacePage" />
-			<class name="Model_WorkspaceTab" />
 			<class name="SearchFields_WorkspacePage" />
-			<class name="SearchFields_WorkspaceTab" />
 			<class name="View_WorkspacePage" />
+		</file>
+		
+		<file path="api/dao/workspace_tab.php">
+			<class name="Context_WorkspaceTab" />
+			<class name="DAO_WorkspaceTab" />
+			<class name="Model_WorkspaceTab" />
+			<class name="SearchFields_WorkspaceTab" />
+			<class name="View_WorkspaceTab" />
 		</file>
 		
 		<file path="api/dao/workspace_widget.php">
@@ -585,6 +590,15 @@
 			<class name="DAO_WorkspaceWidget" />
 			<class name="Model_WorkspaceWidget" />
 			<class name="SearchFields_WorkspaceWidget" />
+			<class name="View_WorkspaceWidget" />
+		</file>
+		
+		<file path="api/dao/workspace_list.php">
+			<class name="Context_WorkspaceList" />
+			<class name="DAO_WorkspaceList" />
+			<class name="Model_WorkspaceList" />
+			<class name="SearchFields_WorkspaceList" />
+			<class name="View_WorkspaceList" />
 		</file>
 		
 		<file path="api/events/abstract/abstract_event_abstract_custom_record.php">
@@ -835,6 +849,10 @@
 			<class name="Page_Profiles" />
 		</file>
 		
+		<file path="api/uri/resource.php">
+			<class name="Controller_Resource" />
+		</file>
+		
 		<file path="api/uri/profiles/abstract_custom_record.php">
 			<class name="PageSection_ProfilesAbstractCustomRecord" />
 		</file>
@@ -879,9 +897,9 @@
 			<param key="string_key" value="activities.mailbox.check.error" />
 			<param key="options" value="" />
 		</activity>
-		<activity point="org.merge">
-			<param key="label_key" value="Organization Merged" />
-			<param key="string_key" value="activities.org.merge" />
+		<activity point="record.merge">
+			<param key="label_key" value="Record Merged" />
+			<param key="string_key" value="activities.record.merge" />
 			<param key="options" value="" />
 		</activity>
 		<activity point="task.created">
@@ -1064,15 +1082,15 @@
 			<name>Group Delete</name>
 			<param key="group_ids" />
 		</event>
+		<event id="record.merge">
+			<name>Record Merge</name>
+			<param key="target_id" />
+			<param key="source_ids" />
+		</event>
 		<event id="task.create">
 			<name>Task Create</name>
 			<param key="task_id" />
 			<param key="fields" />
-		</event>
-		<event id="ticket.action.merge">
-			<name>Ticket Merge</name>
-			<param key="new_ticket_id" />
-			<param key="old_ticket_ids" />
 		</event>
 		<event id="worker.delete">
 			<name>Worker Delete</name>
@@ -1172,6 +1190,50 @@
 						<data key="create" />
 						<data key="delete" />
 						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.portal</id>
+			<name>Community Portal</name>
+			<class>
+				<file>api/dao/community_portal.php</file>
+				<name>Context_CommunityTool</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="community portal" value="singular" />
+						<data key="community portals" value="plural" />
+						<data key="portal" value="singular short" />
+						<data key="portals" value="plural short" />
+					</value>
+				</param>
+				<param key="alias" value="community_portal" />
+				<param key="dao_class" value="DAO_CommunityTool" />
+				<param key="view_class" value="View_CommunityTool" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="records" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
 						<data key="update" />
 					</value>
 				</param>
@@ -1465,6 +1527,50 @@
 						<data key="delete" />
 						<data key="export" />
 						<data key="update" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.currency</id>
+			<name>Currency</name>
+			<class>
+				<file>api/dao/currency.php</file>
+				<name>Context_Currency</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="currency" value="singular" />
+						<data key="currencies" value="plural" />
+					</value>
+				</param>
+				<param key="alias" value="currency" />
+				<param key="dao_class" value="DAO_Currency" />
+				<param key="view_class" value="View_Currency" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="records" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="watchers" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="update" />
+						<data key="update.bulk" />
 					</value>
 				</param>
 			</params>
@@ -2533,6 +2639,7 @@
 						<data key="delete" />
 						<data key="export" />
 						<data key="import" />
+						<data key="merge" />
 						<data key="update" />
 						<data key="update.bulk" />
 					</value>
@@ -2812,7 +2919,7 @@
 			<id>cerberusweb.contexts.workspace.page</id>
 			<name>Workspace Page</name>
 			<class>
-				<file>api/dao/workspace.php</file>
+				<file>api/dao/workspace_page.php</file>
 				<name>Context_WorkspacePage</name>
 			</class>
 			<params>
@@ -2831,6 +2938,9 @@
 				<param key="view_class" value="View_WorkspacePage" />
 				<param key="options">
 					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
 						<data key="records" />
 						<data key="search" />
 						<data key="va_variable" />
@@ -2853,7 +2963,7 @@
 			<id>cerberusweb.contexts.workspace.tab</id>
 			<name>Workspace Tab</name>
 			<class>
-				<file>api/dao/workspace.php</file>
+				<file>api/dao/workspace_tab.php</file>
 				<name>Context_WorkspaceTab</name>
 			</class>
 			<params>
@@ -2870,7 +2980,13 @@
 				<param key="view_class" value="View_WorkspaceTab" />
 				<param key="options">
 					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
 						<data key="records" />
+						<data key="search" />
+						<data key="va_variable" />
+						<data key="workspace" />
 					</value>
 				</param>
 				<param key="acl">
@@ -2906,7 +3022,13 @@
 				<param key="view_class" value="View_WorkspaceWidget" />
 				<param key="options">
 					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
 						<data key="records" />
+						<data key="search" />
+						<data key="va_variable" />
+						<data key="workspace" />
 					</value>
 				</param>
 				<param key="acl">
@@ -2922,11 +3044,11 @@
 		</extension>
 		
 		<extension point="devblocks.context">
-			<id>cerberusweb.contexts.workspace.worklist</id>
+			<id>cerberusweb.contexts.workspace.list</id>
 			<name>Workspace Worklist</name>
 			<class>
-				<file>api/dao/workspace.php</file>
-				<name>Context_WorkspaceWorklist</name>
+				<file>api/dao/workspace_list.php</file>
+				<name>Context_WorkspaceList</name>
 			</class>
 			<params>
 				<param key="names">
@@ -2942,7 +3064,13 @@
 				<param key="view_class" value="View_WorkspaceList" />
 				<param key="options">
 					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
 						<data key="records" />
+						<data key="search" />
+						<data key="va_variable" />
+						<data key="workspace" />
 					</value>
 				</param>
 				<param key="acl">
@@ -4289,6 +4417,18 @@
 			<params>
 			</params>
 		</extension>
+		
+		<extension point="devblocks.controller">
+			<id>core.controller.resource</id>
+			<name>Resource Controller</name>
+			<class>
+				<file>api/uri/resource.php</file>
+				<name>Controller_Resource</name>
+			</class>
+			<params>
+				<param key="uri" value="resource" />
+			</params>
+		</extension>
 
 		<!-- Http Listeners -->
 		
@@ -4755,32 +4895,6 @@
 			</extension>
 		
 			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.portal</id>
-				<name>Portal Section</name>
-				<class>
-					<file>api/uri/config/portal.php</file>
-					<name>PageSection_SetupPortal</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="portal" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.portals</id>
-				<name>Portals Section</name>
-				<class>
-					<file>api/uri/config/portals.php</file>
-					<name>PageSection_SetupPortals</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="portals" />
-				</params>
-			</extension>
-		
-			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.setup.scheduler</id>
 				<name>Scheduler Section</name>
 				<class>
@@ -4909,19 +5023,6 @@
 					<param key="uri" value="team" />
 				</params>
 			</extension>
-		
-		<extension point="cerberusweb.page">
-			<id>core.page.preferences</id>
-			<name>Preferences Page</name>
-			<class>
-				<file>api/uri/preferences.php</file>
-				<name>ChPreferencesPage</name>
-			</class>
-			<params>
-				<param key="uri" value="preferences" />
-				<param key="menutitle" value="" />
-			</params>
-		</extension>
 		
 		<extension point="cerberusweb.page">
 			<id>core.page.profiles</id>
@@ -5093,7 +5194,20 @@
 					<param key="uri" value="comment" />
 				</params>
 			</extension>
-
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.community_tool</id>
+				<name>Community Portal Section</name>
+				<class>
+					<file>api/uri/profiles/community_portal.php</file>
+					<name>PageSection_ProfilesCommunityPortal</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="community_portal" />
+				</params>
+			</extension>
+			
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.profiles.connected_account</id>
 				<name>Connected Account Section</name>
@@ -5130,6 +5244,19 @@
 				<params>
 					<param key="page_id" value="core.page.profiles" />
 					<param key="uri" value="custom_fieldset" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.currency</id>
+				<name>Currency Section</name>
+				<class>
+					<file>api/uri/profiles/currency.php</file>
+					<name>PageSection_ProfilesCurrency</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="currency" />
 				</params>
 			</extension>
 			
@@ -5419,6 +5546,45 @@
 				</params>
 			</extension>
 			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.workspace_tab</id>
+				<name>Workspace Tab Section</name>
+				<class>
+					<file>api/uri/profiles/workspace_tab.php</file>
+					<name>PageSection_ProfilesWorkspaceTab</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="workspace_tab" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.workspace_widget</id>
+				<name>Workspace Widget Section</name>
+				<class>
+					<file>api/uri/profiles/workspace_widget.php</file>
+					<name>PageSection_ProfilesWorkspaceWidget</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="workspace_widget" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.workspace_list</id>
+				<name>Workspace List Section</name>
+				<class>
+					<file>api/uri/profiles/workspace_list.php</file>
+					<name>PageSection_ProfilesWorkspaceList</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="workspace_list" />
+				</params>
+			</extension>
+			
 		<!-- Workspace Pages -->
 		
 		<extension point="cerberusweb.ui.workspace.page">
@@ -5643,18 +5809,34 @@
 		</extension>
 		
 		<extension point="cerberusweb.ui.workspace.widget.datasource">
-			<id>core.workspace.widget.datasource.worklist</id>
+			<id>core.workspace.widget.datasource.worklist.metric</id>
 			<name>Worklist</name>
 			<class>
 				<file>api/uri/internal/dashboards/widget_datasources.php</file>
-				<name>WorkspaceWidgetDatasource_Worklist</name>
+				<name>WorkspaceWidgetDatasource_WorklistMetric</name>
+			</class>
+			<params>
+				<param key="widgets">
+					<value>
+						<data key="core.workspace.widget.counter" />
+						<data key="core.workspace.widget.gauge" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.ui.workspace.widget.datasource">
+			<id>core.workspace.widget.datasource.worklist.series</id>
+			<name>Worklist</name>
+			<class>
+				<file>api/uri/internal/dashboards/widget_datasources.php</file>
+				<name>WorkspaceWidgetDatasource_WorklistSeries</name>
 			</class>
 			<params>
 				<param key="widgets">
 					<value>
 						<data key="core.workspace.widget.chart" />
-						<data key="core.workspace.widget.counter" />
-						<data key="core.workspace.widget.gauge" />
+						<data key="core.workspace.widget.pie_chart" />
 						<data key="core.workspace.widget.scatterplot" />
 					</value>
 				</param>

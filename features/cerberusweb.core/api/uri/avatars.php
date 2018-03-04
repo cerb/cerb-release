@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -254,8 +254,12 @@ class Controller_Avatars extends DevblocksControllerExtension {
 				$this->_renderFilePng(APP_PATH . '/features/cerberusweb.core/resources/images/avatars/va.png');
 				break;
 				
-			default:
+			case CerberusContexts::CONTEXT_GROUP:
 				$this->_renderFilePng(APP_PATH . '/features/cerberusweb.core/resources/images/avatars/convo.png');
+				break;
+				
+			default:
+				$this->_renderFilePng(APP_PATH . '/features/cerberusweb.core/resources/images/avatars/va.png');
 				break;
 		}
 	}

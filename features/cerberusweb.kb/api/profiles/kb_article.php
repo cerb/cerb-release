@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -134,7 +134,7 @@ class PageSection_ProfilesKbArticle extends Extension_PageSection {
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
-				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", 'cerberusweb.contexts.kb_article')))
+				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_KB_ARTICLE)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 				
 				DAO_KbArticle::delete($id);
@@ -171,7 +171,7 @@ class PageSection_ProfilesKbArticle extends Extension_PageSection {
 					DAO_KbArticle::onUpdateByActor($active_worker, $fields, $id);
 					
 					if(!empty($view_id) && !empty($id))
-						C4_AbstractView::setMarqueeContextCreated($view_id, 'cerberusweb.contexts.kb_article', $id);
+						C4_AbstractView::setMarqueeContextCreated($view_id, CerberusContexts::CONTEXT_KB_ARTICLE, $id);
 					
 				} else { // Edit
 					$fields = array(
@@ -198,9 +198,10 @@ class PageSection_ProfilesKbArticle extends Extension_PageSection {
 				if(is_array($file_ids))
 					DAO_Attachment::setLinks(CerberusContexts::CONTEXT_KB_ARTICLE, $id, $file_ids);
 				
-				// Custom fields
-				@$field_ids = DevblocksPlatform::importGPC($_REQUEST['field_ids'], 'array', []);
-				DAO_CustomFieldValue::handleFormPost('cerberusweb.contexts.kb_article', $id, $field_ids);
+				// Custom field saves
+				@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
+				if(!DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_KB_ARTICLE, $id, $field_ids, $error))
+					throw new Exception_DevblocksAjaxValidationError($error);
 				
 				echo json_encode(array(
 					'status' => true,

@@ -1192,7 +1192,6 @@ class Context_<?php echo $class_name;?> extends Extension_DevblocksContext imple
 		$view->renderSortBy = SearchFields_<?php echo $class_name; ?>::UPDATED_AT;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;
@@ -1913,9 +1912,10 @@ class PageSection_Profiles<?php echo $class_name; ?> extends Extension_PageSecti
 					$comment_id = DAO_Comment::create($fields, $also_notify_worker_ids);
 				}
 				
-				// Custom fields
-				@$field_ids = DevblocksPlatform::importGPC($_REQUEST['field_ids'], 'array', []);
-				DAO_CustomFieldValue::handleFormPost('<?php echo $ctx_ext_id; ?>', $id, $field_ids);
+				// Custom field saves
+				@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
+				if(!DAO_CustomFieldValue::handleFormPost('<?php echo $ctx_ext_id; ?>', $id, $field_ids, $error))
+					throw new Exception_DevblocksAjaxValidationError($error);
 				
 				echo json_encode(array(
 					'status' => true,

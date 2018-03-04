@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -16,14 +16,13 @@
  ***********************************************************************/
 
 class DAO_CrmOpportunity extends Cerb_ORMHelper {
-	const AMOUNT = 'amount';
 	const CLOSED_DATE = 'closed_date';
 	const CREATED_DATE = 'created_date';
+	const CURRENCY_AMOUNT = 'currency_amount';
+	const CURRENCY_ID = 'currency_id';
 	const ID = 'id';
-	const IS_CLOSED = 'is_closed';
-	const IS_WON = 'is_won';
+	const STATUS_ID = 'status_id';
 	const NAME = 'name';
-	const PRIMARY_EMAIL_ID = 'primary_email_id';
 	const UPDATED_DATE = 'updated_date';
 	
 	private function __construct() {}
@@ -31,11 +30,6 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 	static function getFields() {
 		$validation = DevblocksPlatform::services()->validation();
 		
-		// decimal(8,2)
-		$validation
-			->addField(self::AMOUNT)
-			->float()
-			;
 		// int(10) unsigned
 		$validation
 			->addField(self::CLOSED_DATE)
@@ -46,21 +40,24 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 			->addField(self::CREATED_DATE)
 			->timestamp()
 			;
+		// bigint
+		$validation
+			->addField(self::CURRENCY_AMOUNT)
+			->number()
+			->setMin(0)
+			->setMax('8 bytes')
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::CURRENCY_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_CURRENCY, true))
+			;
 		// int(10) unsigned
 		$validation
 			->addField(self::ID)
 			->id()
 			->setEditable(false)
-			;
-		// tinyint(1) unsigned
-		$validation
-			->addField(self::IS_CLOSED)
-			->bit()
-			;
-		// tinyint(1) unsigned
-		$validation
-			->addField(self::IS_WON)
-			->bit()
 			;
 		// varchar(255)
 		$validation
@@ -69,12 +66,12 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 			->setMaxLength(255)
 			->setRequired(true)
 			;
-		// int(10) unsigned
+		// tinyint(1) unsigned
 		$validation
-			->addField(self::PRIMARY_EMAIL_ID)
-			->id()
-			->setRequired(true)
-			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS))
+			->addField(self::STATUS_ID)
+			->number()
+			->setMin(0)
+			->setMax(2)
 			;
 		// int(10) unsigned
 		$validation
@@ -189,8 +186,8 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 		$deleted = false;
 
 		if(is_array($do))
@@ -199,20 +196,17 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 				case 'status':
 					switch(DevblocksPlatform::strLower($v)) {
 						case 'open':
-							$change_fields[DAO_CrmOpportunity::IS_CLOSED] = 0;
-							$change_fields[DAO_CrmOpportunity::IS_WON] = 0;
+							$change_fields[DAO_CrmOpportunity::STATUS_ID] = 0;
 							$change_fields[DAO_CrmOpportunity::CLOSED_DATE] = 0;
 							break;
 							
 						case 'won':
-							$change_fields[DAO_CrmOpportunity::IS_CLOSED] = 1;
-							$change_fields[DAO_CrmOpportunity::IS_WON] = 1;
+							$change_fields[DAO_CrmOpportunity::STATUS_ID] = 1;
 							$change_fields[DAO_CrmOpportunity::CLOSED_DATE] = time();
 							break;
 							
 						case 'lost':
-							$change_fields[DAO_CrmOpportunity::IS_CLOSED] = 1;
-							$change_fields[DAO_CrmOpportunity::IS_WON] = 0;
+							$change_fields[DAO_CrmOpportunity::STATUS_ID] = 2;
 							$change_fields[DAO_CrmOpportunity::CLOSED_DATE] = time();
 							break;
 							
@@ -228,7 +222,7 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 					
 				default:
 					// Custom fields
-					if(substr($k,0,3)=="cf_") {
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
 						$custom_fields[substr($k,3)] = $v;
 					}
 			}
@@ -253,7 +247,7 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 			
 			// Broadcast
 			if(isset($do['broadcast']))
-				C4_AbstractView::_doBulkBroadcast(CerberusContexts::CONTEXT_OPPORTUNITY, $do['broadcast'], $ids, 'email_address');
+				C4_AbstractView::_doBulkBroadcast(CerberusContexts::CONTEXT_OPPORTUNITY, $do['broadcast'], $ids);
 			
 		} else {
 			DAO_CrmOpportunity::delete($ids);
@@ -267,8 +261,7 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 		// We only care about these fields, so abort if they aren't referenced
 
 		$observed_fields = array(
-			DAO_CrmOpportunity::IS_CLOSED,
-			DAO_CrmOpportunity::IS_WON,
+			DAO_CrmOpportunity::STATUS_ID,
 		);
 		
 		$used_fields = array_intersect($observed_fields, array_keys($change_fields));
@@ -295,33 +288,29 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 			 * Opp status changed
 			 */
 			
-			@$is_closed = $change_fields[DAO_CrmOpportunity::IS_CLOSED];
-			@$is_won = $change_fields[DAO_CrmOpportunity::IS_WON];
+			@$status_id = $change_fields[DAO_CrmOpportunity::STATUS_ID];
 			
-			if($is_closed == $before_model->is_closed)
-				unset($change_fields[DAO_CrmOpportunity::IS_CLOSED]);
-			
-			if($is_won == $before_model->is_won)
-				unset($change_fields[DAO_CrmOpportunity::IS_WON]);
+			if($status_id == $before_model->status_id)
+				unset($change_fields[DAO_CrmOpportunity::STATUS_ID]);
 			
 			if(
-				isset($change_fields[DAO_CrmOpportunity::IS_CLOSED])
-				|| isset($change_fields[DAO_CrmOpportunity::IS_WON])
+				isset($change_fields[DAO_CrmOpportunity::STATUS_ID])
 			) {
 				
-				if(!$model->is_closed) {
-					$activity_point = 'opp.status.open';
-					$status_to = 'open';
-					
-				} else {
-					if($model->is_won) {
+				switch($model->status_id) {
+					default:
+					case 0:
+						$activity_point = 'opp.status.open';
+						$status_to = 'open';
+						break;
+					case 1:
 						$activity_point = 'opp.status.closed_won';
 						$status_to = 'closed/won';
-						
-					} else {
+						break;
+					case 2:
 						$activity_point = 'opp.status.closed_lost';
 						$status_to = 'closed/lost';
-					}
+						break;
 				}
 				
 				/*
@@ -355,7 +344,7 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 	static function getWhere($where=null) {
 		$db = DevblocksPlatform::services()->database();
 		
-		$sql = "SELECT id, name, amount, primary_email_id, created_date, updated_date, closed_date, is_won, is_closed ".
+		$sql = "SELECT id, name, currency_id, currency_amount, created_date, updated_date, closed_date, status_id ".
 			"FROM crm_opportunity ".
 			(!empty($where) ? sprintf("WHERE %s ",$where) : "").
 			"ORDER BY id asc";
@@ -397,13 +386,12 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 			$object = new Model_CrmOpportunity();
 			$object->id = intval($row['id']);
 			$object->name = $row['name'];
-			$object->amount = doubleval($row['amount']);
-			$object->primary_email_id = intval($row['primary_email_id']);
+			$object->currency_id = intval($row['currency_id']);
+			$object->currency_amount = $row['currency_amount'];
 			$object->created_date = $row['created_date'];
 			$object->updated_date = $row['updated_date'];
 			$object->closed_date = $row['closed_date'];
-			$object->is_won = $row['is_won'];
-			$object->is_closed = $row['is_closed'];
+			$object->status_id = intval($row['status_id']);
 			$objects[$object->id] = $object;
 		}
 		
@@ -430,6 +418,22 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 				)
 			)
 		);
+	}
+	
+	static function mergeIds($from_ids, $to_id) {
+		$db = DevblocksPlatform::services()->database();
+
+		$context = CerberusContexts::CONTEXT_OPPORTUNITY;
+		
+		if(empty($from_ids) || empty($to_id))
+			return false;
+			
+		if(!is_numeric($to_id) || !is_array($from_ids))
+			return false;
+		
+		self::_mergeIds($context, $from_ids, $to_id);
+		
+		return true;
 	}
 	
 	static function delete($ids) {
@@ -468,36 +472,24 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 		$select_sql = sprintf("SELECT ".
 			"o.id as %s, ".
 			"o.name as %s, ".
-			"o.amount as %s, ".
-			"org.id as %s, ".
-			"org.name as %s, ".
-			"o.primary_email_id as %s, ".
-			"a.email as %s, ".
+			"o.currency_id as %s, ".
+			"o.currency_amount as %s, ".
 			"o.created_date as %s, ".
 			"o.updated_date as %s, ".
 			"o.closed_date as %s, ".
-			"o.is_closed as %s, ".
-			"o.is_won as %s ",
+			"o.status_id as %s ",
 				SearchFields_CrmOpportunity::ID,
 				SearchFields_CrmOpportunity::NAME,
-				SearchFields_CrmOpportunity::AMOUNT,
-				SearchFields_CrmOpportunity::ORG_ID,
-				SearchFields_CrmOpportunity::ORG_NAME,
-				SearchFields_CrmOpportunity::PRIMARY_EMAIL_ID,
-				SearchFields_CrmOpportunity::EMAIL_ADDRESS,
+				SearchFields_CrmOpportunity::CURRENCY_ID,
+				SearchFields_CrmOpportunity::CURRENCY_AMOUNT,
 				SearchFields_CrmOpportunity::CREATED_DATE,
 				SearchFields_CrmOpportunity::UPDATED_DATE,
 				SearchFields_CrmOpportunity::CLOSED_DATE,
-				SearchFields_CrmOpportunity::IS_CLOSED,
-				SearchFields_CrmOpportunity::IS_WON
+				SearchFields_CrmOpportunity::STATUS_ID
 			);
 
-		// [TODO] Get rid of the left join
 		$join_sql =
-			"FROM crm_opportunity o ".
-			"INNER JOIN address a ON (a.id = o.primary_email_id) ".
-			"LEFT JOIN contact_org org ON (org.id = a.contact_org_id) ".
-			'';
+			"FROM crm_opportunity o ";
 			
 		$where_sql = "".
 			(!empty($wheres) ? sprintf("WHERE %s ",implode(' AND ',$wheres)) : "WHERE 1 ");
@@ -608,26 +600,19 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 class SearchFields_CrmOpportunity extends DevblocksSearchFields {
 	// Table
 	const ID = 'o_id';
-	const PRIMARY_EMAIL_ID = 'o_primary_email_id';
 	const NAME = 'o_name';
-	const AMOUNT = 'o_amount';
+	const CURRENCY_AMOUNT = 'o_currency_amount';
+	const CURRENCY_ID = 'o_currency_id';
 	const CREATED_DATE = 'o_created_date';
 	const UPDATED_DATE = 'o_updated_date';
 	const CLOSED_DATE = 'o_closed_date';
-	const IS_WON = 'o_is_won';
-	const IS_CLOSED = 'o_is_closed';
+	const STATUS_ID = 'o_status_id';
 	
-	const ORG_ID = 'org_id';
-	const ORG_NAME = 'org_name';
-
-	const EMAIL_ADDRESS = 'a_email';
-
 	// Comment Content
 	const FULLTEXT_COMMENT_CONTENT = 'ftcc_content';
 
 	// Virtuals
 	const VIRTUAL_CONTEXT_LINK = '*_context_link';
-	const VIRTUAL_EMAIL_SEARCH = '*_email_search';
 	const VIRTUAL_HAS_FIELDSET = '*_has_fieldset';
 	const VIRTUAL_WATCHERS = '*_workers';
 	
@@ -640,8 +625,6 @@ class SearchFields_CrmOpportunity extends DevblocksSearchFields {
 	static function getCustomFieldContextKeys() {
 		return array(
 			CerberusContexts::CONTEXT_OPPORTUNITY => new DevblocksSearchFieldContextKeys('o.id', self::ID),
-			//CerberusContexts::CONTEXT_ADDRESS => new DevblocksSearchFieldContextKeys('o.primary_email_id', self::PRIMARY_EMAIL_ID),
-			//CerberusContexts::CONTEXT_ORG => new DevblocksSearchFieldContextKeys('a.contact_org_id', self::ORG_ID),
 		);
 	}
 	
@@ -653,10 +636,6 @@ class SearchFields_CrmOpportunity extends DevblocksSearchFields {
 				
 			case self::VIRTUAL_CONTEXT_LINK:
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_OPPORTUNITY, self::getPrimaryKey());
-				break;
-				
-			case self::VIRTUAL_EMAIL_SEARCH:
-				return self::_getWhereSQLFromVirtualSearchField($param, CerberusContexts::CONTEXT_ADDRESS, 'o.primary_email_id');
 				break;
 				
 			case self::VIRTUAL_WATCHERS:
@@ -692,22 +671,15 @@ class SearchFields_CrmOpportunity extends DevblocksSearchFields {
 		$columns = array(
 			self::ID => new DevblocksSearchField(self::ID, 'o', 'id', $translate->_('common.id'), null, true),
 			
-			self::PRIMARY_EMAIL_ID => new DevblocksSearchField(self::PRIMARY_EMAIL_ID, 'o', 'primary_email_id', $translate->_('crm.opportunity.primary_email_id'), null, true),
-			self::EMAIL_ADDRESS => new DevblocksSearchField(self::EMAIL_ADDRESS, 'a', 'email', $translate->_('common.email'), Model_CustomField::TYPE_SINGLE_LINE, true),
-			
-			self::ORG_ID => new DevblocksSearchField(self::ORG_ID, 'org', 'id', $translate->_('address.contact_org_id'), Model_CustomField::TYPE_NUMBER, true),
-			self::ORG_NAME => new DevblocksSearchField(self::ORG_NAME, 'org', 'name', $translate->_('common.organization'), Model_CustomField::TYPE_SINGLE_LINE, true),
-			
 			self::NAME => new DevblocksSearchField(self::NAME, 'o', 'name', $translate->_('common.title'), Model_CustomField::TYPE_SINGLE_LINE, true),
-			self::AMOUNT => new DevblocksSearchField(self::AMOUNT, 'o', 'amount', $translate->_('crm.opportunity.amount'), Model_CustomField::TYPE_NUMBER, true),
+			self::CURRENCY_AMOUNT => new DevblocksSearchField(self::CURRENCY_AMOUNT, 'o', 'currency_amount', $translate->_('crm.opportunity.amount'), Model_CustomField::TYPE_NUMBER, true),
+			self::CURRENCY_ID => new DevblocksSearchField(self::CURRENCY_ID, 'o', 'currency_id', $translate->_('common.currency'), Model_CustomField::TYPE_NUMBER, true),
 			self::CREATED_DATE => new DevblocksSearchField(self::CREATED_DATE, 'o', 'created_date', $translate->_('common.created'), Model_CustomField::TYPE_DATE, true),
 			self::UPDATED_DATE => new DevblocksSearchField(self::UPDATED_DATE, 'o', 'updated_date', $translate->_('common.updated'), Model_CustomField::TYPE_DATE, true),
 			self::CLOSED_DATE => new DevblocksSearchField(self::CLOSED_DATE, 'o', 'closed_date', $translate->_('crm.opportunity.closed_date'), Model_CustomField::TYPE_DATE, true),
-			self::IS_WON => new DevblocksSearchField(self::IS_WON, 'o', 'is_won', $translate->_('crm.opportunity.is_won'), Model_CustomField::TYPE_CHECKBOX, true),
-			self::IS_CLOSED => new DevblocksSearchField(self::IS_CLOSED, 'o', 'is_closed', $translate->_('crm.opportunity.is_closed'), Model_CustomField::TYPE_CHECKBOX, true),
+			self::STATUS_ID => new DevblocksSearchField(self::STATUS_ID, 'o', 'status_id', $translate->_('common.status'), Model_CustomField::TYPE_NUMBER, true),
 			
 			self::VIRTUAL_CONTEXT_LINK => new DevblocksSearchField(self::VIRTUAL_CONTEXT_LINK, '*', 'context_link', $translate->_('common.links'), null, false),
-			self::VIRTUAL_EMAIL_SEARCH => new DevblocksSearchField(self::VIRTUAL_EMAIL_SEARCH, '*', 'email_search', null, null, false),
 			self::VIRTUAL_HAS_FIELDSET => new DevblocksSearchField(self::VIRTUAL_HAS_FIELDSET, '*', 'has_fieldset', $translate->_('common.fieldset'), null, false),
 			self::VIRTUAL_WATCHERS => new DevblocksSearchField(self::VIRTUAL_WATCHERS, '*', 'workers', $translate->_('common.watchers'), 'WS', false),
 				
@@ -735,20 +707,30 @@ class SearchFields_CrmOpportunity extends DevblocksSearchFields {
 class Model_CrmOpportunity {
 	public $id;
 	public $name;
-	public $amount;
-	public $primary_email_id;
+	public $currency_amount;
+	public $currency_id;
 	public $created_date;
 	public $updated_date;
 	public $closed_date;
-	public $is_won;
-	public $is_closed;
+	public $status_id;
 	
 	/**
 	 * 
-	 * @return Model_Address
+	 * @return Model_Currency
 	 */
-	function getPrimaryEmail() {
-		return DAO_Address::get($this->primary_email_id);
+	function getCurrency() {
+		return DAO_Currency::get($this->currency_id);
+	}
+	
+	function getAmountString($with_symbols=true) {
+		if(false == ($currency = $this->getCurrency()))
+			return '';
+		
+		return sprintf("%s%s%s",
+			($with_symbols && $currency->symbol ? ($currency->symbol . ' ') : ''),
+			DevblocksPlatform::strFormatDecimal($this->currency_amount, $currency->decimal_at),
+			($with_symbols && $currency->code ? (' ' . $currency->code) : '')
+		);
 	}
 };
 
@@ -763,32 +745,23 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 		$this->renderSortAsc = true;
 
 		$this->view_columns = array(
-			SearchFields_CrmOpportunity::EMAIL_ADDRESS,
-			SearchFields_CrmOpportunity::ORG_NAME,
-			SearchFields_CrmOpportunity::AMOUNT,
+			SearchFields_CrmOpportunity::STATUS_ID,
+			SearchFields_CrmOpportunity::CURRENCY_AMOUNT,
+			SearchFields_CrmOpportunity::CURRENCY_ID,
 			SearchFields_CrmOpportunity::UPDATED_DATE,
 		);
 		$this->addColumnsHidden(array(
-			SearchFields_CrmOpportunity::ID,
-			SearchFields_CrmOpportunity::PRIMARY_EMAIL_ID,
-			SearchFields_CrmOpportunity::ORG_ID,
 			SearchFields_CrmOpportunity::FULLTEXT_COMMENT_CONTENT,
 			SearchFields_CrmOpportunity::VIRTUAL_CONTEXT_LINK,
-			SearchFields_CrmOpportunity::VIRTUAL_EMAIL_SEARCH,
 			SearchFields_CrmOpportunity::VIRTUAL_HAS_FIELDSET,
 			SearchFields_CrmOpportunity::VIRTUAL_WATCHERS,
 		));
 		
 		$this->addParamsDefault(array(
-			SearchFields_CrmOpportunity::IS_CLOSED => new DevblocksSearchCriteria(SearchFields_CrmOpportunity::IS_CLOSED,'=',0),
+			SearchFields_CrmOpportunity::STATUS_ID => new DevblocksSearchCriteria(SearchFields_CrmOpportunity::STATUS_ID,'=',0),
 		));
 		$this->addParamsHidden(array(
 			SearchFields_CrmOpportunity::ID,
-			SearchFields_CrmOpportunity::PRIMARY_EMAIL_ID,
-			SearchFields_CrmOpportunity::EMAIL_ADDRESS,
-			SearchFields_CrmOpportunity::ORG_ID,
-			SearchFields_CrmOpportunity::ORG_NAME,
-			SearchFields_CrmOpportunity::VIRTUAL_EMAIL_SEARCH,
 		));
 		
 		$this->doResetCriteria();
@@ -829,10 +802,7 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 			
 			switch($field_key) {
 				// Strings
-				case SearchFields_CrmOpportunity::EMAIL_ADDRESS:
-				case SearchFields_CrmOpportunity::IS_CLOSED:
-				case SearchFields_CrmOpportunity::IS_WON:
-				case SearchFields_CrmOpportunity::ORG_NAME:
+				case SearchFields_CrmOpportunity::STATUS_ID:
 					$pass = true;
 					break;
 					
@@ -865,14 +835,12 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 			return array();
 		
 		switch($column) {
-			case SearchFields_CrmOpportunity::EMAIL_ADDRESS:
-			case SearchFields_CrmOpportunity::ORG_NAME:
+			case '_string':
 				$counts = $this->_getSubtotalCountForStringColumn($context, $column);
 				break;
 				
-			case SearchFields_CrmOpportunity::IS_CLOSED:
-			case SearchFields_CrmOpportunity::IS_WON:
-				$counts = $this->_getSubtotalCountForBooleanColumn($context, $column);
+			case SearchFields_CrmOpportunity::STATUS_ID:
+				$counts = $this->_getSubtotalCountForNumberColumn($context, $column);
 				break;
 			
 			case SearchFields_CrmOpportunity::VIRTUAL_CONTEXT_LINK:
@@ -911,7 +879,7 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 			'amount' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
-					'options' => array('param_key' => SearchFields_CrmOpportunity::AMOUNT),
+					'options' => array('param_key' => SearchFields_CrmOpportunity::CURRENCY_AMOUNT),
 				),
 			'closedDate' => 
 				array(
@@ -928,20 +896,12 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
 					'options' => array('param_key' => SearchFields_CrmOpportunity::CREATED_DATE),
 				),
-			'email' => 
-				array(
-					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
-					'options' => array('param_key' => SearchFields_CrmOpportunity::VIRTUAL_EMAIL_SEARCH),
-					'examples' => [
-						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_ADDRESS, 'q' => ''],
-					]
-				),
-			'email.id' => 
+			'currency.id' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
-					'options' => array('param_key' => SearchFields_CrmOpportunity::PRIMARY_EMAIL_ID),
+					'options' => array('param_key' => SearchFields_CrmOpportunity::CURRENCY_ID),
 					'examples' => [
-						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_ADDRESS, 'q' => ''],
+						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_CURRENCY, 'q' => ''],
 					],
 				),
 			'id' => 
@@ -952,15 +912,17 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_OPPORTUNITY, 'q' => ''],
 					]
 				),
-			'isClosed' => 
+			'status' =>
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_BOOL,
-					'options' => array('param_key' => SearchFields_CrmOpportunity::IS_CLOSED),
-				),
-			'isWon' => 
-				array(
-					'type' => DevblocksSearchCriteria::TYPE_BOOL,
-					'options' => array('param_key' => SearchFields_CrmOpportunity::IS_WON),
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_CrmOpportunity::STATUS_ID),
+					'examples' => array(
+						'open',
+						'lost',
+						'won',
+						'[o,w]',
+						'![l]',
+					),
 				),
 			'name' => 
 				array(
@@ -1013,8 +975,38 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 	
 	function getParamFromQuickSearchFieldTokens($field, $tokens) {
 		switch($field) {
-			case 'email':
-				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_CrmOpportunity::VIRTUAL_EMAIL_SEARCH);
+			case 'status':
+				$field_key = SearchFields_CrmOpportunity::STATUS_ID;
+				$oper = null;
+				$value = null;
+				
+				CerbQuickSearchLexer::getOperArrayFromTokens($tokens, $oper, $value);
+				
+				$values = array();
+				
+				// Normalize status labels
+				foreach($value as $idx => $status) {
+					switch(substr(DevblocksPlatform::strLower($status), 0, 1)) {
+						case 'o':
+						case '0':
+							$values['0'] = true;
+							break;
+						case 'w':
+						case '1':
+							$values['1'] = true;
+							break;
+						case 'l':
+						case '2':
+							$values['2'] = true;
+							break;
+					}
+				}
+				
+				return new DevblocksSearchCriteria(
+					$field_key,
+					$oper,
+					array_keys($values)
+				);
 				break;
 			
 			default:
@@ -1063,13 +1055,6 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 				$this->_renderVirtualContextLinks($param);
 				break;
 				
-			case SearchFields_CrmOpportunity::VIRTUAL_EMAIL_SEARCH:
-				echo sprintf("%s matches <b>%s</b>",
-					DevblocksPlatform::strEscapeHtml(DevblocksPlatform::translateCapitalized('common.email')),
-					DevblocksPlatform::strEscapeHtml($param->value)
-				);
-				break;
-				
 			case SearchFields_CrmOpportunity::VIRTUAL_HAS_FIELDSET:
 				$this->_renderVirtualHasFieldset($param);
 				break;
@@ -1087,16 +1072,16 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 
 		switch($field) {
 			case SearchFields_CrmOpportunity::NAME:
-			case SearchFields_CrmOpportunity::EMAIL_ADDRESS:
 				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
 				break;
 				
-			case SearchFields_CrmOpportunity::AMOUNT:
+			case SearchFields_CrmOpportunity::CURRENCY_AMOUNT:
+			case SearchFields_CrmOpportunity::CURRENCY_ID:
+			case SearchFields_CrmOpportunity::STATUS_ID:
 				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
 				break;
 				
-			case SearchFields_CrmOpportunity::IS_CLOSED:
-			case SearchFields_CrmOpportunity::IS_WON:
+			case '_bool':
 				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
 				break;
 				
@@ -1140,9 +1125,13 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
-			case SearchFields_CrmOpportunity::IS_CLOSED:
-			case SearchFields_CrmOpportunity::IS_WON:
-				$this->_renderCriteriaParamBoolean($param);
+			case SearchFields_CrmOpportunity::STATUS_ID:
+				$label_map = [
+					0 => DevblocksPlatform::translate('crm.opp.status.open'),
+					1 => DevblocksPlatform::translate('crm.opp.status.closed.won'),
+					2 => DevblocksPlatform::translate('crm.opp.status.closed.lost'),
+				];
+				$this->_renderCriteriaParamString($param, $label_map);
 				break;
 				
 			default:
@@ -1160,16 +1149,16 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 
 		switch($field) {
 			case SearchFields_CrmOpportunity::NAME:
-			case SearchFields_CrmOpportunity::EMAIL_ADDRESS:
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
 				
-			case SearchFields_CrmOpportunity::AMOUNT:
+			case SearchFields_CrmOpportunity::CURRENCY_AMOUNT:
+			case SearchFields_CrmOpportunity::CURRENCY_ID:
+			case SearchFields_CrmOpportunity::STATUS_ID:
 				$criteria = new DevblocksSearchCriteria($field,$oper,$value);
 				break;
 				
-			case SearchFields_CrmOpportunity::IS_CLOSED:
-			case SearchFields_CrmOpportunity::IS_WON:
+			case '_bool':
 				@$bool = DevblocksPlatform::importGPC($_REQUEST['bool'],'integer',1);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$bool);
 				break;
@@ -1215,7 +1204,7 @@ class View_CrmOpportunity extends C4_AbstractView implements IAbstractView_Subto
 	}
 };
 
-class Context_Opportunity extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextImport {
+class Context_Opportunity extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextImport, IDevblocksContextMerge, IDevblocksContextBroadcast {
 	static function isReadableByActor($models, $actor) {
 		// Everyone can read
 		return CerberusContexts::allowEverything($models);
@@ -1302,7 +1291,7 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		);
 	}
 	
-	function getContext($opp, &$token_labels, &$token_values, $prefix=null) {
+	function getContext($id_map, &$token_labels, &$token_values, $prefix=null) {
 		if(is_null($prefix))
 			$prefix = 'Opportunity:';
 		
@@ -1310,12 +1299,14 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		$fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_OPPORTUNITY);
 
 		// Polymorph
-		if(is_numeric($opp)) {
-			$opp = DAO_CrmOpportunity::get($opp);
-		} elseif($opp instanceof Model_CrmOpportunity) {
-			// It's what we want already.
-		} elseif(is_array($opp)) {
-			$opp = Cerb_ORMHelper::recastArrayToModel($opp, 'Model_CrmOpportunity');
+		if(is_numeric($id_map)) {
+			$opp = DAO_CrmOpportunity::get($id_map);
+		} elseif(is_array($id_map) && isset($id_map['name'])) {
+			$opp = Cerb_ORMHelper::recastArrayToModel($id_map, 'Model_CrmOpportunity');
+		} elseif(is_array($id_map) && isset($id_map['id'])) {
+			$opp = DAO_CrmOpportunity::get($id_map['id']);
+		} elseif($id_map instanceof Model_CrmOpportunity) {
+			$opp = $id_map;
 		} else {
 			$opp = null;
 		}
@@ -1324,10 +1315,9 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		$token_labels = array(
 			'_label' => $prefix,
 			'id' => $prefix.$translate->_('common.id'),
-			'amount' => $prefix.$translate->_('crm.opportunity.amount'),
 			'created' => $prefix.$translate->_('common.created'),
-			'is_closed' => $prefix.$translate->_('crm.opportunity.is_closed'),
-			'is_won' => $prefix.$translate->_('crm.opportunity.is_won'),
+			'amount' => $prefix.$translate->_('crm.opportunity.amount'),
+			'amount__label' => $prefix.$translate->_('crm.opportunity.amount') . ' ' . $translate->_('common.label'),
 			'status' => $prefix.$translate->_('common.status'),
 			'title' => $prefix.$translate->_('common.title'),
 			'updated' => $prefix.$translate->_('common.updated'),
@@ -1338,10 +1328,9 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		$token_types = array(
 			'_label' => 'context_url',
 			'id' => Model_CustomField::TYPE_NUMBER,
-			'amount' => Model_CustomField::TYPE_NUMBER,
 			'created' => Model_CustomField::TYPE_DATE,
-			'is_closed' => Model_CustomField::TYPE_CHECKBOX,
-			'is_won' => Model_CustomField::TYPE_CHECKBOX,
+			'amount' => Model_CustomField::TYPE_CURRENCY,
+			'amount__label' => Model_CustomField::TYPE_SINGLE_LINE,
 			'status' => Model_CustomField::TYPE_SINGLE_LINE,
 			'title' => Model_CustomField::TYPE_SINGLE_LINE,
 			'updated' => Model_CustomField::TYPE_DATE,
@@ -1366,19 +1355,28 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		if($opp) {
 			$token_values['_loaded'] = true;
 			$token_values['_label'] = $opp->name;
-			$token_values['id'] = $opp->id;
-			$token_values['amount'] = $opp->amount;
+			$token_values['amount'] = $opp->currency_amount; //$opp->getAmountString(false); 
+			$token_values['amount__label'] = $opp->getAmountString();
+			$token_values['amount_currency_id'] = $opp->currency_id;
 			$token_values['created'] = $opp->created_date;
-			$token_values['is_closed'] = $opp->is_closed;
-			$token_values['is_won'] = $opp->is_won;
+			$token_values['id'] = $opp->id;
+			$token_values['is_closed'] = $opp->status_id != 0; // backwards compat
+			$token_values['is_won'] = $opp->status_id == 1; // backwards compat
+			$token_values['status_id'] = $opp->status_id;
 			$token_values['title'] = $opp->name;
 			$token_values['updated'] = $opp->updated_date;
 			
 			// Status
-			if($opp->is_closed) {
-				$token_values['status'] = ($opp->is_won) ? 'closed_won' : 'closed_lost';
-			} else {
-				$token_values['status'] = 'open';
+			switch($opp->status_id) {
+				case 0:
+					$token_values['status'] = 'open';
+					break;
+				case 1:
+					$token_values['status'] = 'closed_won';
+					break;
+				case 2:
+					$token_values['status'] = 'closed_lost';
+					break;
 			}
 			
 			// Custom fields
@@ -1387,20 +1385,16 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 			// URL
 			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&what=opportunity&id=%d-%s",$opp->id, DevblocksPlatform::strToPermalink($opp->name)), true);
-			
-			// Lead
-			@$address_id = $opp->primary_email_id;
-			$token_values['email_id'] = $address_id;
 		}
 		
-		// Lead
-		$merge_token_labels = array();
-		$merge_token_values = array();
-		CerberusContexts::getContext(CerberusContexts::CONTEXT_ADDRESS, null, $merge_token_labels, $merge_token_values, '', true);
+		// Currency
+		$merge_token_labels = [];
+		$merge_token_values = [];
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_CURRENCY, null, $merge_token_labels, $merge_token_values, '', true);
 
 		CerberusContexts::merge(
-			'email_',
-			$prefix.'Lead:',
+			'amount_currency_',
+			$prefix.'Currency:',
 			$merge_token_labels,
 			$merge_token_values,
 			$token_labels,
@@ -1412,13 +1406,12 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 	
 	function getKeyToDaoFieldMap() {
 		return [
-			'amount' => DAO_CrmOpportunity::AMOUNT,
+			'amount' => DAO_CrmOpportunity::CURRENCY_AMOUNT,
+			'amount_currency_id' => DAO_CrmOpportunity::CURRENCY_ID,
 			'created' => DAO_CrmOpportunity::CREATED_DATE,
-			'email_id' => DAO_CrmOpportunity::PRIMARY_EMAIL_ID,
 			'id' => DAO_CrmOpportunity::ID,
-			'is_closed' => DAO_CrmOpportunity::IS_CLOSED,
-			'is_won' => DAO_CrmOpportunity::IS_WON,
 			'links' => '_links',
+			'status_id' => DAO_CrmOpportunity::STATUS_ID,
 			'title' => DAO_CrmOpportunity::NAME,
 			'updated' => DAO_CrmOpportunity::UPDATED_DATE,
 		];
@@ -1426,17 +1419,29 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'email':
-				if(false == ($address = DAO_Address::lookupAddress($value, true))) {
-					$error = sprintf("Failed to lookup address: %s", $value);
+			case 'links':
+				$this->_getDaoFieldsLinks($value, $out_fields, $error);
+				break;
+				
+			case 'status':
+				$statuses = ['open', 'closed_won', 'closed_lost'];
+
+				if(!in_array($value, $statuses)) {
+					$error = 'Status must be: open, closed_won, or closed_lost.';
 					return false;
 				}
 				
-				$out_fields[DAO_CrmOpportunity::PRIMARY_EMAIL_ID] = $address->id;
-				break;
-			
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
+				switch($value) {
+					case 'open':
+						$out_fields[DAO_CrmOpportunity::STATUS_ID] = 0;
+						break;
+					case 'closed_won':
+						$out_fields[DAO_CrmOpportunity::STATUS_ID] = 1;
+						break;
+					case 'closed_lost':
+						$out_fields[DAO_CrmOpportunity::STATUS_ID] = 2;
+						break;
+				}
 				break;
 		}
 		
@@ -1451,10 +1456,10 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		$context_id = $dictionary['id'];
 		
 		@$is_loaded = $dictionary['_loaded'];
-		$values = array();
+		$values = [];
 		
 		if(!$is_loaded) {
-			$labels = array();
+			$labels = [];
 			CerberusContexts::getContext($context, $context_id, $labels, $values, null, true, true);
 		}
 		
@@ -1496,17 +1501,15 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
 		$view->name = 'Opportunities';
 		$view->view_columns = array(
-			SearchFields_CrmOpportunity::EMAIL_ADDRESS,
-			SearchFields_CrmOpportunity::ORG_NAME,
+			SearchFields_CrmOpportunity::CURRENCY_AMOUNT,
 			SearchFields_CrmOpportunity::UPDATED_DATE,
 		);
 		$view->addParams(array(
-			SearchFields_CrmOpportunity::IS_CLOSED => new DevblocksSearchCriteria(SearchFields_CrmOpportunity::IS_CLOSED,'=',0),
+			SearchFields_CrmOpportunity::STATUS_ID => new DevblocksSearchCriteria(SearchFields_CrmOpportunity::STATUS_ID,'=',0),
 		), true);
 		$view->renderSortBy = SearchFields_CrmOpportunity::UPDATED_DATE;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;
@@ -1542,11 +1545,14 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		$context = CerberusContexts::CONTEXT_OPPORTUNITY;
 		$active_worker = CerberusApplication::getActiveWorker();
 		
+		$opp = new Model_CrmOpportunity();
+		
 		if(!empty($context_id)) {
 			$opp = DAO_CrmOpportunity::get($context_id);
-			$tpl->assign('opp', $opp);
+		} else {
+			$opp->currency_id = DAO_Currency::getDefaultId();
 		}
-
+		
 		if(empty($context_id) || $edit) {
 			// Custom fields
 			$custom_fields = DAO_CustomField::getByContext($context, false);
@@ -1558,6 +1564,11 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 			
 			$types = Model_CustomField::getTypes();
 			$tpl->assign('types', $types);
+			
+			$currencies = DAO_Currency::getAll();
+			$tpl->assign('currencies', $currencies);
+			
+			$tpl->assign('opp', $opp);
 			
 			// View
 			$tpl->assign('id', $context_id);
@@ -1613,14 +1624,47 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		}
 	}
 	
+	function mergeGetKeys() {
+		$keys = [
+			'amount',
+			'amount_currency__label',
+			'email__label',
+			'status',
+			'title',
+		];
+		
+		return $keys;
+	}
+	
+	function broadcastRecipientFieldsGet() {
+		$results = $this->_broadcastRecipientFieldsGet(CerberusContexts::CONTEXT_OPPORTUNITY, 'Opportunity');
+		asort($results);
+		return $results;
+	}
+	
+	function broadcastPlaceholdersGet() {
+		$token_values = $this->_broadcastPlaceholdersGet(CerberusContexts::CONTEXT_DOMAIN);
+		return $token_values;
+	}
+	
+	function broadcastRecipientFieldsToEmails(array $fields, DevblocksDictionaryDelegate $dict) {
+		$emails = $this->_broadcastRecipientFieldsToEmails($fields, $dict);
+		return $emails;
+	}
+	
 	function importGetKeys() {
 		// [TODO] Translate
 		
 		$keys = array(
 			'amount' => array(
 				'label' => 'Amount',
+				'type' => Model_CustomField::TYPE_CURRENCY,
+				'param' => SearchFields_CrmOpportunity::CURRENCY_AMOUNT,
+			),
+			'amount_currency_id' => array(
+				'label' => 'Currency ID',
 				'type' => Model_CustomField::TYPE_NUMBER,
-				'param' => SearchFields_CrmOpportunity::AMOUNT,
+				'param' => SearchFields_CrmOpportunity::CURRENCY_ID,
 			),
 			'closed_date' => array(
 				'label' => 'Closed Date',
@@ -1632,26 +1676,15 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 				'type' => Model_CustomField::TYPE_DATE,
 				'param' => SearchFields_CrmOpportunity::CREATED_DATE,
 			),
-			'is_closed' => array(
-				'label' => 'Is Closed',
-				'type' => Model_CustomField::TYPE_CHECKBOX,
-				'param' => SearchFields_CrmOpportunity::IS_CLOSED,
-			),
-			'is_won' => array(
-				'label' => 'Is Won',
-				'type' => Model_CustomField::TYPE_CHECKBOX,
-				'param' => SearchFields_CrmOpportunity::IS_WON,
-			),
 			'name' => array(
 				'label' => 'Name',
 				'type' => Model_CustomField::TYPE_SINGLE_LINE,
 				'param' => SearchFields_CrmOpportunity::NAME,
 			),
-			'primary_email_id' => array(
-				'label' => 'Email',
-				'type' => 'ctx_' . CerberusContexts::CONTEXT_ADDRESS,
-				'param' => SearchFields_CrmOpportunity::PRIMARY_EMAIL_ID,
-				'required' => true,
+			'status_id' => array(
+				'label' => 'Status',
+				'type' => Model_CustomField::TYPE_NUMBER,
+				'param' => SearchFields_CrmOpportunity::STATUS_ID,
 			),
 			'updated_date' => array(
 				'label' => 'Updated Date',

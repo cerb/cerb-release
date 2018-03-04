@@ -308,6 +308,70 @@ class DAO_AbstractCustomRecord extends Cerb_ORMHelper {
 		return self::_getRandom($table_name);
 	}
 	
+	/**
+	 * @param Model_ContextBulkUpdate $update
+	 * @return boolean
+	 */
+	static function bulkUpdate(Model_ContextBulkUpdate $update) {
+		$do = $update->actions;
+		$ids = $update->context_ids;
+
+		// Make sure we have actions
+		if(empty($ids) || empty($do))
+			return false;
+		
+		$update->markInProgress();
+		
+		$context = self::_getContextName();
+		$change_fields = [];
+		$custom_fields = [];
+		$deleted = false;
+
+		if(is_array($do))
+		foreach($do as $k => $v) {
+			switch($k) {
+				// [TODO] Check privs
+				case 'delete':
+					$deleted = true;
+					break;
+					
+				default:
+					// Custom fields
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
+						$custom_fields[substr($k,3)] = $v;
+					}
+					break;
+			}
+		}
+
+		if(!$deleted) {
+			if(!empty($change_fields))
+				self::update($ids, $change_fields);
+
+			// Custom Fields
+			if(!empty($custom_fields))
+				C4_AbstractView::_doBulkSetCustomFields($context, $custom_fields, $ids);
+			
+			// Scheduled behavior
+			if(isset($do['behavior']))
+				C4_AbstractView::_doBulkScheduleBehavior($context, $do['behavior'], $ids);
+			
+			// Watchers
+			if(isset($do['watchers']))
+				C4_AbstractView::_doBulkChangeWatchers($context, $do['watchers'], $ids);
+			
+			// Broadcast
+			if(isset($do['broadcast']))
+				C4_AbstractView::_doBulkBroadcast($context, $do['broadcast'], $ids);
+			
+		} else {
+			self::delete($ids);
+		}
+		
+		$update->markCompleted();
+		return true;
+	}
+	
 	static function count() {
 		$db = DevblocksPlatform::services()->database();
 		
@@ -351,6 +415,22 @@ class DAO_AbstractCustomRecord extends Cerb_ORMHelper {
 		);
 		
 		return $db->Execute($sql);
+	}
+	
+	static function mergeIds($from_ids, $to_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$context = self::_getContextName();
+		
+		if(empty($from_ids) || empty($to_id))
+			return false;
+			
+		if(!is_numeric($to_id) || !is_array($from_ids))
+			return false;
+		
+		self::_mergeIds($context, $from_ids, $to_id);
+		
+		return true;
 	}
 	
 	static function delete($ids) {
@@ -1073,7 +1153,7 @@ class View_AbstractCustomRecord extends C4_AbstractView implements IAbstractView
 	}
 };
 
-class Context_AbstractCustomRecord extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextAutocomplete, IDevblocksContextImport {
+class Context_AbstractCustomRecord extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextAutocomplete, IDevblocksContextImport, IDevblocksContextBroadcast, IDevblocksContextMerge {
 	const _ID = 0; // overridden by subclass
 	const ID = 'cerberusweb.contexts.abstract.custom.record';
 	
@@ -1319,7 +1399,6 @@ class Context_AbstractCustomRecord extends Extension_DevblocksContext implements
 		$view->renderSortBy = SearchFields_AbstractCustomRecord::UPDATED_AT;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;
@@ -1451,6 +1530,33 @@ class Context_AbstractCustomRecord extends Extension_DevblocksContext implements
 			
 			$tpl->display('devblocks:cerberusweb.core::internal/abstract_custom_record/peek.tpl');
 		}
+	}
+	
+	function mergeGetKeys() {
+		$keys = [
+			'name'
+		];
+		
+		return $keys;
+	}
+	
+	function broadcastRecipientFieldsGet() {
+		if(false == ($custom_record = DAO_CustomRecord::get(static::_ID)))
+			return;
+		
+		$results = $this->_broadcastRecipientFieldsGet($this->_getContextName(), $custom_record->name);
+		asort($results);
+		return $results;
+	}
+	
+	function broadcastPlaceholdersGet() {
+		$token_values = $this->_broadcastPlaceholdersGet($this->_getContextName());
+		return $token_values;
+	}
+	
+	function broadcastRecipientFieldsToEmails(array $fields, DevblocksDictionaryDelegate $dict) {
+		$emails = $this->_broadcastRecipientFieldsToEmails($fields, $dict);
+		return $emails;
 	}
 	
 	function importGetKeys() {

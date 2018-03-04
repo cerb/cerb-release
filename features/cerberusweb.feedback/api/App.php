@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -187,15 +187,15 @@ class DAO_FeedbackEntry extends Cerb_ORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 
 		if(is_array($do))
 		foreach($do as $k => $v) {
 			switch($k) {
 				default:
 					// Custom fields
-					if(substr($k,0,3)=="cf_") {
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
 						$custom_fields[substr($k,3)] = $v;
 					}
 					break;
@@ -1176,8 +1176,9 @@ class ChFeedbackController extends DevblocksControllerExtension {
 		}
 		
 		// Custom field saves
-		@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', array());
-		DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_FEEDBACK, $id, $field_ids);
+		@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
+		if(!DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_FEEDBACK, $id, $field_ids, $error))
+			throw new Exception_DevblocksAjaxValidationError($error);
 	}
 	
 	function showBulkPanelAction() {

@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -72,14 +72,18 @@ class DefaultLoginModule extends Extension_LoginAuthenticator {
 		
 		$session = DevblocksPlatform::services()->session();
 		$visit = CerberusApplication::getVisit();
-		$worker = CerberusApplication::getActiveWorker();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!($active_worker->is_superuser || $active_worker->id == $worker->id))
+			return false;
 		
 		if($reset_login) {
 			$this->resetCredentials($worker);
 			
-			// If we're not an imposter, go to the login form
-			if(!$visit->isImposter()) {
+			// Redirect if we're the current worker
+			if(!$visit->isImposter() && $worker->id == $active_worker->id) {
 				$session->clear();
+				
 				$query = array(
 					'email' => $worker->getEmailString(),
 				);
@@ -139,19 +143,19 @@ class DefaultLoginModule extends Extension_LoginAuthenticator {
 		try {
 			// Compare the confirmation code
 			if(!isset($_SESSION['recovery_code'])) {
-				throw new CerbException("Invalid confirmation code.");
+				throw new CerbException("confirm.invalid");
 			}
 			
 			@$session_confirm_code = DevblocksPlatform::importGPC($_SESSION['recovery_code']);
 			@$confirm_code = DevblocksPlatform::importGPC($_REQUEST['confirm_code']);
 			
 			if(empty($session_confirm_code) || empty($confirm_code)) {
-				throw new CerbException("Invalid confirmation code.");
+				throw new CerbException("confirm.invalid");
 			}
 			
 			if($session_confirm_code != $worker->getEmailString().':'.$confirm_code) {
 				unset($_SESSION['recovery_code']);
-				throw new CerbException("The given confirmation code doesn't match the one on file.");
+				throw new CerbException("confirm.failed");
 			}
 			
 			@$password = DevblocksPlatform::importGPC($_REQUEST['password']);
@@ -161,11 +165,11 @@ class DefaultLoginModule extends Extension_LoginAuthenticator {
 			if(!DAO_Worker::hasAuth($worker->id)) {
 				
 				if(empty($password) || empty($password_confirm)) {
-					throw new CerbException("Passwords cannot be blank.");
+					throw new CerbException("password.invalid");
 				}
 				
 				if($password != $password_confirm) {
-					throw new CerbException("The given passwords don't match.");
+					throw new CerbException("password.mismatch");
 				}
 				
 				DAO_Worker::setAuth($worker->id, $password);

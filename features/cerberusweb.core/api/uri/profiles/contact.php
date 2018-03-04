@@ -319,9 +319,10 @@ class PageSection_ProfilesContact extends Extension_PageSection {
 					// Aliases
 					DAO_ContextAlias::set(CerberusContexts::CONTEXT_CONTACT, $id, DevblocksPlatform::parseCrlfString(sprintf("%s%s", $first_name, $last_name ? (' '.$last_name) : '') . "\n" . $aliases));
 					
-					// Custom fields
-					@$field_ids = DevblocksPlatform::importGPC($_REQUEST['field_ids'], 'array', array());
-					DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_CONTACT, $id, $field_ids);
+					// Custom field saves
+					@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
+					if(!DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_CONTACT, $id, $field_ids, $error))
+						throw new Exception_DevblocksAjaxValidationError($error);
 					
 					// Avatar image
 					@$avatar_image = DevblocksPlatform::importGPC($_REQUEST['avatar_image'], 'string', '');
@@ -466,8 +467,18 @@ class PageSection_ProfilesContact extends Extension_PageSection {
 		$tpl->assign('timezones', $date->getTimezones());
 		
 		// Broadcast
+		if(false == ($context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_CONTACT)))
+			return [];
 		
-		CerberusContexts::getContext(CerberusContexts::CONTEXT_CONTACT, null, $token_labels, $token_values);
+		/* @var $context_ext IDevblocksContextBroadcast */
+			
+		// Recipient fields
+		$recipient_fields = $context_ext->broadcastRecipientFieldsGet();
+		$tpl->assign('broadcast_recipient_fields', $recipient_fields);
+		
+		// Placeholders
+		$token_values = $context_ext->broadcastPlaceholdersGet();
+		$token_labels = $token_values['_labels'];
 		
 		$placeholders = Extension_DevblocksContext::getPlaceholderTree($token_labels);
 		$tpl->assign('placeholders', $placeholders);
@@ -572,6 +583,7 @@ class PageSection_ProfilesContact extends Extension_PageSection {
 		if($active_worker->hasPriv('contexts.cerberusweb.contexts.contact.broadcast')) {
 			@$do_broadcast = DevblocksPlatform::importGPC($_REQUEST['do_broadcast'],'string',null);
 			@$broadcast_group_id = DevblocksPlatform::importGPC($_REQUEST['broadcast_group_id'],'integer',0);
+			@$broadcast_to = DevblocksPlatform::importGPC($_REQUEST['broadcast_to'],'array',[]);
 			@$broadcast_subject = DevblocksPlatform::importGPC($_REQUEST['broadcast_subject'],'string',null);
 			@$broadcast_message = DevblocksPlatform::importGPC($_REQUEST['broadcast_message'],'string',null);
 			@$broadcast_format = DevblocksPlatform::importGPC($_REQUEST['broadcast_format'],'string',null);
@@ -581,7 +593,8 @@ class PageSection_ProfilesContact extends Extension_PageSection {
 			@$broadcast_file_ids = DevblocksPlatform::sanitizeArray(DevblocksPlatform::importGPC($_REQUEST['broadcast_file_ids'],'array',array()), 'integer', array('nonzero','unique'));
 			
 			if(0 != strlen($do_broadcast) && !empty($broadcast_subject) && !empty($broadcast_message)) {
-				$do['broadcast'] = array(
+				$do['broadcast'] = [
+					'to' => $broadcast_to,
 					'subject' => $broadcast_subject,
 					'message' => $broadcast_message,
 					'format' => $broadcast_format,
@@ -591,7 +604,7 @@ class PageSection_ProfilesContact extends Extension_PageSection {
 					'group_id' => $broadcast_group_id,
 					'worker_id' => $active_worker->id,
 					'file_ids' => $broadcast_file_ids,
-				);
+				];
 			}
 		}
 

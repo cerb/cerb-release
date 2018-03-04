@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -48,38 +48,13 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		
 		$properties = array();
 		
-		$properties['status'] = array(
+		$properties['status_id'] = array(
 			'label' => mb_ucfirst($translate->_('common.status')),
 			'type' => null,
-			'is_closed' => $opp->is_closed,
-			'is_won' => $opp->is_won,
+			'status_id' => $opp->status_id,
 		);
 		
-		if(!empty($opp->primary_email_id)) {
-			if(null != ($address = DAO_Address::get($opp->primary_email_id))) {
-				$properties['lead'] = array(
-					'label' => mb_ucfirst($translate->_('common.email')),
-					'type' => Model_CustomField::TYPE_LINK,
-					'value' => $address->id,
-					'params' => array(
-						'context' => CerberusContexts::CONTEXT_ADDRESS,
-					),
-				);
-			}
-				
-			if(!empty($address->contact_org_id) && null != ($org = DAO_ContactOrg::get($address->contact_org_id))) {
-				$properties['org'] = array(
-					'label' => mb_ucfirst($translate->_('common.organization')),
-					'type' => Model_CustomField::TYPE_LINK,
-					'value' => $org->id,
-					'params' => array(
-						'context' => CerberusContexts::CONTEXT_ORG,
-					),
-				);
-			}
-		}
-		
-		if(!empty($opp->is_closed))
+		if(!empty($opp->status_id))
 			if(!empty($opp->closed_date))
 			$properties['closed_date'] = array(
 				'label' => mb_ucfirst($translate->_('crm.opportunity.closed_date')),
@@ -87,11 +62,11 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 				'value' => $opp->closed_date,
 			);
 			
-		if(!empty($opp->amount))
-			$properties['amount'] = array(
+		if(!empty($opp->currency_amount))
+			$properties['currency_amount'] = array(
 				'label' => mb_ucfirst($translate->_('crm.opportunity.amount')),
-				'type' => Model_CustomField::TYPE_NUMBER,
-				'value' => number_format(floatval($opp->amount),2),
+				'type' => Model_CustomField::TYPE_SINGLE_LINE,
+				'value' => $opp->getAmountString()
 			);
 			
 		$properties['created_date'] = array(
@@ -134,17 +109,6 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 			),
 		);
 		
-		if(!empty($opp->primary_email_id)) {
-			$properties_links[CerberusContexts::CONTEXT_ADDRESS] = array(
-				$opp->primary_email_id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_ADDRESS,
-						$opp->primary_email_id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			);
-		}
-		
 		$tpl->assign('properties_links', $properties_links);
 		
 		// Properties
@@ -173,24 +137,23 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		
 		@$id = DevblocksPlatform::importGPC($_REQUEST['opp_id'],'integer',0);
 		@$name = DevblocksPlatform::importGPC($_REQUEST['name'],'string','');
-		@$status = DevblocksPlatform::importGPC($_REQUEST['status'],'integer',0);
-		@$amount = DevblocksPlatform::importGPC($_REQUEST['amount'],'string','0.00');
-		@$email_id = DevblocksPlatform::importGPC($_REQUEST['email_id'],'integer',0);
+		@$status_id = DevblocksPlatform::importGPC($_REQUEST['status_id'],'integer',0);
+		@$currency_amount = DevblocksPlatform::importGPC($_REQUEST['currency_amount'],'string','0.00');
+		@$currency_id = DevblocksPlatform::importGPC($_REQUEST['currency_id'],'integer',0);
 		@$comment = DevblocksPlatform::importGPC($_REQUEST['comment'],'string','');
 		@$closed_date_str = DevblocksPlatform::importGPC($_REQUEST['closed_date'],'string','');
 		@$do_delete = DevblocksPlatform::importGPC($_REQUEST['do_delete'],'integer',0);
 		
-		// State
-		$is_closed = (0==$status) ? 0 : 1;
-		$is_won = (1==$status) ? 1 : 0;
-		
-		// Strip currency formatting symbols
-		$amount = floatval(str_replace(array(',','$','¢','£','€'),'',$amount));
+		if(false != ($currency = DAO_Currency::get($currency_id))) {
+			$currency_amount = DevblocksPlatform::strParseDecimal($currency_amount, $currency->decimal_at);
+		} else {
+			$currency_amount = '0';
+		}
 		
 		if(false === ($closed_date = strtotime($closed_date_str)))
-			$closed_date = ($is_closed) ? time() : 0;
+			$closed_date = (0 != $status_id) ? time() : 0;
 
-		if(!$is_closed)
+		if(!$status_id)
 			$closed_date = 0;
 			
 		// Worker
@@ -223,12 +186,11 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 				
 				$fields = array(
 					DAO_CrmOpportunity::NAME => $name,
-					DAO_CrmOpportunity::AMOUNT => $amount,
-					DAO_CrmOpportunity::PRIMARY_EMAIL_ID => $email_id,
+					DAO_CrmOpportunity::CURRENCY_AMOUNT => $currency_amount,
+					DAO_CrmOpportunity::CURRENCY_ID => $currency_id,
 					DAO_CrmOpportunity::UPDATED_DATE => time(),
 					DAO_CrmOpportunity::CLOSED_DATE => intval($closed_date),
-					DAO_CrmOpportunity::IS_CLOSED => $is_closed,
-					DAO_CrmOpportunity::IS_WON => $is_won,
+					DAO_CrmOpportunity::STATUS_ID => $status_id,
 				);
 				
 				// Create
@@ -262,9 +224,10 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 				}
 				
 				if($id) {
-					// Custom fields
-					@$field_ids = DevblocksPlatform::importGPC($_REQUEST['field_ids'], 'array', array());
-					DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_OPPORTUNITY, $id, $field_ids);
+					// Custom field saves
+					@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
+					if(!DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_OPPORTUNITY, $id, $field_ids, $error))
+						throw new Exception_DevblocksAjaxValidationError($error);
 					
 					// If we're adding a comment
 					if(!empty($comment)) {
@@ -410,8 +373,18 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		$html_templates = DAO_MailHtmlTemplate::getAll();
 		$tpl->assign('html_templates', $html_templates);
 		
-		// Broadcast
-		CerberusContexts::getContext(CerberusContexts::CONTEXT_OPPORTUNITY, null, $token_labels, $token_values);
+		if(false == ($context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_OPPORTUNITY)))
+			return [];
+		
+		/* @var $context_ext IDevblocksContextBroadcast */
+			
+		// Recipient fields
+		$recipient_fields = $context_ext->broadcastRecipientFieldsGet();
+		$tpl->assign('broadcast_recipient_fields', $recipient_fields);
+		
+		// Placeholders
+		$token_values = $context_ext->broadcastPlaceholdersGet();
+		$token_labels = $token_values['_labels'];
 		
 		$placeholders = Extension_DevblocksContext::getPlaceholderTree($token_labels);
 		$tpl->assign('placeholders', $placeholders);
@@ -488,6 +461,7 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		if($active_worker->hasPriv('contexts.cerberusweb.contexts.opportunity.broadcast')) {
 			@$do_broadcast = DevblocksPlatform::importGPC($_REQUEST['do_broadcast'],'string',null);
 			@$broadcast_group_id = DevblocksPlatform::importGPC($_REQUEST['broadcast_group_id'],'integer',0);
+			@$broadcast_to = DevblocksPlatform::importGPC($_REQUEST['broadcast_to'],'array',[]);
 			@$broadcast_subject = DevblocksPlatform::importGPC($_REQUEST['broadcast_subject'],'string',null);
 			@$broadcast_message = DevblocksPlatform::importGPC($_REQUEST['broadcast_message'],'string',null);
 			@$broadcast_format = DevblocksPlatform::importGPC($_REQUEST['broadcast_format'],'string',null);
@@ -497,7 +471,8 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 			@$broadcast_file_ids = DevblocksPlatform::sanitizeArray(DevblocksPlatform::importGPC($_REQUEST['broadcast_file_ids'],'array',array()), 'integer', array('nonzero','unique'));
 			
 			if(0 != strlen($do_broadcast) && !empty($broadcast_subject) && !empty($broadcast_message)) {
-				$do['broadcast'] = array(
+				$do['broadcast'] = [
+					'to' => $broadcast_to,
 					'subject' => $broadcast_subject,
 					'message' => $broadcast_message,
 					'format' => $broadcast_format,
@@ -507,14 +482,14 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 					'group_id' => $broadcast_group_id,
 					'worker_id' => $active_worker->id,
 					'file_ids' => $broadcast_file_ids,
-				);
+				];
 			}
 		}
 		
 		switch($filter) {
 			// Checked rows
 			case 'checks':
-				@$opp_ids_str = DevblocksPlatform::importGPC($_REQUEST['opp_ids'],'string');
+				@$opp_ids_str = DevblocksPlatform::importGPC($_REQUEST['ids'],'string');
 				$ids = DevblocksPlatform::parseCsvString($opp_ids_str);
 				break;
 				

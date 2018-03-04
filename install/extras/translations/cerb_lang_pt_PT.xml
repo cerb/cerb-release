@@ -133,11 +133,6 @@
 				<seg>{{actor}} alterou a oportunidade {{target}} para o estado {{status}}</seg>
 			</tuv>
 		</tu>
-		<tu tuid="activities.org.merge">
-			<tuv xml:lang="pt_PT">
-				<seg>{{actor}} uniu a organização {{source}} com a organização {{target}}</seg>
-			</tuv>
-		</tu>
 		<tu tuid="activities.task.created">
 			<tuv xml:lang="pt_PT">
 				<seg/>
@@ -301,11 +296,6 @@
 		<tu tuid="addy_book.org.tabs.people">
 			<tuv xml:lang="pt_PT">
 				<seg>Pessoas(%s)</seg>
-			</tuv>
-		</tu>
-		<tu tuid="addy_book.peek.compose">
-			<tuv xml:lang="pt_PT">
-				<seg>compor</seg>
 			</tuv>
 		</tu>
 		<tu tuid="addy_book.peek.count.closed_tickets">
@@ -641,6 +631,11 @@
 		<tu tuid="common.comments">
 			<tuv xml:lang="pt_PT">
 				<seg>comentários</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.compose">
+			<tuv xml:lang="pt_PT">
+				<seg>compor</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.content">
@@ -996,6 +991,11 @@
 		<tu tuid="common.members">
 			<tuv xml:lang="pt_PT">
 				<seg>Membros</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.merge">
+			<tuv xml:lang="pt_PT">
+				<seg>Fundir</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.message">
@@ -1608,11 +1608,6 @@
 				<seg>Oportunidade</seg>
 			</tuv>
 		</tu>
-		<tu tuid="crm.opp.add">
-			<tuv xml:lang="pt_PT">
-				<seg>Adicionar Oportunidade</seg>
-			</tuv>
-		</tu>
 		<tu tuid="crm.opp.status.closed.lost">
 			<tuv xml:lang="pt_PT">
 				<seg>Fechado/Perdido</seg>
@@ -1638,32 +1633,7 @@
 				<seg>Data em que foi Fechado</seg>
 			</tuv>
 		</tu>
-		<tu tuid="crm.opportunity.contact_phone">
-			<tuv xml:lang="pt_PT">
-				<seg>Telefone</seg>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.is_closed">
-			<tuv xml:lang="pt_PT">
-				<seg>Fechar</seg>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.is_won">
-			<tuv xml:lang="pt_PT">
-				<seg>Ganha</seg>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.org_id">
-			<tuv xml:lang="pt_PT">
-				<seg>ID da Organização</seg>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.primary_email_id">
-			<tuv xml:lang="pt_PT">
-				<seg>ID do Email</seg>
-			</tuv>
-		</tu>
-		<tu tuid="crm.tab.title">
+		<tu tuid="crm.common.opportunities">
 			<tuv xml:lang="pt_PT">
 				<seg>Oportunidades</seg>
 			</tuv>
@@ -2783,11 +2753,6 @@
 				<seg>Enviar uma cópia desta mensagem para o recipiente.</seg>
 			</tuv>
 		</tu>
-		<tu tuid="mail.merge">
-			<tuv xml:lang="pt_PT">
-				<seg>Fundir</seg>
-			</tuv>
-		</tu>
 		<tu tuid="mail.nav.search_mail">
 			<tuv xml:lang="pt_PT">
 				<seg>Pesquisa:</seg>
@@ -3113,19 +3078,9 @@
 				<seg>Questões para dar Seguimento:</seg>
 			</tuv>
 		</tu>
-		<tu tuid="portal.cfg.htaccess_hint">
-			<tuv xml:lang="pt_PT">
-				<seg>(opcional, URLs amigáveis para utilizadores do Web Servidor Apache)</seg>
-			</tuv>
-		</tu>
 		<tu tuid="portal.cfg.installation">
 			<tuv xml:lang="pt_PT">
 				<seg>Instalação</seg>
-			</tuv>
-		</tu>
-		<tu tuid="portal.cfg.installation_instructions">
-			<tuv xml:lang="pt_PT">
-				<seg>Coloque o ficheiro index.php numa nova directoria dentro do "public website". Esta directoria poderá ter o nome que desejar mas irá normalmente descrever o portal. Por exemplo: https://cerb.ai/contact/</seg>
 			</tuv>
 		</tu>
 		<tu tuid="portal.cfg.language">

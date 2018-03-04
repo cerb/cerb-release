@@ -1,3 +1,14 @@
+{$form_id = uniqid()}
+<form id="{$form_id}" action="{devblocks_url}{/devblocks_url}" method="post">
+<input type="hidden" name="c" value="profiles">
+<input type="hidden" name="a" value="handleSectionAction">
+<input type="hidden" name="section" value="community_portal">
+<input type="hidden" name="action" value="handleProfileTabAction">
+<input type="hidden" name="tab_id" value="{$tab_id}">
+<input type="hidden" name="tab_action" value="saveConfigTabJson">
+<input type="hidden" name="portal_id" value="{$portal->id}">
+<input type="hidden" name="config_tab" value="kb">
+
 <div style="margin-left:10px;">
 	{'portal.sc.cfg.choose_kb_topics'|devblocks_translate}<br>
 
@@ -26,60 +37,57 @@
 
 {$uniq_id = uniqid()}
 
-<div id="{$uniq_id}" style="margin-left:10px;">
+<div class="cerb-worklist-columns" style="margin-left:10px;">
 	<div>
 		<b>Worklist columns:</b> (leave blank for default)
 	</div>
 	
-	{foreach from=$kb_params.columns item=selected_token}
+	{foreach from=$kb_columns item=column key=token}
+	{$selected = in_array($token, $kb_params.columns)}
 	<div style="margin:3px;" class="column">
-		<span class="ui-icon ui-icon-arrowthick-2-n-s" style="display:inline-block;vertical-align:middle;cursor:move;" title="Click and drag to rearrange"></span>
-	
-		<select name="kb_columns[]">
-		<option value=""></option>
-		{foreach from=$kb_columns item=column key=token}
-			<option value="{$token}" {if $token==$selected_token}selected="selected"{/if}>{$column->db_label|capitalize}</option>
-		{/foreach}
-		</select>
-		
-		<button type="button" onclick="$(this).closest('div').remove();"><span class="glyphicons glyphicons-circle-minus" style="color:rgb(200,0,0);"></span></button>
+		<label>
+			<span class="ui-icon ui-icon-arrowthick-2-n-s" style="display:inline-block;vertical-align:middle;cursor:move;" title="Click and drag to rearrange"></span>
+			<input type="checkbox" name="kb_columns[]" value="{$token}" {if $selected}checked="checked"{/if}>
+			{if $selected}
+			<b>{$column->db_label|capitalize}</b>
+			{else}
+			{$column->db_label|capitalize}
+			{/if}
+		</label>
 	</div>
 	{/foreach}
-	
-	<div style="margin:3px;display:none;" class="column template">
-		<span class="ui-icon ui-icon-arrowthick-2-n-s" style="display:inline-block;vertical-align:middle;cursor:move;" title="Click and drag to rearrange"></span>
-	
-		<select name="kb_columns[]">
-		<option value=""></option>
-		{foreach from=$kb_columns item=column key=token}
-			<option value="{$token}">{$column->db_label|capitalize}</option>
-		{/foreach}
-		</select>
-		
-		<button type="button" onclick="$(this).closest('div').remove();"><span class="glyphicons glyphicons-circle-minus" style="color:rgb(200,0,0);"></span></button>
-	</div>
-	
-	<button type="button" class="add-column"><span class="glyphicons glyphicons-circle-plus" style="color:rgb(0,180,0);"></span></button>
-	
 </div>
 
+<div class="status"></div>
+
+<button type="button" class="submit" style="margin-top:10px;"><span class="glyphicons glyphicons-circle-ok" style="color:rgb(0,180,0);"></span> {'common.save_changes'|devblocks_translate|capitalize}</button>
+</form>
+
 <script type="text/javascript">
-$(function(e) {
-	var $container = $('#{$uniq_id}');
+$(function() {
+	var $frm = $('#{$form_id}');
+	var $status = $frm.find('div.status');
+	
+	$frm.find('button.submit').on('click', function(e) {
+		genericAjaxPost($frm, '', null, function(json) {
+			if(json && typeof json == 'object') {
+				if(json.error) {
+					Devblocks.showError($status, json.error);
+				} else if (json.message) {
+					Devblocks.showSuccess($status, json.message);
+				} else {
+					Devblocks.showSuccess($status, "Saved!");
+				}
+			}
+		});
+	});
+	
+	var $container = $frm.find('div.cerb-worklist-columns');
 		
 	$container
 		.sortable({
 			items: 'DIV.column',
-			handle: 'span.ui-icon-arrowthick-2-n-s',
 			placeholder:'ui-state-highlight'
-		})
-		;
-	
-	$container
-		.find('button.add-column')
-		.click(function(e) {
-			var $template = $container.find('div.template');
-			$template.clone().removeClass('template').insertBefore($template).focus().fadeIn();
 		})
 		;
 });

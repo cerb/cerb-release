@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -227,8 +227,8 @@ class DAO_Task extends Cerb_ORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 		$deleted = false;
 
 		if(is_array($do))
@@ -272,7 +272,7 @@ class DAO_Task extends Cerb_ORMHelper {
 					break;
 				default:
 					// Custom fields
-					if(substr($k,0,3)=="cf_") {
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
 						$custom_fields[substr($k,3)] = $v;
 					}
 					break;
@@ -424,6 +424,22 @@ class DAO_Task extends Cerb_ORMHelper {
 		mysqli_free_result($rs);
 		
 		return $objects;
+	}
+	
+	static function mergeIds($from_ids, $to_id) {
+		$db = DevblocksPlatform::services()->database();
+
+		$context = CerberusContexts::CONTEXT_TASK;
+		
+		if(empty($from_ids) || empty($to_id))
+			return false;
+			
+		if(!is_numeric($to_id) || !is_array($from_ids))
+			return false;
+		
+		self::_mergeIds($context, $from_ids, $to_id);
+		
+		return true;
 	}
 	
 	/**
@@ -1277,7 +1293,7 @@ class View_Task extends C4_AbstractView implements IAbstractView_Subtotals, IAbs
 	}
 };
 
-class Context_Task extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextImport {
+class Context_Task extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextImport, IDevblocksContextMerge {
 	const ID = 'cerberusweb.contexts.task';
 	
 	static function isReadableByActor($models, $actor) {
@@ -1589,7 +1605,6 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 		$view->renderSortBy = SearchFields_Task::UPDATED_DATE;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		return $view;
 	}
@@ -1693,6 +1708,19 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 			
 			$tpl->display('devblocks:cerberusweb.core::tasks/rpc/peek.tpl');
 		}
+	}
+	
+	function mergeGetKeys() {
+		$keys = [
+			'due',
+			'importance',
+			'owner__label',
+			'reopen',
+			'status',
+			'title',
+		];
+		
+		return $keys;
 	}
 	
 	function importGetKeys() {

@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -214,13 +214,6 @@ class ChCoreTour extends DevblocksHttpResponseListenerExtension {
 					);
 					break;
 				
-			case 'preferences':
-				$tour = array(
-						'title' => 'Preferences',
-					'body' => 'Use this page to configure your account preferences.',
-				);
-				break;
-
 			case 'groups':
 				$tour = array(
 						'title' => 'Group Setup',

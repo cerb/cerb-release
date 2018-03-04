@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -36,6 +36,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 	const TITLE = 'title';
 	const UPDATED = 'updated';
 	
+	const _EMAIL_IDS = '_email_ids';
 	const _IMAGE = '_image';
 	const _PASSWORD = '_password';
 	
@@ -184,6 +185,12 @@ class DAO_Worker extends Cerb_ORMHelper {
 			->addField(self::UPDATED)
 			->timestamp()
 			;
+		// array
+		$validation
+			->addField(self::_EMAIL_IDS)
+			->idArray()
+			->addValidator($validation->validators()->contextIds(CerberusContexts::CONTEXT_ADDRESS, true))
+			;
 		// base64 blob png
 		$validation
 			->addField(self::_IMAGE)
@@ -214,6 +221,14 @@ class DAO_Worker extends Cerb_ORMHelper {
 		$id = $db->LastInsertId();
 
 		self::update($id, $fields);
+		
+		DAO_WorkerPref::setAsJson($id, 'search_favorites_json', [
+			"cerberusweb.contexts.contact",
+			"cerberusweb.contexts.address",
+			"cerberusweb.contexts.org",
+			"cerberusweb.contexts.task",
+			"cerberusweb.contexts.ticket", 
+		]);
 		
 		self::clearCache();
 		
@@ -683,6 +698,15 @@ class DAO_Worker extends Cerb_ORMHelper {
 		$context = CerberusContexts::CONTEXT_WORKER;
 		self::_updateAbstract($context, $ids, $fields);
 		
+		// Handle alternate email addresses
+		if(isset($fields[self::_EMAIL_IDS])) {
+			foreach($ids as $id) {
+				if(is_array($fields[self::_EMAIL_IDS]))
+					DAO_Address::updateForWorkerId($id, $fields[self::_EMAIL_IDS]);
+			}
+			unset($fields[self::_EMAIL_IDS]);
+		}
+		
 		// Handle avatar images
 		if(isset($fields[self::_IMAGE])) {
 			foreach($ids as $id) {
@@ -756,6 +780,15 @@ class DAO_Worker extends Cerb_ORMHelper {
 	}
 	
 	/**
+	 * @abstract
+	 * @param array $fields
+	 * @param integer $id
+	 */
+	static public function onUpdateByActor($actor, $fields, $id) {
+		return;
+	}
+	
+	/**
 	 * @param Model_ContextBulkUpdate $update
 	 * @return boolean
 	 */
@@ -771,8 +804,8 @@ class DAO_Worker extends Cerb_ORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 
 		if(is_array($do))
 		foreach($do as $k => $v) {
@@ -809,7 +842,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 					
 				default:
 					// Custom fields
-					if(substr($k,0,3)=="cf_") {
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
 						$custom_fields[substr($k,3)] = $v;
 					}
 					break;
@@ -825,7 +858,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		
 		// Broadcast
 		if(isset($do['broadcast']))
-			C4_AbstractView::_doBulkBroadcast(CerberusContexts::CONTEXT_WORKER, $do['broadcast'], $ids, 'address_address');
+			C4_AbstractView::_doBulkBroadcast(CerberusContexts::CONTEXT_WORKER, $do['broadcast'], $ids);
 		
 		$update->markCompleted();
 		return true;
@@ -862,7 +895,10 @@ class DAO_Worker extends Cerb_ORMHelper {
 				unset($change_fields[DAO_Worker::EMAIL_ID]);
 			
 			if(isset($change_fields[DAO_Worker::EMAIL_ID]) && $email_id) {
-				DAO_AddressToWorker::assign($email_id, $id, true);
+				DAO_Address::update($email_id, [
+					DAO_Address::MAIL_TRANSPORT_ID => 0,
+					DAO_Address::WORKER_ID => $id,
+				]);
 			}
 			
 			/*
@@ -959,7 +995,10 @@ class DAO_Worker extends Cerb_ORMHelper {
 		if(false == ($db->ExecuteMaster($sql)))
 			return false;
 		
-		DAO_AddressToWorker::unassignAll($id);
+		// Clear worker addresses
+		$sql = sprintf("UPDATE address SET worker_id = 0 WHERE owner_id = %d", $id);
+		if(false == ($db->ExecuteMaster($sql)))
+			return false;
 		
 		$sql = sprintf("DELETE FROM webapi_credentials WHERE worker_id = %d", $id);
 		$db->ExecuteMaster($sql);
@@ -1751,6 +1790,13 @@ class Model_Worker {
 			$this->_email_model = DAO_Address::get($this->email_id);
 		
 		return $this->_email_model;
+	}
+	
+	function getEmailModels() {
+		if(!$this->id)
+			return [];
+		
+		return DAO_Address::getByWorkerId($this->id);
 	}
 	
 	/**
@@ -2710,6 +2756,10 @@ class DAO_WorkerPref extends Cerb_ORMHelper {
 		$cache->remove(self::CACHE_PREFIX.$worker_id);
 	}
 	
+	static function setAsJson($worker_id, $key, $value) {
+		self::set($worker_id, $key, json_encode($value));
+	}
+	
 	static function get($worker_id, $key, $default=null) {
 		$value = null;
 		
@@ -2724,6 +2774,11 @@ class DAO_WorkerPref extends Cerb_ORMHelper {
 		}
 		
 		return $value;
+	}
+	
+	static function getAsJson($worker_id, $key, $default=null) {
+		$value = self::get($worker_id, $key, $default);
+		return json_decode($value, true);
 	}
 
 	static function getByKey($key) {
@@ -2770,7 +2825,7 @@ class DAO_WorkerPref extends Cerb_ORMHelper {
 	}
 };
 
-class Context_Worker extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextAutocomplete {
+class Context_Worker extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextBroadcast, IDevblocksContextAutocomplete {
 	static function isReadableByActor($models, $actor) {
 		// Everyone can read
 		return CerberusContexts::allowEverything($models);
@@ -3077,6 +3132,10 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 				$out_fields[DAO_Worker::EMAIL_ID] = $address->id;
 				break;
 				
+			case 'email_ids':
+				$out_fields[DAO_Worker::_EMAIL_IDS] = $value;
+				break;
+				
 			case 'image':
 				$out_fields[DAO_Worker::_IMAGE] = $value;
 				break;
@@ -3101,10 +3160,10 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 		$context_id = $dictionary['id'];
 		
 		@$is_loaded = $dictionary['_loaded'];
-		$values = array();
+		$values = [];
 		
 		if(!$is_loaded) {
-			$labels = array();
+			$labels = [];
 			CerberusContexts::getContext($context, $context_id, $labels, $values, null, true, true);
 		}
 		
@@ -3140,7 +3199,6 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			SearchFields_Worker::IS_DISABLED => new DevblocksSearchCriteria(SearchFields_Worker::IS_DISABLED,'=',0),
 		), true);
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;
@@ -3169,6 +3227,24 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 		return $view;
 	}
 	
+	function broadcastRecipientFieldsGet() {
+		$results = $this->_broadcastRecipientFieldsGet(CerberusContexts::CONTEXT_WORKER, 'Worker', [
+			'address_address',
+		]);
+		
+		asort($results);
+		return $results;
+	}
+	
+	function broadcastPlaceholdersGet() {
+		$token_values = $this->_broadcastPlaceholdersGet(CerberusContexts::CONTEXT_WORKER);
+		return $token_values;
+	}
+	
+	function broadcastRecipientFieldsToEmails(array $fields, DevblocksDictionaryDelegate $dict) {
+		$emails = $this->_broadcastRecipientFieldsToEmails($fields, $dict);
+		return $emails;
+	}
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
 		$date = DevblocksPlatform::services()->date();
@@ -3241,8 +3317,7 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			$activity_counts = array(
 				'groups' => DAO_Group::countByMemberId($context_id),
 				'tickets' => DAO_Ticket::countsByOwnerId($context_id),
-				'comments' => DAO_Comment::count($context, $context_id),
-				//'emails' => DAO_Address::countByContactId($context_id),
+				'emails' => DAO_Address::countByWorkerId($context_id),
 			);
 			$tpl->assign('activity_counts', $activity_counts);
 			

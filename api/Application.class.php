@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2018022701);
-define("APP_VERSION", '8.2.11');
+define("APP_BUILD", 2018030301);
+define("APP_VERSION", '8.3.0');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -994,6 +994,7 @@ class CerberusContexts {
 	const CONTEXT_CONNECTED_ACCOUNT = 'cerberusweb.contexts.connected_account';
 	const CONTEXT_CONTACT = 'cerberusweb.contexts.contact';
 	const CONTEXT_CONTEXT_AVATAR = 'cerberusweb.contexts.context.avatar';
+	const CONTEXT_CURRENCY = 'cerberusweb.contexts.currency';
 	const CONTEXT_CUSTOM_FIELD = 'cerberusweb.contexts.custom_field';
 	const CONTEXT_CUSTOM_FIELDSET = 'cerberusweb.contexts.custom_fieldset';
 	const CONTEXT_CUSTOM_RECORD = 'cerberusweb.contexts.custom_record';
@@ -1038,7 +1039,7 @@ class CerberusContexts {
 	const CONTEXT_WORKSPACE_PAGE = 'cerberusweb.contexts.workspace.page';
 	const CONTEXT_WORKSPACE_TAB = 'cerberusweb.contexts.workspace.tab';
 	const CONTEXT_WORKSPACE_WIDGET = 'cerberusweb.contexts.workspace.widget';
-	const CONTEXT_WORKSPACE_WORKLIST = 'cerberusweb.contexts.workspace.worklist';
+	const CONTEXT_WORKSPACE_WORKLIST = 'cerberusweb.contexts.workspace.list';
 
 	public static function setCacheLoads($state) {
 		self::$_is_caching_loads = ($state ? true : false);
@@ -2573,7 +2574,7 @@ class CerberusLicense {
 	}
 
 	public static function getReleases() {
-		/*																																																																																																																														*/return json_decode(base64_decode('eyI1LjAuMCI6MTI3MTg5NDQwMCwiNS4xLjAiOjEyODE4MzA0MDAsIjUuMi4wIjoxMjg4NTY5NjAwLCI1LjMuMCI6MTI5NTA0OTYwMCwiNS40LjAiOjEzMDM4NjI0MDAsIjUuNS4wIjoxMzEyNDE2MDAwLCI1LjYuMCI6MTMxNzY4NjQwMCwiNS43LjAiOjEzMjYwNjcyMDAsIjYuMC4wIjoxMzM4MTYzMjAwLCI2LjEuMCI6MTM0NjAyNTYwMCwiNi4yLjAiOjEzNTM4ODgwMDAsIjYuMy4wIjoxMzY0MTY5NjAwLCI2LjQuMCI6MTM3MDIxNzYwMCwiNi41LjAiOjEzNzkyODk2MDAsIjYuNi4wIjoxMzkxMTI2NDAwLCI2LjcuMCI6MTM5ODEyNDgwMCwiNi44LjAiOjE0MTA3MzkyMDAsIjYuOS4wIjoxNDIyMjMwNDAwLCI3LjAuMCI6MTQzMjU5ODQwMCwiNy4xLjAiOjE0NDg5MjgwMDAsIjcuMi4wIjoxNDYyMDYwODAwLCI3LjMuMCI6MTQ3MjY4ODAwMCwiOC4wLjAiOjE0OTU3NTY4MDAsIjguMS4wIjoxNTAzOTY0ODAwLCI4LjIuMCI6MTUwOTMyMTYwMH0='),true);/*
+		/*																																																																																																																														*/return json_decode(base64_decode('eyI1LjAuMCI6MTI3MTg5NDQwMCwiNS4xLjAiOjEyODE4MzA0MDAsIjUuMi4wIjoxMjg4NTY5NjAwLCI1LjMuMCI6MTI5NTA0OTYwMCwiNS40LjAiOjEzMDM4NjI0MDAsIjUuNS4wIjoxMzEyNDE2MDAwLCI1LjYuMCI6MTMxNzY4NjQwMCwiNS43LjAiOjEzMjYwNjcyMDAsIjYuMC4wIjoxMzM4MTYzMjAwLCI2LjEuMCI6MTM0NjAyNTYwMCwiNi4yLjAiOjEzNTM4ODgwMDAsIjYuMy4wIjoxMzY0MTY5NjAwLCI2LjQuMCI6MTM3MDIxNzYwMCwiNi41LjAiOjEzNzkyODk2MDAsIjYuNi4wIjoxMzkxMTI2NDAwLCI2LjcuMCI6MTM5ODEyNDgwMCwiNi44LjAiOjE0MTA3MzkyMDAsIjYuOS4wIjoxNDIyMjMwNDAwLCI3LjAuMCI6MTQzMjU5ODQwMCwiNy4xLjAiOjE0NDg5MjgwMDAsIjcuMi4wIjoxNDYyMDYwODAwLCI3LjMuMCI6MTQ3MjY4ODAwMCwiOC4wLjAiOjE0OTU3NTY4MDAsIjguMS4wIjoxNTAzOTY0ODAwLCI4LjIuMCI6MTUwOTMyMTYwMCwiOC4zLjAiOjE1MTk2MDMyMDB9'),true);/*
 		 * Major versions by release date (in GMT)
 		 */
 		return array(
@@ -2602,6 +2603,7 @@ class CerberusLicense {
 			'8.0.0' => gmmktime(0,0,0,5,26,2017),
 			'8.1.0' => gmmktime(0,0,0,8,29,2017),
 			'8.2.0' => gmmktime(0,0,0,10,30,2017),
+			'8.3.0' => gmmktime(0,0,0,2,26,2018),
 		);
 	}
 
@@ -2659,7 +2661,7 @@ class CerberusSettingsDefaults {
 	const AVATAR_DEFAULT_STYLE_WORKER = 'monograms';
 	const HTML_NO_STRIP_MICROSOFT = 0;
 	const MAIL_DEFAULT_FROM_ID = 0;
-	const MAIL_AUTOMATED_TEMPLATES = "{\"worker_invite\":{\"send_from_id\":\"0\",\"send_as\":\"Cerb\",\"subject\":\"Welcome to Cerb!\",\"body\":\"Welcome, {{worker_first_name}}!\\r\\n\\r\\nYour team has invited you to create a new Cerb account at:\\r\\n{{url}}\\r\\n\"},\"worker_confirm_email\":{\"send_from_id\":\"0\",\"send_as\":\"Cerb\",\"subject\":\"Please confirm your email address\",\"body\":\"{{worker_full_name}} just added this email address ({{email}}) to their Cerb account.\\r\\n\\r\\nTo approve and continue, click the following link:\\r\\n{{url}}\\r\\n\\r\\nIf you did not request this, do not click the link above.  The request will expire in 24 hours.\"},\"worker_recover\":{\"send_from_id\":\"0\",\"send_as\":\"Cerb\",\"subject\":\"Your account recovery confirmation code\",\"body\":\"Hi, {{worker_first_name}}.\\r\\n\\r\\nWe recently received a request to reset your account's login information.\\r\\n\\r\\nHere's your account reset confirmation code: {{code}}\\r\\n\\r\\nIP: {{ip}}\\r\\n\\r\\nIf you didn't initiate this request, please forward this message to a system administrator.\"}}";
+	const MAIL_AUTOMATED_TEMPLATES = "{\"worker_invite\":{\"send_from_id\":\"0\",\"send_as\":\"Cerb\",\"subject\":\"Welcome to Cerb!\",\"body\":\"Welcome, {{worker_first_name}}!\\r\\n\\r\\nYour team has invited you to create a new Cerb account at:\\r\\n{{url}}\\r\\n\"},\"worker_recover\":{\"send_from_id\":\"0\",\"send_as\":\"Cerb\",\"subject\":\"Your account recovery confirmation code\",\"body\":\"Hi, {{worker_first_name}}.\\r\\n\\r\\nWe recently received a request to reset your account's login information.\\r\\n\\r\\nHere's your account reset confirmation code: {{code}}\\r\\n\\r\\nIP: {{ip}}\\r\\n\\r\\nIf you didn't initiate this request, please forward this message to a system administrator.\"}}";
 };
 
 // [TODO] Implement our own session handler w/o PHP 'session'

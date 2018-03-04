@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -331,8 +331,8 @@ class DAO_TimeTrackingEntry extends Cerb_ORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 
 		if(is_array($do))
 		foreach($do as $k => $v) {
@@ -347,7 +347,7 @@ class DAO_TimeTrackingEntry extends Cerb_ORMHelper {
 					
 				default:
 					// Custom fields
-					if(substr($k,0,3)=="cf_") {
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
 						$custom_fields[substr($k,3)] = $v;
 					}
 					break;
@@ -1642,7 +1642,6 @@ class Context_TimeTracking extends Extension_DevblocksContext implements IDevblo
 		$view->renderSortBy = SearchFields_TimeTrackingEntry::LOG_DATE;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;

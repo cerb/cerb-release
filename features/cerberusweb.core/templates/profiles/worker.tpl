@@ -44,8 +44,6 @@
 			{if $is_writeable && $active_worker->hasPriv("contexts.{$page_context}.update")}
 			<button type="button" id="btnProfileWorkerEdit" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_WORKER}" data-context-id="{$dict->id}" data-edit="true" title="{'common.edit'|devblocks_translate|capitalize}"><span class="glyphicons glyphicons-cogwheel"></span></button>
 			{/if}
-			
-			{if !$active_worker->is_superuser && $dict->id == $active_worker->id}<button type="button" id="btnProfileWorkerSettings" title="{'common.settings'|devblocks_translate|capitalize}" onclick="document.location='{devblocks_url}c=preferences{/devblocks_url}';"><span class="glyphicons glyphicons-cogwheel"></span></button>{/if}
 		</form>
 		
 		{if $pref_keyboard_shortcuts}
@@ -79,6 +77,12 @@
 	</div>
 	
 	<br clear="all">
+
+	<div style="margin-top:5px;">
+		<button type="button" class="cerb-search-trigger" data-context="{CerberusContexts::CONTEXT_GROUP}" data-query="member:(id:{$page_context_id})"><div class="badge-count">{$profile_counts.groups|default:0}</div> {'common.groups'|devblocks_translate|capitalize}</button>
+		<button type="button" class="cerb-search-trigger" data-context="{CerberusContexts::CONTEXT_BOT}" data-query="owner.worker:(id:{$page_context_id})"><div class="badge-count">{$profile_counts.bots|default:0}</div> {'common.bots'|devblocks_translate|capitalize}</button>
+		<button type="button" class="cerb-search-trigger" data-context="{CerberusContexts::CONTEXT_ADDRESS}" data-query="worker.id:{$page_context_id}"><div class="badge-count">{$profile_counts.emails|default:0}</div> {'common.email_addresses'|devblocks_translate|capitalize}</button>
+	</div>
 </fieldset>
 
 {include file="devblocks:cerberusweb.core::internal/custom_fieldsets/profile_fieldsets.tpl" properties=$properties_custom_fieldsets}
@@ -97,6 +101,11 @@
 	<ul>
 		{$tabs = []}
 		{$point = "cerberusweb.profiles.worker.{$dict->id}"}
+		
+		{if $active_worker->is_superuser || $dict->id == $active_worker->id}
+		{$tabs[] = 'settings'}
+		<li data-alias="settings"><a href="{devblocks_url}ajax.php?c=profiles&a=handleSectionAction&section=worker&action=showSettingsTab&worker_id={$page_context_id}{/devblocks_url}">{'common.settings'|devblocks_translate|capitalize}</a></li>
+		{/if}
 		
 		{if !$dict->is_disabled}
 			{$tabs[] = 'responsibilities'}
@@ -120,16 +129,6 @@
 		{$tabs[] = 'comments'}
 		<li data-alias="comments"><a href="{devblocks_url}ajax.php?c=internal&a=showTabContextComments&context={$page_context}&id={$page_context_id}{/devblocks_url}">{'common.comments'|devblocks_translate|capitalize} <div class="tab-badge">{DAO_Comment::count($page_context, $page_context_id)|default:0}</div></a></li>
 
-		{if $active_worker->is_superuser || $dict->id == $active_worker->id}
-		{$tabs[] = 'attendants'}
-		<li data-alias="attendants"><a href="{devblocks_url}ajax.php?c=internal&a=showAttendantsTab&point={$point}&context={$page_context}&context_id={$page_context_id}{/devblocks_url}">{'common.bots'|devblocks_translate|capitalize}</a></li>
-		{/if}
-		
-		{if $active_worker->is_superuser || $dict->id == $active_worker->id}
-		{$tabs[] = 'snippets'}
-		<li data-alias="snippets"><a href="{devblocks_url}ajax.php?c=internal&a=showTabSnippets&point={$point}&context={$page_context}&context_id={$page_context_id}{/devblocks_url}">{'common.snippets'|devblocks_translate|capitalize}</a></li>
-		{/if}
-		
 		{foreach from=$tab_manifests item=tab_manifest}
 			{$tabs[] = $tab_manifest->params.uri}
 			<li data-alias="{$tab_manifest->params.uri}"><a href="{devblocks_url}ajax.php?c=profiles&a=showTab&ext_id={$tab_manifest->id}&point={$point}&context={$page_context}&context_id={$page_context_id}{/devblocks_url}"><i>{$tab_manifest->params.title|devblocks_translate}</i></a></li>

@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -168,8 +168,8 @@ class CerberusParserModel {
 				if(null != ($fromInst = CerberusApplication::hashLookupAddress($fromAddress, true))) {
 					$this->_sender_address_model = $fromInst;
 					
-					if(null != ($fromWorkerAuth = DAO_AddressToWorker::getByEmail($fromAddress))) {
-						if($fromWorkerAuth->is_confirmed && null != ($fromWorker = DAO_Worker::get($fromWorkerAuth->worker_id)))
+					if(null != ($fromWorkerAuth = DAO_Address::getByEmail($fromAddress))) {
+						if(null != ($fromWorker = $fromWorkerAuth->getWorker()))
 							$this->setSenderWorkerModel($fromWorker);
 					}
 					

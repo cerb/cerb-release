@@ -82,8 +82,8 @@
 			<td data-column="label" colspan="{$smarty.foreach.headers.total}">
 				<input type="checkbox" name="row_id[]" value="{$result.o_id}" style="display:none;">
 				
-				{if $result.o_is_closed && $result.o_is_won}<span style="color:rgb(0,120,0);font-weight:bold;"><span class="glyphicons glyphicons-up-arrow" title="Won" style="line-height:16px;"></span></span> 
-				{elseif $result.o_is_closed && !$result.o_is_won}<span style="color:rgb(150,0,0);font-weight:bold;"><span class="glyphicons glyphicons-down-arrow" title="Lost" style="line-height:16px;"></span></span> {/if}
+				{if 1 == $result.o_status_id}<span style="color:rgb(0,120,0);font-weight:bold;"><span class="glyphicons glyphicons-up-arrow" title="Won" style="line-height:16px;"></span></span> 
+				{elseif 2 == $result.o_status_id}<span style="color:rgb(150,0,0);font-weight:bold;"><span class="glyphicons glyphicons-down-arrow" title="Lost" style="line-height:16px;"></span></span> {/if}
 				<a href="{devblocks_url}c=profiles&d=opportunity&id={$result.o_id}-{$result.o_name|devblocks_permalink}{/devblocks_url}" class="subject">{if !empty($result.o_name)}{$result.o_name}{else}{'common.no_title'|devblocks_translate}{/if}</a> 
 				<button type="button" class="peek" onclick="genericAjaxPopup('peek','c=internal&a=showPeekPopup&context={$view_context}&context_id={$result.o_id}&view_id={$view->id}',null,false,'50%');"><span class="glyphicons glyphicons-new-window-alt"></span></button>
 			</td>
@@ -94,20 +94,32 @@
 				{include file="devblocks:cerberusweb.core::internal/custom_fields/view/cell_renderer.tpl"}
 			{elseif $column=="o_id"}
 				<td data-column="{$column}">{$result.o_id}&nbsp;</td>
-			{elseif $column=="org_name"}
-				<td>
-					{if !empty($result.org_id)}
-						<a href="javascript:;" onclick="genericAjaxPopup('peek','c=internal&a=showPeekPopup&context={CerberusContexts::CONTEXT_ORG}&context_id={$result.org_id}&view_id={$view->id}',null,false,'50%');">{$result.org_name}</a>&nbsp;
+			{elseif $column=="o_status_id"}
+				<td data-column="{$column}">
+					{if 1 == $result.o_status_id}
+						{'crm.opp.status.open'|devblocks_translate}
+					{elseif 1 == $result.o_status_id}
+						{'crm.opp.status.closed.won'|devblocks_translate}
+					{else}
+						{'crm.opp.status.closed.lost'|devblocks_translate}
 					{/if}
 				</td>
-			{elseif $column=="o_amount"}
-				<td data-column="{$column}">{$result.o_amount|number_format:2}&nbsp;</td>
-			{elseif $column=="a_email"}
+			{elseif $column=="o_currency_amount"}
 				<td data-column="{$column}">
-					{if !empty($result.a_email)}
-						<a href="javascript:;" onclick="genericAjaxPopup('peek','c=internal&a=showPeekPopup&context={CerberusContexts::CONTEXT_ADDRESS}&email={$result.a_email|escape:'url'}&view_id={$view->id}',null,false,'50%');" title="{$result.a_email}">{$result.a_email}</a>&nbsp;
+					{$currency = DAO_Currency::get($result.o_currency_id)}
+					{if $currency}
+					{$currency->symbol} 
+					{DevblocksPlatform::strFormatDecimal($result.o_currency_amount,$currency->decimal_at)} 
+					{$currency->code}
 					{else}
-						<!-- [<a href="javascript:;">assign</a>]  -->
+					{DevblocksPlatform::strFormatDecimal($result.o_currency_amount,2)}
+					{/if}
+				</td>
+			{elseif $column=="o_currency_id"}
+				<td data-column="{$column}">
+					{$currency = DAO_Currency::get($result.o_currency_id)}
+					{if $currency}
+						<a href="javascript:;" class="cerb-peek-trigger no-underline" data-context="{CerberusContexts::CONTEXT_CURRENCY}" data-context-id="{$currency->id}">{$currency->name} ({$currency->code})</a>
 					{/if}
 				</td>
 			{elseif $column=="o_created_date"}
@@ -116,13 +128,6 @@
 				<td data-column="{$column}"><abbr title="{$result.$column|devblocks_date}">{$result.o_updated_date|devblocks_prettytime}</abbr>&nbsp;</td>
 			{elseif $column=="o_closed_date"}
 				<td data-column="{$column}"><abbr title="{$result.$column|devblocks_date}">{$result.o_closed_date|devblocks_prettytime}</abbr>&nbsp;</td>
-			{elseif $column=="o_worker_id"}
-				<td data-column="{$column}">
-					{assign var=o_worker_id value=$result.o_worker_id}
-					{if isset($workers.$o_worker_id)}
-						{$workers.$o_worker_id->getName()}&nbsp;
-					{/if}
-				</td>
 			{else}
 				<td data-column="{$column}">{$result.$column}</td>
 			{/if}
@@ -159,6 +164,7 @@
 	<div style="float:left;" id="{$view->id}_actions">
 		<button type="button" class="action-always-show action-explore" onclick="var $frm = $(this).closest('form'); $frm.find('input:hidden[name=explore_from]').val($frm.find('tbody input:checkbox:checked:first').val());$frm.submit();"><span class="glyphicons glyphicons-play-button"></span> {'common.explore'|devblocks_translate|lower}</button>
 		{if $active_worker->hasPriv("contexts.{$view_context}.update.bulk")}<button type="button" class="action-always-show action-bulkupdate" onclick="genericAjaxPopup('peek','c=profiles&a=handleSectionAction&section=opportunity&action=showBulkPopup&view_id={$view->id}&ids=' + Devblocks.getFormEnabledCheckboxValues('viewForm{$view->id}','row_id[]'), { my: 'top', at: 'top' }, false, '50%');"><span class="glyphicons glyphicons-folder-closed"></span> {'common.bulk_update'|devblocks_translate|lower}</button>{/if}
+		{if $active_worker->hasPriv("contexts.{$view_context}.merge")}<button type="button" onclick="genericAjaxPopup('peek','c=internal&a=showRecordsMergePopup&view_id={$view->id}&context={$view_context}&ids=' + Devblocks.getFormEnabledCheckboxValues('viewForm{$view->id}','row_id[]'),null,false,'50%');"><span class="glyphicons glyphicons-git-merge"></span> {'common.merge'|devblocks_translate|lower}</button>{/if}
 	</div>
 	{/if}
 </div>

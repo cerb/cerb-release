@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -197,6 +197,14 @@ class ChPageController extends DevblocksControllerExtension {
 		}
 
 		// Contexts
+		
+		$search_favorites = [];
+		
+		if($active_worker) {
+			$search_favorites = DAO_WorkerPref::getAsJson($active_worker->id, 'search_favorites_json', '[]');
+			$search_favorites = array_flip($search_favorites);
+		}
+		
 		$contexts = Extension_DevblocksContext::getAll(false);
 		$search_menu = [];
 		
@@ -207,11 +215,17 @@ class ChPageController extends DevblocksControllerExtension {
 				if(false != ($aliases = Extension_DevblocksContext::getAliasesForContext($context)))
 					$label = @$aliases['plural'] ?: $aliases['singular'];
 				
-				$search_menu[$context_id] = $label;
+				$is_visible = !$search_favorites || isset($search_favorites[$context_id]);
+				
+				$search_menu[$context_id] = [
+					'context' => $context_id,
+					'label' => $label,
+					'visible' => $is_visible,
+				];
 			}
 		}
 		
-		asort($search_menu);
+		DevblocksPlatform::sortObjects($search_menu, '[label]');
 		
 		$tpl->assign('search_menu', $search_menu);
 		

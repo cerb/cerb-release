@@ -638,6 +638,16 @@ class Model_CustomRecord {
 		@$owner_contexts = $this->params['owners']['contexts'] ?: [];
 		return $owner_contexts;
 	}
+	
+	function hasOption($option) {
+		if(!is_array($this->params))
+			return false;
+		
+		if(!isset($this->params['options']) || !is_array($this->params['options']))
+			return false;
+		
+		return in_array($option, $this->params['options']);
+	}
 };
 
 class View_CustomRecord extends C4_AbstractView implements IAbstractView_Subtotals, IAbstractView_QuickSearch {
@@ -1212,7 +1222,6 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 		$view->renderSortBy = SearchFields_CustomRecord::NAME;
 		$view->renderSortAsc = true;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;

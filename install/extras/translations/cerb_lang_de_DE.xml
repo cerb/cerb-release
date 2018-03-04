@@ -133,11 +133,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="activities.org.merge">
-			<tuv xml:lang="de_DE">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="activities.task.created">
 			<tuv xml:lang="de_DE">
 				<seg/>
@@ -301,11 +296,6 @@
 		<tu tuid="addy_book.org.tabs.people">
 			<tuv xml:lang="de_DE">
 				<seg>Personen</seg>
-			</tuv>
-		</tu>
-		<tu tuid="addy_book.peek.compose">
-			<tuv xml:lang="de_DE">
-				<seg>verfassen</seg>
 			</tuv>
 		</tu>
 		<tu tuid="addy_book.peek.count.closed_tickets">
@@ -641,6 +631,11 @@
 		<tu tuid="common.comments">
 			<tuv xml:lang="de_DE">
 				<seg>Kommentare</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.compose">
+			<tuv xml:lang="de_DE">
+				<seg>verfassen</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.content">
@@ -996,6 +991,11 @@
 		<tu tuid="common.members">
 			<tuv xml:lang="de_DE">
 				<seg/>
+			</tuv>
+		</tu>
+		<tu tuid="common.merge">
+			<tuv xml:lang="de_DE">
+				<seg>Verschmelzen</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.message">
@@ -1598,11 +1598,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="crm.opp.add">
-			<tuv xml:lang="de_DE">
-				<seg>Absatzchance hinzufügen</seg>
-			</tuv>
-		</tu>
 		<tu tuid="crm.opp.status.closed.lost">
 			<tuv xml:lang="de_DE">
 				<seg>Geschlossen/Verloren</seg>
@@ -1628,32 +1623,7 @@
 				<seg>geschlossen am</seg>
 			</tuv>
 		</tu>
-		<tu tuid="crm.opportunity.contact_phone">
-			<tuv xml:lang="de_DE">
-				<seg>Telefon</seg>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.is_closed">
-			<tuv xml:lang="de_DE">
-				<seg>Geschlossen</seg>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.is_won">
-			<tuv xml:lang="de_DE">
-				<seg>Gewonnen</seg>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.org_id">
-			<tuv xml:lang="de_DE">
-				<seg>Org ID</seg>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.primary_email_id">
-			<tuv xml:lang="de_DE">
-				<seg>Email ID</seg>
-			</tuv>
-		</tu>
-		<tu tuid="crm.tab.title">
+		<tu tuid="crm.common.opportunities">
 			<tuv xml:lang="de_DE">
 				<seg>Absatzchancen</seg>
 			</tuv>
@@ -2773,11 +2743,6 @@
 				<seg>Sende eine Kopie dieser Nachricht an die Empfänger.</seg>
 			</tuv>
 		</tu>
-		<tu tuid="mail.merge">
-			<tuv xml:lang="de_DE">
-				<seg>Verschmelzen</seg>
-			</tuv>
-		</tu>
 		<tu tuid="mail.nav.search_mail">
 			<tuv xml:lang="de_DE">
 				<seg>Tickets durchsuchen nach:</seg>
@@ -3103,19 +3068,9 @@
 				<seg>Follow-up Fragen:</seg>
 			</tuv>
 		</tu>
-		<tu tuid="portal.cfg.htaccess_hint">
-			<tuv xml:lang="de_DE">
-				<seg>(optional, bekannte URLs für ApacheWebServer-Nutzer)</seg>
-			</tuv>
-		</tu>
 		<tu tuid="portal.cfg.installation">
 			<tuv xml:lang="de_DE">
 				<seg>Installation</seg>
-			</tuv>
-		</tu>
-		<tu tuid="portal.cfg.installation_instructions">
-			<tuv xml:lang="de_DE">
-				<seg>Legen Sie die "index.php"-Datei in ein neues Verzeichnis auf der entsprechenden öffentlichen Webseite. Dieses Verzeichnis kann wahlweise benannt werden, beschreibt jedoch im Regelfall das Portal (z.B.: https://cerb.ai/contact/).</seg>
 			</tuv>
 		</tu>
 		<tu tuid="portal.cfg.language">

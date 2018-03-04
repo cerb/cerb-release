@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -92,6 +92,7 @@ class Page_Search extends CerberusPageExtension {
 	function openSearchPopupAction() {
 		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string','');
 		@$query = DevblocksPlatform::importGPC($_REQUEST['q'],'string','');
+		@$query_required = DevblocksPlatform::importGPC($_REQUEST['qr'],'string','');
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'string',null);
 
 		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
@@ -107,7 +108,11 @@ class Page_Search extends CerberusPageExtension {
 		if($id)
 			$view->is_ephemeral = true;
 		
-		if(isset($_REQUEST['q'])) {
+		$view->setParamsRequiredQuery($query_required);
+		
+		if('*' == $query) {
+			$query = null;
+		} else {
 			$view->addParamsWithQuickSearch($query, true);
 			$view->renderPage = 0;
 		}

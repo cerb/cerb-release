@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -352,11 +352,10 @@ class ChTicketsPage extends CerberusPageExtension {
 			DAO_Ticket::onUpdateByActor($active_worker, $fields, $id);
 			
 			// Custom field saves
-			// [TODO] Log these to the context_changeset table
-			// [TODO] Bundle with the DAO::update() call?
-			@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', array());
-			DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_TICKET, $id, $field_ids);
-	
+			@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
+			if(!DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_TICKET, $id, $field_ids, $error))
+				throw new Exception_DevblocksAjaxValidationError($error);
+			
 			// Comments
 			if($id && !empty($comment)) {
 				$also_notify_worker_ids = array_keys(CerberusApplication::getWorkersByAtMentionsText($comment));
@@ -633,7 +632,7 @@ class ChTicketsPage extends CerberusPageExtension {
 		
 		// Custom fields
 		
-		@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', array());
+		@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
 		$field_values = DAO_CustomFieldValue::parseFormPost(CerberusContexts::CONTEXT_TICKET, $field_ids);
 		if(!empty($field_values)) {
 			$properties['custom_fields'] = $field_values;
@@ -877,31 +876,6 @@ class ChTicketsPage extends CerberusPageExtension {
 		return;
 	}
 
-	function viewMergeTicketsPopupAction() {
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
-
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('view_id', $view_id);
-		$tpl->display('devblocks:cerberusweb.core::tickets/ajax/merge_confirm.tpl');
-	}
-	
-	function viewMergeTicketsAction() {
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
-		@$ticket_ids = DevblocksPlatform::importGPC($_REQUEST['ticket_id'],'array');
-		
-		View_Ticket::setLastAction($view_id,null);
-		//====================================
-
-		if(!empty($ticket_ids)) {
-			$oldest_id = DAO_Ticket::merge($ticket_ids);
-		}
-		
-		$view = C4_AbstractViewLoader::getView($view_id);
-		$view->setAutoPersist(false);
-		$view->render();
-		return;
-	}
-	
 	function viewCloseTicketsAction() {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		@$ticket_ids = DevblocksPlatform::importGPC($_REQUEST['ticket_id'],'array:integer');

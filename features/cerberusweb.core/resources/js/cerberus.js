@@ -260,16 +260,6 @@ var cAjaxCalls = function() {
 		var formName = 'viewForm'+view_id;
 
 		switch(action) {
-			case 'merge_popup':
-				genericAjaxPopup('merge','c=tickets&a=viewMergeTicketsPopup&view_id=' + view_id,null,true,'550');
-				break;
-			case 'merge':
-				showLoadingPanel();
-				genericAjaxPost(formName, '', 'c=tickets&a=viewMergeTickets&view_id='+view_id, function(html) {
-					$('#'+divName).html(html).trigger('view_refresh');
-					hideLoadingPanel();
-				});
-				break;
 			case 'not_spam':
 				showLoadingPanel();
 				genericAjaxPost(formName, '', 'c=tickets&a=viewNotSpamTickets&view_id='+view_id, function(html) {
@@ -1122,22 +1112,23 @@ var ajax = new cAjaxCalls();
 	$.fn.cerbPeekTrigger = function(options) {
 		return this.each(function() {
 			var $trigger = $(this);
-			var context = $trigger.attr('data-context');
-			var context_id = $trigger.attr('data-context-id');
-			var layer = $trigger.attr('data-layer');
-			var width = $trigger.attr('data-width');
-			var edit_mode = $trigger.attr('data-edit') ? true : false;
-			
-			// Context
-			if(!(typeof context == "string") || 0 == context.length)
-				return;
-			
-			// Layer
-			if(!(typeof layer == "string") || 0 == layer.length)
-				//layer = "peek" + Devblocks.uniqueId();
-				layer = $.md5(context + ':' + context_id + ':' + (edit_mode ? 'true' : 'false'));
 			
 			$trigger.click(function(evt) {
+				var context = $trigger.attr('data-context');
+				var context_id = $trigger.attr('data-context-id');
+				var layer = $trigger.attr('data-layer');
+				var width = $trigger.attr('data-width');
+				var edit_mode = $trigger.attr('data-edit') ? true : false;
+				
+				// Context
+				if(!(typeof context == "string") || 0 == context.length)
+					return;
+				
+				// Layer
+				if(!(typeof layer == "string") || 0 == layer.length)
+					//layer = "peek" + Devblocks.uniqueId();
+					layer = $.md5(context + ':' + context_id + ':' + (edit_mode ? 'true' : 'false'));
+				
 				var profile_url = $trigger.attr('data-profile-url');
 				
 				// Are they also holding SHIFT or CMD?
@@ -1196,22 +1187,30 @@ var ajax = new cAjaxCalls();
 	$.fn.cerbSearchTrigger = function(options) {
 		return this.each(function() {
 			var $trigger = $(this);
-			var context = $trigger.attr('data-context');
-			var layer = $trigger.attr('data-layer');
-			
-			// Context
-			if(!(typeof context == "string") || 0 == context.length)
-				return;
-			
-			// Layer
-			if(!(typeof layer == "string") || 0 == layer.length)
-				layer = "search" + Devblocks.uniqueId();
 			
 			$trigger.click(function() {
+				var context = $trigger.attr('data-context');
+				var layer = $trigger.attr('data-layer');
 				var query = $trigger.attr('data-query');
 				var query_req = $trigger.attr('data-query-required');
 				
-				var search_url = 'c=search&a=openSearchPopup&context=' + encodeURIComponent(context) + '&q=' + encodeURIComponent(query) + '&qr=' + encodeURIComponent(query_req) + '&id=' + layer;
+				// Context
+				if(!(typeof context == "string") || 0 == context.length)
+					return;
+				
+				// Layer
+				if(!(typeof layer == "string") || 0 == layer.length)
+					layer = "search" + Devblocks.uniqueId();
+				
+				var search_url = 'c=search&a=openSearchPopup&context=' + encodeURIComponent(context) + '&id=' + layer;
+				
+				if(typeof query == 'string' && query.length > 0) {
+					search_url = search_url + '&q=' + encodeURIComponent(query);
+				}
+				
+				if(typeof query_req == 'string' && query_req.length > 0) {
+					search_url = search_url + '&qr=' + encodeURIComponent(query_req);
+				}
 				
 				// Open search
 				var $peek = genericAjaxPopup(layer,search_url,null,false,'90%');

@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -18,7 +18,7 @@
 abstract class C4_AbstractView {
 	public $id = null;
 	public $is_ephemeral = 0;
-	public $name = "";
+	public $name = '';
 	public $options = [];
 	
 	public $view_columns = [];
@@ -27,6 +27,7 @@ abstract class C4_AbstractView {
 	private $_paramsEditable = [];
 	private $_paramsDefault = [];
 	private $_paramsRequired = [];
+	private $_paramsRequiredQuery = null;
 	private $_paramsHidden = [];
 	
 	public $renderPage = 0;
@@ -35,7 +36,6 @@ abstract class C4_AbstractView {
 	public $renderSortBy = '';
 	public $renderSortAsc = 1;
 
-	public $renderFilters = null;
 	public $renderSubtotals = null;
 	
 	public $renderTemplate = null;
@@ -237,7 +237,15 @@ abstract class C4_AbstractView {
 	}
 	
 	function isCustom() {
-		return 'cust_' == substr($this->id, 0, 5);
+		return DevblocksPlatform::strStartsWith($this->id, 'cust_');
+	}
+	
+	function getCustomWorklistModel() {
+		if(!$this->isCustom())
+			return false;
+		
+		$id = substr($this->id, 5);
+		return DAO_WorkspaceList::get($id);
 	}
 
 	function getColumnsAvailable() {
@@ -325,16 +333,25 @@ abstract class C4_AbstractView {
 			foreach($params_required as $key => $param) {
 				$params['req_'.$key] = $param;
 			}
+			
+			// Quick search
+			if($this->_paramsRequiredQuery) {
+				if(false != ($params_required = $this->getParamsFromQuickSearch($this->_paramsRequiredQuery))) {
+					foreach($params_required as $key => $param) {
+						$params['req_'.$key] = $param;
+					}
+				}
+			}
 		}
 		
 		if($parse_placeholders) {
 			// Translate snippets in filters
 			array_walk_recursive(
 				$params,
-				array('C4_AbstractView', '_translatePlaceholders'),
-				array(
+				['C4_AbstractView', '_translatePlaceholders'],
+				[
 					'placeholder_values' => $this->getPlaceholderValues(),
-				)
+				]
 			);
 		}
 		
@@ -452,6 +469,23 @@ abstract class C4_AbstractView {
 	function addParamsWithQuickSearch($query, $replace=true) {
 		$fields = $this->getParamsFromQuickSearch($query);
 		$this->addParams($fields, $replace);
+	}
+	
+	function addParamsRequiredWithQuickSearch($query, $replace=true) {
+		$fields = $this->getParamsFromQuickSearch($query);
+		$this->addParamsRequired($fields, $replace);
+	}
+	
+	function getSorts() {
+		$render_sort = null;
+		
+		if(is_array($this->renderSortBy) && is_array($this->renderSortAsc) && count($this->renderSortBy) == count($this->renderSortAsc)) {
+			$render_sort = array_combine($this->renderSortBy, $this->renderSortAsc);
+		} else if(!is_array($this->renderSortBy) && !is_array($this->renderSortAsc)) {
+			$render_sort = [$this->renderSortBy => ($this->renderSortAsc ? true : false) ];
+		}
+		
+		return $render_sort;
 	}
 	
 	function _getSortFromQuickSearchQuery($sort_query) {
@@ -582,6 +616,14 @@ abstract class C4_AbstractView {
 	
 	function getParamsRequired() {
 		return $this->_paramsRequired;
+	}
+	
+	function getParamsRequiredQuery() {
+		return $this->_paramsRequiredQuery;
+	}
+	
+	function setParamsRequiredQuery($query) {
+		$this->_paramsRequiredQuery = $query;
 	}
 	
 	// Params Hidden
@@ -1685,7 +1727,7 @@ abstract class C4_AbstractView {
 		$this->removeParam($key);
 		$this->renderPage = 0;
 	}
-
+	
 	function doResetCriteria() {
 		$this->addParams($this->_paramsDefault, true);
 		$this->renderPage = 0;
@@ -3140,7 +3182,7 @@ abstract class C4_AbstractView {
 		}
 	}
 	
-	public static function _doBulkBroadcast($context, array $params, array $ids, $to_key, array $options=[]) {
+	public static function _doBulkBroadcast($context, array $params, array $ids) {
 		if(empty($params) || empty($ids))
 			return false;
 		
@@ -3148,7 +3190,9 @@ abstract class C4_AbstractView {
 			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			
 			if(
-				!isset($params['worker_id'])
+				!isset($params['to'])
+				|| empty($params['to'])
+				|| !isset($params['worker_id'])
 				|| empty($params['worker_id'])
 				|| !isset($params['subject'])
 				|| empty($params['subject'])
@@ -3163,35 +3207,46 @@ abstract class C4_AbstractView {
 			$models = CerberusContexts::getModels($context, $ids);
 			$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, $context, array('custom_'));
 			
+			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+				return;
+			
+			/* @var $context_ext IDevblocksContextBroadcast */
+			if(!($context_ext instanceof IDevblocksContextBroadcast))
+				return;
+			
 			if(is_array($dicts))
 			foreach($dicts as $id => $dict) {
 				try {
-					if(false == ($recipients = CerberusMail::parseRfcAddresses($dict->$to_key)))
+					if(false == ($recipients = $context_ext->broadcastRecipientFieldsToEmails($params['to'], $dict)))
 						continue;
 					
-					foreach($recipients as $to) {
-						@$callback_recipient_reject = $options['callback_recipient_reject'];
-						@$callback_recipient_expand = $options['callback_recipient_expand'];
+					$recipients = CerberusApplication::hashLookupAddresses($recipients, true);
+					
+					foreach($recipients as $model) {
+						// Skip banned or defuct recipients
+						if($model->is_banned || $model->is_defunct)
+							continue;
 						
-						if(is_callable($callback_recipient_expand))
-							$callback_recipient_expand($to, $dict);
+						// Remove an existing contact
+						$dict->scrubKeys('broadcast_email_');
 						
-						// Are we skipping this recipient?
-						if(is_callable($callback_recipient_reject))
-							if($callback_recipient_reject($dict))
-								continue;
+						// Prime the new contact
+						$dict->broadcast_email__context = CerberusContexts::CONTEXT_ADDRESS;
+						$dict->broadcast_email_id = $model->id;
+						$dict->broadcast_email_;
 						
+						// Templates
 						$subject = $tpl_builder->build($params['subject'], $dict);
 						$body = $tpl_builder->build($params['message'], $dict);
 						
 						$json_params = array(
-							'to' => $to['full_email'],
+							'to' => $dict->broadcast_email__label,
 							'group_id' => $params['group_id'],
 							'status_id' => $status_id,
 							'is_broadcast' => 1,
-							'context_links' => array(
-								array($context, $id),
-							),
+							'context_links' => [
+								[$context, $id],
+							],
 						);
 						
 						if(isset($params['format']))
@@ -3208,7 +3263,7 @@ abstract class C4_AbstractView {
 							DAO_MailQueue::TICKET_ID => 0,
 							DAO_MailQueue::WORKER_ID => $params['worker_id'],
 							DAO_MailQueue::UPDATED => time(),
-							DAO_MailQueue::HINT_TO => $to['full_email'],
+							DAO_MailQueue::HINT_TO => $dict->broadcast_email__label,
 							DAO_MailQueue::SUBJECT => $subject,
 							DAO_MailQueue::BODY => $body,
 							DAO_MailQueue::PARAMS_JSON => json_encode($json_params),
@@ -3867,6 +3922,7 @@ class C4_AbstractViewModel {
 	public $paramsEditable = [];
 	public $paramsDefault = [];
 	public $paramsRequired = [];
+	public $paramsRequiredQuery = '';
 	public $paramsHidden = [];
 
 	public $renderPage = 0;
@@ -3874,7 +3930,6 @@ class C4_AbstractViewModel {
 	public $renderTotal = true;
 	public $renderSort = '';
 	
-	public $renderFilters = null;
 	public $renderSubtotals = null;
 	
 	public $renderTemplate = null;
@@ -3916,8 +3971,9 @@ class C4_AbstractViewLoader {
 			$worker_id = $active_worker->id;
 
 		// Check if we've ever persisted this view
-		if(false !== ($model = DAO_WorkerViewModel::getView($worker_id, $view_id))) {
-			return self::unserializeAbstractView($model);
+		if($worker_id && false !== ($model = DAO_WorkerViewModel::getView($worker_id, $view_id))) {
+			$view = self::unserializeAbstractView($model);
+			return $view;
 			
 		} elseif(!empty($defaults) && $defaults instanceof C4_AbstractViewModel) {
 			// Load defaults if they were provided
@@ -3993,6 +4049,7 @@ class C4_AbstractViewLoader {
 		$model->paramsEditable = $view->getEditableParams();
 		$model->paramsDefault = $view->getParamsDefault();
 		$model->paramsRequired = $view->getParamsRequired();
+		$model->paramsRequiredQuery = $view->getParamsRequiredQuery();
 		// Only persist hidden params that are distinct from the parent (so we can inherit parent changes)
 		$model->paramsHidden = array_diff($view->getParamsHidden(), $parent->getParamsHidden());
 		
@@ -4000,13 +4057,8 @@ class C4_AbstractViewLoader {
 		$model->renderLimit = intval($view->renderLimit);
 		$model->renderTotal = intval($view->renderTotal);
 		
-		if(!is_array($view->renderSortBy)) {
-			$model->renderSort = [$view->renderSortBy => ($view->renderSortAsc ? true : false)];
-		} else {
-			$model->renderSort = @array_combine($view->renderSortBy, $view->renderSortAsc);
-		}
+		$model->renderSort = $view->getSorts();
 		
-		$model->renderFilters = $view->renderFilters ? true : false;
 		$model->renderSubtotals = $view->renderSubtotals;
 		
 		$model->renderTemplate = $view->renderTemplate;
@@ -4047,6 +4099,8 @@ class C4_AbstractViewLoader {
 			$inst->addParamsDefault($model->paramsDefault, true);
 		if(is_array($model->paramsRequired))
 			$inst->addParamsRequired($model->paramsRequired, true);
+		if($model->paramsRequiredQuery)
+			$inst->setParamsRequiredQuery($model->paramsRequiredQuery);
 		if(is_array($model->paramsHidden))
 			$inst->addParamsHidden($model->paramsHidden, false);
 
@@ -4068,7 +4122,6 @@ class C4_AbstractViewLoader {
 			}
 		}
 		
-		$inst->renderFilters = $model->renderFilters ? true : false;
 		$inst->renderSubtotals = $model->renderSubtotals;
 		
 		$inst->renderTemplate = $model->renderTemplate;
@@ -4117,6 +4170,34 @@ class C4_AbstractViewLoader {
 		return json_encode($model);
 	}
 	
+	static function convertParamsJsonToObject($params_json) {
+		// Convert JSON params back to objects
+		$func = function(&$e) use (&$func) {
+			if(is_array($e) && isset($e['field']) && isset($e['operator'])) {
+				$e = new DevblocksSearchCriteria($e['field'], $e['operator'], $e['value']);
+				
+			} elseif(is_array($e)) {
+				array_walk(
+					$e,
+					$func
+				);
+			} else {
+				// Trim?
+			}
+		};
+		
+		if(isset($params_json) && is_array($params_json)) {
+			array_walk(
+				$params_json,
+				$func
+			);
+			
+			return $params_json;
+		}
+		
+		return [];
+	}
+	
 	static function unserializeViewFromAbstractJson($view_model, $view_id) {
 		@$view_context = $view_model['context'];
 		
@@ -4138,39 +4219,20 @@ class C4_AbstractViewLoader {
 		$view->renderSortAsc = $view_model['sort_asc'];
 		$view->renderSubtotals = $view_model['subtotals'];
 		
-		// Convert JSON params back to objects
-		$func = function(&$e) use (&$func) {
-			if(is_array($e) && isset($e['field']) && isset($e['operator'])) {
-				$e = new DevblocksSearchCriteria($e['field'], $e['operator'], $e['value']);
-				
-			} elseif(is_array($e)) {
-				array_walk(
-					$e,
-					$func
-				);
-			} else {
-				// Trim?
-			}
-		};
-		
 		if(isset($view_model['params']) && is_array($view_model['params'])) {
-			array_walk(
-				$view_model['params'],
-				$func
-			);
-			
-			$view->addParams($view_model['params'], true);
+			$params = self::convertParamsJsonToObject($view_model['params']);
+			$view->addParams($params, true);
 		}
 		
 		if(isset($view_model['params_required']) && is_array($view_model['params_required'])) {
-			array_walk(
-				$view_model['params_required'],
-				$func
-			);
-			
-			$view->addParamsRequired($view_model['params_required'], true);
+			$params = self::convertParamsJsonToObject($view_model['params_required']);
+			$view->addParamsRequired($params, true);
 		}
-
+		
+		if(isset($view_model['params_required_query'])) {
+			$view->setParamsRequiredQuery($view_model['params_required_query']);
+		}
+		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		$labels = [];
@@ -4206,7 +4268,6 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 	const PARAMS_REQUIRED_JSON = 'params_required_json';
 	const PLACEHOLDER_LABELS_JSON = 'placeholder_labels_json';
 	const PLACEHOLDER_VALUES_JSON = 'placeholder_values_json';
-	const RENDER_FILTERS = 'render_filters';
 	const RENDER_LIMIT = 'render_limit';
 	const RENDER_PAGE = 'render_page';
 	const RENDER_SORT_JSON = 'render_sort_json';
@@ -4287,11 +4348,6 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			->string()
 			->setMaxLength(16777215)
 			;
-		// tinyint(1)
-		$validation
-			->addField(self::RENDER_FILTERS)
-			->uint(1)
-			;
 		// smallint(5) unsigned
 		$validation
 			->addField(self::RENDER_LIMIT)
@@ -4367,13 +4423,13 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			'columns_hidden_json',
 			'params_editable_json',
 			'params_required_json',
+			'params_required_query',
 			'params_default_json',
 			'params_hidden_json',
 			'render_page',
 			'render_total',
 			'render_limit',
 			'render_sort_json',
-			'render_filters',
 			'render_subtotals',
 			'render_template',
 			'placeholder_labels_json',
@@ -4392,13 +4448,13 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			$model = new C4_AbstractViewModel();
 			$model->id = $row['view_id'];
 			$model->worker_id = $row['worker_id'];
-			$model->is_ephemeral = $row['is_ephemeral'];
+			$model->is_ephemeral = $row['is_ephemeral'] ? true : false;
 			$model->class_name = $row['class_name'];
 			$model->name = $row['title'];
+			$model->paramsRequiredQuery = $row['params_required_query'];
 			$model->renderPage = $row['render_page'];
 			$model->renderTotal = $row['render_total'];
 			$model->renderLimit = $row['render_limit'];
-			$model->renderFilters = $row['render_filters'];
 			$model->renderSubtotals = $row['render_subtotals'];
 			$model->renderTemplate = $row['render_template'];
 			
@@ -4496,13 +4552,13 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			'columns_hidden_json' => $db->qstr(json_encode($model->columnsHidden)),
 			'params_editable_json' => $db->qstr(json_encode($model->paramsEditable)),
 			'params_required_json' => $db->qstr(json_encode($model->paramsRequired)),
+			'params_required_query' => $db->qstr($model->paramsRequiredQuery),
 			'params_default_json' => $db->qstr(json_encode($model->paramsDefault)),
 			'params_hidden_json' => $db->qstr(json_encode($model->paramsHidden)),
 			'render_page' => abs(intval($model->renderPage)),
 			'render_total' => !empty($model->renderTotal) ? 1 : 0,
 			'render_limit' => max(intval($model->renderLimit),0),
 			'render_sort_json' => $db->qstr(json_encode($render_sort)),
-			'render_filters' => !empty($model->renderFilters) ? 1 : 0,
 			'render_subtotals' => $db->qstr($model->renderSubtotals),
 			'render_template' => $db->qstr($model->renderTemplate),
 			'placeholder_labels_json' => $db->qstr(json_encode($model->placeholderLabels)),
@@ -4518,10 +4574,28 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 		$db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 	}
 	
+	static function updateFromWorkspaceList($worklist_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$sql = sprintf("UPDATE worker_view_model ".
+			"INNER JOIN workspace_list ON (workspace_list.id=%d) SET ".
+			"worker_view_model.title = workspace_list.name, ".
+			"worker_view_model.options_json = workspace_list.options_json, ".
+			"worker_view_model.columns_json = workspace_list.columns_json, ".
+			"worker_view_model.render_limit = workspace_list.render_limit, ".
+			"worker_view_model.params_required_json = workspace_list.params_required_json, ".
+			"worker_view_model.params_required_query = workspace_list.params_required_query ".
+			"WHERE worker_view_model.view_id = 'cust_%d'",
+			$worklist_id,
+			$worklist_id
+		);
+		return $db->ExecuteMaster($sql);
+	}
+	
 	static public function deleteView($worker_id, $view_id) {
 		$db = DevblocksPlatform::services()->database();
 		
-		$db->ExecuteMaster(sprintf("DELETE FROM worker_view_model WHERE worker_id = %d AND view_id = %s",
+		return $db->ExecuteMaster(sprintf("DELETE FROM worker_view_model WHERE worker_id = %d AND view_id = %s",
 			$worker_id,
 			$db->qstr($view_id)
 		));

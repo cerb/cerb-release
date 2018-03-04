@@ -226,8 +226,8 @@ class DAO_Contact extends Cerb_ORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 		$deleted = false;
 
 		if(is_array($do))
@@ -264,7 +264,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 					
 				default:
 					// Custom fields
-					if(substr($k,0,3)=="cf_") {
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
 						$custom_fields[substr($k,3)] = $v;
 					}
 					break;
@@ -289,7 +289,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 			
 			// Broadcast
 			if(isset($do['broadcast']))
-				C4_AbstractView::_doBulkBroadcast(CerberusContexts::CONTEXT_CONTACT, $do['broadcast'], $ids, 'email_address');
+				C4_AbstractView::_doBulkBroadcast(CerberusContexts::CONTEXT_CONTACT, $do['broadcast'], $ids);
 		}
 		
 		$update->markCompleted();
@@ -475,6 +475,28 @@ class DAO_Contact extends Cerb_ORMHelper {
 	
 	static function random() {
 		return self::_getRandom('contact');
+	}
+	
+	static function mergeIds($from_ids, $to_id) {
+		$db = DevblocksPlatform::services()->database();
+
+		$context = CerberusContexts::CONTEXT_CONTACT;
+		
+		if(empty($from_ids) || empty($to_id))
+			return false;
+			
+		if(!is_numeric($to_id) || !is_array($from_ids))
+			return false;
+		
+		self::_mergeIds($context, $from_ids, $to_id);
+		
+		// Merge email addresses
+		$db->ExecuteMaster(sprintf("UPDATE address SET contact_id = %d WHERE contact_id IN (%s)",
+			$to_id,
+			implode(',', $from_ids)
+		));
+		
+		return true;
 	}
 	
 	static function delete($ids) {
@@ -1729,7 +1751,7 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 	}
 };
 
-class Context_Contact extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextImport, IDevblocksContextAutocomplete {
+class Context_Contact extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextImport, IDevblocksContextBroadcast, IDevblocksContextMerge, IDevblocksContextAutocomplete {
 	static function isReadableByActor($models, $actor) {
 		// Everyone can read
 		return CerberusContexts::allowEverything($models);
@@ -2078,7 +2100,6 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 		$view->renderSortBy = SearchFields_Contact::UPDATED_AT;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;
@@ -2210,6 +2231,47 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 	
 			$tpl->display('devblocks:cerberusweb.core::internal/contact/peek.tpl');
 		}
+	}
+	
+	function mergeGetKeys() {
+		$keys = [
+			'dob',
+			'first_name',
+			'gender',
+			'language',
+			'last_login_at',
+			'last_name',
+			'location',
+			'mobile',
+			'phone',
+			'timezone',
+			'title',
+			'username',
+			'email__label',
+			'org__label',
+		];
+		
+		return $keys;
+	}
+	
+	function broadcastRecipientFieldsGet() {
+		$results = $this->_broadcastRecipientFieldsGet(CerberusContexts::CONTEXT_CONTACT, 'Contact', [
+			'email_address',
+			'org_email_address',
+		]);
+		
+		asort($results);
+		return $results;
+	}
+	
+	function broadcastPlaceholdersGet() {
+		$token_values = $this->_broadcastPlaceholdersGet(CerberusContexts::CONTEXT_CONTACT);
+		return $token_values;
+	}
+	
+	function broadcastRecipientFieldsToEmails(array $fields, DevblocksDictionaryDelegate $dict) {
+		$emails = $this->_broadcastRecipientFieldsToEmails($fields, $dict);
+		return $emails;
 	}
 	
 	function importGetKeys() {

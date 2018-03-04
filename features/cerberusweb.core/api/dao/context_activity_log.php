@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -335,6 +335,15 @@ class DAO_ContextActivityLog extends Cerb_ORMHelper {
 
 	static function random() {
 		return self::_getRandom('context_activity_log');
+	}
+	
+	static public function countByTarget($from_context, $from_context_id) {
+		$db = DevblocksPlatform::services()->database();
+		return $db->GetOneSlave(sprintf("SELECT count(*) FROM context_activity_log ".
+			"WHERE target_context = %s AND target_context_id = %d",
+			$db->qstr($from_context),
+			$from_context_id
+		));
 	}
 	
 	static function delete($ids) {
@@ -1244,7 +1253,6 @@ class Context_ContextActivityLog extends Extension_DevblocksContext {
 		$view->renderSortBy = SearchFields_ContextActivityLog::CREATED;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;

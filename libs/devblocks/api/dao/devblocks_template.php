@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -128,8 +128,8 @@ class DAO_DevblocksTemplate extends DevblocksORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 		$deleted = false;
 
 		if(is_array($do))
@@ -140,7 +140,7 @@ class DAO_DevblocksTemplate extends DevblocksORMHelper {
 					break;
 				default:
 					// Custom fields
-					if(substr($k,0,3)=="cf_") {
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
 						$custom_fields[substr($k,3)] = $v;
 					}
 					break;
@@ -369,7 +369,7 @@ class DAO_DevblocksTemplate extends DevblocksORMHelper {
 	static function importXmlFile($filename, $tag) {
 		$db = DevblocksPlatform::services()->database();
 		$tpl = DevblocksPlatform::services()->template();
-		$tpl_sandbox = DevblocksPlatform::getTemplateSandboxService();
+		$tpl_sandbox = DevblocksPlatform::services()->templateSandbox();
 
 		if(!file_exists($filename) && empty($tag))
 			return;
@@ -408,7 +408,6 @@ class DAO_DevblocksTemplate extends DevblocksORMHelper {
 				
 			} else { // update
 				self::update($template->id, $fields);
-				
 			}
 			
 			$hash_key = sprintf("devblocks:%s:%s:%s", $plugin_id, $tag, $path);
@@ -589,11 +588,8 @@ class View_DevblocksTemplate extends C4_AbstractView implements IAbstractView_Qu
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
-
-//		$custom_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_WORKER);
-//		$tpl->assign('custom_fields', $custom_fields);
-
-		$tpl->display('devblocks:cerberusweb.core::configuration/section/portal/tabs/templates/view.tpl');
+		
+		$tpl->display('devblocks:cerberusweb.support_center::portal/sc/profile/tabs/configuration/templates/view.tpl');
 	}
 
 	function renderCriteria($field) {

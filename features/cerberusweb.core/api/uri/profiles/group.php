@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -88,6 +88,15 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 
 		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_GROUP, $group->id, $values);
 		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
+		
+		// Profile counts
+		$profile_counts = array(
+			'bots' => DAO_Bot::count($context, $dict->id),
+			'buckets' => DAO_Bucket::countByGroupId($dict->id),
+			'custom_fieldsets' => DAO_CustomFieldset::count($context, $dict->id),
+			'members' => DAO_Worker::countByGroupId($dict->id),
+		);
+		$tpl->assign('profile_counts', $profile_counts);
 		
 		// Link counts
 		
@@ -253,9 +262,9 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 					DAO_GroupSettings::set($group_id, DAO_GroupSettings::SETTING_SUBJECT_PREFIX, $subject_prefix);
 					
 					// Custom field saves
-					
-					@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', array());
-					DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_GROUP, $group_id, $field_ids);
+					@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
+					if(!DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_GROUP, $group_id, $field_ids, $error))
+						throw new Exception_DevblocksAjaxValidationError($error);
 					
 					// Avatar image
 					@$avatar_image = DevblocksPlatform::importGPC($_REQUEST['avatar_image'], 'string', '');
@@ -290,61 +299,6 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 			
 		}
 		
-	}
-	
-	function showMembersTabAction() {
-		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
-		
-		if(!$id || false == ($group = DAO_Group::get($id)))
-			return;
-		
-		$tpl = DevblocksPlatform::services()->template();
-
-		$defaults = C4_AbstractViewModel::loadFromClass('View_Worker');
-		$defaults->id = 'group_members';
-		$defaults->name = 'Members';
-		$defaults->renderSubtotals = '';
-		
-		$view = C4_AbstractViewLoader::getView($defaults->id, $defaults);
-		
-		$view->addParamsRequired(array(
-			new DevblocksSearchCriteria(SearchFields_Worker::VIRTUAL_GROUPS, DevblocksSearchCriteria::OPER_IN, array($group->id)),
-		), true);
-		
-		$tpl->assign('view', $view);
-		
-		$tpl->display('devblocks:cerberusweb.core::internal/views/search_and_view.tpl');
-	}
-	
-	function showBucketsTabAction() {
-		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
-		
-		if(!$id || false == ($group = DAO_Group::get($id)))
-			return;
-		
-		$tpl = DevblocksPlatform::services()->template();
-
-		$defaults = C4_AbstractViewModel::loadFromClass('View_Bucket');
-		$defaults->id = 'group_buckets';
-		$defaults->name = 'Buckets';
-		$defaults->view_columns = array(
-			SearchFields_Bucket::NAME,
-			SearchFields_Bucket::IS_DEFAULT,
-			SearchFields_Bucket::UPDATED_AT,
-		);
-		$defaults->renderSortBy = SearchFields_Bucket::NAME;
-		$defaults->renderSortAsc = true;
-		$defaults->renderSubtotals = '';
-
-		$view = C4_AbstractViewLoader::getView($defaults->id, $defaults);
-		
-		$view->addParamsRequired(array(
-			new DevblocksSearchCriteria(SearchFields_Bucket::GROUP_ID, '=', $group->id),
-		), true);
-		
-		$tpl->assign('view', $view);
-		
-		$tpl->display('devblocks:cerberusweb.core::internal/views/search_and_view.tpl');
 	}
 	
 	function viewExploreAction() {

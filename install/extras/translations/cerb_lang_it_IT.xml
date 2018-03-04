@@ -128,11 +128,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="activities.org.merge">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="activities.task.created">
 			<tuv xml:lang="it_IT">
 				<seg/>
@@ -294,11 +289,6 @@
 			</tuv>
 		</tu>
 		<tu tuid="addy_book.org.tabs.people">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="addy_book.peek.compose">
 			<tuv xml:lang="it_IT">
 				<seg/>
 			</tuv>
@@ -629,6 +619,11 @@
 			</tuv>
 		</tu>
 		<tu tuid="common.comments">
+			<tuv xml:lang="it_IT">
+				<seg/>
+			</tuv>
+		</tu>
+		<tu tuid="common.compose">
 			<tuv xml:lang="it_IT">
 				<seg/>
 			</tuv>
@@ -986,6 +981,11 @@
 		<tu tuid="common.members">
 			<tuv xml:lang="it_IT">
 				<seg/>
+			</tuv>
+		</tu>
+		<tu tuid="common.merge">
+			<tuv xml:lang="it_IT">
+				<seg>Unisci</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.message">
@@ -1588,11 +1588,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="crm.opp.add">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="crm.opp.status.closed.lost">
 			<tuv xml:lang="it_IT">
 				<seg/>
@@ -1618,32 +1613,7 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="crm.opportunity.contact_phone">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.is_closed">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.is_won">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.org_id">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.primary_email_id">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="crm.tab.title">
+		<tu tuid="crm.common.opportunities">
 			<tuv xml:lang="it_IT">
 				<seg/>
 			</tuv>
@@ -2763,11 +2733,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="mail.merge">
-			<tuv xml:lang="it_IT">
-				<seg>Unisci</seg>
-			</tuv>
-		</tu>
 		<tu tuid="mail.nav.search_mail">
 			<tuv xml:lang="it_IT">
 				<seg>Cerca Mail:</seg>
@@ -3093,17 +3058,7 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="portal.cfg.htaccess_hint">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="portal.cfg.installation">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="portal.cfg.installation_instructions">
 			<tuv xml:lang="it_IT">
 				<seg/>
 			</tuv>

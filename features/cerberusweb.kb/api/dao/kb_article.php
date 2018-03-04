@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -262,15 +262,15 @@ class DAO_KbArticle extends Cerb_ORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 
 		if(is_array($do))
 		foreach($do as $k => $v) {
 			switch($k) {
 				default:
 					// Custom fields
-					if(substr($k,0,3)=="cf_") {
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
 						$custom_fields[substr($k,3)] = $v;
 					}
 					break;
@@ -1180,7 +1180,6 @@ class Context_KbArticle extends Extension_DevblocksContext implements IDevblocks
 		$view->renderSortBy = SearchFields_KbArticle::UPDATED;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
 		return $view;
@@ -1212,7 +1211,7 @@ class Context_KbArticle extends Extension_DevblocksContext implements IDevblocks
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 		
-		$context = 'cerberusweb.contexts.kb_article';
+		$context = CerberusContexts::CONTEXT_KB_ARTICLE;
 		
 		if(!empty($context_id)) {
 			$model = DAO_KbArticle::get($context_id);

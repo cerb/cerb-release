@@ -1,4 +1,4 @@
-{if $model->type == 'D' || $model->type == 'X'}
+{if $model->type == Model_CustomField::TYPE_DROPDOWN || $model->type == Model_CustomField::TYPE_MULTI_CHECKBOX}
 	<fieldset>
 		<legend>{'common.options'|devblocks_translate|capitalize}:</legend>
 		
@@ -7,7 +7,26 @@
 			(one option per line)
 		</div>
 	</fieldset>
-{elseif $model->type == 'L'}
+{elseif $model->type == Model_CustomField::TYPE_CURRENCY}
+	<fieldset>
+		<legend>{'common.options'|devblocks_translate|capitalize}:</legend>
+		
+		<b>Currency:</b>
+		{$currencies = DAO_Currency::getAll()}
+		<select name="params[currency_id]">
+		{foreach from=$currencies item=currency}
+		<option value="{$currency->id}" {if $model->params.currency_id==$currency->id}selected="selected"{/if}>{$currency->name}</option>
+		{/foreach}
+		</select>
+	</fieldset>
+{elseif $model->type == Model_CustomField::TYPE_DECIMAL}
+	<fieldset>
+		<legend>{'common.options'|devblocks_translate|capitalize}:</legend>
+		
+		<b>{'dao.currency.decimal_at'|devblocks_translate|capitalize}:</b>
+		<input type="text" name="params[decimal_at]" size="3" maxlength="2" value="{$model->params.decimal_at}" style="width:4em;" placeholder="2">
+	</fieldset>
+{elseif $model->type == Model_CustomField::TYPE_LINK}
 	{$contexts = Extension_DevblocksContext::getAll(false)}
 	<fieldset>
 		<legend>To record type:</legend>
@@ -26,7 +45,7 @@
 		</select>
 		{/if}
 	</fieldset>
-{elseif $model->type == 'W'}
+{elseif $model->type == Model_CustomField::TYPE_WORKER}
 	<fieldset>
 		<legend>{'common.options'|devblocks_translate|capitalize}:</legend>
 		

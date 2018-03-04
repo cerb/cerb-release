@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -23,6 +23,8 @@ endif;
 
 if(class_exists('Extension_WorkspacePage')):
 class WorkspacePage_Workspace extends Extension_WorkspacePage {
+	const ID = 'core.workspace.page.workspace';
+	
 	function renderPage(Model_WorkspacePage $page) {
 		$active_worker = CerberusApplication::getActiveWorker();
 		$tpl = DevblocksPlatform::services()->template();
@@ -102,6 +104,8 @@ endif;
 
 if(class_exists('Extension_WorkspaceTab')):
 class WorkspaceTab_Worklists extends Extension_WorkspaceTab {
+	const ID = 'core.workspace.tab.worklists';
+	
 	public function renderTab(Model_WorkspacePage $page, Model_WorkspaceTab $tab) {
 		$tpl = DevblocksPlatform::services()->template();
 		
@@ -116,12 +120,19 @@ class WorkspaceTab_Worklists extends Extension_WorkspaceTab {
 	
 	function renderTabConfig(Model_WorkspacePage $page, Model_WorkspaceTab $tab) {
 		$tpl = DevblocksPlatform::services()->template();
+		
+		$worklists = $tab->getWorklists();
+		$tpl->assign('worklists', $worklists);
+		
+		$contexts = Extension_DevblocksContext::getAll(false, ['workspace']);
+		$tpl->assign('contexts', $contexts);
+		
 		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/tabs/worklists/config.tpl');
 	}
 	
 	function saveTabConfig(Model_WorkspacePage $page, Model_WorkspaceTab $tab) {
-		@$ids = DevblocksPlatform::importGPC($_POST['ids'],'array', array());
-		@$names = DevblocksPlatform::importGPC($_POST['names'],'array', array());
+		@$ids = DevblocksPlatform::importGPC($_POST['ids'],'array', []);
+		@$names = DevblocksPlatform::importGPC($_POST['names'],'array', []);
 		
 		// Create any new worklists
 		if(is_array($ids) && !empty($ids))
@@ -129,61 +140,61 @@ class WorkspaceTab_Worklists extends Extension_WorkspaceTab {
 			if(!is_numeric($id)) { // Create
 				if(null == ($context_ext = Extension_DevblocksContext::get($id)))
 					continue;
-					
+				
 				if(null == ($view = $context_ext->getChooserView()))  /* @var $view C4_AbstractView */
 					continue;
-
-				// Build the list model
-				$list = new Model_WorkspaceListView();
-				$list->title = $names[$idx];
-				$list->options = $view->options;
-				$list->columns = $view->view_columns;
-				$list->params = $view->getEditableParams();
-				$list->params_required = $view->getParamsRequired();
-				$list->num_rows = 5;
-				$list->sort_by = $view->renderSortBy;
-				$list->sort_asc = $view->renderSortAsc;
-				$list->subtotals = $view->renderSubtotals;
-
+				
 				// Add the worklist
-				$fields = array(
-					DAO_WorkspaceList::LIST_POS => $idx,
-					DAO_WorkspaceList::LIST_VIEW => serialize($list),
-					DAO_WorkspaceList::WORKSPACE_TAB_ID => $tab->id,
+				$fields = [
+					DAO_WorkspaceList::COLUMNS_JSON => json_encode($view->view_columns),
 					DAO_WorkspaceList::CONTEXT => $id,
-				);
-				$ids[$idx] = DAO_WorkspaceList::create($fields);
+					DAO_WorkspaceList::NAME => $names[$idx],
+					DAO_WorkspaceList::OPTIONS_JSON => json_encode($view->options),
+					DAO_WorkspaceList::PARAMS_EDITABLE_JSON => json_encode($view->getParams()),
+					DAO_WorkspaceList::PARAMS_REQUIRED_JSON => json_encode($view->getParamsRequired()),
+					DAO_WorkspaceList::PARAMS_REQUIRED_QUERY => $view->getParamsRequiredQuery(),
+					DAO_WorkspaceList::RENDER_LIMIT => $view->renderLimit,
+					DAO_WorkspaceList::RENDER_SORT_JSON => json_encode($view->getSorts()),
+					DAO_WorkspaceList::RENDER_SUBTOTALS => $view->renderSubtotals ?: '',
+					DAO_WorkspaceList::WORKSPACE_TAB_ID => $tab->id,
+					DAO_WorkspaceList::WORKSPACE_TAB_POS => $idx,
+				];
+				
+				$worklist_id = DAO_WorkspaceList::create($fields);
+				$ids[$idx] = $worklist_id;
+				
+				// Clear any worklist caches using this identifier
+				// [TODO] Why does this happen??
+				C4_AbstractViewLoader::deleteView('cust_' . $worklist_id);
 			}
 		}
-
+		
 		$worklists = $tab->getWorklists();
-
+		
 		// Deletes
 		$delete_ids = array_diff(array_keys($worklists), $ids);
 		if(is_array($delete_ids) && !empty($delete_ids))
 			DAO_WorkspaceList::delete($delete_ids);
 
 		// Reorder worklists, rename lists, on workspace
-		if(is_array($ids) && !empty($ids))
+		if(is_array($ids) && !empty($ids)) {
 			foreach($ids as $idx => $id) {
-			if(null == ($worklist = DAO_WorkspaceList::get($id)))
-				continue;
-
-			$list_view = $worklists[$id]->list_view; /* @var $list_view Model_WorkspaceListView */
-
-			// If the name changed
-			if(isset($names[$idx]) && 0 != strcmp($list_view->title, $names[$idx])) {
-				$list_view->title = $names[$idx];
-
+				if(null == ($worklist = DAO_WorkspaceList::get($id)))
+					continue;
+				
+				$worklist_name = $names[$idx];
+	
 				// Save the view in the session
-				$view = C4_AbstractViewLoader::getView('cust_'.$id);
-				$view->name = $list_view->title;
+				if(false != ($view = C4_AbstractViewLoader::getView('cust_' . $id))) {
+					$view->name = $worklist_name;
+				}
+				
+				// Save the view in the database
+				DAO_WorkspaceList::update($id, [
+					DAO_WorkspaceList::NAME => $worklist_name,
+					DAO_WorkspaceList::WORKSPACE_TAB_POS => intval($idx),
+				]);
 			}
-
-			DAO_WorkspaceList::update($id,array(
-				DAO_WorkspaceList::LIST_POS => intval($idx),
-				DAO_WorkspaceList::LIST_VIEW => serialize($list_view),
-			));
 		}
 	}
 	
@@ -204,8 +215,6 @@ class WorkspaceTab_Worklists extends Extension_WorkspaceTab {
 			$view_id = 'cust_' . $worklist->id;
 			
 			if(null == ($view = C4_AbstractViewLoader::getView($view_id))) {
-				$list_view = $worklist->list_view; /* @var $list_view Model_WorkspaceListView */
-
 				if(null == ($ext = Extension_DevblocksContext::get($worklist->context)))
 					continue;
 				
@@ -214,18 +223,19 @@ class WorkspaceTab_Worklists extends Extension_WorkspaceTab {
 				if(empty($view))
 					continue;
 					
-				$view->name = $list_view->title;
-				$view->renderLimit = $list_view->num_rows;
+				$view->name = $worklist->name;
+				$view->renderLimit = $worklist->render_limit;
 				$view->renderPage = 0;
 				$view->is_ephemeral = 0;
-				$view->view_columns = $list_view->columns;
-				$view->addParams($list_view->params, true);
-				if(property_exists($list_view, 'params_required'))
-					$view->addParamsRequired($list_view->params_required, true);
-				$view->renderSortBy = $list_view->sort_by;
-				$view->renderSortAsc = $list_view->sort_asc;
-				$view->options = $list_view->options;
+				$view->view_columns = $worklist->columns;
+				$view->addParams($worklist->params_editable, true);
+				$view->addParamsRequired($worklist->params_required, true);
+				$view->renderSortBy = array_keys($worklist->render_sort);
+				$view->renderSortAsc = array_values($worklist->render_sort);
+				$view->options = $worklist->options;
 			}
+			
+			$sorts = $view->getSorts();
 			
 			$model = array(
 				'options' => json_decode(json_encode($view->options), true),
@@ -233,15 +243,15 @@ class WorkspaceTab_Worklists extends Extension_WorkspaceTab {
 				'params' => json_decode(json_encode($view->getEditableParams()), true),
 				'params_required' => json_decode(json_encode($view->getParamsRequired()), true),
 				'limit' => $view->renderLimit,
-				'sort_by' => @$view->renderSortBy,
-				'sort_asc' => !empty(@$view->renderSortAsc),
+				'sort_by' => array_keys($sorts),
+				'sort_asc' => array_values($sorts),
 				'subtotals' => $view->renderSubtotals,
 				'context' => $worklist->context,
 			);
 			
 			$worklist_json = array(
-				'pos' => $worklist->list_pos,
-				'title' => $worklist->list_view->title,
+				'pos' => $worklist->workspace_tab_pos,
+				'title' => $worklist->name,
 				'model' => $model,
 			);
 			
@@ -263,28 +273,29 @@ class WorkspaceTab_Worklists extends Extension_WorkspaceTab {
 			return false;
 		
 		foreach($json['worklists'] as $worklist) {
-			$worklist_view = C4_AbstractViewLoader::unserializeViewFromAbstractJson($worklist['model'], '');
+			$sort_by = !is_array($worklist['model']['sort_by']) ? [$worklist['model']['sort_by']] : $worklist['model']['sort_by'];
+			$sort_asc = !is_array($worklist['model']['sort_asc']) ? [$worklist['model']['sort_asc']] : $worklist['model']['sort_asc'];
+			if(count($sort_by) != count($sort_asc)) {
+				$sort_by = array_slice($sort_by, 0, 1);
+				$sort_asc = array_slice($sort_asc, 0, 1);
+			}
+			$sorts = array_combine($sort_by, $sort_asc);
 			
-			// [TODO] This is sloppy, we need to convert it.
-			$view_model = C4_AbstractViewLoader::serializeAbstractView($worklist_view);
-			
-			$list_view = new Model_WorkspaceListView();
-			$list_view->title = $worklist['title'];
-			$list_view->options = $view_model->options;
-			$list_view->columns = $view_model->view_columns;
-			$list_view->num_rows = $view_model->renderLimit;
-			$list_view->params = $view_model->paramsEditable;
-			$list_view->params_required = $view_model->paramsRequired;
-			$list_view->sort_by = key(@$view_model->renderSort);
-			$list_view->sort_asc = current(@$view_model->renderSort);
-			$list_view->subtotals = $view_model->renderSubtotals;
-			
-			$worklist_id = DAO_WorkspaceList::create(array(
+			$fields = [
 				DAO_WorkspaceList::CONTEXT => $worklist['model']['context'],
-				DAO_WorkspaceList::LIST_POS => $worklist['pos'],
-				DAO_WorkspaceList::LIST_VIEW => serialize($list_view),
+				DAO_WorkspaceList::NAME => $worklist['title'],
+				DAO_WorkspaceList::OPTIONS_JSON => json_encode(@$worklist['model']['options'] ?: []),
+				DAO_WorkspaceList::COLUMNS_JSON => json_encode(@$worklist['model']['columns'] ?: []),
+				DAO_WorkspaceList::PARAMS_EDITABLE_JSON => json_encode(@$worklist['model']['params'] ?: []),
+				DAO_WorkspaceList::PARAMS_REQUIRED_JSON => json_encode(@$worklist['model']['params_require'] ?: []),
+				DAO_WorkspaceList::RENDER_SORT_JSON => json_encode($sorts),
+				DAO_WorkspaceList::RENDER_LIMIT => @$worklist['model']['limit'] ?: 10,
+				DAO_WorkspaceList::RENDER_SUBTOTALS => @$worklist['model']['subtotals'] ?: '',
+				DAO_WorkspaceList::WORKSPACE_TAB_POS => $worklist['pos'],
 				DAO_WorkspaceList::WORKSPACE_TAB_ID => $tab->id,
-			));
+			];
+			
+			$worklist_id = DAO_WorkspaceList::create($fields);
 		}
 		
 		return true;

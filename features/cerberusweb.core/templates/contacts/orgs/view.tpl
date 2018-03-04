@@ -44,6 +44,10 @@
 			<span class="glyphicons glyphicons-eye-open" style="color:rgb(80,80,80);"></span>
 		</th>
 		{/if}
+		
+		<th class="no-sort" style="text-align:center;width:40px;padding-left:0;padding-right:0;" title="{'common.photo'|devblocks_translate|capitalize}">
+			<span class="glyphicons glyphicons-camera" style="color:rgb(80,80,80);"></span>
+		</th>
 
 		{foreach from=$view->view_columns item=header name=headers}
 			{* start table header, insert column title and link *}
@@ -84,6 +88,13 @@
 			<td align="center" rowspan="2">
 				{include file="devblocks:cerberusweb.core::internal/watchers/context_follow_button.tpl" context=$view_context context_id=$result.c_id}
 			</td>
+			
+			<td data-column="*_image" align="center" rowspan="2" nowrap="nowrap" style="padding:5px;">
+				<div style="position:relative;">
+					<img src="{devblocks_url}c=avatars&context=org&context_id={$result.c_id}{/devblocks_url}?v={$result.c_updated}" style="height:32px;width:32px;border-radius:16px;vertical-align:middle;">
+				</div>
+			</td>
+			
 			<td data-column="label" colspan="{$smarty.foreach.headers.total}">
 				<input type="checkbox" name="row_id[]" value="{$result.c_id}" style="display:none;">
 				<a href="{devblocks_url}c=profiles&type=org&id={$result.c_id}-{$result.c_name|devblocks_permalink}{/devblocks_url}" class="subject">{$result.c_name}</a> 
@@ -143,7 +154,7 @@
 	<div style="float:left;" id="{$view->id}_actions">
 		<button type="button" class="action-always-show action-explore" onclick="this.form.explore_from.value=$(this).closest('form').find('tbody input:checkbox:checked:first').val();this.form.a.value='viewOrgsExplore';this.form.submit();"><span class="glyphicons glyphicons-play-button"></span> {'common.explore'|devblocks_translate|lower}</button>
 		{if $active_worker->hasPriv("contexts.{$view_context}.update.bulk")}<button type="button" class="action-always-show action-bulkupdate" onclick="genericAjaxPopup('peek','c=profiles&a=handleSectionAction&section=org&action=showBulkPopup&view_id={$view->id}&ids=' + Devblocks.getFormEnabledCheckboxValues('viewForm{$view->id}','row_id[]'),null,false,'50%');"><span class="glyphicons glyphicons-folder-closed"></span> {'common.bulk_update'|devblocks_translate|lower}</button>{/if}
-		{if $active_worker->hasPriv("contexts.{$view_context}.merge")}<button type="button" onclick="genericAjaxPopup('peek','c=contacts&a=showOrgMergePeek&view_id={$view->id}&org_ids=' + Devblocks.getFormEnabledCheckboxValues('viewForm{$view->id}','row_id[]'),null,false,'50%');"><span class="glyphicons glyphicons-git-merge"></span> {'mail.merge'|devblocks_translate|lower}</button>{/if}
+		{if $active_worker->hasPriv("contexts.{$view_context}.merge")}<button type="button" onclick="genericAjaxPopup('peek','c=internal&a=showRecordsMergePopup&view_id={$view->id}&context={$view_context}&ids=' + Devblocks.getFormEnabledCheckboxValues('viewForm{$view->id}','row_id[]'),null,false,'50%');"><span class="glyphicons glyphicons-git-merge"></span> {'common.merge'|devblocks_translate|lower}</button>{/if}
 	</div>
 	{/if}
 </div>

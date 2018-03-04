@@ -39,7 +39,6 @@
 	{* Column Headers *}
 	<thead>
 	<tr>
-		<th style="text-align:center"></th>
 		{foreach from=$view->view_columns item=header name=headers}
 			{* start table header, insert column title and link *}
 			<th class="{if $view->options.disable_sorting}no-sort{/if}">
@@ -68,7 +67,6 @@
 	{/if}
 	<tbody style="cursor:pointer;">
 		<tr class="{$tableRowClass}">
-		<td rowspan="2" align="center" valign="top"><input type="checkbox" name="row_id[]" value="{$result.c_id}" style="display:none;"></td>
 		{foreach from=$view->view_columns item=column name=columns}
 			{if substr($column,0,3)=="cf_"}
 				{include file="devblocks:cerberusweb.core::internal/custom_fields/view/cell_renderer.tpl"}
@@ -78,6 +76,12 @@
 				<a href="{devblocks_url}c=profiles&type=custom_fieldset&id={$result.c_id}-{$result.c_name|devblocks_permalink}{/devblocks_url}" class="subject">{$result.c_name}</a>
 				<button type="button" class="peek cerb-peek-trigger" data-context="{$view_context}" data-context-id="{$result.c_id}"><span class="glyphicons glyphicons-new-window-alt"></span></button>
 			</td>
+			{elseif in_array($column,["c_updated_at"])}
+				<td data-column="{$column}" title="{$result.$column|devblocks_date}">
+					{if !empty($result.$column)}
+						{$result.$column|devblocks_prettytime}&nbsp;
+					{/if}
+				</td>
 			{elseif $column=="c_context"}
 			<td data-column="{$column}">
 				{if isset($contexts.{$result.$column})}

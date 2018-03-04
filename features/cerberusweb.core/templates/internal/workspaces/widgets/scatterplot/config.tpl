@@ -1,3 +1,5 @@
+<div id="widget{$widget->id}Config">
+
 <b>Series Axes:</b>
 <label><input type="radio" name="params[axes_independent]" value="1" {if $widget->params.axes_independent}checked="checked"{/if}> Independent</label>
 <label><input type="radio" name="params[axes_independent]" value="0" {if empty($widget->params.axes_independent)}checked="checked"{/if}> Shared</label>
@@ -50,6 +52,8 @@
 	
 </div>
 
+</div>
+
 <script type="text/javascript">
 $(function() {
 	var $config = $('#widget{$widget->id}Config');
@@ -68,7 +72,7 @@ $(function() {
 			
 		} else {
 			series_prefix = $(this).attr('params_prefix');
-			genericAjaxGet($div_params, 'c=internal&a=handleSectionAction&section=dashboards&action=getWidgetDatasourceConfig&params_prefix=' + encodeURIComponent(series_prefix) + '&widget_id={$widget->id}&ext_id=' + datasource);
+			genericAjaxGet($div_params, 'c=profiles&a=handleSectionAction&section=workspace_widget&action=getWidgetDatasourceConfig&params_prefix=' + encodeURIComponent(series_prefix) + '&widget_id={$widget->id}&ext_id=' + datasource);
 		}
 	});
 });

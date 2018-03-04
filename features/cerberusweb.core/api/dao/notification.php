@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2017, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Cerberus Public License.
@@ -205,8 +205,8 @@ class DAO_Notification extends Cerb_ORMHelper {
 		
 		$update->markInProgress();
 		
-		$change_fields = array();
-		$custom_fields = array();
+		$change_fields = [];
+		$custom_fields = [];
 
 		if(is_array($do))
 		foreach($do as $k => $v) {
@@ -217,7 +217,7 @@ class DAO_Notification extends Cerb_ORMHelper {
 					
 				default:
 					// Custom fields
-					if(substr($k,0,3)=="cf_") {
+					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
 						$custom_fields[substr($k,3)] = $v;
 					}
 			}
@@ -1020,7 +1020,7 @@ class View_Notification extends C4_AbstractView implements IAbstractView_Subtota
 		$workers = DAO_Worker::getAll();
 		$tpl->assign('workers', $workers);
 		
-		$tpl->assign('view_template', 'devblocks:cerberusweb.core::preferences/tabs/notifications/view.tpl');
+		$tpl->assign('view_template', 'devblocks:cerberusweb.core::internal/notifications/view.tpl');
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
@@ -1200,7 +1200,7 @@ class Context_Notification extends Extension_DevblocksContext {
 		$url_writer = DevblocksPlatform::services()->url();
 		
 		if(false == ($url = $notification->getURL())) {
-			$url = $url_writer->writeNoProxy('c=preferences&action=redirectRead&id='.$context_id, true);
+			$url = $url_writer->writeNoProxy('c=internal&action=redirectRead&id='.$context_id, true);
 		}
 		
 		return array(
@@ -1324,7 +1324,7 @@ class Context_Notification extends Extension_DevblocksContext {
 			$token_values = $this->_importModelCustomFieldsAsValues($notification, $token_values);
 			
 			// Url
-			$redirect_url = $url_writer->writeNoProxy(sprintf("c=preferences&a=redirectRead&id=%d", $notification->id), true);
+			$redirect_url = $url_writer->writeNoProxy(sprintf("c=internal&a=redirectRead&id=%d", $notification->id), true);
 			$token_values['url_markread'] = $redirect_url;
 			
 			// Assignee
@@ -1457,7 +1457,6 @@ class Context_Notification extends Extension_DevblocksContext {
 		$view->renderSortBy = SearchFields_Notification::CREATED_DATE;
 		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
-		$view->renderFilters = false;
 		$view->renderTemplate = 'contextlinks_chooser';
 		return $view;
 	}

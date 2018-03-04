@@ -133,11 +133,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="activities.org.merge">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="activities.task.created">
 			<tuv xml:lang="ru_RU">
 				<seg/>
@@ -301,11 +296,6 @@
 		<tu tuid="addy_book.org.tabs.people">
 			<tuv xml:lang="ru_RU">
 				<seg>Люди</seg>
-			</tuv>
-		</tu>
-		<tu tuid="addy_book.peek.compose">
-			<tuv xml:lang="ru_RU">
-				<seg>создать</seg>
 			</tuv>
 		</tu>
 		<tu tuid="addy_book.peek.count.closed_tickets">
@@ -636,6 +626,11 @@
 		<tu tuid="common.comments">
 			<tuv xml:lang="ru_RU">
 				<seg>комментарии</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.compose">
+			<tuv xml:lang="ru_RU">
+				<seg>создать</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.content">
@@ -991,6 +986,11 @@
 		<tu tuid="common.members">
 			<tuv xml:lang="ru_RU">
 				<seg>Участники</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.merge">
+			<tuv xml:lang="ru_RU">
+				<seg>Объединить</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.message">
@@ -1598,11 +1598,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="crm.opp.add">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="crm.opp.status.closed.lost">
 			<tuv xml:lang="ru_RU">
 				<seg/>
@@ -1628,32 +1623,7 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="crm.opportunity.contact_phone">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.is_closed">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.is_won">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.org_id">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="crm.opportunity.primary_email_id">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="crm.tab.title">
+		<tu tuid="crm.common.opportunities">
 			<tuv xml:lang="ru_RU">
 				<seg/>
 			</tuv>
@@ -2773,11 +2743,6 @@
 				<seg>Отослать копию этого сообщения заявителям.</seg>
 			</tuv>
 		</tu>
-		<tu tuid="mail.merge">
-			<tuv xml:lang="ru_RU">
-				<seg>Объединить</seg>
-			</tuv>
-		</tu>
 		<tu tuid="mail.nav.search_mail">
 			<tuv xml:lang="ru_RU">
 				<seg>Поиск:</seg>
@@ -3103,17 +3068,7 @@
 				<seg>Follow-up Questions:</seg>
 			</tuv>
 		</tu>
-		<tu tuid="portal.cfg.htaccess_hint">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="portal.cfg.installation">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="portal.cfg.installation_instructions">
 			<tuv xml:lang="ru_RU">
 				<seg/>
 			</tuv>
