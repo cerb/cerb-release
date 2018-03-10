@@ -376,6 +376,10 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		return $this->$name;
 	}
 	
+	public function set($name, $value) {
+		return $this->$name = $value;
+	}
+	
 	public function &__get($name) {
 		if($this->exists($name))
 			return $this->_dictionary[$name];
@@ -1029,7 +1033,7 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 	}
 	
 	function filter_secs_pretty($string, $precision=0) {
-		if(!is_string($string))
+		if(!is_numeric($string))
 			return '';
 		
 		return DevblocksPlatform::strSecsToString($string, $precision);
