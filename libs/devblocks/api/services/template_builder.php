@@ -274,7 +274,7 @@ class _DevblocksTemplateBuilder {
 		try {
 			$template = $this->_twig->loadTemplate($template); /* @var $template Twig_Template */
 			$this->_twig->registerUndefinedVariableCallback(array($dict, 'delegateUndefinedVariable'), true);
-			$out = $template->render(array());
+			$out = $template->render([]);
 			
 		} catch(Exception $e) {
 			$this->_errors[] = $e->getMessage();
@@ -826,8 +826,18 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 		return $xml->asXML();
 	}
 	
-	function function_xml_decode($str, $namespaces=array()) {
-		$xml = simplexml_load_string($str);
+	function function_xml_decode($str, $namespaces=[], $mode=null) {
+		switch(DevblocksPlatform::strLower($mode)) {
+			case 'html':
+				$doc = new DOMDocument();
+				$doc->loadHTML($str);
+				$xml = simplexml_import_dom($doc);
+				break;
+				
+			default:
+				$xml = simplexml_load_string($str);
+				break;
+		}
 		
 		if(!($xml instanceof SimpleXMLElement))
 			return false;
