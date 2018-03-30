@@ -1310,21 +1310,44 @@ class Model_TriggerEvent {
 		return $pass;
 	}
 	
-	function prepareResumeDecisionTree($message, &$interaction, &$actions, &$dict, &$resume_path) {
+	function prepareResumeDecisionTree($message, &$interaction, &$actions, DevblocksDictionaryDelegate &$dict, &$resume_path) {
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		
 		// Do we have special prompt handling instructions?
 		if(isset($interaction->session_data['_prompt'])) {
+			@$prompt = $interaction->session_data['_prompt'];
+			
 			// Are we saving a copy of the latest message into a placeholder?
-			if(false != (@$var = $interaction->session_data['_prompt']['var'])) {
-				if(false != (@$format_tpl = $interaction->session_data['_prompt']['format'])) {
+			if(false != (@$var = $prompt['var'])) {
+				// If we lazy loaded a sub dictionary on the last attempt, clear it
+				if(DevblocksPlatform::strEndsWith($var, '_id'))
+					$dict->scrubKeys(substr($var, 0, -2));
+				
+				// Prompt-specific options
+				switch(@$prompt['action']) {
+					case 'prompt.chooser':
+						if(!DevblocksPlatform::strEndsWith($var, '_id') || !isset($prompt['context']))
+							break;
+							
+						$dict->set(substr($var,0,-2) . '_context', $prompt['context']);
+						break;
+						
+					case 'prompt.file':
+						if(!DevblocksPlatform::strEndsWith($var, '_id'))
+							break;
+							
+						$dict->set(substr($var,0,-2) . '_context', CerberusContexts::CONTEXT_ATTACHMENT);
+						break;
+				}
+				
+				if(false != (@$format_tpl = $prompt['format'])) {
 					$var_message = $tpl_builder->build($format_tpl, $dict);
 					$dict->set($var, $var_message);
 				} else {
 					$dict->set($var, $message);
 				}
 				
-				if(false != (@$validate_tpl = $interaction->session_data['_prompt']['validate'])) {
+				if(false != (@$validate_tpl = $prompt['validate'])) {
 					$validation_result = trim($tpl_builder->build($validate_tpl, $dict));
 					
 					if(!empty($validation_result)) {

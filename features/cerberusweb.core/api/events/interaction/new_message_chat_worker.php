@@ -551,6 +551,7 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 					'_action' => 'prompt.buttons',
 					'_trigger_id' => $trigger->id,
 					'_prompt' => [
+						'action' => 'prompt.buttons',
 						'var' => $var,
 						'format' => $var_format,
 						'validate' => $var_validate,
@@ -579,7 +580,9 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 					'_action' => 'prompt.chooser',
 					'_trigger_id' => $trigger->id,
 					'_prompt' => [
+						'action' => 'prompt.chooser',
 						'var' => $var,
+						'context' => $context,
 						'format' => $var_format,
 						'validate' => $var_validate,
 					],
@@ -606,6 +609,7 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 					'_action' => 'prompt.date',
 					'_trigger_id' => $trigger->id,
 					'_prompt' => [
+						'action' => 'prompt.date',
 						'var' => $var,
 						'format' => $var_format,
 						'validate' => $var_validate,
@@ -619,9 +623,21 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 			case 'prompt_file':
 				$actions =& $dict->_actions;
 				
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				
+				@$var = $params['var'];
+				@$var_format = $params['var_format'];
+				@$var_validate = $params['var_validate'];
+				
 				$actions[] = array(
 					'_action' => 'prompt.file',
 					'_trigger_id' => $trigger->id,
+					'_prompt' => [
+						'action' => 'prompt.file',
+						'var' => $var,
+						'format' => $var_format,
+						'validate' => $var_validate,
+					],
 				);
 
 				$dict->__exit = 'suspend';
@@ -642,6 +658,7 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 					'_action' => 'prompt.images',
 					'_trigger_id' => $trigger->id,
 					'_prompt' => [
+						'action' => 'prompt.images',
 						'var' => $var,
 						'format' => $var_format,
 						'validate' => $var_validate,
@@ -669,6 +686,7 @@ class Event_NewMessageChatWorker extends Extension_DevblocksEvent {
 					'_action' => 'prompt.text',
 					'_trigger_id' => $trigger->id,
 					'_prompt' => [
+						'action' => 'prompt.text',
 						'var' => $var,
 						'format' => $var_format,
 						'validate' => $var_validate,

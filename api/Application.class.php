@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2018032601);
-define("APP_VERSION", '8.3.3');
+define("APP_BUILD", 2018033001);
+define("APP_VERSION", '8.3.4');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -1817,7 +1817,7 @@ class CerberusContexts {
 						}
 					} elseif(0 == strcasecmp('http',substr($url,0,4))) {
 						if(isset($vars[$token])) {
-							$vars[$token] = '<a href="'.$url.'" target="_blank" style="font-weight:bold;">'.$vars[$token].'</a>';
+							$vars[$token] = '<a href="'.$url.'" target="_blank" rel="noopener" style="font-weight:bold;">'.$vars[$token].'</a>';
 						}
 					} else {
 						$url = $url_writer->writeNoProxy($url, true);
@@ -1847,7 +1847,7 @@ class CerberusContexts {
 							);
 						}
 					} elseif(0 == strcasecmp('http',substr($url,0,4))) {
-						$vars[$token] = '<a href="'.$url.'" target="_blank" style="font-weight:bold;">'.$vars[$token].'</a>';
+						$vars[$token] = '<a href="'.$url.'" target="_blank" rel="noopener" style="font-weight:bold;">'.$vars[$token].'</a>';
 
 					} else {
 						$url = $url_writer->writeNoProxy($url, true);
