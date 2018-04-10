@@ -933,7 +933,7 @@ class ChInternalController extends DevblocksControllerExtension {
 			// Determine target + sources
 			
 			if(!in_array($target_id, $ids))
-				throw new Exception_DevblocksValidationError("Invalid targer record.");
+				throw new Exception_DevblocksValidationError("Invalid target record.");
 			
 			$source_ids = array_diff($ids, [$target_id]);
 			
@@ -1081,7 +1081,7 @@ class ChInternalController extends DevblocksControllerExtension {
 				)
 			);
 			
-			// Nuke the source orgs
+			// Nuke the source records
 			$dao_class::delete($source_ids);
 			
 			// Display results
@@ -2014,7 +2014,7 @@ class ChInternalController extends DevblocksControllerExtension {
 	 */
 	function redirectReadAction() {
 		$worker = CerberusApplication::getActiveWorker();
-
+		
 		$request = DevblocksPlatform::getHttpRequest();
 		$stack = $request->path;
 
@@ -2043,10 +2043,11 @@ class ChInternalController extends DevblocksControllerExtension {
 					}
 					break;
 			}
-
-			session_write_close();
-			header("Location: " . $notification->getURL());
+			
+			DevblocksPlatform::redirectURL($notification->getURL());
 		}
+		
+		DevblocksPlatform::redirectURL('');
 		exit;
 	}
 	
