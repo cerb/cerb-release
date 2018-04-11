@@ -371,4 +371,122 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 		
 		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('explore',$hash,$orig_pos)));
 	}
+	
+	function showBulkPopupAction() {
+		@$ids = DevblocksPlatform::importGPC($_REQUEST['ids']);
+		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id']);
+
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!$active_worker->is_superuser)
+			return;
+		
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('view_id', $view_id);
+
+		if(!empty($ids)) {
+			$tpl->assign('ids', $ids);
+		}
+		
+		// Custom fields
+		$custom_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_GROUP, false);
+		$tpl->assign('custom_fields', $custom_fields);
+		
+		$tpl->display('devblocks:cerberusweb.core::groups/bulk.tpl');
+	}
+	
+	function startBulkUpdateJsonAction() {
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!$active_worker->is_superuser)
+			return;
+		
+		@$filter = DevblocksPlatform::importGPC($_REQUEST['filter'],'string','');
+		$ids = [];
+		
+		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
+		$view = C4_AbstractViewLoader::getView($view_id);
+		$view->setAutoPersist(false);
+
+		@$send_as = DevblocksPlatform::importGPC($_POST['send_as'],'string',null);
+		@$send_from_id = DevblocksPlatform::importGPC($_POST['send_from_id'],'string',null);
+		@$signature_id = DevblocksPlatform::importGPC($_POST['signature_id'],'string',null);
+		@$email_template_id = DevblocksPlatform::importGPC($_POST['email_template_id'],'string',null);
+		@$is_private = DevblocksPlatform::importGPC($_POST['is_private'],'string',null);
+
+		// Scheduled behavior
+		@$behavior_id = DevblocksPlatform::importGPC($_POST['behavior_id'],'string','');
+		@$behavior_when = DevblocksPlatform::importGPC($_POST['behavior_when'],'string','');
+		@$behavior_params = DevblocksPlatform::importGPC($_POST['behavior_params'],'array',[]);
+		
+		$do = [];
+		
+		// Do: Email template
+		if(0 != strlen($email_template_id) 
+			&& false !== DAO_MailHtmlTemplate::get($email_template_id))
+				$do['email_template_id'] = $email_template_id;
+		
+		// Do: Is Private
+		if(0 != strlen($is_private)) 
+			$do['is_private'] = DevblocksPlatform::importVar($is_private, 'bit', 0);
+		
+		// Do: Send as
+		if(0 != strlen($send_as))
+			$do['send_as'] = $send_as;
+		
+		// Do: Send from
+		if(0 != strlen($send_from_id) 
+			&& false !== DAO_Address::get($send_from_id))
+				$do['send_from_id'] = $send_from_id;
+		
+		// Do: Signature
+		if(0 != strlen($signature_id) 
+			&& false !== DAO_EmailSignature::get($signature_id))
+				$do['signature_id'] = $signature_id;
+		
+		// Do: Scheduled Behavior
+		if(0 != strlen($behavior_id)) {
+			$do['behavior'] = array(
+				'id' => $behavior_id,
+				'when' => $behavior_when,
+				'params' => $behavior_params,
+			);
+		}
+		
+		// Do: Custom fields
+		$do = DAO_CustomFieldValue::handleBulkPost($do);
+		
+		switch($filter) {
+			// Checked rows
+			case 'checks':
+				@$ids_str = DevblocksPlatform::importGPC($_REQUEST['ids'],'string');
+				$ids = DevblocksPlatform::parseCsvString($ids_str);
+				break;
+				
+			case 'sample':
+				@$sample_size = min(DevblocksPlatform::importGPC($_REQUEST['filter_sample_size'],'integer',0),9999);
+				$filter = 'checks';
+				$ids = $view->getDataSample($sample_size);
+				break;
+				
+			default:
+				break;
+		}
+		
+		// If we have specific IDs, add a filter for those too
+		if(!empty($ids)) {
+			$view->addParam(new DevblocksSearchCriteria(SearchFields_Group::ID, 'in', $ids));
+		}
+		
+		// Create batches
+		$batch_key = DAO_ContextBulkUpdate::createFromView($view, $do);
+		
+		header('Content-Type: application/json; charset=utf-8');
+		
+		echo json_encode(array(
+			'cursor' => $batch_key,
+		));
+		
+		return;
+	}
 };

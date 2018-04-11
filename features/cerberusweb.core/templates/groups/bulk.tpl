@@ -1,7 +1,7 @@
 <form action="{devblocks_url}{/devblocks_url}" method="POST" id="formBatchUpdate" name="formBatchUpdate" onsubmit="return false;">
 <input type="hidden" name="c" value="profiles">
 <input type="hidden" name="a" value="handleSectionAction">
-<input type="hidden" name="section" value="address">
+<input type="hidden" name="section" value="group">
 <input type="hidden" name="action" value="startBulkUpdateJson">
 <input type="hidden" name="view_id" value="{$view_id}">
 <input type="hidden" name="ids" value="{$ids}">
@@ -23,37 +23,40 @@
 	
 	<table cellspacing="0" cellpadding="2" width="100%">
 		<tr>
-			<td width="0%" nowrap="nowrap" align="right" valign="top">{'common.organization'|devblocks_translate|capitalize}:</td>
+			<td width="0%" nowrap="nowrap" align="right" valign="top">{'common.send.from'|devblocks_translate|capitalize}:</td>
 			<td width="100%">
-				<button type="button" class="chooser-abstract" data-field-name="org_id" data-context="{CerberusContexts::CONTEXT_ORG}" data-single="true" data-query="" data-autocomplete="" data-autocomplete-if-empty="true" data-create="if-null"><span class="glyphicons glyphicons-search"></span></button>
+				<button type="button" class="chooser-abstract" data-field-name="send_from_id" data-context="{CerberusContexts::CONTEXT_ADDRESS}" data-single="true" data-query="" data-query-required="mailTransport.id:>0" data-autocomplete="mailTransport.id:>0" data-autocomplete-if-empty="true" data-create="if-null"><span class="glyphicons glyphicons-search"></span></button>
 				<ul class="bubbles chooser-container"></ul>
 			</td>
 		</tr>
 		<tr>
-			<td width="0%" nowrap="nowrap" align="right">{'address.is_banned'|devblocks_translate|capitalize}:</td>
-			<td width="100%"><select name="is_banned">
+			<td width="0%" nowrap="nowrap" align="right" valign="top">{'common.signature'|devblocks_translate|capitalize}:</td>
+			<td width="100%">
+				<button type="button" class="chooser-abstract" data-field-name="signature_id" data-context="{CerberusContexts::CONTEXT_EMAIL_SIGNATURE}" data-single="true" data-query="" data-query-required="" data-autocomplete="" data-autocomplete-if-empty="true" data-create="if-null"><span class="glyphicons glyphicons-search"></span></button>
+				<ul class="bubbles chooser-container"></ul>
+			</td>
+		</tr>
+		<tr>
+			<td width="0%" nowrap="nowrap" align="right" valign="top">{'common.email_template'|devblocks_translate|capitalize}:</td>
+			<td width="100%">
+				<button type="button" class="chooser-abstract" data-field-name="email_template_id" data-context="{CerberusContexts::CONTEXT_MAIL_HTML_TEMPLATE}" data-single="true" data-query="" data-query-required="" data-autocomplete="" data-autocomplete-if-empty="true" data-create="if-null"><span class="glyphicons glyphicons-search"></span></button>
+				<ul class="bubbles chooser-container"></ul>
+			</td>
+		</tr>
+		<tr>
+			<td width="0%" nowrap="nowrap" align="right">{'common.send.as'|devblocks_translate|capitalize}:</td>
+			<td width="100%">
+				<input type="text" name="send_as" value="" style="width:98%;">
+			</td>
+		</tr>
+		<tr>
+			<td width="0%" nowrap="nowrap" align="right">{'common.is_private'|devblocks_translate|capitalize}:</td>
+			<td width="100%"><select name="is_private">
 				<option value=""></option>
 				<option value="0">{'common.no'|devblocks_translate|capitalize}</option>
 				<option value="1">{'common.yes'|devblocks_translate|capitalize}</option>
 			</select></td>
 		</tr>
-		<tr>
-			<td width="0%" nowrap="nowrap" align="right">{'address.is_defunct'|devblocks_translate|capitalize}:</td>
-			<td width="100%"><select name="is_defunct">
-				<option value=""></option>
-				<option value="0">{'common.no'|devblocks_translate|capitalize}</option>
-				<option value="1">{'common.yes'|devblocks_translate|capitalize}</option>
-			</select></td>
-		</tr>
-		{if $active_worker->is_superuser}
-		<tr>
-			<td width="0%" nowrap="nowrap" align="right" valign="top">{'common.email_transport'|devblocks_translate|capitalize}:</td>
-			<td width="100%">
-				<button type="button" class="chooser-abstract" data-field-name="mail_transport_id" data-context="{CerberusContexts::CONTEXT_MAIL_TRANSPORT}" data-single="true" data-query="" data-query-required="" data-autocomplete="" data-autocomplete-if-empty="true" data-create="if-null"><span class="glyphicons glyphicons-search"></span></button>
-				<ul class="bubbles chooser-container"></ul>
-			</td>
-		</tr>
-		{/if}
 	</table>
 </fieldset>
 
@@ -64,15 +67,11 @@
 </fieldset>
 {/if}
 
-{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_ADDRESS bulk=true}
+{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_GROUP bulk=true}
 
 {include file="devblocks:cerberusweb.core::internal/macros/behavior/bulk.tpl" macros=$macros}
 
-{if $active_worker->hasPriv('contexts.cerberusweb.contexts.address.broadcast')}
-{include file="devblocks:cerberusweb.core::internal/views/bulk_broadcast.tpl" context=CerberusContexts::CONTEXT_ADDRESS}
-{/if}
-
-{if $active_worker->hasPriv('contexts.cerberusweb.contexts.address.update')}
+{if $active_worker->hasPriv('contexts.cerberusweb.contexts.group.update')}
 	<button type="button" class="submit"><span class="glyphicons glyphicons-circle-ok" style="color:rgb(0,180,0);"></span> {'common.save_changes'|devblocks_translate|capitalize}</button>
 {/if}
 <br>
@@ -83,7 +82,7 @@ $(function() {
 	var $popup = genericAjaxPopupFind('#formBatchUpdate');
 	
 	$popup.one('popup_open',function(event,ui) {
-		$popup.dialog('option','title',"{'common.bulk_update'|devblocks_translate|capitalize|escape:'javascript' nofilter}");
+		$popup.dialog('option','title',"{'common.bulk_update'|devblocks_translate|capitalize|escape:'javascript' nofilter}: {'common.group'|devblocks_translate|capitalize|escape:'js' nofilter}");
 		$popup.css('overflow', 'inherit');
 		
 		$popup.find('button.submit').click(function() {

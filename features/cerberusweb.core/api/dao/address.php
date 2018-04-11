@@ -270,6 +270,10 @@ class DAO_Address extends Cerb_ORMHelper {
 				case 'defunct':
 					$change_fields[DAO_Address::IS_DEFUNCT] = intval($v);
 					break;
+				case 'mail_transport_id':
+					$change_fields[DAO_Address::WORKER_ID] = 0;
+					$change_fields[DAO_Address::MAIL_TRANSPORT_ID] = intval($v);
+					break;
 				default:
 					// Custom fields
 					if(DevblocksPlatform::strStartsWith($k, 'cf_')) {
@@ -884,7 +888,7 @@ class DAO_Address extends Cerb_ORMHelper {
 		// If we have a special email character then switch to literal email matching
 		if(preg_match('/[\.\@\_]/', $term)) {
 			// If a leading '@', then prefix/trailing wildcard
-			if(substr($term,0,1) == '@') {
+			if(DevblocksPlatform::strStartsWith($term, '@')) {
 				$q = '*' . $term . '*';
 			// Otherwise, only suffix wildcard
 			} else {
