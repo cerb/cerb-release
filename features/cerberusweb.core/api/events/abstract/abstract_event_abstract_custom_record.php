@@ -239,28 +239,16 @@ abstract class AbstractEvent_AbstractCustomRecord extends Extension_DevblocksEve
 	}
 	
 	function getActionExtensions(Model_TriggerEvent $trigger) {
-		/*
-		$context_name = '';
-		$context = $this->_getContext($trigger);
-		$context_ext = Extension_DevblocksContext::get($context, false);
-		$context_name = DevblocksPlatform::strLower($context_ext->name);
-		*/
-		
 		$actions =
 			[
 				'create_comment' => array('label' =>'Create comment'),
-				/*
-				'add_watchers' => array('label' =>'Add watchers'),
+				'create_task' => array('label' =>'Create task'),
 				'create_notification' => array('label' =>'Create notification'),
 				'create_task' => array('label' =>'Create task'),
 				'create_ticket' => array('label' =>'Create ticket'),
 				'send_email' => array('label' => 'Send email'),
-				'set_is_banned' => array('label' => 'Set is banned'),
-				'set_is_defunct' => array('label' => 'Set is defunct'),
-				*/
 				'set_links' => ['label' => 'Set links'],
 				'set_name' => ['label' => 'Set name'],
-				//'set_name' => ['label' => sprintf('Set %s name', $context_name)],
 			]
 			+ DevblocksEventHelper::getActionCustomFieldsFromLabels($this->getLabels($trigger))
 			;
@@ -281,6 +269,22 @@ abstract class AbstractEvent_AbstractCustomRecord extends Extension_DevblocksEve
 		switch($token) {
 			case 'create_comment':
 				DevblocksEventHelper::renderActionCreateComment($trigger);
+				break;
+				
+			case 'create_notification':
+				DevblocksEventHelper::renderActionCreateNotification($trigger);
+				break;
+			
+			case 'create_task':
+				DevblocksEventHelper::renderActionCreateTask($trigger);
+				break;
+				
+			case 'create_ticket':
+				DevblocksEventHelper::renderActionCreateTicket($trigger);
+				break;
+				
+			case 'send_email':
+				DevblocksEventHelper::renderActionSendEmail($trigger);
 				break;
 			
 			case 'set_name':
@@ -311,9 +315,26 @@ abstract class AbstractEvent_AbstractCustomRecord extends Extension_DevblocksEve
 				return DevblocksEventHelper::simulateActionCreateComment($params, $dict, 'record_id');
 				break;
 			
+			case 'create_notification':
+				return DevblocksEventHelper::simulateActionCreateNotification($params, $dict, 'record_id');
+				break;
+			
+			case 'create_task':
+				return DevblocksEventHelper::simulateActionCreateTask($params, $dict, 'record_id');
+				break;
+			
+			case 'create_ticket':
+				return DevblocksEventHelper::simulateActionCreateTicket($params, $dict, 'record_id');
+				break;
+				
+			case 'send_email':
+				return DevblocksEventHelper::simulateActionSendEmail($params, $dict);
+				break;
+			
 			case 'set_name':
 				return DevblocksEventHelper::simulateActionSetAbstractField('name', Model_CustomField::TYPE_SINGLE_LINE, 'record_name', $params, $dict);
 				break;
+			
 			case 'set_links':
 				return DevblocksEventHelper::simulateActionSetLinks($trigger, $params, $dict);
 				break;
@@ -331,6 +352,22 @@ abstract class AbstractEvent_AbstractCustomRecord extends Extension_DevblocksEve
 		switch($token) {
 			case 'create_comment':
 				DevblocksEventHelper::runActionCreateComment($params, $dict, 'record_id');
+				break;
+				
+			case 'create_notification':
+				DevblocksEventHelper::runActionCreateNotification($params, $dict, 'record_id');
+				break;
+				
+			case 'create_task':
+				DevblocksEventHelper::runActionCreateTask($params, $dict, 'record_id');
+				break;
+				
+			case 'create_ticket':
+				DevblocksEventHelper::runActionCreateTicket($params, $dict, 'record_id');
+				break;
+				
+			case 'send_email':
+				DevblocksEventHelper::runActionSendEmail($params, $dict);
 				break;
 			
 			case 'set_name':
