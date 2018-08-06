@@ -1,18 +1,18 @@
 <?php
 /***********************************************************************
- | Cerb(tm) developed by Webgroup Media, LLC.
- |-----------------------------------------------------------------------
- | All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
- |   unless specifically noted otherwise.
- |
- | This source code is released under the Devblocks Public License.
- | The latest version of this license can be found here:
- | http://cerb.ai/license
- |
- | By using this software, you acknowledge having read this license
- | and agree to be bound thereby.
- | ______________________________________________________________________
- |	http://cerb.ai	    http://webgroup.media
+| Cerb(tm) developed by Webgroup Media, LLC.
+|-----------------------------------------------------------------------
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+|   unless specifically noted otherwise.
+|
+| This source code is released under the Devblocks Public License.
+| The latest version of this license can be found here:
+| http://cerb.ai/license
+|
+| By using this software, you acknowledge having read this license
+| and agree to be bound thereby.
+| ______________________________________________________________________
+|	http://cerb.ai	    http://webgroup.media
  ***********************************************************************/
 /*
  * IMPORTANT LICENSING NOTE from your friends at Cerb
@@ -54,11 +54,6 @@ class View_DevblocksStorageProfile extends C4_AbstractView implements IAbstractV
 		);
 
 		$this->addColumnsHidden(array(
-			SearchFields_DevblocksStorageProfile::PARAMS_JSON,
-		), true);
-		
-		$this->addParamsHidden(array(
-			SearchFields_DevblocksStorageProfile::ID,
 			SearchFields_DevblocksStorageProfile::PARAMS_JSON,
 		), true);
 		
@@ -136,30 +131,6 @@ class View_DevblocksStorageProfile extends C4_AbstractView implements IAbstractV
 		$tpl->assign('view', $this);
 
 		$tpl->display('devblocks:cerberusweb.core::configuration/section/storage_profiles/view.tpl');
-	}
-
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_DevblocksStorageProfile::NAME:
-			case SearchFields_DevblocksStorageProfile::EXTENSION_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-			case SearchFields_DevblocksStorageProfile::ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-			case 'placeholder_date':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-			default:
-				echo '';
-				break;
-		}
 	}
 
 	function renderCriteriaParam($param) {

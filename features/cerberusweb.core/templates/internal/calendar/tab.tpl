@@ -41,7 +41,7 @@
 {/if}
 </tr>
 {foreach from=$calendar_properties.calendar_weeks item=week name=weeks}
-<tr class="week">
+<tr class="week" style="height:125px;">
 	{foreach from=$week item=day name=days}
 		<td class="{if $calendar_properties.today == $day.timestamp}today{/if}{if $day.is_padding} inactive{/if}{if $smarty.foreach.days.last} cellborder_r{/if}{if $smarty.foreach.weeks.last} cellborder_b{/if}">
 			<div class="day_header">

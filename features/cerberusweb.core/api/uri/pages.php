@@ -62,13 +62,28 @@ class Page_Custom extends CerberusPageExtension {
 		}
 	}
 	
+	function handleWorkspaceWidgetActionAction() {
+		@$widget_id = DevblocksPlatform::importGPC($_REQUEST['widget_id'],'integer',0);
+		@$action = DevblocksPlatform::importGPC(isset($_GET['action']) ? $_GET['action'] : $_REQUEST['action'],'string','');
+		
+		if(false == ($workspace_widget = DAO_WorkspaceWidget::get($widget_id)))
+			return;
+		
+		if(false == ($extension = $workspace_widget->getExtension()))
+			return;
+		
+		if($extension instanceof Extension_WorkspaceWidget && method_exists($extension, $action.'Action')) {
+			call_user_func_array([$extension, $action.'Action'], [$workspace_widget]);
+		}
+	}
+	
 	function render() {
 		$response = DevblocksPlatform::getHttpResponse();
 		
 		$stack = $response->path;
 		@array_shift($stack); // pages
 		@$page_uri = array_shift($stack);
-
+		
 		$pages = DAO_WorkspacePage::getAll();
 		
 		$page_id = 0;
@@ -84,7 +99,7 @@ class Page_Custom extends CerberusPageExtension {
 			$this->_renderIndex();
 			
 		} else {
-			$this->_renderPage($page_id);
+			$this->_renderPage($page_id, $stack);
 		}
 		
 		return;
@@ -124,7 +139,7 @@ class Page_Custom extends CerberusPageExtension {
 		$tpl->display('devblocks:cerberusweb.core::pages/index.tpl');
 	}
 	
-	private function _renderPage($page_id) {
+	private function _renderPage($page_id, array $path=[]) {
 		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -139,6 +154,12 @@ class Page_Custom extends CerberusPageExtension {
 			$page_id
 		);
 		$tpl->assign('point', $point);
+		
+		// Active tab
+		
+		if(!empty($path)) {
+			$tpl->assign('tab_selected', array_shift($path));
+		}
 
 		// Template
 		if(null != ($page_extension = DevblocksPlatform::getExtension($page->extension_id, true)))
@@ -165,6 +186,10 @@ class Page_Custom extends CerberusPageExtension {
 		$active_worker = CerberusApplication::getActiveWorker();
 
 		switch($page_type) {
+			case 'home':
+				$page = $this->_createWizardHomePage();
+				break;
+				
 			case 'mail':
 				$page = $this->_createWizardMailPage();
 				break;
@@ -227,9 +252,6 @@ class Page_Custom extends CerberusPageExtension {
 	private function _createWizardReportsPage() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		if(!DevblocksPlatform::isPluginEnabled('cerberusweb.reports'))
-			return;
-		
 		// Import as a package
 		
 		if(false == ($package_json = file_get_contents(APP_PATH . '/features/cerberusweb.core/packages/wizard_reports_page_package.json')))
@@ -244,6 +266,27 @@ class Page_Custom extends CerberusPageExtension {
 		CerberusApplication::packages()->import($package_json, $prompts, $records_created);
 		
 		@$page = $records_created[CerberusContexts::CONTEXT_WORKSPACE_PAGE]['workspace_reports'];
+		
+		return $page;
+	}
+	
+	private function _createWizardHomePage() {
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		// Import as a package
+		
+		if(false == ($package_json = file_get_contents(APP_PATH . '/features/cerberusweb.core/packages/wizard_home_page_package.json')))
+			return false;
+		
+		$records_created = [];
+		
+		$prompts = [
+			'target_worker_id' => $active_worker->id,
+		];
+		
+		CerberusApplication::packages()->import($package_json, $prompts, $records_created);
+		
+		@$page = $records_created[CerberusContexts::CONTEXT_WORKSPACE_PAGE]['workspace_home'];
 		
 		return $page;
 	}
@@ -447,17 +490,6 @@ class Page_Custom extends CerberusPageExtension {
 		
 		if(empty($view))
 			return;
-		
-		// Placeholders
-		
-		if($active_worker) {
-			$labels = [];
-			$values = [];
-			$active_worker->getPlaceholderLabelsValues($labels, $values);
-			
-			$view->setPlaceholderLabels($labels);
-			$view->setPlaceholderValues($values);
-		}
 		
 		$tpl->assign('view', $view);
 		$tpl->display('devblocks:cerberusweb.core::internal/views/search_and_view.tpl');

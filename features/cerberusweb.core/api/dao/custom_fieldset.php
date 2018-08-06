@@ -102,66 +102,6 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 		return true;
 	}
 	
-	public static function linkToContextByFieldIds($context, $context_id, $field_ids) {
-		$all_fields = DAO_CustomField::getAll();
-		$all_fieldsets = DAO_CustomFieldset::getAll();
-		
-		$link_fieldset_ids = array();
-
-		if(is_array($field_ids))
-		foreach($field_ids as $field_id) {
-			if(!isset($all_fields[$field_id]))
-				continue;
-			
-			$fieldset_id = $all_fields[$field_id]->custom_fieldset_id;
-			
-			if(!isset($all_fieldsets[$fieldset_id]))
-				continue;
-			
-			$link_fieldset_ids[$fieldset_id] = true;
-		}
-		
-		if(!empty($link_fieldset_ids))
-		foreach(array_keys($link_fieldset_ids) as $fieldset_id) {
-			DAO_ContextLink::setLink($context, $context_id, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, $fieldset_id);
-		}
-	}
-	
-	static function linkToContextsByFieldValues($fieldset_id, $field_id) {
-		$db = DevblocksPlatform::services()->database();
-		
-		$temp_table = '_links_' . uniqid();
-		
-		// Generate a temporary table
-		$db->ExecuteMaster(sprintf("CREATE TEMPORARY TABLE %s (context VARCHAR(128), context_id INT)", $temp_table));
-		
-		// Find any contexts linking to it
-		$db->ExecuteMaster(sprintf("INSERT IGNORE INTO %s SELECT context, context_id FROM custom_field_stringvalue WHERE field_id = %d", $temp_table, $field_id));
-		$db->ExecuteMaster(sprintf("INSERT IGNORE INTO %s SELECT context, context_id FROM custom_field_numbervalue WHERE field_id = %d", $temp_table, $field_id));
-		$db->ExecuteMaster(sprintf("INSERT IGNORE INTO %s SELECT context, context_id FROM custom_field_clobvalue WHERE field_id = %d", $temp_table, $field_id));
-		
-		// Link from the records to the fieldset
-		$db->ExecuteMaster(sprintf("INSERT IGNORE INTO context_link (from_context, from_context_id, to_context, to_context_id) ".
-			"SELECT context, context_id, %s, %s FROM %s",
-			$db->qstr(CerberusContexts::CONTEXT_CUSTOM_FIELDSET),
-			$db->qstr($fieldset_id),
-			$temp_table
-		));
-		
-		// And link back in the other direction
-		$db->ExecuteMaster(sprintf("INSERT IGNORE INTO context_link (to_context, to_context_id, from_context, from_context_id) ".
-			"SELECT context, context_id, %s, %s FROM %s",
-			$db->qstr(CerberusContexts::CONTEXT_CUSTOM_FIELDSET),
-			$db->qstr($fieldset_id),
-			$temp_table
-		));
-		
-		// Drop the temp table
-		$db->ExecuteMaster(sprintf("DROP TABLE %s", $temp_table));
-		
-		return TRUE;
-	}
-	
 	/**
 	 * @param string $where
 	 * @param mixed $sortBy
@@ -285,29 +225,67 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 		return $fieldsets;
 	}
 	
-	/**
-	 *
-	 * @param string $context
-	 * @param integer $context_id
-	 * @return Model_CustomFieldset[]
-	 */
-	static function getByContextLink($context, $context_id) {
-		$cfieldsets = DAO_CustomFieldset::getAll();
-		$context_values = DAO_ContextLink::getContextLinks($context, $context_id, CerberusContexts::CONTEXT_CUSTOM_FIELDSET);
-		$results = array();
+	static function addToContext($ids, $context, $context_id) {
+		$db = DevblocksPlatform::services()->database();
 		
-		if(!isset($context_values[$context_id]))
-			return $results;
+		$values = [];
 		
-		if(!is_array($context_values[$context_id]))
-			return $results;
-		
-		foreach($context_values[$context_id] as $cfieldset_id => $ctx_pair) {
-			if(isset($cfieldsets[$cfieldset_id]))
-				$results[$cfieldset_id] = $cfieldsets[$cfieldset_id];
+		foreach($ids as $id) {
+			$values[] = sprintf("(%d, %s, %d)",
+				$id,
+				$db->qstr($context),
+				$context_id
+			);
 		}
 		
-		return $results;
+		if($values) {
+			$sql = "REPLACE INTO context_to_custom_fieldset (custom_fieldset_id, context, context_id) VALUES " . implode(',', $values);
+			$db->ExecuteMaster($sql);
+		}
+	}
+	
+	static function addByField($field_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		if(false == ($custom_field = DAO_CustomField::get($field_id)))
+			return;
+		
+		$sql = sprintf("INSERT IGNORE INTO context_to_custom_fieldset (context, context_id, custom_fieldset_id) ".
+			"SELECT context, context_id, %d AS custom_fieldset_id FROM %s WHERE field_id = %d",
+			$custom_field->custom_fieldset_id,
+			$db->escape(DAO_CustomFieldValue::getValueTableName($field_id)),
+			$field_id
+		);
+		$db->ExecuteMaster($sql);
+	}
+	
+	static function removeFromContext($ids, $context, $context_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
+		if(empty($ids))
+			return;
+		
+		$sql = sprintf("DELETE FROM context_to_custom_fieldset WHERE context = %s AND context_id = %d AND custom_fieldset_id IN (%s)",
+			$db->qstr($context),
+			$context_id,
+			implode(',', $ids)
+		);
+		$db->ExecuteMaster($sql);
+	}
+	
+	static function getUsedByContext($context, $context_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$sql = sprintf("SELECT custom_fieldset_id FROM context_to_custom_fieldset WHERE context = %s AND context_id = %d",
+			$db->qstr($context),
+			$context_id
+		);
+		
+		$results = $db->GetArray($sql);
+		
+		return DAO_CustomFieldset::getIds(array_column($results, 'custom_fieldset_id'));
 	}
 	
 	static function getByOwner($owner_context, $owner_context_id=0) {
@@ -384,6 +362,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 			}
 		}
 		
+		$db->ExecuteMaster(sprintf("DELETE FROM context_to_custom_fieldset WHERE custom_fieldset_id IN (%s)", $ids_list));
 		$db->ExecuteMaster(sprintf("DELETE FROM custom_fieldset WHERE id IN (%s)", $ids_list));
 		
 		// Fire event
@@ -392,7 +371,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 			new Model_DevblocksEvent(
 				'context.delete',
 				array(
-					'context' => 'cerberusweb.contexts.custom_fieldset',
+					'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET,
 					'context_ids' => $ids
 				)
 			)
@@ -573,6 +552,49 @@ class SearchFields_CustomFieldset extends DevblocksSearchFields {
 		}
 	}
 	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'owner':
+				$key = 'owner';
+				$search_key = 'owner';
+				$owner_field = $search_fields[SearchFields_CustomFieldset::OWNER_CONTEXT];
+				$owner_id_field = $search_fields[SearchFields_CustomFieldset::OWNER_CONTEXT_ID];
+				
+				return [
+					'key_query' => $key,
+					'key_select' => $search_key,
+					'type' => DevblocksSearchCriteria::TYPE_CONTEXT,
+					'sql_select' => sprintf("CONCAT_WS(':',%s.%s,%s.%s)",
+						Cerb_ORMHelper::escape($owner_field->db_table),
+						Cerb_ORMHelper::escape($owner_field->db_column),
+						Cerb_ORMHelper::escape($owner_id_field->db_table),
+						Cerb_ORMHelper::escape($owner_id_field->db_column)
+					),
+				];
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_CustomFieldset::CONTEXT:
+				return parent::_getLabelsForKeyContextValues();
+				break;
+				
+			case SearchFields_CustomFieldset::ID:
+				$models = DAO_CustomFieldset::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+				
+			case 'owner':
+				return self::_getLabelsForKeyContextAndIdValues($values);
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -667,12 +689,6 @@ class View_CustomFieldset extends C4_AbstractView implements IAbstractView_Subto
 			SearchFields_CustomFieldset::VIRTUAL_CONTEXT_LINK,
 		));
 		
-		$this->addParamsHidden(array(
-			SearchFields_CustomFieldset::ID,
-			SearchFields_CustomFieldset::OWNER_CONTEXT,
-			SearchFields_CustomFieldset::OWNER_CONTEXT_ID,
-		));
-		
 		$this->doResetCriteria();
 	}
 
@@ -749,13 +765,9 @@ class View_CustomFieldset extends C4_AbstractView implements IAbstractView_Subto
 				break;
 			
 			case SearchFields_CustomFieldset::CONTEXT:
-				$label_map = array();
-				$contexts = Extension_DevblocksContext::getAll(false);
-				
-				foreach($contexts as $k => $mft) {
-					$label_map[$k] = $mft->name;
-				}
-				
+				$label_map = function(array $values) use ($column) {
+					return SearchFields_CustomField::getLabelsForKeyValues($column, $values);
+				};
 				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $label_map, 'in', 'contexts[]');
 				break;
 			
@@ -811,11 +823,11 @@ class View_CustomFieldset extends C4_AbstractView implements IAbstractView_Subto
 		
 		// Add dynamic owner.* fields
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('owner', $fields, 'owner');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('owner', $fields, 'owner', SearchFields_CustomFieldset::VIRTUAL_OWNER);
 		
 		// Add quick search links
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links', SearchFields_CustomFieldset::VIRTUAL_CONTEXT_LINK);
 		
 		// Add is_sortable
 		
@@ -859,74 +871,14 @@ class View_CustomFieldset extends C4_AbstractView implements IAbstractView_Subto
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_CustomFieldset::NAME:
-			case SearchFields_CustomFieldset::CONTEXT:
-			case SearchFields_CustomFieldset::OWNER_CONTEXT:
-			case SearchFields_CustomFieldset::OWNER_CONTEXT_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case SearchFields_CustomFieldset::ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-				
-			case SearchFields_CustomFieldset::UPDATED_AT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-				
-			case 'placeholder_date':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_CustomFieldset::CONTEXT:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context.tpl');
-				break;
-				
-			case SearchFields_CustomFieldset::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-				
-			case SearchFields_CustomFieldset::VIRTUAL_OWNER:
-				$groups = DAO_Group::getAll();
-				$tpl->assign('groups', $groups);
-				
-				$roles = DAO_WorkerRole::getAll();
-				$tpl->assign('roles', $roles);
-				
-				$workers = DAO_Worker::getAll();
-				$tpl->assign('workers', $workers);
-				
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_owner.tpl');
-				break;
-		}
-	}
-
 	function renderCriteriaParam($param) {
 		$field = $param->field;
 		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
 			case SearchFields_CustomFieldset::CONTEXT:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$strings = array();
-				
-				foreach($values as $context_id) {
-					if(isset($contexts[$context_id])) {
-						$strings[] = sprintf('<b>%s</b>',DevblocksPlatform::strEscapeHtml($contexts[$context_id]->name));
-					}
-				}
-				
-				echo implode(' or ', $strings);
+				$label_map = SearchFields_CustomFieldset::getLabelsForKeyValues($field, $values);
+				parent::_renderCriteriaParamString($param, $label_map);
 				break;
 			
 			default:
@@ -1023,6 +975,40 @@ class Context_CustomFieldset extends Extension_DevblocksContext implements IDevb
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=custom_fieldset&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_CustomFieldset();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET,
+			],
+		);
+		
+		$properties['owner'] = array(
+			'label' => mb_ucfirst($translate->_('common.owner')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->owner_context_id,
+			'params' => [
+				'context' => $model->owner_context,
+			]
+		);
+		
+		$properties['updated_date'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated_at,
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -1320,12 +1306,6 @@ class Context_CustomFieldset extends Extension_DevblocksContext implements IDevb
 			$tpl->display('devblocks:cerberusweb.core::internal/custom_fieldsets/peek_edit.tpl');
 			
 		} else {
-			// Counts
-			$activity_counts = array(
-				'custom_fields' => DAO_CustomField::countByFieldsetId($context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				$context => array(
@@ -1333,7 +1313,7 @@ class Context_CustomFieldset extends Extension_DevblocksContext implements IDevb
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -1352,6 +1332,10 @@ class Context_CustomFieldset extends Extension_DevblocksContext implements IDevb
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$tpl->display('devblocks:cerberusweb.core::internal/custom_fieldsets/peek.tpl');
 		}

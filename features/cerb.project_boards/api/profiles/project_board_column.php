@@ -17,93 +17,15 @@
 
 class PageSection_ProfilesProjectBoardColumn extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // project_board_column 
-		$id = array_shift($stack); // 123
+		@$context_id = intval(array_shift($stack)); // 123
+
+		$context = Context_ProjectBoardColumn::ID;
 		
-		@$id = intval($id);
-		
-		if(null == ($project_board_column = DAO_ProjectBoardColumn::get($id))) {
-			return;
-		}
-		$tpl->assign('project_board_column', $project_board_column);
-		
-		// Tab persistence
-		
-		$point = 'profiles.project_board_column.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-		
-		// Properties
-		
-		$properties = array();
-		
-		$properties['board_id'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('projects.common.board'),
-			'type' => Model_CustomField::TYPE_LINK,
-			'value' => $project_board_column->board_id,
-			'params' => [
-				'context' => Context_ProjectBoard::ID,
-			]
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $project_board_column->updated_at,
-		);
-		
-		// Custom Fields
-		
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(Context_ProjectBoardColumn::ID, $project_board_column->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(Context_ProjectBoardColumn::ID, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-		
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(Context_ProjectBoardColumn::ID, $project_board_column->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			Context_ProjectBoardColumn::ID => array(
-				$project_board_column->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						Context_ProjectBoardColumn::ID,
-						$project_board_column->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-		
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, Context_ProjectBoardColumn::ID);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerb.project_boards::project_board_column/profile.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -249,7 +171,7 @@ class PageSection_ProfilesProjectBoardColumn extends Extension_PageSection {
 		$pos = 0;
 		
 		do {
-			$models = array();
+			$models = [];
 			list($results, $total) = $view->getData();
 
 			// Summary row
@@ -263,7 +185,6 @@ class PageSection_ProfilesProjectBoardColumn extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=project_board_column', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.project.board.column.explore.toolbar',
 				);
 				$models[] = $model;
 				

@@ -17,75 +17,15 @@
 
 class PageSection_ProfilesCustomField extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // custom_field 
-		$id = array_shift($stack); // 123
+		$context_id = intval(array_shift($stack)); // 123
 		
-		@$id = intval($id);
+		$context = CerberusContexts::CONTEXT_CUSTOM_FIELD;
 		
-		if(null == ($custom_field = DAO_CustomField::get($id))) {
-			return;
-		}
-		$tpl->assign('custom_field', $custom_field);
-		
-		// Tab persistence
-		
-		$point = 'profiles.custom_field.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-		
-		// Properties
-		
-		$properties = [];
-		
-		$properties['name'] = array(
-			'label' => mb_ucfirst($translate->_('common.name')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $custom_field->name,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $custom_field->updated_at,
-		);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_CUSTOM_FIELD => array(
-				$custom_field->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_CUSTOM_FIELD,
-						$custom_field->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-		
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_CUSTOM_FIELD);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/custom_field.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -164,6 +104,10 @@ class PageSection_ProfilesCustomField extends Extension_PageSection {
 					
 					DAO_CustomField::update($id, $fields);
 					DAO_CustomField::onUpdateByActor($active_worker, $fields, $id);
+					
+					// If we're moving the field to a new fieldset, make sure we add it to all those records
+					if($custom_fieldset_id)
+						DAO_CustomFieldset::addByField($id);
 				}
 	
 				echo json_encode(array(
@@ -245,7 +189,6 @@ class PageSection_ProfilesCustomField extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=custom_field', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.custom.field.explore.toolbar',
 				);
 				$models[] = $model;
 				

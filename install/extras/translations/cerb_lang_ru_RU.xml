@@ -2393,11 +2393,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="display.shortcut.print">
-			<tuv xml:lang="ru_RU">
-				<seg>Распечатать эту заявку (P)</seg>
-			</tuv>
-		</tu>
 		<tu tuid="display.shortcut.read_all">
 			<tuv xml:lang="ru_RU">
 				<seg>Прочесть все сообщения в хронологическом порядке (A)</seg>
@@ -3508,11 +3503,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="preferences.account.mail.display.inline_log">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="preferences.account.mail.no_discard_warning">
 			<tuv xml:lang="ru_RU">
 				<seg/>
@@ -4352,14 +4342,9 @@ login &lt;ftp&#13;
 				<seg>Контроль времени</seg>
 			</tuv>
 		</tu>
-		<tu tuid="timetracking.ui.cfg.activities">
+		<tu tuid="timetracking.common.activities">
 			<tuv xml:lang="ru_RU">
 				<seg>Activities</seg>
-			</tuv>
-		</tu>
-		<tu tuid="timetracking.ui.cfg.add_activity">
-			<tuv xml:lang="ru_RU">
-				<seg>Добавить активность</seg>
 			</tuv>
 		</tu>
 		<tu tuid="timetracking.ui.cfg.add_new_activity">

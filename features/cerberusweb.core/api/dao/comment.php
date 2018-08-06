@@ -549,6 +549,10 @@ class SearchFields_Comment extends DevblocksSearchFields {
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_COMMENT, self::getPrimaryKey());
 				break;
 				
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_COMMENT)), self::getPrimaryKey());
+				break;
+				
 			case self::VIRTUAL_OWNER:
 				return self::_getWhereSQLFromContextAndID($param, 'owner_context', 'owner_context_id');
 				break;
@@ -565,6 +569,67 @@ class SearchFields_Comment extends DevblocksSearchFields {
 				}
 				break;
 		}
+	}
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'author':
+				$key = 'author';
+				$search_key = 'author';
+				$owner_field = $search_fields[SearchFields_Comment::OWNER_CONTEXT];
+				$owner_id_field = $search_fields[SearchFields_Comment::OWNER_CONTEXT_ID];
+				
+				return [
+					'key_query' => $key,
+					'key_select' => $search_key,
+					'type' => DevblocksSearchCriteria::TYPE_CONTEXT,
+					'sql_select' => sprintf("CONCAT_WS(':',%s.%s,%s.%s)",
+						Cerb_ORMHelper::escape($owner_field->db_table),
+						Cerb_ORMHelper::escape($owner_field->db_column),
+						Cerb_ORMHelper::escape($owner_id_field->db_table),
+						Cerb_ORMHelper::escape($owner_id_field->db_column)
+					),
+				];
+				break;
+				
+			case 'on':
+				$key = 'on';
+				$search_key = 'on';
+				$owner_field = $search_fields[SearchFields_Comment::CONTEXT];
+				$owner_id_field = $search_fields[SearchFields_Comment::CONTEXT_ID];
+				
+				return [
+					'key_query' => $key,
+					'key_select' => $search_key,
+					'type' => DevblocksSearchCriteria::TYPE_CONTEXT,
+					'sql_select' => sprintf("CONCAT_WS(':',%s.%s,%s.%s)",
+						Cerb_ORMHelper::escape($owner_field->db_table),
+						Cerb_ORMHelper::escape($owner_field->db_column),
+						Cerb_ORMHelper::escape($owner_id_field->db_table),
+						Cerb_ORMHelper::escape($owner_id_field->db_column)
+					),
+				];
+				break;
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_Comment::ID:
+				$models = DAO_Comment::getIds($values);
+				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_COMMENT);
+				return array_column(DevblocksPlatform::objectsToArrays($dicts), '_label', 'id');
+				break;
+				
+			case 'author':
+			case 'on':
+				return self::_getLabelsForKeyContextAndIdValues($values);
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
 	}
 	
 	/**
@@ -838,17 +903,6 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 			SearchFields_Comment::VIRTUAL_OWNER,
 		));
 		
-		$this->addParamsHidden(array(
-			SearchFields_Comment::CONTEXT,
-			SearchFields_Comment::CONTEXT_ID,
-			SearchFields_Comment::ID,
-			SearchFields_Comment::OWNER_CONTEXT,
-			SearchFields_Comment::OWNER_CONTEXT_ID,
-			SearchFields_Comment::VIRTUAL_ATTACHMENTS_SEARCH,
-			SearchFields_Comment::VIRTUAL_OWNER,
-			SearchFields_Comment::VIRTUAL_TARGET,
-		));
-		
 		$this->doResetCriteria();
 	}
 
@@ -935,7 +989,7 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 				
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -972,6 +1026,14 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
 					'options' => array('param_key' => SearchFields_Comment::CREATED),
 				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_Comment::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_COMMENT],
+					]
+				),
 			'id' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
@@ -984,15 +1046,15 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 		
 		// Add quick search links
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links', SearchFields_Comment::VIRTUAL_CONTEXT_LINK);
 		
 		// author.*
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('author', $fields);
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('author', $fields, 'search', SearchFields_Comment::VIRTUAL_OWNER);
 		
 		// on.*
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('on', $fields);
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('on', $fields, 'search', SearchFields_Comment::VIRTUAL_TARGET);
 		
 		// Add searchable custom fields
 		
@@ -1028,6 +1090,10 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 		switch($field) {
 			case 'attachments':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Comment::VIRTUAL_ATTACHMENTS_SEARCH);
+				break;
+				
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
 				break;
 				
 			default:
@@ -1088,52 +1154,6 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 
 		$tpl->assign('view_template', 'devblocks:cerberusweb.core::internal/comments/view.tpl');
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
-	}
-
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_Comment::CONTEXT:
-			case SearchFields_Comment::COMMENT:
-			case SearchFields_Comment::OWNER_CONTEXT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case SearchFields_Comment::ID:
-			case SearchFields_Comment::CONTEXT_ID:
-			case SearchFields_Comment::OWNER_CONTEXT_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-				
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-				
-			case SearchFields_Comment::CREATED:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_Comment::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-				
-			case SearchFields_Comment::VIRTUAL_HAS_FIELDSET:
-				$this->_renderCriteriaHasFieldset($tpl, CerberusContexts::CONTEXT_COMMENT);
-				break;
-				
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
 	}
 
 	function renderCriteriaParam($param) {
@@ -1241,6 +1261,8 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 };
 
 class Context_Comment extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek {
+	const ID = 'cerberusweb.contexts.comment';
+	
 	// Anyone can read a comment
 	public static function isReadableByActor($models, $actor) {
 		return CerberusContexts::allowEverything($models);
@@ -1290,6 +1312,40 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=comment&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_Comment();
+		
+		$properties['author'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.author'),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->owner_context_id,
+			'params' => [
+				'context' => $model->owner_context,
+			],
+		);
+		
+		$properties['created'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.created'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->created,
+		);
+		
+		$properties['target'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.target'),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->context_id,
+			'params' => [
+				'context' => $model->context,
+			],
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -1554,12 +1610,6 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 				return;
 			}
 			
-			// Counts
-			$activity_counts = array(
-				//'comments' => DAO_Comment::count($context, $context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				$context => array(
@@ -1567,7 +1617,7 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -1595,14 +1645,17 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 				return;
 			
 			// Dictionary
-			$labels = array();
-			$values = array();
+			$labels = $values = [];
 			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			$tpl->assign('dict', $dict);
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$tpl->display('devblocks:cerberusweb.core::internal/comments/peek.tpl');
 		}

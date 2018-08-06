@@ -17,121 +17,15 @@
 
 class PageSection_ProfilesSnippet extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // snippet 
-		$id = array_shift($stack); // 123
+		@$context_id = intval(array_shift($stack)); // 123
 
-		@$id = intval($id);
+		$context = CerberusContexts::CONTEXT_SNIPPET;
 		
-		if(null == ($snippet = DAO_Snippet::get($id)))
-			return;
-		
-		$tpl->assign('snippet', $snippet);
-	
-		// Tab persistence
-		
-		$point = 'profiles.snippet.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-	
-		// Properties
-			
-		$properties = array();
-			
-		$properties['owner'] = array(
-			'label' => mb_ucfirst($translate->_('common.owner')),
-			'type' => Model_CustomField::TYPE_LINK,
-			'value' => $snippet->owner_context_id,
-			'params' => [
-				'context' => $snippet->owner_context,
-			]
-		);
-		
-		$properties['context'] = array(
-			'label' => mb_ucfirst($translate->_('common.context')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $snippet->context,
-		);
-		
-		$properties['total_uses'] = array(
-			'label' => mb_ucfirst($translate->_('dao.snippet.total_uses')),
-			'type' => Model_CustomField::TYPE_NUMBER,
-			'value' => $snippet->total_uses,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $snippet->updated_at,
-		);
-	
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_SNIPPET, $snippet->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_SNIPPET, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_SNIPPET, $snippet->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_SNIPPET => array(
-				$snippet->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_SNIPPET,
-						$snippet->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-		
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_SNIPPET);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::internal/snippets/profile.tpl');
-	}
-	
-	function showTabContentAction() {
-		@$context_id = DevblocksPlatform::importGPC($_REQUEST['context_id'],'integer',0);
-		
-		$tpl = DevblocksPlatform::services()->template();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
-		if(!$context_id || false == ($snippet = DAO_Snippet::get($context_id)))
-			return;
-		
-		if(false == Context_Snippet::isReadableByActor($snippet, $active_worker))
-			return;
-		
-		$tpl->assign('snippet', $snippet);
-		$tpl->display('devblocks:cerberusweb.core::internal/snippets/profile/preview.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function viewExploreAction() {
@@ -174,7 +68,6 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=snippet', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.snippet.explore.toolbar',
 				);
 				$models[] = $model;
 				

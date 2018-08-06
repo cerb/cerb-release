@@ -66,20 +66,9 @@ class Page_Search extends CerberusPageExtension {
 		// Quick search initialization
 		
 		if(!empty($query)) {
+			$view->setParamsQuery($query);
 			$view->addParamsWithQuickSearch($query, true);
 			$view->renderPage = 0;
-			$tpl->assign('quick_search_query', $query);
-		}
-		
-		// Placeholders
-		
-		if($active_worker) {
-			$labels = array();
-			$values = array();
-			$active_worker->getPlaceholderLabelsValues($labels, $values);
-			
-			$view->setPlaceholderLabels($labels);
-			$view->setPlaceholderValues($values);
 		}
 		
 		// Template
@@ -94,7 +83,7 @@ class Page_Search extends CerberusPageExtension {
 		@$query = DevblocksPlatform::importGPC($_REQUEST['q'],'string','');
 		@$query_required = DevblocksPlatform::importGPC($_REQUEST['qr'],'string','');
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'string',null);
-
+		
 		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
 			return;
 		
@@ -111,8 +100,9 @@ class Page_Search extends CerberusPageExtension {
 		$view->setParamsRequiredQuery($query_required);
 		
 		if('*' == $query) {
-			$query = null;
+			$query = $view->getParamsQuery();
 		} else {
+			$view->setParamsQuery($query);
 			$view->addParamsWithQuickSearch($query, true);
 			$view->renderPage = 0;
 		}
@@ -123,7 +113,6 @@ class Page_Search extends CerberusPageExtension {
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('context_ext', $context_ext);
 		$tpl->assign('popup_title', DevblocksPlatform::translateCapitalized('common.search') . ': ' . mb_convert_case($label, MB_CASE_TITLE));
-		$tpl->assign('quick_search_query', $query);
 		$tpl->assign('view', $view);
 		
 		$tpl->display('devblocks:cerberusweb.core::search/popup.tpl');
@@ -147,6 +136,9 @@ class Page_Search extends CerberusPageExtension {
 			$replace_params = false;
 			$query = ltrim($query, '+ ');
 		}
+		
+		if($replace_params)
+			$view->setParamsQuery($query);
 		
 		$view->addParamsWithQuickSearch($query, $replace_params);
 		$view->renderPage = 0;

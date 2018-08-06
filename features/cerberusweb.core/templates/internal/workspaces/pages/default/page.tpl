@@ -12,12 +12,12 @@
 		{$tabs = []}
 		
 		{foreach from=$page_tabs item=tab}
-			{$tabs[] = 'w_'|cat:$tab->id}
+			{$tabs[] = "{$tab->name|lower|devblocks_permalink}"}
 			<li class="drag" tab_id="{$tab->id}"><a href="{devblocks_url}ajax.php?c=pages&a=showWorkspaceTab&point={$point}&id={$tab->id}&request={$response_uri|escape:'url'}{/devblocks_url}">{$tab->name}</a></li>
 		{/foreach}
 
 		{if Context_WorkspacePage::isWriteableByActor($page, $active_worker) && $active_worker->hasPriv("contexts.{CerberusContexts::CONTEXT_WORKSPACE_TAB}.create")}
-			<li><a href="{devblocks_url}ajax.php?c=pages&a=showAddTabs&page_id={$page->id}{/devblocks_url}">+</a></li>
+			<li><a href="{devblocks_url}ajax.php?c=pages&a=showAddTabs&page_id={$page->id}{/devblocks_url}">&nbsp;<span class="glyphicons glyphicons-cogwheel"></span>&nbsp;</a></li>
 		{/if}
 	</ul>
 </div>
@@ -29,10 +29,20 @@
 
 <script type="text/javascript">
 $(function() {
+	// Set the browser tab label to the record label
+	document.title = "{$page->name|escape:'javascript' nofilter} - {$settings->get('cerberusweb.core','helpdesk_title')|escape:'javascript' nofilter}";
+	
 	var $tabs = $("#pageTabs{$page->id}");
 	
 	var tabOptions = Devblocks.getDefaultjQueryUiTabOptions();
+	
+	{if $tab_selected && in_array($tab_selected, $tabs)}
+	{$tab_idx = array_search($tab_selected, $tabs)}
+	tabOptions.active = {$tab_idx};
+	Devblocks.setjQueryUiTabSelected('pageTabs{$page->id}', {$tab_idx});
+	{else}
 	tabOptions.active = Devblocks.getjQueryUiTabSelected('pageTabs{$page->id}');
+	{/if}
 	
 	tabOptions.create = function(e, ui) {
 		var tab_id = $(ui.tab).attr('tab_id');

@@ -312,6 +312,11 @@
 				<seg>Assigned</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.at">
+			<tuv xml:lang="en_US">
+				<seg>at</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.attachment">
 			<tuv xml:lang="en_US">
 				<seg>attachment</seg>
@@ -344,7 +349,7 @@
 		</tu>
 		<tu tuid="common.available">
 			<tuv xml:lang="en_US">
-				<seg>Available</seg>
+				<seg>available</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.availability">
@@ -362,6 +367,16 @@
 				<seg>Bot Behavior</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.behavior.run">
+			<tuv xml:lang="en_US">
+				<seg>run behavior</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.behavior.scheduled">
+			<tuv xml:lang="en_US">
+				<seg>scheduled behavior</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.behaviors">
 			<tuv xml:lang="en_US">
 				<seg>Behaviors</seg>
@@ -370,6 +385,11 @@
 		<tu tuid="common.behaviors.bot">
 			<tuv xml:lang="en_US">
 				<seg>Bot Behaviors</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.behaviors.scheduled">
+			<tuv xml:lang="en_US">
+				<seg>scheduled behaviors</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.bot">
@@ -440,6 +460,16 @@
 		<tu tuid="common.bulk_update.with">
 			<tuv xml:lang="en_US">
 				<seg>With</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.busy">
+			<tuv xml:lang="en_US">
+				<seg>busy</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.cache">
+			<tuv xml:lang="en_US">
+				<seg>cache</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.calendar">
@@ -627,6 +657,11 @@
 				<seg>Content</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.context.id">
+			<tuv xml:lang="en_US">
+				<seg>Context</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.context">
 			<tuv xml:lang="en_US">
 				<seg>Context</seg>
@@ -655,6 +690,11 @@
 		<tu tuid="common.copy">
 			<tuv xml:lang="en_US">
 				<seg>copy</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.count">
+			<tuv xml:lang="en_US">
+				<seg>count</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.create">
@@ -710,6 +750,16 @@
 		<tu tuid="common.customize">
 			<tuv xml:lang="en_US">
 				<seg>customize</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.data">
+			<tuv xml:lang="en_US">
+				<seg>data</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.data.no">
+			<tuv xml:lang="en_US">
+				<seg>no data</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.day">
@@ -950,6 +1000,11 @@
 		<tu tuid="common.extension">
 			<tuv xml:lang="en_US">
 				<seg>Extension</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.extension.id">
+			<tuv xml:lang="en_US">
+				<seg>Extension ID</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.field">
@@ -1425,6 +1480,11 @@
 				<seg>or</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.original">
+			<tuv xml:lang="en_US">
+				<seg>original</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.order">
 			<tuv xml:lang="en_US">
 				<seg>order</seg>
@@ -1480,6 +1540,11 @@
 				<seg>Last Login</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.layout">
+			<tuv xml:lang="en_US">
+				<seg>layout</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.link">
 			<tuv xml:lang="en_US">
 				<seg>Link</seg>
@@ -1493,6 +1558,11 @@
 		<tu tuid="common.list">
 			<tuv xml:lang="en_US">
 				<seg>List</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.live">
+			<tuv xml:lang="en_US">
+				<seg>live</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.load">
@@ -1705,6 +1775,36 @@
 				<seg>Profile</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.probability">
+			<tuv xml:lang="en_US">
+				<seg>probability</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.probabilities">
+			<tuv xml:lang="en_US">
+				<seg>probabilities</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.profile.tab">
+			<tuv xml:lang="en_US">
+				<seg>profile tab</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.profile.tabs">
+			<tuv xml:lang="en_US">
+				<seg>profile tabs</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.profile.widget">
+			<tuv xml:lang="en_US">
+				<seg>profile widget</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.profile.widgets">
+			<tuv xml:lang="en_US">
+				<seg>profile widgets</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.profiles">
 			<tuv xml:lang="en_US">
 				<seg>Profiles</seg>
@@ -1783,6 +1883,11 @@
 		<tu tuid="common.record">
 			<tuv xml:lang="en_US">
 				<seg>record</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.record.on">
+			<tuv xml:lang="en_US">
+				<seg>on record</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.records">
@@ -1873,6 +1978,11 @@
 		<tu tuid="common.role">
 			<tuv xml:lang="en_US">
 				<seg>role</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.run">
+			<tuv xml:lang="en_US">
+				<seg>run</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.save">
@@ -2186,9 +2296,24 @@
 				<seg>Test</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.template">
+			<tuv xml:lang="en_US">
+				<seg>template</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.templates">
+			<tuv xml:lang="en_US">
+				<seg>templates</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.text">
 			<tuv xml:lang="en_US">
 				<seg>Text</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.text.plain">
+			<tuv xml:lang="en_US">
+				<seg>plaintext</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.ticket">
@@ -2401,6 +2526,21 @@
 				<seg>widgets</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.width">
+			<tuv xml:lang="en_US">
+				<seg>width</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.word">
+			<tuv xml:lang="en_US">
+				<seg>word</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.words">
+			<tuv xml:lang="en_US">
+				<seg>words</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.worker">
 			<tuv xml:lang="en_US">
 				<seg>worker</seg>
@@ -2479,6 +2619,11 @@
 		<tu tuid="common.yes">
 			<tuv xml:lang="en_US">
 				<seg>yes</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.zone">
+			<tuv xml:lang="en_US">
+				<seg>zone</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.zoom">
@@ -3171,7 +3316,7 @@
 		</tu>
 		<tu tuid="header.not_signed_in">
 			<tuv xml:lang="en_US">
-				<seg>Not signed on</seg>
+				<seg>Not logged in</seg>
 			</tuv>
 		</tu>
 		<tu tuid="header.notifications.unread">
@@ -3186,22 +3331,22 @@
 		</tu>
 		<tu tuid="header.signed_in">
 			<tuv xml:lang="en_US">
-				<seg>Signed on as %s</seg>
+				<seg>Logged in as %s</seg>
 			</tuv>
 		</tu>
 		<tu tuid="header.signoff">
 			<tuv xml:lang="en_US">
-				<seg>Sign off</seg>
+				<seg>Log off</seg>
 			</tuv>
 		</tu>
 		<tu tuid="header.signoff.all.my">
 			<tuv xml:lang="en_US">
-				<seg>Sign off (all my sessions)</seg>
+				<seg>Log off (all my sessions)</seg>
 			</tuv>
 		</tu>
 		<tu tuid="header.signon">
 			<tuv xml:lang="en_US">
-				<seg>Sign on</seg>
+				<seg>Log in</seg>
 			</tuv>
 		</tu>
 		
@@ -3340,7 +3485,7 @@
 		</tu>
 		<tu tuid="display.convo.no_messages">
 			<tuv xml:lang="en_US">
-				<seg>No messages on ticket.</seg>
+				<seg>there are no messages in this conversation</seg>
 			</tuv>
 		</tu>
 		<tu tuid="display.convo.order_oldest">
@@ -3471,11 +3616,6 @@
 		<tu tuid="display.shortcut.delete">
 			<tuv xml:lang="en_US">
 				<seg>Delete this ticket (X)</seg>
-			</tuv>
-		</tu>
-		<tu tuid="display.shortcut.print">
-			<tuv xml:lang="en_US">
-				<seg>Print this ticket (P)</seg>
 			</tuv>
 		</tu>
 		<tu tuid="display.shortcut.read_all">
@@ -4430,11 +4570,6 @@ For example: *receipt*</seg>
 		<tu tuid="preferences.account.mail.display">
 			<tuv xml:lang="en_US">
 				<seg>When I view a mail conversation:</seg>
-			</tuv>
-		</tu>
-		<tu tuid="preferences.account.mail.display.inline_log">
-			<tuv xml:lang="en_US">
-				<seg>Include activity log entries in the timeline</seg>
 			</tuv>
 		</tu>
 		<tu tuid="preferences.account.mail.display.disable_html">

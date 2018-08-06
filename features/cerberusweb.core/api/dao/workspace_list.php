@@ -449,12 +449,6 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 			'tables' => &$tables,
 		);
 	
-		array_walk_recursive(
-			$params,
-			array('DAO_WorkspaceList', '_translateVirtualParameters'),
-			$args
-		);
-		
 		return array(
 			'primary_table' => 'workspace_list',
 			'select' => $select_sql,
@@ -462,23 +456,6 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 			'where' => $where_sql,
 			'sort' => $sort_sql,
 		);
-	}
-	
-	private static function _translateVirtualParameters($param, $key, &$args) {
-		if(!is_a($param, 'DevblocksSearchCriteria'))
-			return;
-			
-		$from_context = CerberusContexts::CONTEXT_WORKSPACE_WORKLIST;
-		$from_index = 'workspace_list.id';
-		
-		$param_key = $param->field;
-		settype($param_key, 'string');
-		
-		switch($param_key) {
-			case SearchFields_WorkspaceList::VIRTUAL_HAS_FIELDSET:
-				self::_searchComponentsVirtualHasFieldset($param, $from_context, $from_index, $args['join_sql'], $args['where_sql']);
-				break;
-		}
 	}
 	
 	/**
@@ -586,6 +563,10 @@ class SearchFields_WorkspaceList extends DevblocksSearchFields {
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_WORKSPACE_WORKLIST, self::getPrimaryKey());
 				break;
 				
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_WORKSPACE_WORKLIST)), self::getPrimaryKey());
+				break;
+				
 			default:
 				if('cf_' == substr($param->field, 0, 3)) {
 					return self::_getWhereSQLFromCustomFields($param);
@@ -594,6 +575,36 @@ class SearchFields_WorkspaceList extends DevblocksSearchFields {
 				}
 				break;
 		}
+	}
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'tab':
+				$key = 'tab.id';
+				break;
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_WorkspaceList::CONTEXT:
+				return parent::_getLabelsForKeyContextValues();
+				break;
+				
+			case SearchFields_WorkspaceList::ID:
+				$models = DAO_WorkspaceList::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+				
+			case SearchFields_WorkspaceList::WORKSPACE_TAB_ID:
+				$models = DAO_WorkspaceTab::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
 	}
 	
 	/**
@@ -703,9 +714,6 @@ class View_WorkspaceList extends C4_AbstractView implements IAbstractView_Subtot
 			SearchFields_WorkspaceList::VIRTUAL_HAS_FIELDSET,
 		));
 		
-		$this->addParamsHidden(array(
-		));
-		
 		$this->doResetCriteria();
 	}
 
@@ -779,33 +787,9 @@ class View_WorkspaceList extends C4_AbstractView implements IAbstractView_Subtot
 		
 		switch($column) {
 			case SearchFields_WorkspaceList::CONTEXT:
-				$label_map = function($values) {
-					$contexts = Extension_DevblocksContext::getAll(false);
-					$labels = array_column(
-						DevblocksPlatform::objectsToArrays(array_intersect_key($contexts, array_flip($values))),
-						'name',
-						'id'
-					);
-					return $labels;
-				};
-				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $label_map);
-				break;
-				
 			case SearchFields_WorkspaceList::WORKSPACE_TAB_ID:
-				$label_map = function($values) {
-					$labels = [];
-					$tabs = DAO_WorkspaceTab::getIds($values);
-					$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($tabs, CerberusContexts::CONTEXT_WORKSPACE_TAB);
-					DevblocksDictionaryDelegate::bulkLazyLoad($dicts, 'page_');
-					
-					foreach($dicts as $dict_id => $dict) {
-						$labels[$dict_id] = sprintf("%s / %s",
-							$dict->page_name,
-							$dict->name
-						);
-					}
-					
-					return $labels;
+				$label_map = function(array $values) use ($column) {
+					return SearchFields_WorkspaceList::getLabelsForKeyValues($column, $values);
 				};
 				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $label_map);
 				break;
@@ -820,7 +804,7 @@ class View_WorkspaceList extends C4_AbstractView implements IAbstractView_Subtot
 				
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -838,6 +822,14 @@ class View_WorkspaceList extends C4_AbstractView implements IAbstractView_Subtot
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_WorkspaceList::NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_WorkspaceList::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_WORKSPACE_WORKLIST],
+					]
 				),
 			'id' => 
 				array(
@@ -879,7 +871,7 @@ class View_WorkspaceList extends C4_AbstractView implements IAbstractView_Subtot
 		
 		// Add quick search links
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links', SearchFields_WorkspaceList::VIRTUAL_CONTEXT_LINK);
 		
 		// Add searchable custom fields
 		
@@ -898,6 +890,10 @@ class View_WorkspaceList extends C4_AbstractView implements IAbstractView_Subtot
 	// [TODO] Implement quick search fields
 	function getParamFromQuickSearchFieldTokens($field, $tokens) {
 		switch($field) {
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
+				break;
+			
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
 					return DevblocksSearchCriteria::getContextLinksParamFromTokens($field, $tokens);
@@ -925,94 +921,15 @@ class View_WorkspaceList extends C4_AbstractView implements IAbstractView_Subtot
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_WorkspaceList::COLUMNS_HIDDEN_JSON:
-			case SearchFields_WorkspaceList::CONTEXT:
-			case SearchFields_WorkspaceList::NAME:
-			case SearchFields_WorkspaceList::OPTIONS_JSON:
-			case SearchFields_WorkspaceList::PARAMS_EDITABLE_JSON:
-			case SearchFields_WorkspaceList::PARAMS_REQUIRED_JSON:
-			case SearchFields_WorkspaceList::PARAMS_REQUIRED_QUERY:
-			case SearchFields_WorkspaceList::RENDER_SORT_JSON:
-			case SearchFields_WorkspaceList::RENDER_SUBTOTALS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case SearchFields_WorkspaceList::ID:
-			case SearchFields_WorkspaceList::RENDER_LIMIT:
-			case SearchFields_WorkspaceList::WORKSPACE_TAB_ID:
-			case SearchFields_WorkspaceList::WORKSPACE_TAB_POS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-				
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-				
-			case SearchFields_WorkspaceList::UPDATED_AT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_WorkspaceList::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-				
-			case SearchFields_WorkspaceList::VIRTUAL_HAS_FIELDSET:
-				$this->_renderCriteriaHasFieldset($tpl, CerberusContexts::CONTEXT_WORKSPACE_WORKLIST);
-				break;
-				
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
-	}
-
 	function renderCriteriaParam($param) {
 		$field = $param->field;
 		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
 			case SearchFields_WorkspaceList::CONTEXT:
-				$label_map = function($values) {
-					$contexts = Extension_DevblocksContext::getAll(false);
-					$labels = array_column(
-						DevblocksPlatform::objectsToArrays(array_intersect_key($contexts, array_flip($values))),
-						'name',
-						'id'
-					);
-					return $labels;
-				};
-				$this->_renderCriteriaParamString($param, $label_map);
-				break;
-				
 			case SearchFields_WorkspaceList::WORKSPACE_TAB_ID:
-				$label_map = function($values) {
-					$labels = [];
-					$tabs = DAO_WorkspaceTab::getIds($values);
-					$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($tabs, CerberusContexts::CONTEXT_WORKSPACE_TAB);
-					DevblocksDictionaryDelegate::bulkLazyLoad($dicts, 'page_');
-					
-					foreach($dicts as $dict_id => $dict) {
-						$labels[$dict_id] = sprintf("%s / %s",
-							$dict->page_name,
-							$dict->name
-						);
-					}
-					
-					return $labels;
-				};
-				$this->_renderCriteriaParamString($param, $label_map);
+				$label_map = SearchFields_WorkspaceList::getLabelsForKeyValues($field, $values);
+				parent::_renderCriteriaParamString($param, $label_map);
 				break;
 				
 			default:
@@ -1127,6 +1044,46 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=workspace_list&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_WorkspaceList();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['context'] = array(
+			'label' => mb_ucfirst($translate->_('common.type')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->context,
+		);
+		
+		$properties['context'] = array(
+			'label' => mb_ucfirst($translate->_('common.tab')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->workspace_tab_id,
+			'params' => [
+				'context' => CerberusContexts::CONTEXT_WORKSPACE_TAB,
+			],
+		);
+		
+		$properties['updated'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated_at,
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -1509,12 +1466,6 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 			$tpl->display('devblocks:cerberusweb.core::internal/workspaces/worklists/peek_edit.tpl');
 			
 		} else {
-			// Counts
-			$activity_counts = array(
-				//'comments' => DAO_Comment::count($context, $context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				$context => array(
@@ -1522,7 +1473,7 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -1547,6 +1498,10 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$tpl->display('devblocks:cerberusweb.core::internal/workspaces/worklists/peek.tpl');
 		}

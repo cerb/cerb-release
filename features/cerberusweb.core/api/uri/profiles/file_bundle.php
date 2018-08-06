@@ -17,102 +17,15 @@
 
 class PageSection_ProfilesFileBundle extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // file_bundle
-		$id = array_shift($stack); // 123
-
-		@$id = intval($id);
+		@$context_id = intval(array_shift($stack)); // 123
 		
-		if(null == ($file_bundle = DAO_FileBundle::get($id))) {
-			return;
-		}
-		$tpl->assign('file_bundle', $file_bundle);
-	
-		// Tab persistence
+		$context = CerberusContexts::CONTEXT_FILE_BUNDLE;
 		
-		$point = 'profiles.file_bundle.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-	
-		// Properties
-			
-		$properties = array();
-			
-		$properties['name'] = array(
-			'label' => mb_ucfirst($translate->_('common.name')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $file_bundle->name,
-		);
-			
-		$properties['tag'] = array(
-			'label' => mb_ucfirst($translate->_('common.tag')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $file_bundle->tag,
-		);
-			
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $file_bundle->updated_at,
-		);
-			
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_FILE_BUNDLE, $file_bundle->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_FILE_BUNDLE, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_FILE_BUNDLE, $file_bundle->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_FILE_BUNDLE => array(
-				$file_bundle->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_FILE_BUNDLE,
-						$file_bundle->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-				
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-			
-		// Attachments
-		
-		$attachments = DAO_Attachment::getByContextIds(CerberusContexts::CONTEXT_FILE_BUNDLE, $file_bundle->id);
-		$tpl->assign('attachments', $attachments);
-		
-		// Tabs
-		
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_FILE_BUNDLE);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::internal/file_bundle/profile.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -296,7 +209,6 @@ class PageSection_ProfilesFileBundle extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=file_bundle', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.file.bundle.explore.toolbar',
 				);
 				$models[] = $model;
 				

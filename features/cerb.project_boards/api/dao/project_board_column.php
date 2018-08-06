@@ -376,12 +376,6 @@ class DAO_ProjectBoardColumn extends Cerb_ORMHelper {
 			'tables' => &$tables,
 		);
 	
-		array_walk_recursive(
-			$params,
-			array('DAO_ProjectBoardColumn', '_translateVirtualParameters'),
-			$args
-		);
-		
 		return array(
 			'primary_table' => 'project_board_column',
 			'select' => $select_sql,
@@ -389,23 +383,6 @@ class DAO_ProjectBoardColumn extends Cerb_ORMHelper {
 			'where' => $where_sql,
 			'sort' => $sort_sql,
 		);
-	}
-	
-	private static function _translateVirtualParameters($param, $key, &$args) {
-		if(!is_a($param, 'DevblocksSearchCriteria'))
-			return;
-			
-		$from_context = Context_ProjectBoardColumn::ID;
-		$from_index = 'project_board_column.id';
-		
-		$param_key = $param->field;
-		settype($param_key, 'string');
-		
-		switch($param_key) {
-			case SearchFields_ProjectBoardColumn::VIRTUAL_HAS_FIELDSET:
-				self::_searchComponentsVirtualHasFieldset($param, $from_context, $from_index, $args['join_sql'], $args['where_sql']);
-				break;
-		}
 	}
 	
 	/**
@@ -493,9 +470,9 @@ class SearchFields_ProjectBoardColumn extends DevblocksSearchFields {
 	}
 	
 	static function getCustomFieldContextKeys() {
-		// [TODO] Context
 		return array(
-			'' => new DevblocksSearchFieldContextKeys('project_board_column.id', self::ID),
+			'cerberusweb.contexts.project.board.column' => new DevblocksSearchFieldContextKeys('project_board_column.id', self::ID),
+			'cerberusweb.contexts.project.board' => new DevblocksSearchFieldContextKeys('project_board_column.board_id', self::BOARD_ID),
 		);
 	}
 	
@@ -508,12 +485,10 @@ class SearchFields_ProjectBoardColumn extends DevblocksSearchFields {
 			case self::VIRTUAL_CONTEXT_LINK:
 				return self::_getWhereSQLFromContextLinksField($param, Context_ProjectBoardColumn::ID, self::getPrimaryKey());
 				break;
-				
-			/*
-			case self::VIRTUAL_WATCHERS:
-				return self::_getWhereSQLFromWatchersField($param, '', self::getPrimaryKey());
+			
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(Context_ProjectBoardColumn::ID)), self::getPrimaryKey());
 				break;
-			*/
 			
 			default:
 				if('cf_' == substr($param->field, 0, 3)) {
@@ -523,6 +498,32 @@ class SearchFields_ProjectBoardColumn extends DevblocksSearchFields {
 				}
 				break;
 		}
+	}
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'board':
+				$key = 'board.id';
+				break;
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_ProjectBoardColumn::ID:
+				$models = DAO_ProjectBoardColumn::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+				
+			case SearchFields_ProjectBoardColumn::BOARD_ID:
+				$models = DAO_ProjectBoard::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
 	}
 	
 	/**
@@ -645,10 +646,6 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 			SearchFields_ProjectBoardColumn::VIRTUAL_WATCHERS,
 		));
 		
-		$this->addParamsHidden(array(
-			SearchFields_ProjectBoardColumn::VIRTUAL_BOARD_SEARCH,
-		));
-		
 		$this->doResetCriteria();
 	}
 
@@ -679,7 +676,7 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 	function getSubtotalFields() {
 		$all_fields = $this->getParamsAvailable(true);
 		
-		$fields = array();
+		$fields = [];
 
 		if(is_array($all_fields))
 		foreach($all_fields as $field_key => $field_model) {
@@ -687,9 +684,9 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 			
 			switch($field_key) {
 				// Fields
-//				case SearchFields_ProjectBoardColumn::EXAMPLE:
-//					$pass = true;
-//					break;
+				case SearchFields_ProjectBoardColumn::BOARD_ID:
+					$pass = true;
+					break;
 					
 				// Virtuals
 				case SearchFields_ProjectBoardColumn::VIRTUAL_CONTEXT_LINK:
@@ -721,13 +718,13 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 			return array();
 		
 		switch($column) {
-//			case SearchFields_ProjectBoardColumn::EXAMPLE_BOOL:
-//				$counts = $this->_getSubtotalCountForBooleanColumn($context, $column);
-//				break;
-
-//			case SearchFields_ProjectBoardColumn::EXAMPLE_STRING:
-//				$counts = $this->_getSubtotalCountForStringColumn($context, $column);
-//				break;
+			case SearchFields_ProjectBoardColumn::BOARD_ID:
+				$label_map = function($ids) {
+					$models = DAO_ProjectBoard::getIds($ids);
+					return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				};
+				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $label_map);
+				break;
 				
 			case SearchFields_ProjectBoardColumn::VIRTUAL_CONTEXT_LINK:
 				$counts = $this->_getSubtotalCountForContextLinkColumn($context, $column);
@@ -743,7 +740,7 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 			
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -754,7 +751,6 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 	}
 	
 	function getQuickSearchFields() {
-		// [TODO] Implement quick search fields
 		$search_fields = SearchFields_ProjectBoardColumn::getFields();
 	
 		$fields = array(
@@ -777,6 +773,14 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 					'options' => array('param_key' => SearchFields_ProjectBoardColumn::BOARD_ID),
 					'examples' => [
 						['type' => 'chooser', 'context' => Context_ProjectBoard::ID, 'q' => ''],
+					]
+				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_ProjectBoardColumn::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . Context_ProjectBoardColumn::ID],
 					]
 				),
 			'id' => 
@@ -806,7 +810,7 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 		
 		// Add quick search links
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links', SearchFields_ProjectBoardColumn::VIRTUAL_CONTEXT_LINK);
 		
 		// Add searchable custom fields
 		
@@ -826,6 +830,10 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 		switch($field) {
 			case 'board':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_ProjectBoardColumn::VIRTUAL_BOARD_SEARCH);
+				break;
+				
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
 				break;
 			
 			default:
@@ -858,58 +866,21 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_ProjectBoardColumn::NAME:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case SearchFields_ProjectBoardColumn::ID:
-			case SearchFields_ProjectBoardColumn::BOARD_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-				
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-				
-			case SearchFields_ProjectBoardColumn::UPDATED_AT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_ProjectBoardColumn::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-				
-			case SearchFields_ProjectBoardColumn::VIRTUAL_HAS_FIELDSET:
-				$this->_renderCriteriaHasFieldset($tpl, Context_ProjectBoardColumn::ID);
-				break;
-				
-			case SearchFields_ProjectBoardColumn::VIRTUAL_WATCHERS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-				
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
-	}
-
 	function renderCriteriaParam($param) {
 		$field = $param->field;
-		$values = !is_array($param->value) ? array($param->value) : $param->value;
+		$values = !is_array($param->value) ? [$param->value] : $param->value;
 
 		switch($field) {
+			case SearchFields_ProjectBoardColumn::ID:
+				$label_map = SearchFields_ProjectBoardColumn::getLabelsForKeyValues($field, $values);
+				parent::_renderCriteriaParamString($param, $label_map);
+				break;
+				
+			case SearchFields_ProjectBoardColumn::BOARD_ID:
+				$label_map = SearchFields_ProjectBoardColumn::getLabelsForKeyValues($field, $values);
+				parent::_renderCriteriaParamString($param, $label_map);
+				break;
+				
 			default:
 				parent::renderCriteriaParam($param);
 				break;
@@ -1026,6 +997,40 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 		return $url;
 	}
 	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_ProjectBoardColumn();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['board_id'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('projects.common.board'),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->board_id,
+			'params' => [
+				'context' => Context_ProjectBoard::ID,
+			]
+		);
+		
+		$properties['updated'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated_at,
+		);
+		
+		return $properties;
+	}
+	
 	function getMeta($context_id) {
 		if(false == ($project_board_column = DAO_ProjectBoardColumn::get($context_id)))
 			return [];
@@ -1048,6 +1053,7 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 	
 	function getDefaultProperties() {
 		return array(
+			'board__label',
 			'updated_at',
 		);
 	}
@@ -1079,12 +1085,14 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 			'name' => $prefix.$translate->_('common.name'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
+			'board__label' => $prefix.$translate->_('projects.common.board'),
 		);
 		
 		// Token types
 		$token_types = array(
 			'_label' => 'context_url',
 			'board_id' => Model_CustomField::TYPE_NUMBER,
+			'board__label' => 'context_url',
 			'id' => Model_CustomField::TYPE_NUMBER,
 			'name' => Model_CustomField::TYPE_SINGLE_LINE,
 			'updated_at' => Model_CustomField::TYPE_DATE,
@@ -1100,10 +1108,11 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 			$token_types = array_merge($token_types, $custom_field_types);
 		
 		// Token values
-		$token_values = array();
+		$token_values = [];
 		
 		$token_values['_context'] = Context_ProjectBoardColumn::ID;
 		$token_values['_types'] = $token_types;
+		$token_values['board__context'] = 'cerberusweb.contexts.project.board';
 		
 		if($project_board_column) {
 			$token_values['_loaded'] = true;
@@ -1337,12 +1346,6 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 			$tpl->display('devblocks:cerb.project_boards::project_board_column/peek_edit.tpl');
 			
 		} else {
-			// Counts
-			$activity_counts = array(
-				//'comments' => DAO_Comment::count($context, $context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				$context => array(
@@ -1350,7 +1353,7 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -1367,14 +1370,17 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 				return;
 			
 			// Dictionary
-			$labels = array();
-			$values = array();
+			$labels = $values = [];
 			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			$tpl->assign('dict', $dict);
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$tpl->display('devblocks:cerb.project_boards::project_board_column/peek.tpl');
 		}

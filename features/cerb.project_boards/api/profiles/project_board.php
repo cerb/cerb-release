@@ -17,84 +17,15 @@
 
 class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // project_board 
-		$id = array_shift($stack); // 123
-		
-		@$id = intval($id);
-		
-		if(null == ($project_board = DAO_ProjectBoard::get($id))) {
-			return;
-		}
-		$tpl->assign('project_board', $project_board);
-		
-		// Tab persistence
-		
-		$point = 'profiles.project_board.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-		
-		// Properties
-		
-		$properties = array();
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $project_board->updated_at,
-		);
-		
-		// Custom Fields
-		
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(Context_ProjectBoard::ID, $project_board->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(Context_ProjectBoard::ID, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
+		@$context_id = intval(array_shift($stack)); // 123
 
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(Context_ProjectBoard::ID, $project_board->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
+		$context = Context_ProjectBoard::ID;
 		
-		// Link counts
-		
-		$properties_links = array(
-			Context_ProjectBoard::ID => array(
-				$project_board->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						Context_ProjectBoard::ID,
-						$project_board->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-		
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, Context_ProjectBoard::ID);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerb.project_boards::boards/profile.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -204,22 +135,6 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 			));
 			return;
 		}
-	}
-	
-	function showBoardTabAction() {
-		@$board_id = DevblocksPlatform::importGPC($_REQUEST['context_id'],'integer',0);
-		
-		$tpl = DevblocksPlatform::services()->template();
-		
-		if(empty($board_id) || false == ($board = DAO_ProjectBoard::get($board_id)))
-			return;
-		
-		$tpl->assign('board', $board);
-		
-		$contexts = Extension_DevblocksContext::getAll(false, 'links');
-		$tpl->assign('contexts', $contexts);
-		
-		$tpl->display('devblocks:cerb.project_boards::boards/board/board.tpl');
 	}
 	
 	// [TODO] This should run on newly added cards too
@@ -372,7 +287,7 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 		$pos = 0;
 		
 		do {
-			$models = array();
+			$models = [];
 			list($results, $total) = $view->getData();
 
 			// Summary row
@@ -386,7 +301,6 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=project_board', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.project.board.explore.toolbar',
 				);
 				$models[] = $model;
 				

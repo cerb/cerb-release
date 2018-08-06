@@ -654,14 +654,6 @@ class DevblocksEventHelper {
 		// Lazy load custom fields
 		$dict->custom_;
 		
-		/**
-		 * If we have a fieldset-based custom field that doesn't exist in scope yet
-		 * then link it.
-		 */
-		if($custom_field->custom_fieldset_id && !isset($dict->$token)) {
-			DAO_ContextLink::setLink($context, $context_id, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, $custom_field->custom_fieldset_id);
-		}
-		
 		switch($custom_field->type) {
 			case Model_CustomField::TYPE_SINGLE_LINE:
 			case Model_CustomField::TYPE_MULTI_LINE:
@@ -1724,15 +1716,14 @@ class DevblocksEventHelper {
 	}
 	
 	static function simulateActionGetWorklistMetric($params, DevblocksDictionaryDelegate $dict) {
-		@$key = DevblocksPlatform::importVar($params['key'],'string','');
 		@$var = DevblocksPlatform::importVar($params['var'],'string','');
-
+		
 		$out = '';
 		
 		$trigger = $dict->__trigger;
 
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-		$key = $tpl_builder->build($key, $dict);
+		@$query = $tpl_builder->build($params['query'], $dict) ?: '';
 		
 		// Run it in the simulator too
 		self::runActionGetWorklistMetric($params, $dict);
@@ -1741,7 +1732,7 @@ class DevblocksEventHelper {
 		
 		$out .= sprintf(">> Getting value for worklist metric:\nType: %s\nQuery: %s\nFunction: %s\nField: %s\n\n%s",
 			@$params['context'],
-			@$params['query'],
+			$query,
 			@$params['metric_func'],
 			@$params['metric_field'],
 			$value
@@ -1756,6 +1747,8 @@ class DevblocksEventHelper {
 		@$metric_func = DevblocksPlatform::importVar($params['metric_func'],'string','');
 		@$metric_field = DevblocksPlatform::importVar($params['metric_field'],'string','');
 		@$var = DevblocksPlatform::importVar($params['var'],'string','');
+		
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		
 		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
 			return false;
@@ -1776,6 +1769,8 @@ class DevblocksEventHelper {
 		
 		$fields = $view->getFields();
 		@$metric_field = $fields[$metric_field]; /* @var $metric_field DevblocksSearchField */
+		
+		$query = $tpl_builder->build($query, $dict);
 		
 		$view->addParamsWithQuickSearch($query, true);
 		$view->renderPage = 0;
@@ -1818,10 +1813,12 @@ class DevblocksEventHelper {
 			);
 			
 		} else {
-			$select_query = sprintf("%s.%s",
-				$metric_field->db_table,
-				$metric_field->db_column
-			);
+			if($metric_field) {
+				$select_query = sprintf("%s.%s",
+					$metric_field->db_table,
+					$metric_field->db_column
+				);
+			}
 			
 			switch($metric_func) {
 				case 'sum':
@@ -5220,10 +5217,6 @@ class DevblocksEventHelper {
 		if(null == ($view = DevblocksEventHelper::getViewFromAbstractJson($token, $params, $trigger, $context)))
 			return;
 		
-		// Load values and ignore _labels and _types
-		$view->setPlaceholderValues($dict->getDictionary(null, false));
-
-		$view->persist();
 		$view->setAutoPersist(false);
 		
 		// Save the generated view_id in the dictionary for reuse (paging, etc)
@@ -5240,7 +5233,9 @@ class DevblocksEventHelper {
 		if(isset($params['search_mode']) 
 				&& $params['search_mode'] == 'quick_search'
 				&& isset($params['quick_search'])) {
-			$view->addParamsWithQuickSearch($params['quick_search']);
+					$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+					$query = $tpl_builder->build($params['quick_search'], $dict);
+					$view->addParamsWithQuickSearch($query);
 		}
 		
 		list($results) = $view->getData();

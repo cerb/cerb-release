@@ -17,106 +17,15 @@
 
 class PageSection_ProfilesBehavior extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // trigger_event 
-		$id = array_shift($stack); // 123
+		@$context_id = intval(array_shift($stack)); // 123
 
-		@$id = intval($id);
+		$context = CerberusContexts::CONTEXT_BEHAVIOR;
 		
-		if(null == ($trigger_event = DAO_TriggerEvent::get($id))) {
-			return;
-		}
-		
-		$tpl->assign('trigger_event', $trigger_event);
-	
-		// Tab persistence
-		
-		$point = 'profiles.trigger_event.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-		
-		// Properties
-		
-		$properties = array();
-		
-		$properties['bot_id'] = array(
-			'label' => mb_ucfirst($translate->_('common.bot')),
-			'type' => Model_CustomField::TYPE_LINK,
-			'value' => $trigger_event->bot_id,
-			'params' => [
-				'context' => CerberusContexts::CONTEXT_BOT,
-			]
-		);
-		
-		$properties['event_point'] = array(
-			'label' => mb_ucfirst($translate->_('common.event')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $trigger_event->event_point,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $trigger_event->updated_at,
-		);
-		
-		$properties['is_disabled'] = array(
-			'label' => mb_ucfirst($translate->_('common.disabled')),
-			'type' => Model_CustomField::TYPE_CHECKBOX,
-			'value' => $trigger_event->is_disabled,
-		);
-	
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_BEHAVIOR, $trigger_event->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_BEHAVIOR, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_BEHAVIOR, $trigger_event->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_BEHAVIOR => array(
-				$trigger_event->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_BEHAVIOR,
-						$trigger_event->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-			
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_BEHAVIOR);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/behavior.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	// [TODO] Merge with the version on c=internal
@@ -159,7 +68,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 					case 'import':
 						@$import_json = DevblocksPlatform::importGPC($_REQUEST['import_json'],'string', '');
 						@$bot_id = DevblocksPlatform::importGPC($_REQUEST['bot_id'],'integer', 0);
-						@$configure = DevblocksPlatform::importGPC($_REQUEST['configure'],'array', array());
+						@$configure = DevblocksPlatform::importGPC($_REQUEST['configure'],'array', []);
 						
 						if(empty($import_json))
 							throw new Exception_DevblocksAjaxValidationError("The JSON to import is required.", "import_json");
@@ -301,7 +210,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 						@$var_labels = DevblocksPlatform::importGPC($_REQUEST['var_label'],'array',array());
 						@$var_is_private = DevblocksPlatform::importGPC($_REQUEST['var_is_private'],'array',array());
 						
-						$variables = array();
+						$variables = [];
 						
 						if(is_array($var_labels))
 						foreach($var_labels as $idx => $v) {
@@ -450,31 +359,6 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 			return;
 			
 		}
-	}
-	
-	function showBuilderTabAction() {
-		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
-		
-		$active_worker = CerberusApplication::getActiveWorker();
-		$tpl = DevblocksPlatform::services()->template();
-
-		if(empty($id))
-			return;
-
-		if(false == ($behavior = DAO_TriggerEvent::get($id)))
-			return;
-			
-		if(false == ($event = $behavior->getEvent()))
-			return;
-		
-		if(false == ($va = $behavior->getBot()))
-			return;
-		
-		$tpl->assign('behavior', $behavior);
-		$tpl->assign('event', $event->manifest);
-		$tpl->assign('va', $va);
-		
-		$tpl->display('devblocks:cerberusweb.core::internal/bot/behavior/tab.tpl');
 	}
 	
 	function getEventsMenuByBotAction() {
@@ -678,7 +562,6 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=trigger_event', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.trigger.event.explore.toolbar',
 				);
 				$models[] = $model;
 				

@@ -1,18 +1,18 @@
 <?php
 /***********************************************************************
- | Cerb(tm) developed by Webgroup Media, LLC.
- |-----------------------------------------------------------------------
- | All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
- |   unless specifically noted otherwise.
- |
- | This source code is released under the Devblocks Public License.
- | The latest version of this license can be found here:
- | http://cerb.ai/license
- |
- | By using this software, you acknowledge having read this license
- | and agree to be bound thereby.
- | ______________________________________________________________________
- |	http://cerb.ai	    http://webgroup.media
+| Cerb(tm) developed by Webgroup Media, LLC.
+|-----------------------------------------------------------------------
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+|   unless specifically noted otherwise.
+|
+| This source code is released under the Devblocks Public License.
+| The latest version of this license can be found here:
+| http://cerb.ai/license
+|
+| By using this software, you acknowledge having read this license
+| and agree to be bound thereby.
+| ______________________________________________________________________
+|	http://cerb.ai	    http://webgroup.media
  ***********************************************************************/
 
 class DAO_PluginLibrary extends Cerb_ORMHelper {
@@ -545,6 +545,24 @@ class SearchFields_PluginLibrary extends DevblocksSearchFields {
 		}
 	}
 	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_PluginLibrary::ID:
+				$models = DAO_PluginLibrary::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -801,12 +819,6 @@ class View_PluginLibrary extends C4_AbstractView implements IAbstractView_QuickS
 			SearchFields_PluginLibrary::FULLTEXT_PLUGIN_LIBRARY,
 		));
 		
-		$this->addParamsHidden(array(
-			SearchFields_PluginLibrary::ICON_URL,
-			SearchFields_PluginLibrary::ID,
-			SearchFields_PluginLibrary::REQUIREMENTS_JSON,
-		));
-		
 		$this->doResetCriteria();
 	}
 
@@ -919,9 +931,9 @@ class View_PluginLibrary extends C4_AbstractView implements IAbstractView_QuickS
 								$v = $oper_hint . DevblocksPlatform::strVersionToInt($v, 3);
 								
 							} else if(preg_match('#^(.*)?\.\.\.(.*)#', $v, $matches)) {
-								 $from = DevblocksPlatform::strVersionToInt(trim($matches[1]), 3);
-								 $to = DevblocksPlatform::strVersionToInt(trim($matches[2]), 3);
-								 $v = sprintf("%d...%d", $from, $to);
+								$from = DevblocksPlatform::strVersionToInt(trim($matches[1]), 3);
+								$to = DevblocksPlatform::strVersionToInt(trim($matches[2]), 3);
+								$v = sprintf("%d...%d", $from, $to);
 							} else {
 								$v = DevblocksPlatform::strVersionToInt($v, 3);
 							}
@@ -957,35 +969,6 @@ class View_PluginLibrary extends C4_AbstractView implements IAbstractView_QuickS
 		
 		$tpl->assign('view_template', 'devblocks:cerberusweb.core::configuration/section/plugin_library/view.tpl');
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
-	}
-
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_PluginLibrary::PLUGIN_ID:
-			case SearchFields_PluginLibrary::NAME:
-			case SearchFields_PluginLibrary::AUTHOR:
-			case SearchFields_PluginLibrary::DESCRIPTION:
-			case SearchFields_PluginLibrary::LINK:
-			case SearchFields_PluginLibrary::LATEST_VERSION:
-			case SearchFields_PluginLibrary::ICON_URL:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-			case SearchFields_PluginLibrary::ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-			case SearchFields_PluginLibrary::UPDATED:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-			case SearchFields_PluginLibrary::FULLTEXT_PLUGIN_LIBRARY:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__fulltext.tpl');
-				break;
-		}
 	}
 
 	function renderCriteriaParam($param) {

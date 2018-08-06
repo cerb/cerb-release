@@ -576,7 +576,7 @@ class SearchFields_ContextActivityLog extends DevblocksSearchFields {
 				}
 
 				if(is_array($param->value)) {
-					$wheres = array();
+					$wheres = [];
 					foreach($param->value as $context_pair) {
 						@list($context, $context_id) = explode(':', $context_pair);
 						if(!empty($context_id)) {
@@ -596,7 +596,10 @@ class SearchFields_ContextActivityLog extends DevblocksSearchFields {
 				}
 				
 				if(!empty($wheres))
-					return '(' . implode(' OR ', $wheres) . ') ';
+					return 
+						($param->operator == DevblocksSearchCriteria::OPER_NIN ? 'NOT ' : '') .
+						'(' . implode(' OR ', $wheres) . ') '
+						;
 				
 				break;
 				
@@ -608,6 +611,111 @@ class SearchFields_ContextActivityLog extends DevblocksSearchFields {
 				}
 				break;
 		}
+	}
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'actor':
+				$field_actor_context = $search_fields[SearchFields_ContextActivityLog::ACTOR_CONTEXT];
+				$field_actor_context_id = $search_fields[SearchFields_ContextActivityLog::ACTOR_CONTEXT_ID];
+				
+				return [
+					'key_query' => $key,
+					'key_select' => 'actor',
+					'type' => DevblocksSearchCriteria::TYPE_CONTEXT,
+					'sql_select' => sprintf("CONCAT_WS(':', %s.%s, %s.%s)",
+						Cerb_ORMHelper::escape($field_actor_context->db_table),
+						Cerb_ORMHelper::escape($field_actor_context->db_column),
+						Cerb_ORMHelper::escape($field_actor_context_id->db_table),
+						Cerb_ORMHelper::escape($field_actor_context_id->db_column)
+					)
+				];
+				break;
+				
+			case 'actor.type':
+				$search_field = $search_fields[SearchFields_ContextActivityLog::ACTOR_CONTEXT];
+				
+				return [
+					'key_query' => $key,
+					'key_select' => $search_field->token,
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'sql_select' => sprintf("%s.%s",
+						Cerb_ORMHelper::escape($search_field->db_table),
+						Cerb_ORMHelper::escape($search_field->db_column)
+					)
+				];
+				break;
+				
+			case 'target':
+				$field_target_context = $search_fields[SearchFields_ContextActivityLog::TARGET_CONTEXT];
+				$field_target_context_id = $search_fields[SearchFields_ContextActivityLog::TARGET_CONTEXT_ID];
+				
+				return [
+					'key_query' => $key,
+					'key_select' => 'target',
+					'type' => DevblocksSearchCriteria::TYPE_CONTEXT,
+					'sql_select' => sprintf("CONCAT_WS(':', %s.%s, %s.%s)",
+						Cerb_ORMHelper::escape($field_target_context->db_table),
+						Cerb_ORMHelper::escape($field_target_context->db_column),
+						Cerb_ORMHelper::escape($field_target_context_id->db_table),
+						Cerb_ORMHelper::escape($field_target_context_id->db_column)
+					)
+				];
+				break;
+				
+			case 'target.type':
+				$search_field = $search_fields[SearchFields_ContextActivityLog::TARGET_CONTEXT];
+				
+				return [
+					'key_query' => $key,
+					'key_select' => $search_field->token,
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'sql_select' => sprintf("%s.%s",
+						Cerb_ORMHelper::escape($search_field->db_table),
+						Cerb_ORMHelper::escape($search_field->db_column)
+					)
+				];
+				break;
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_ContextActivityLog::ACTIVITY_POINT:
+				$strings = [];
+				
+				$activities = DevblocksPlatform::getActivityPointRegistry();
+				$translate = DevblocksPlatform::getTranslationService();
+				
+				if(is_array($values))
+				foreach($values as $v) {
+					$string = $v;
+					if(isset($activities[$v])) {
+						@$string_id = $activities[$v]['params']['label_key'];
+						if(!empty($string_id))
+							$string = $translate->_($string_id);
+					}
+					
+					$strings[$v] = $string;
+				}
+				
+				return $strings;
+				break;
+			
+			case SearchFields_ContextActivityLog::ACTOR_CONTEXT:
+			case SearchFields_ContextActivityLog::TARGET_CONTEXT:
+				return self::_getLabelsForKeyContextValues($values);
+				break;
+				
+			case 'actor':
+			case 'target':
+				return self::_getLabelsForKeyContextAndIdValues($values);
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
 	}
 	
 	/**
@@ -672,12 +780,6 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 			SearchFields_ContextActivityLog::CREATED,
 		);
 		$this->addColumnsHidden(array(
-			SearchFields_ContextActivityLog::ACTOR_CONTEXT_ID,
-			SearchFields_ContextActivityLog::TARGET_CONTEXT_ID,
-			SearchFields_ContextActivityLog::ID,
-		));
-		
-		$this->addParamsHidden(array(
 			SearchFields_ContextActivityLog::ACTOR_CONTEXT_ID,
 			SearchFields_ContextActivityLog::TARGET_CONTEXT_ID,
 			SearchFields_ContextActivityLog::ID,
@@ -778,7 +880,7 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 				
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -826,8 +928,8 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 		
 		// Add dynamic actor.* and target.* filters
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('actor', $fields);
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('target', $fields);
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('actor', $fields, 'search', SearchFields_ContextActivityLog::VIRTUAL_ACTOR);
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('target', $fields, 'search', SearchFields_ContextActivityLog::VIRTUAL_TARGET);
 		
 		// Add searchable custom fields
 		
@@ -872,49 +974,6 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_ContextActivityLog::ENTRY_JSON:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-			case SearchFields_ContextActivityLog::ID:
-			case SearchFields_ContextActivityLog::ACTOR_CONTEXT_ID:
-			case SearchFields_ContextActivityLog::TARGET_CONTEXT_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-			case SearchFields_ContextActivityLog::CREATED:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-			case SearchFields_ContextActivityLog::ACTIVITY_POINT:
-				$activities = DevblocksPlatform::getActivityPointRegistry();
-				$options = array();
-				
-				foreach($activities as $activity_id => $activity) {
-					if(isset($activity['params']['label_key']))
-						$options[$activity_id] = $activity['params']['label_key'];
-				}
-				
-				$tpl->assign('options', $options);
-				
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__list.tpl');
-				break;
-			case SearchFields_ContextActivityLog::ACTOR_CONTEXT:
-			case SearchFields_ContextActivityLog::TARGET_CONTEXT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context.tpl');
-				break;
-			case SearchFields_ContextActivityLog::VIRTUAL_ACTOR:
-			case SearchFields_ContextActivityLog::VIRTUAL_TARGET:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-		}
-	}
-
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
 		
@@ -938,41 +997,12 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 		switch($field) {
 			case SearchFields_ContextActivityLog::ACTOR_CONTEXT:
 			case SearchFields_ContextActivityLog::TARGET_CONTEXT:
-				$strings = array();
-				$contexts = Extension_DevblocksContext::getAll(false);
-				
-				if(is_array($values))
-				foreach($values as $v) {
-					$string = $v;
-					if(isset($contexts[$v])) {
-						if(isset($contexts[$v]->name))
-							$string = $contexts[$v]->name;
-					}
-					
-					$strings[] = $string;
-				}
-				
+				$strings = SearchFields_ContextActivityLog::getLabelsForKeyValues($field, $values);
 				return implode(' or ', $strings);
 				break;
 				
 			case SearchFields_ContextActivityLog::ACTIVITY_POINT:
-				$strings = array();
-				
-				$activities = DevblocksPlatform::getActivityPointRegistry();
-				$translate = DevblocksPlatform::getTranslationService();
-				
-				if(is_array($values))
-				foreach($values as $v) {
-					$string = $v;
-					if(isset($activities[$v])) {
-						@$string_id = $activities[$v]['params']['label_key'];
-						if(!empty($string_id))
-							$string = $translate->_($string_id);
-					}
-					
-					$strings[] = $string;
-				}
-				
+				$strings = SearchFields_ContextActivityLog::getLabelsForKeyValues($field, $values);
 				return implode(' or ', $strings);
 				break;
 				
@@ -1010,19 +1040,19 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 				break;
 
 			case SearchFields_ContextActivityLog::ACTIVITY_POINT:
-				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',array());
+				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$options);
 				break;
 				
 			case SearchFields_ContextActivityLog::ACTOR_CONTEXT:
 			case SearchFields_ContextActivityLog::TARGET_CONTEXT:
-				@$contexts = DevblocksPlatform::importGPC($_REQUEST['contexts'],'array',array());
+				@$contexts = DevblocksPlatform::importGPC($_REQUEST['contexts'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$contexts);
 				break;
 				
 			case SearchFields_ContextActivityLog::VIRTUAL_ACTOR:
 			case SearchFields_ContextActivityLog::VIRTUAL_TARGET:
-				@$context_links = DevblocksPlatform::importGPC($_REQUEST['context_link'],'array',array());
+				@$context_links = DevblocksPlatform::importGPC($_REQUEST['context_link'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$context_links);
 				break;
 		}
@@ -1034,7 +1064,9 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 	}
 };
 
-class Context_ContextActivityLog extends Extension_DevblocksContext {
+class Context_ContextActivityLog extends Extension_DevblocksContext implements IDevblocksContextProfile {
+	const ID = 'cerberusweb.contexts.activity_log';
+	
 	static function isReadableByActor($models, $actor) {
 		// Everyone can read
 		return CerberusContexts::allowEverything($models);
@@ -1050,6 +1082,68 @@ class Context_ContextActivityLog extends Extension_DevblocksContext {
 			return CerberusContexts::allowEverything($models);
 		
 		return CerberusContexts::denyEverything($models);
+	}
+	
+	function profileGetUrl($context_id) {
+		return null;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		/* @var $model Model_ContextActivityLog */
+		
+		if(is_null($model))
+			$model = new Model_ContextActivityLog();
+		
+		$properties['label'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		// [TODO] Translate value
+		$properties['activity'] = array(
+			'label' => mb_ucfirst($translate->_('common.activity')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->activity_point,
+		);
+		
+		$properties['created'] = array(
+			'label' => mb_ucfirst($translate->_('common.created')),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->created,
+		);
+		
+		$properties['actor'] = array(
+			'label' => mb_ucfirst($translate->_('common.actor')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->actor_context_id,
+			'params' => [
+				'context' => $model->actor_context,
+			],
+		);
+		
+		$properties['target'] = array(
+			'label' => mb_ucfirst($translate->_('common.target')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->target_context_id,
+			'params' => [
+				'context' => $model->target_context,
+			],
+		);
+		
+		$properties['id'] = array(
+			'label' => mb_ucfirst($translate->_('common.id')),
+			'type' => Model_CustomField::TYPE_NUMBER,
+			'value' => $model->id,
+		);
+		
+		return $properties;
 	}
 	
 	function getRandom() {

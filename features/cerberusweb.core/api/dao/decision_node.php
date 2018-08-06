@@ -447,6 +447,24 @@ class SearchFields_DecisionNode extends DevblocksSearchFields {
 		}
 	}
 	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_DecisionNode::ID:
+				$models = DAO_DecisionNode::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -519,15 +537,6 @@ class View_DecisionNode extends C4_AbstractView {
 			SearchFields_DecisionNode::POS,
 		));
 		
-		$this->addParamsHidden(array(
-			SearchFields_DecisionNode::ID,
-			SearchFields_DecisionNode::PARENT_ID,
-			SearchFields_DecisionNode::TRIGGER_ID,
-			SearchFields_DecisionNode::PARAMS_JSON,
-			SearchFields_DecisionNode::NODE_TYPE,
-			SearchFields_DecisionNode::POS,
-		));
-		
 		$this->doResetCriteria();
 	}
 
@@ -564,45 +573,6 @@ class View_DecisionNode extends C4_AbstractView {
 
 		// [TODO] Set your template path
 		//$tpl->display('devblocks:example.plugin::path/to/view.tpl');
-	}
-
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		// [TODO] Move the fields into the proper data type
-		switch($field) {
-			case SearchFields_DecisionNode::ID:
-			case SearchFields_DecisionNode::PARENT_ID:
-			case SearchFields_DecisionNode::TRIGGER_ID:
-			case SearchFields_DecisionNode::NODE_TYPE:
-			case SearchFields_DecisionNode::TITLE:
-			case SearchFields_DecisionNode::STATUS_ID:
-			case SearchFields_DecisionNode::POS:
-			case SearchFields_DecisionNode::PARAMS_JSON:
-			case 'placeholder_string':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-			case 'placeholder_number':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-			case 'placeholder_date':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-			/*
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-			*/
-		}
 	}
 
 	function renderCriteriaParam($param) {

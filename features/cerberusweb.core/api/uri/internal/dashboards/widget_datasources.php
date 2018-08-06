@@ -123,10 +123,11 @@ class WorkspaceWidgetDatasource_WorklistMetric extends Extension_WorkspaceWidget
 			);
 			
 		} else {
-			$select_query = sprintf("%s.%s",
-				$metric_field->db_table,
-				$metric_field->db_column
-			);
+			if($metric_field)
+				$select_query = sprintf("%s.%s",
+					$metric_field->db_table,
+					$metric_field->db_column
+				);
 			
 			switch($metric_func) {
 				case 'sum':
@@ -657,6 +658,44 @@ class WorkspaceWidgetDatasource_Manual extends Extension_WorkspaceWidgetDatasour
 		$metric_value = $params['metric_value'];
 		$metric_value = floatval(str_replace(',','', $metric_value));
 		$params['metric_value'] = $metric_value;
+		return $params;
+	}
+};
+
+class WorkspaceWidgetDatasource_DataQueryMetric extends Extension_WorkspaceWidgetDatasource {
+	function renderConfig(Model_WorkspaceWidget $widget, $params=[], $params_prefix=null) {
+		$tpl = DevblocksPlatform::services()->template();
+		
+		$tpl->assign('widget', $widget);
+		$tpl->assign('params', $params);
+		$tpl->assign('params_prefix', $params);
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/datasources/config_data_query.tpl');
+	}
+	
+	function getData(Model_WorkspaceWidget $widget, array $params=[], $params_prefix=null) {
+		$data = DevblocksPlatform::services()->data();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		
+		@$query = DevblocksPlatform::importGPC($params['data_query'], 'string', '');
+		
+		if(false === ($results = $data->executeQuery($query)))
+			return [];
+		
+		@$type = $results['_']['type'];
+		@$format = $results['_']['format'];
+		$data = $results['data'];
+		
+		switch($type) {
+			case 'worklist.metrics':
+				switch($format) {
+					case 'table':
+						$params['metric_value'] = @$data['rows'][0]['value'] ?: 0;
+						break;
+				}
+				break;
+		}
+		
 		return $params;
 	}
 };

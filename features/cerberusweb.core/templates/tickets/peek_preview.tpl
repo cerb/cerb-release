@@ -60,8 +60,21 @@
 	
 	<div style="clear:both;"></div>
 	
-	<div style="margin:2px;padding:5px;">
-		<pre class="emailbody">{$message->getContent()|trim|escape|devblocks_hyperlinks|devblocks_hideemailquotes nofilter}</pre>
+	<div style="margin:0;padding:0;">
+		{if DAO_WorkerPref::get($active_worker->id, 'mail_disable_html_display', 0)}
+			{$html_body = null}
+		{else}
+			{$html_body = $message->getContentAsHtml()}
+		{/if}
+
+		{if !empty($html_body)}
+			<div class="emailBodyHtml">
+				{$html_body nofilter}
+			</div>
+		{else}
+			<pre class="emailbody">{$message->getContent()|trim|escape|devblocks_hyperlinks|devblocks_hideemailquotes nofilter}</pre>
+		{/if}
+		<br>
 	</div>
 	
 	{* Attachments *}
@@ -73,6 +86,12 @@
 	<div style="margin-top:10px;">
 		{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/profile_fieldsets.tpl" properties=$message_custom_fieldsets}
 	</div>
+	
+	{if $is_writeable}
+	<div style="margin-top:10px;">
+		<button type="button" class="cerb-button-reply"><span class="glyphicons glyphicons-share" style="color:rgb(0,180,0);"></span> {'common.reply'|devblocks_translate|capitalize}</button>
+	</div>
+	{/if}
 	
 {elseif $comment && $comment instanceof Model_Comment}
 	{$owner_meta = $comment->getOwnerMeta()}
@@ -124,5 +143,32 @@
 $(function() {
 	var $preview = $('#{$preview_id}');
 	$preview.find('.cerb-peek-trigger').cerbPeekTrigger();
+	
+	{if $message && $message instanceof Model_Message}
+	$preview.find('.cerb-button-reply').on('click', function(e) {
+		var $popup = genericAjaxPopupFind($preview);
+		var $layer = $popup.attr('data-layer');
+		
+		e.preventDefault();
+		e.stopPropagation();
+		
+		var msgid = {$message->id};
+		var is_forward = 0;
+		var draft_id = 0;
+		var reply_mode = 0;
+		var is_confirmed = 0;
+		
+		var url = 'c=display&a=reply&forward='+is_forward+'&draft_id='+draft_id+'&reply_mode='+reply_mode+'&is_confirmed='+is_confirmed+'&timestamp={time()}&id=' + msgid;
+		
+		var $popup_reply = genericAjaxPopup('reply' + msgid, url, null, false, '70%');
+		
+		$popup_reply.on('cerb-reply-sent cerb-reply-saved cerb-reply-draft', function(e) {
+			genericAjaxPopup($layer,'c=internal&a=showPeekPopup&context={CerberusContexts::CONTEXT_TICKET}&context_id={$message->ticket_id}&view_id={$view_id}','reuse',false,'50%');
+			{if $view_id}
+			genericAjaxGet('view{$view_id}', 'c=internal&a=viewRefresh&id={$view_id}');
+			{/if}
+		});
+	});
+	{/if}
 });
 </script>

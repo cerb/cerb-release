@@ -1564,7 +1564,7 @@ class ChInternalController extends DevblocksControllerExtension {
 		
 		$contexts = Extension_DevblocksContext::getAll(false);
 		
-		$counts = DAO_ContextLink::getContextLinkCounts($context, $context_id, [CerberusContexts::CONTEXT_CUSTOM_FIELDSET]);
+		$counts = DAO_ContextLink::getContextLinkCounts($context, $context_id, []);
 		$results = [];
 		
 		foreach($counts as $ext_id => $count) {
@@ -1618,7 +1618,6 @@ class ChInternalController extends DevblocksControllerExtension {
 		$tpl->assign('context', $context_extension);
 		$tpl->assign('layer', $layer);
 		$tpl->assign('view', $view);
-		$tpl->assign('quick_search_query', $query);
 		$tpl->assign('single', $single);
 		$tpl->display('devblocks:cerberusweb.core::context_links/choosers/__generic.tpl');
 	}
@@ -1651,42 +1650,9 @@ class ChInternalController extends DevblocksControllerExtension {
 				return;
 		}
 		
-		// Add placeholders
-		
-		if(!empty($trigger_id) && null != ($trigger = DAO_TriggerEvent::get($trigger_id))) {
-			$event = $trigger->getEvent();
-			
-			if(method_exists($event,'generateSampleEventModel')) {
-				$event_model = $event->generateSampleEventModel($trigger);
-				$event->setEvent($event_model, $trigger);
-				$values = $event->getValues();
-				$view->setPlaceholderValues($values);
-			}
-			
-			$conditions = $event->getConditions($trigger);
-			$valctx = $event->getValuesContexts($trigger);
-			foreach($valctx as $token => $vtx) {
-				$conditions[$token] = $vtx;
-			}
-
-			foreach($conditions as $cond_id => $cond) {
-				if(substr($cond_id,0,1) == '_')
-					unset($conditions[$cond_id]);
-			}
-			
-			$view->setPlaceholderLabels($conditions);
-			
-		} elseif(null != $active_worker = CerberusApplication::getActiveWorker()) {
-			$labels = [];
-			$values = [];
-			$active_worker->getPlaceholderLabelsValues($labels, $values);
-			
-			$view->setPlaceholderLabels($labels);
-			$view->setPlaceholderValues($values);
-		}
-		
 		if(!empty($q)) {
 			$view->addParamsWithQuickSearch($q, true);
+			$view->setParamsQuery($q);
 			$view->renderPage = 0;
 		}
 		
@@ -1694,7 +1660,6 @@ class ChInternalController extends DevblocksControllerExtension {
 		$tpl->assign('context', $context);
 		$tpl->assign('layer', $layer);
 		$tpl->assign('view', $view);
-		$tpl->assign('quick_search_query', $q);
 		$tpl->display('devblocks:cerberusweb.core::internal/choosers/__worklist.tpl');
 	}
 	
@@ -1767,84 +1732,92 @@ class ChInternalController extends DevblocksControllerExtension {
 		$tpl->display('devblocks:cerberusweb.core::context_links/choosers/__file.tpl');
 	}
 
-	function chooserOpenFileUploadAction() {
-		@$files = $_FILES['file_data'];
-		@$bundle_ids = DevblocksPlatform::importGPC($_REQUEST['bundle_ids'], 'array:integer', array());
+	function chooserOpenFileAjaxUploadAction() {
+		@$file_name = $_SERVER['HTTP_X_FILE_NAME'];
+		@$file_type = $_SERVER['HTTP_X_FILE_TYPE'];
+		@$file_size = $_SERVER['HTTP_X_FILE_SIZE'];
+		
+		$url_writer = DevblocksPlatform::services()->url();
+		
+		header('Content-Type: application/json; charset=utf-8');
+		
+		if(empty($file_name) || empty($file_size)) {
+			return;
+		}
+		
+		if(empty($file_type))
+			$file_type = 'application/octet-stream';
+		
+		// Copy the HTTP body into a temp file
+		
+		$fp = DevblocksPlatform::getTempFile();
+		$temp_name = DevblocksPlatform::getTempFileInfo($fp);
+		
+		$body_data = fopen("php://input" , "rb");
+		while(!feof($body_data))
+			fwrite($fp, fread($body_data, 8192));
+		fclose($body_data);
+		
+		// Reset the temp file pointer
+		fseek($fp, 0);
+		
+		// SHA-1 the temp file
+		@$sha1_hash = sha1_file($temp_name, false);
+		
+		if(false == ($file_id = DAO_Attachment::getBySha1Hash($sha1_hash, $file_name, $file_size))) {
+			// Create a record w/ timestamp + ID
+			$fields = [
+				DAO_Attachment::NAME => $file_name,
+				DAO_Attachment::MIME_TYPE => $file_type,
+				DAO_Attachment::STORAGE_SHA1HASH => $sha1_hash,
+			];
+			$file_id = DAO_Attachment::create($fields);
+			
+			// Save the file
+			Storage_Attachments::put($file_id, $fp);
+		}
+		
+		// Close the temp file
+		fclose($fp);
+		
+		if($file_id) {
+			echo json_encode([
+				'id' => intval($file_id),
+				'name' => $file_name,
+				'type' => $file_type,
+				'size' => intval($file_size),
+				'size_label' => DevblocksPlatform::strPrettyBytes($file_size),
+				'sha1_hash' => $sha1_hash,
+				'url' => $url_writer->write(sprintf("c=files&id=%d&name=%s", $file_id, urlencode($file_name)), true),
+			]);
+		}
+	}
+	
+	function chooserOpenFileLoadBundleAction() {
+		@$bundle_id = DevblocksPlatform::importGPC($_REQUEST['bundle_id'], 'integer', 0);
 		
 		$url_writer = DevblocksPlatform::services()->url();
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
 		$results = [];
-
-		// File uploads
 		
-		if(is_array($files) && isset($files['tmp_name']))
-		foreach(array_keys($files['tmp_name']) as $file_idx) {
-			$file_name = $files['name'][$file_idx];
-			$file_type = $files['type'][$file_idx];
-			$file_size = $files['size'][$file_idx];
-			$file_tmp_name = $files['tmp_name'][$file_idx];
-		
-			if(empty($file_tmp_name) || empty($file_name))
-				continue;
-			
-			@$sha1_hash = sha1_file($file_tmp_name, false);
-			
-			if(false == ($file_id = DAO_Attachment::getBySha1Hash($sha1_hash, $file_name, $file_size))) {
-				// Create a record w/ timestamp + ID
-				$fields = array(
-					DAO_Attachment::NAME => $file_name,
-					DAO_Attachment::MIME_TYPE => $file_type,
-					DAO_Attachment::STORAGE_SHA1HASH => $sha1_hash,
-				);
-				$file_id = DAO_Attachment::create($fields);
-				
-				// Save the file
-				if(null !== ($fp = fopen($file_tmp_name, 'rb'))) {
-					Storage_Attachments::put($file_id, $fp);
-					fclose($fp);
-				}
-			}
-			
-			if($file_id) {
-				$results[] = array(
-					'id' => $file_id,
-					'name' => $file_name,
-					'type' => $file_type,
-					'size' => $file_size,
-					'sha1_hash' => $sha1_hash,
-					'url' => $url_writer->write(sprintf("c=files&id=%d&name=%s", $file_id, urlencode($file_name)), true),
-				);
-			}
-			
-			@unlink($file_tmp_name);
+		if(false == ($bundle = DAO_FileBundle::get($bundle_id))) {
+			echo json_encode($results);
+			return;
 		}
 		
-		// Bundles
-		
-		if(is_array($bundle_ids) && !empty($bundle_ids)) {
-			$bundles = DAO_FileBundle::getIds($bundle_ids);
-
-			if(is_array($bundles))
-			foreach($bundles as $bundle) {
-				$attachments = $bundle->getAttachments();
-				
-				if(is_array($attachments))
-				foreach($attachments as $attachment) { /* @var $attachment Model_Attachment */
-					$results[] = array(
-						'id' => $attachment->id,
-						'name' => $attachment->name,
-						'type' => $attachment->mime_type,
-						'size' => $attachment->storage_size,
-						'sha1_hash' => $attachment->storage_sha1hash,
-						'url' => $url_writer->write(sprintf("c=files&id=%d&name=%s", $attachment->id, urlencode($attachment->name)), true),
-					);
-				}
-			}
+		foreach($bundle->getAttachments() as $attachment) {
+			$results[] = array(
+				'id' => $attachment->id,
+				'name' => $attachment->name,
+				'type' => $attachment->mime_type,
+				'size' => $attachment->storage_size,
+				'size_label' => DevblocksPlatform::strPrettyBytes($attachment->storage_size),
+				'sha1_hash' => $attachment->storage_sha1hash,
+				'url' => $url_writer->write(sprintf("c=files&id=%d&name=%s", $attachment->id, urlencode($attachment->name)), true),
+			);
 		}
-
-		// JSON
 		
 		echo json_encode($results);
 	}
@@ -2215,8 +2188,8 @@ class ChInternalController extends DevblocksControllerExtension {
 		$view->renderPage = 0;
 		$view->renderLimit = 250;
 		$pos = 0;
-		$keys = array();
-		$contexts = array();
+		$keys = [];
+		$contexts = [];
 		
 		$view->renderTotal = false;
 		
@@ -2285,7 +2258,6 @@ class ChInternalController extends DevblocksControllerExtension {
 				'worker_id' => $active_worker->id,
 				'total' => $pos,
 				'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=profiles&k=worker&id=me&tab=notifications', true),
-				//'toolbar_extension_id' => '',
 			),
 			0
 		);
@@ -2356,12 +2328,6 @@ class ChInternalController extends DevblocksControllerExtension {
 		
 		if(null != ($view = C4_AbstractViewLoader::getView($defaults->id, $defaults))) {
 			$view->addColumnsHidden(array(
-				SearchFields_ContextActivityLog::ACTOR_CONTEXT_ID,
-				SearchFields_ContextActivityLog::TARGET_CONTEXT_ID,
-				SearchFields_ContextActivityLog::ID,
-			), true);
-			
-			$view->addParamsHidden(array(
 				SearchFields_ContextActivityLog::ACTOR_CONTEXT_ID,
 				SearchFields_ContextActivityLog::TARGET_CONTEXT_ID,
 				SearchFields_ContextActivityLog::ID,
@@ -2731,30 +2697,6 @@ class ChInternalController extends DevblocksControllerExtension {
 		}
 	}
 
-	function viewGetCriteriaAction() {
-		@$id = DevblocksPlatform::importGPC($_REQUEST['id']);
-		@$field = DevblocksPlatform::importGPC($_REQUEST['field']);
-
-		$tpl = DevblocksPlatform::services()->template();
-		
-		if(null != ($view = C4_AbstractViewLoader::getView($id))) {
-			$tpl->assign('view', $view);
-
-			// [TODO] Detect if we're customizing (swap Editable for Required)
-			
-			// Do we already have this filter to re-edit?
-			$params = $view->getEditableParams();
-			
-			if(false != ($results = $view->findParam($field, $params, false))) {
-				$param = array_shift($results);
-				$tpl->assign('param', $param);
-			}
-
-			// Render from the View_* implementation.
-			$view->renderCriteria($field);
-		}
-	}
-
 	private function _viewRenderInlineFilters($view, $is_custom=false, $add_mode=null) {
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view', $view);
@@ -2776,7 +2718,7 @@ class ChInternalController extends DevblocksControllerExtension {
 		@$field = DevblocksPlatform::importGPC($_REQUEST['field'], 'string', null);
 		@$oper = DevblocksPlatform::importGPC($_REQUEST['oper'], 'string', null);
 		@$value = DevblocksPlatform::importGPC($_REQUEST['value']);
-		@$replace = DevblocksPlatform::importGPC($_REQUEST['replace'], 'integer', 0);
+		@$replace = DevblocksPlatform::importGPC($_REQUEST['replace'], 'string', '');
 		@$field_deletes = DevblocksPlatform::importGPC($_REQUEST['field_deletes'],'array',[]);
 		
 		if(null == ($view = C4_AbstractViewLoader::getView($id)))
@@ -2790,17 +2732,17 @@ class ChInternalController extends DevblocksControllerExtension {
 			$original_params = $view->getEditableParams();
 			$view->addParams($view->getParamsRequired(), true);
 		}
-			
+		
 		// Nuke criteria
 		if(is_array($field_deletes) && !empty($field_deletes)) {
 			foreach($field_deletes as $field_delete) {
 				$view->doRemoveCriteria($field_delete);
 			}
 		}
-
+		
 		// Remove the same param at the top level
 		if($replace) {
-			$view->removeParamByField($field);
+			$view->removeParamByField($replace);
 		}
 		
 		// Add
@@ -2835,6 +2777,17 @@ class ChInternalController extends DevblocksControllerExtension {
 		
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('id', $id);
+		
+		if(DevblocksPlatform::strStartsWith($id, ['profile_widget_', 'widget_'])) {
+			$error_title = "Configure the widget";
+			$tpl->assign('error_title', $error_title);
+			
+			$error_msg = "This worklist is configured in the widget.";
+			$tpl->assign('error_message', $error_msg);
+			
+			$tpl->display('devblocks:cerberusweb.core::internal/views/view_error.tpl');
+			return;
+		}
 
 		if(null == ($view = C4_AbstractViewLoader::getView($id)))
 			return;
@@ -3125,7 +3078,7 @@ class ChInternalController extends DevblocksControllerExtension {
 							@$output = $tpl_builder->build($html_template->content, array('message_body' => $output));
 						
 						// HTML Purify
-						$output = DevblocksPlatform::purifyHTML($output, true);
+						$output = DevblocksPlatform::purifyHTML($output, true, true);
 						break;
 						
 					default:
@@ -3666,12 +3619,12 @@ class ChInternalController extends DevblocksControllerExtension {
 				}
 			}
 		}
-
+		
 		if(null == ($view = C4_AbstractViewLoader::getView($id)))
 			return;
 		
 		$view->doCustomize($columns, $num_rows, $options);
-
+		
 		$is_custom = $view->isCustom();
 		$is_trigger = DevblocksPlatform::strStartsWith($id, '_trigger_');
 		
@@ -3806,284 +3759,6 @@ class ChInternalController extends DevblocksControllerExtension {
 		$view->renderSubtotals();
 	}
 
-	/**
-	 * Triggers
-	 */
-
-	function applyMacroAction() {
-		@$macro_id = DevblocksPlatform::importGPC($_REQUEST['macro'],'integer',0);
-		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string','');
-		@$context_id = DevblocksPlatform::importGPC($_REQUEST['context_id'],'integer',0);
-		@$run_relative = DevblocksPlatform::importGPC($_REQUEST['run_relative'],'string','');
-		@$run_date = DevblocksPlatform::importGPC($_REQUEST['run_date'],'string','');
-		@$return_url = DevblocksPlatform::importGPC($_REQUEST['return_url'],'string','');
-		
-		$active_worker = CerberusApplication::getActiveWorker();
-		
-		if(empty($return_url) && isset($_SERVER['http_referer']))
-			$return_url = $_SERVER['http_referer'];
-		
-		try {
-			if(empty($context) || empty($context_id) || empty($macro_id))
-				return;
-	
-			// ACL: Ensure access to the context object
-			if(!CerberusContexts::isReadableByActor($context, $context_id, $active_worker))
-				throw new Exception("Access denied to context.");
-			
-			// Load macro
-			if(null == ($macro = DAO_TriggerEvent::get($macro_id))) /* @var $macro Model_TriggerEvent */
-				throw new Exception("Invalid macro.");
-			
-			if(null == ($va = $macro->getBot()))
-				throw new Exception("Invalid VA.");
-			
-			// ACL: Ensure the worker has access to the macro
-			if(!Context_Bot::isReadableByActor($va, $active_worker))
-				throw new Exception("Access denied to macro.");
-
-			// Relative scheduling
-			// [TODO] This is almost wholly redundant with saveMacroSchedulerPopup()
-			
-			$event = $macro->getEvent();
-			$event_model = $event->generateSampleEventModel($macro, $context_id);
-			$event->setEvent($event_model, $macro);
-			$values = $event->getValues();
-			
-			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-			@$run_relative_timestamp = strtotime($tpl_builder->build(sprintf("{{%s|date}}",$run_relative), $values));
-			
-			if(empty($run_relative_timestamp))
-				$run_relative_timestamp = time();
-			
-			// Recurring events
-			// [TODO] This is almost wholly redundant with saveMacroSchedulerPopup()
-			@$repeat_freq = DevblocksPlatform::importGPC($_REQUEST['repeat_freq'],'string', '');
-			@$repeat_end = DevblocksPlatform::importGPC($_REQUEST['repeat_end'],'string', '');
-			
-			$repeat_params = array();
-			
-			if(!empty($repeat_freq)) {
-				@$repeat_options = DevblocksPlatform::importGPC($_REQUEST['repeat_options'][$repeat_freq], 'array', array());
-				@$repeat_ends = DevblocksPlatform::importGPC($_REQUEST['repeat_ends'][$repeat_end], 'array', array());
-	
-				switch($repeat_end) {
-					case 'date':
-						if(isset($repeat_ends['on'])) {
-							$repeat_ends['on'] = @strtotime($repeat_ends['on']);
-						}
-						break;
-				}
-				
-				$repeat_params = array(
-					'freq' => $repeat_freq,
-					'options' => $repeat_options,
-					'end' => array(
-						'term' => $repeat_end,
-						'options' => $repeat_ends,
-					),
-				);
-			}
-			
-			// Time
-			$run_timestamp = @strtotime($run_date, $run_relative_timestamp) or time();
-
-			// Variables
-			@$var_keys = DevblocksPlatform::importGPC($_REQUEST['var_keys'],'array',array());
-			@$var_vals = DevblocksPlatform::importGPC($_REQUEST['var_vals'],'array',array());
-
-			$vars = DAO_ContextScheduledBehavior::buildVariables($var_keys, $var_vals, $macro);
-
-			// Create
-			$behavior_id = DAO_ContextScheduledBehavior::create(array(
-				DAO_ContextScheduledBehavior::BEHAVIOR_ID => $macro->id,
-				DAO_ContextScheduledBehavior::CONTEXT => $context,
-				DAO_ContextScheduledBehavior::CONTEXT_ID => $context_id,
-				DAO_ContextScheduledBehavior::RUN_DATE => $run_timestamp,
-				DAO_ContextScheduledBehavior::RUN_RELATIVE => $run_relative,
-				DAO_ContextScheduledBehavior::RUN_LITERAL => $run_date,
-				DAO_ContextScheduledBehavior::VARIABLES_JSON => json_encode($vars),
-				DAO_ContextScheduledBehavior::REPEAT_JSON => json_encode($repeat_params),
-			));
-			
-			// Execute now if the start time is in the past
-			if($run_timestamp <= time()) {
-				$behavior = DAO_ContextScheduledBehavior::get($behavior_id);
-				$behavior->run();
-			}
-			
-		} catch (Exception $e) {
-			// System log error?
-		}
-		
-		// Redirect
-		DevblocksPlatform::redirectURL($return_url);
-		exit;
-	}
-	
-	function renderContextScheduledBehaviorAction() {
-		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string','');
-		@$context_id = DevblocksPlatform::importGPC($_REQUEST['context_id'],'integer',0);
-		
-		$tpl = DevblocksPlatform::services()->template();
-		
-		$tpl->assign('context', $context);
-		$tpl->assign('context_id', $context_id);
-		$tpl->assign('expanded', true);
-		
-		$tpl->display('devblocks:cerberusweb.core::internal/macros/behavior/scheduled_behavior_profile.tpl');
-	}
-	
-	function showMacroSchedulerPopupAction() {
-		@$job_id = DevblocksPlatform::importGPC($_REQUEST['job_id'],'integer',0);
-		@$macro_id = DevblocksPlatform::importGPC($_REQUEST['macro'],'integer',0);
-		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string','');
-		@$context_id = DevblocksPlatform::importGPC($_REQUEST['context_id'],'integer',0);
-		@$return_url = DevblocksPlatform::importGPC($_REQUEST['return_url'],'string','');
-		
-		$tpl = DevblocksPlatform::services()->template();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
-		if(empty($job_id)) {
-			$tpl->assign('return_url', $return_url);
-			
-			try {
-				if(null == ($macro = DAO_TriggerEvent::get($macro_id)))
-					throw new Exception("Missing macro.");
-				
-				$tpl->assign('macro', $macro);
-				
-			} catch(Exception $e) {
-				DevblocksPlatform::redirectURL($return_url);
-				exit;
-			}
-			
-		} else { // Update
-			$job = DAO_ContextScheduledBehavior::get($job_id);
-
-			if(null == $job)
-				return;
-			
-			$tpl->assign('job', $job);
-			
-			$context = $job->context;
-			$context_id = $job->context_id;
-			$macro_id = $job->behavior_id;
-			
-			$macro = DAO_TriggerEvent::get($macro_id);
-			$tpl->assign('macro', $macro);
-			
-		}
-		
-		$tpl->assign('context', $context);
-		$tpl->assign('context_id', $context_id);
-		
-		// Verify permission
-		$is_writeable = CerberusContexts::isWriteableByActor($context, $context_id, $active_worker);
-		$tpl->assign('is_writeable', $is_writeable);
-		
-		if(empty($job) && !$is_writeable)
-			return;
-
-		$event = $macro->getEvent();
-		$conditions = $event->getConditions($macro, false);
-		$dates = [];
-		
-		foreach($conditions as $k => $cond) {
-			if(isset($cond['type']) && $cond['type'] == Model_CustomField::TYPE_DATE)
-				$dates[$k] = $cond;
-		}
-		
-		DevblocksPlatform::sortObjects($dates, '[label]');
-		
-		$tpl->assign('dates', $dates);
-		
-		$tpl->display('devblocks:cerberusweb.core::internal/macros/display/scheduler_popup.tpl');
-	}
-	
-	function saveMacroSchedulerPopupAction() {
-		@$job_id = DevblocksPlatform::importGPC($_REQUEST['job_id'],'integer',0);
-		@$run_relative = DevblocksPlatform::importGPC($_REQUEST['run_relative'],'string','');
-		@$run_date = DevblocksPlatform::importGPC($_REQUEST['run_date'],'string','');
-		@$do_delete = DevblocksPlatform::importGPC($_REQUEST['do_delete'],'integer',0);
-		
-		$active_worker = CerberusApplication::getActiveWorker();
-		
-		if(null == ($job = DAO_ContextScheduledBehavior::get($job_id)))
-			return;
-		
-		if(null == ($trigger = DAO_TriggerEvent::get($job->behavior_id)))
-			return;
-		
-		// Verify permission
-		if(!CerberusContexts::isReadableByActor($job->context, $job->context_id, $active_worker))
-			return;
-		
-		// Load the event with this context
-		if(null == ($event = $trigger->getEvent()))
-			return;
-		
-		$event_model = $event->generateSampleEventModel($trigger, $job->context_id);
-		$event->setEvent($event_model, $trigger);
-		$values = $event->getValues();
-		
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-		@$run_relative_timestamp = strtotime($tpl_builder->build(sprintf("{{%s|date}}", $run_relative), $values));
-		
-		if(empty($run_relative_timestamp))
-			$run_relative_timestamp = time();
-		
-		if($do_delete) {
-			DAO_ContextScheduledBehavior::delete($job->id);
-			
-		} else {
-			@$repeat_freq = DevblocksPlatform::importGPC($_REQUEST['repeat_freq'],'string', '');
-			@$repeat_end = DevblocksPlatform::importGPC($_REQUEST['repeat_end'],'string', '');
-			
-			$repeat_params = array();
-			
-			if(!empty($repeat_freq)) {
-				@$repeat_options = DevblocksPlatform::importGPC($_REQUEST['repeat_options'][$repeat_freq], 'array', array());
-				@$repeat_ends = DevblocksPlatform::importGPC($_REQUEST['repeat_ends'][$repeat_end], 'array', array());
-	
-				switch($repeat_end) {
-					case 'date':
-						if(isset($repeat_ends['on'])) {
-							$repeat_ends['on'] = @strtotime($repeat_ends['on']);
-						}
-						break;
-				}
-				
-				$repeat_params = array(
-					'freq' => $repeat_freq,
-					'options' => $repeat_options,
-					'end' => array(
-						'term' => $repeat_end,
-						'options' => $repeat_ends,
-					),
-				);
-			}
-			
-			$run_timestamp = @strtotime($run_date, $run_relative_timestamp) or time();
-			
-			// Variables
-			@$var_keys = DevblocksPlatform::importGPC($_REQUEST['var_keys'],'array',array());
-			@$var_vals = DevblocksPlatform::importGPC($_REQUEST['var_vals'],'array',array());
-			
-			$vars = DAO_ContextScheduledBehavior::buildVariables($var_keys, $var_vals, $trigger);
-			
-			DAO_ContextScheduledBehavior::update($job->id, array(
-				DAO_ContextScheduledBehavior::RUN_DATE => $run_timestamp,
-				DAO_ContextScheduledBehavior::RUN_RELATIVE => $run_relative,
-				DAO_ContextScheduledBehavior::RUN_LITERAL => $run_date,
-				DAO_ContextScheduledBehavior::VARIABLES_JSON => json_encode($vars),
-				DAO_ContextScheduledBehavior::REPEAT_JSON => json_encode($repeat_params),
-			));
-		}
-		
-		exit;
-	}
-	
 	function reparentNodeAction() {
 		@$child_id = DevblocksPlatform::importGPC($_REQUEST['child_id'],'integer', 0);
 		@$parent_id = DevblocksPlatform::importGPC($_REQUEST['parent_id'],'integer', 0);
@@ -4614,6 +4289,30 @@ class ChInternalController extends DevblocksControllerExtension {
 		$tpl->display('devblocks:cerberusweb.core::events/_action_behavior_params.tpl');
 	}
 	
+	function showBehaviorParamsAsJsonAction() {
+		@$trigger_id = DevblocksPlatform::importGPC($_REQUEST['trigger_id'],'integer', 0);
+
+		$tpl = DevblocksPlatform::services()->template();
+		
+		header('Content-Type: text/plain; charset=utf-8');
+		
+		if(null == ($trigger = DAO_TriggerEvent::get($trigger_id))) {
+			echo '{}';
+			return;
+		}
+		
+		echo "{% set json = {} %}\n";
+		
+		foreach($trigger->variables as $var) {
+			if($var['is_private'])
+				continue;
+			
+			echo sprintf("{%% set json = dict_set(json, '%s', '') %%}\n", $var['key']);
+		}
+		
+		echo "{{json|json_encode|json_pretty}}";
+	}
+	
 	function showScheduleBehaviorBulkParamsAction() {
 		@$trigger_id = DevblocksPlatform::importGPC($_REQUEST['trigger_id'],'integer', 0);
 
@@ -5027,7 +4726,7 @@ class ChInternalController extends DevblocksControllerExtension {
 					echo sprintf('<html><head><meta http-equiv="content-type" content="text/html; charset=%s"></head><body style="margin:0;">',
 						LANG_CHARSET_CODE
 					);
-					echo DevblocksPlatform::purifyHTML($output, true);
+					echo DevblocksPlatform::purifyHTML($output, true, true);
 					echo '</body></html>';
 					return;
 				}
@@ -5281,36 +4980,5 @@ class ChInternalController extends DevblocksControllerExtension {
 		$tpl->assign('comments', $comments);
 
 		$tpl->display('devblocks:cerberusweb.core::internal/comments/tab.tpl');
-	}
-
-	function commentShowPopupAction() {
-		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string');
-		@$context_id = DevblocksPlatform::importGPC($_REQUEST['context_id'],'integer',0);
-
-		$tpl = DevblocksPlatform::services()->template();
-		$active_worker = CerberusApplication::getActiveWorker();
-
-		$tpl->assign('context', $context);
-		$tpl->assign('context_id', $context_id);
-
-		$notify_workers = array();
-		
-		// Automatically tell anybody associated with this context object
-		switch($context) {
-			case CerberusContexts::CONTEXT_WORKER:
-				$notify_workers[] = $context_id;
-				break;
-				
-			case CerberusContexts::CONTEXT_GROUP:
-				if(null != ($group = DAO_Group::get($context_id))) {
-					$members = $group->getMembers();
-					$notify_workers = array_keys($members);
-				}
-				break;
-		}
-		
-		$tpl->assign('notify_workers', $notify_workers);
-
-		$tpl->display('devblocks:cerberusweb.core::internal/comments/peek.tpl');
 	}
 };

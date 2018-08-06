@@ -4,14 +4,14 @@
 	<name>Opportunity Tracking</name>
 	<description>Create opportunities (sales leads) linked to e-mail addresses. Opportunity records can be created from the Activity menu or while reading tickets.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>8.3.8</version>
+	<version>9.0.0</version>
 	<link>http://wiki.cerbweb.com/Features:Opportunity_Tracking</link>
 	<image>plugin.png</image>
 	
 	<!-- Requirements -->
 
 	<requires>
-		<app_version min="8.3" max="8.3.99" />
+		<app_version min="9.0" max="9.0.99" />
 	</requires>
 	
 	<!-- Plugin Dependencies -->
@@ -27,6 +27,7 @@
 		<patch version="4.1.0" revision="12" file="patches/4.1.0.php" />
 		<patch version="5.1.0-dev" revision="15" file="patches/5.1.0.php" />
 		<patch version="8.3.0" revision="22" file="patches/8.3.0.php" />
+		<patch version="9.0.0" revision="23" file="patches/9.0.0.php" />
 	</patches>
 	
 	<!-- Exported Classes -->

@@ -43,13 +43,7 @@
 	
 	<div style="clear:both;"></div>
 	
-	{*
-	<div style="margin-top:5px;">
-		<button type="button" class="cerb-search-trigger" data-context="{CerberusContexts::CONTEXT_CALENDAR_EVENT}" data-query="calendar.id:{$dict->id}"><div class="badge-count">{$activity_counts.events|default:0}</div> {'common.events'|devblocks_translate|capitalize}</button>
-		<button type="button" class="cerb-search-trigger" data-context="{CerberusContexts::CONTEXT_CALENDAR_EVENT_RECURRING}" data-query="calendar.id:{$dict->id}"><div class="badge-count">{$activity_counts.events_recurring|default:0}</div> {'common.events.recurring'|devblocks_translate|capitalize}</button>
-	</div>
-	*}
-	
+	{include file="devblocks:cerberusweb.core::internal/peek/peek_search_buttons.tpl"}
 </fieldset>
 
 {include file="devblocks:cerberusweb.core::internal/profiles/profile_record_links.tpl" properties_links=$links peek=true page_context=$peek_context page_context_id=$dict->id}
@@ -57,13 +51,6 @@
 {include file="devblocks:cerberusweb.core::internal/notifications/context_profile.tpl" context=$peek_context context_id=$dict->id view_id=$view_id}
 
 {include file="devblocks:cerberusweb.core::internal/peek/card_timeline_pager.tpl"}
-
-{$widget = DAO_WorkspaceWidget::get($dict->id)}
-<fieldset class="peek">
-<div id="widget{$widget->id}">
-	{$widget->render()}
-</div>
-</fieldset>
 
 <script type="text/javascript">
 $(function() {

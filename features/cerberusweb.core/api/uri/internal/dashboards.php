@@ -19,12 +19,6 @@ if(class_exists('Extension_PageSection')):
 class PageSection_InternalDashboards extends Extension_PageSection {
 	function render() {}
 	
-	function renderWidgetAction() {
-		@$widget_id = DevblocksPlatform::importGPC($_REQUEST['widget_id'], 'integer', 0);
-		@$nocache = DevblocksPlatform::importGPC($_REQUEST['nocache'], 'boolean', false);
-		Extension_WorkspaceWidget::renderWidgetFromCache($widget_id, true, $nocache);
-	}
-	
 	function showWidgetExportPopupAction() {
 		@$widget_id = DevblocksPlatform::importGPC($_REQUEST['widget_id'], 'integer', 0);
 
@@ -40,7 +34,6 @@ class PageSection_InternalDashboards extends Extension_PageSection {
 				'uid' => 'workspace_widget_' . $widget->id,
 				'label' => $widget->label,
 				'extension_id' => $widget->extension_id,
-				'cache_ttl' => $widget->cache_ttl,
 				'params' => $widget->params,
 			),
 		));
@@ -92,9 +85,14 @@ class PageSection_InternalDashboards extends Extension_PageSection {
 			return;
 		}
 		
-		$results = array();
+		$results = [];
 		$params_avail = $view->getParamsAvailable();
-
+		
+		$subtotals = [];
+		
+		if($view instanceof IAbstractView_Subtotals) /* @var $view IAbstractView_Subtotals */
+			$subtotals = $view->getSubtotalFields();
+		
 		if(is_array($params_avail))
 		foreach($params_avail as $param) { /* @var $param DevblocksSearchField */
 			if(empty($param->db_label))
@@ -103,7 +101,9 @@ class PageSection_InternalDashboards extends Extension_PageSection {
 			$results[] = array(
 				'key' => $param->token,
 				'label' => mb_convert_case($param->db_label, MB_CASE_LOWER),
-				'type' => $param->type
+				'type' => $param->type,
+				'sortable' => $param->is_sortable,
+				'subtotals' => array_key_exists($param->token, $subtotals),
 			);
 		}
 		
@@ -115,8 +115,8 @@ class PageSection_InternalDashboards extends Extension_PageSection {
 		
 		header('Content-Type: application/json');
 		
-		$labels = array();
-		$values = array();
+		$labels = [];
+		$values = [];
 		
 		CerberusContexts::getContext($context, null, $labels, $values, null, true);
 		
@@ -125,7 +125,7 @@ class PageSection_InternalDashboards extends Extension_PageSection {
 			return;
 		}
 		
-		$types = @$values['_types'] ?: array();
+		$types = @$values['_types'] ?: [];
 		$results = array();
 		
 		foreach($labels as $k => $v) {
@@ -180,44 +180,18 @@ class PageSection_InternalDashboards extends Extension_PageSection {
 }
 endif;
 
-if(class_exists('Extension_WorkspaceTab')):
 class WorkspaceTab_Dashboards extends Extension_WorkspaceTab {
-	const ID = 'core.workspace.tab';
+	const ID = 'core.workspace.tab.dashboard';
 	
 	public function renderTabConfig(Model_WorkspacePage $page, Model_WorkspaceTab $tab) {
 		$tpl = DevblocksPlatform::services()->template();
-		
-		$tpl->assign('workspace_page', $page);
-		$tpl->assign('workspace_tab', $tab);
-		
-		// Render template
-		
+		$tpl->assign('tab', $tab);
+
 		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/tabs/dashboard/config.tpl');
 	}
 	
 	function saveTabConfig(Model_WorkspacePage $page, Model_WorkspaceTab $tab) {
-		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array');
-
-		@$prev_column_count = intval($tab->params['num_columns']);
-		@$new_column_count = DevblocksPlatform::intClamp(intval($params['num_columns']), 1, 4);
-
-		// Rebalance widgets if we're reducing the columns
-		if($new_column_count < $prev_column_count) {
-			$widgets = DAO_WorkspaceWidget::getByTab($tab->id);
-			$columns_left = $new_column_count;
-			
-			for($col_idx = 0; $col_idx < $new_column_count; $col_idx++) {
-				$idx = 0;
-				$items = array_splice($widgets, 0, ceil(count($widgets)/$columns_left));
-				
-				foreach($items as $item) {
-					$pos = sprintf("%d%03d", $col_idx, $idx++);
-					DAO_WorkspaceWidget::update($item->id, array(DAO_WorkspaceWidget::POS => $pos));
-				}
-				
-				$columns_left--;
-			}
-		}
+		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', []);
 		
 		DAO_WorkspaceTab::update($tab->id, array(
 			DAO_WorkspaceTab::PARAMS_JSON => json_encode($params),
@@ -227,42 +201,44 @@ class WorkspaceTab_Dashboards extends Extension_WorkspaceTab {
 	public function renderTab(Model_WorkspacePage $page, Model_WorkspaceTab $tab) {
 		$tpl = DevblocksPlatform::services()->template();
 		
-		$tpl->assign('workspace_page', $page);
-		$tpl->assign('workspace_tab', $tab);
+		$widgets = DAO_WorkspaceWidget::getByTab($tab->id);
 		
-		$widget_extensions = Extension_WorkspaceWidget::getAll();
-		$tpl->assign('widget_extensions', $widget_extensions);
+		@$layout = $tab->params['layout'] ?: '';
 		
-		// Get by workspace tab
-		// [TODO] Cache
-		$widgets = DAO_WorkspaceWidget::getWhere(
-			sprintf("%s = %d",
-				DAO_WorkspaceWidget::WORKSPACE_TAB_ID,
-				$tab->id
-			),
-			DAO_WorkspaceWidget::POS,
-			true
-		);
+		$zones = [
+			'content' => [],
+		];
 		
-		$columns = [];
+		switch($layout) {
+			case 'sidebar_left':
+				$zones = [
+					'sidebar' => [],
+					'content' => [],
+				];
+				break;
+				
+			case 'sidebar_right':
+				$zones = [
+					'content' => [],
+					'sidebar' => [],
+				];
+				break;
+		}
 
-		// [TODO] If the col_idx is greater than the number of cols on this dashboard,
-		//   move widget to first col
-		
-		if(is_array($widgets))
-		foreach($widgets as $widget) { /* @var $widget Model_WorkspaceWidget */
-			$pos = !empty($widget->pos) ? $widget->pos : '0000';
-			$col_idx = substr($pos,0,1);
+		// Sanitize zones
+		foreach($widgets as $widget_id => $widget) {
+			if(array_key_exists($widget->zone, $zones)) {
+				$zones[$widget->zone][$widget_id] = $widget;
+				continue;
+			}
 			
-			if(!isset($columns[$col_idx]))
-				$columns[$col_idx] = [];
-			
-			$columns[$col_idx][$widget->id] = $widget;
+			// If the zone doesn't exist, drop the widget into the first zone
+			$zones[key($zones)][$widget_id] = $widget;
 		}
 		
-		unset($widgets);
-		
-		$tpl->assign('columns', $columns);
+		$tpl->assign('layout', $layout);
+		$tpl->assign('zones', $zones);
+		$tpl->assign('model', $tab);
 		
 		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/tab.tpl');
 	}
@@ -286,6 +262,8 @@ class WorkspaceTab_Dashboards extends Extension_WorkspaceTab {
 				'label' => $widget->label,
 				'extension_id' => $widget->extension_id,
 				'pos' => $widget->pos,
+				'width_units' => $widget->width_units,
+				'zone' => $widget->zone,
 				'params' => $widget->params,
 			);
 			
@@ -313,6 +291,8 @@ class WorkspaceTab_Dashboards extends Extension_WorkspaceTab {
 				DAO_WorkspaceWidget::POS => $widget['pos'],
 				DAO_WorkspaceWidget::PARAMS_JSON => json_encode($widget['params']),
 				DAO_WorkspaceWidget::WORKSPACE_TAB_ID => $tab->id,
+				DAO_WorkspaceWidget::WIDTH_UNITS => @$widget['width_units'] ?: 2,
+				DAO_WorkspaceWidget::ZONE => @$widget['zone'] ?: '',
 				DAO_WorkspaceWidget::UPDATED_AT => time(),
 			]);
 		}
@@ -320,7 +300,6 @@ class WorkspaceTab_Dashboards extends Extension_WorkspaceTab {
 		return true;
 	}
 }
-endif;
 
 class WorkspaceWidget_Gauge extends Extension_WorkspaceWidget implements ICerbWorkspaceWidget_ExportData {
 	private function _loadData(Model_WorkspaceWidget &$widget) {
@@ -420,14 +399,17 @@ class WorkspaceWidget_Gauge extends Extension_WorkspaceWidget implements ICerbWo
 		
 		$len = count($params['threshold_colors']);
 		
-		if(0 == strcasecmp($params['threshold_colors'][0], '#FFFFFF')) {
-			$params['threshold_colors'][0] = '#CF2C1D';
+		if($len) {
+			if(0 == strcasecmp($params['threshold_colors'][0], '#FFFFFF')) {
+				$params['threshold_colors'][0] = '#CF2C1D';
+			}
+			
+			if(0 == strcasecmp($params['threshold_colors'][$len-1], '#FFFFFF')) {
+				$params['threshold_colors'][$len-1] = '#66AD11';
+			}
+			
+			$params['threshold_colors'] = DevblocksPlatform::colorLerpArray($params['threshold_colors']);
 		}
-		
-		if(0 == strcasecmp($params['threshold_colors'][$len-1], '#FFFFFF')) {
-			$params['threshold_colors'][$len-1] = '#66AD11';
-		}
-		$params['threshold_colors'] = DevblocksPlatform::colorLerpArray($params['threshold_colors']);
 		
 		DAO_WorkspaceWidget::update($widget->id, array(
 			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
@@ -519,10 +501,370 @@ class WorkspaceWidget_Gauge extends Extension_WorkspaceWidget implements ICerbWo
 	}
 };
 
+class WorkspaceWidget_BehaviorTree extends Extension_WorkspaceWidget {
+	const ID = 'cerb.workspace.widget.behavior.tree';
+	
+	function render(Model_WorkspaceWidget $widget) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		@$behavior_id_template = $widget->params['behavior'];
+		
+		$labels = $values = $merge_token_labels = $merge_token_values = [];
+		
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $active_worker, $merge_token_labels, $merge_token_values, null, true, true);
+		
+		CerberusContexts::merge(
+			'current_worker_',
+			'Current Worker:',
+			$merge_token_labels,
+			$merge_token_values,
+			$labels,
+			$values
+		);
+		
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKSPACE_WIDGET, $widget, $merge_token_labels, $merge_token_values, null, true, true);
+		
+		CerberusContexts::merge(
+			'widget_',
+			'Widget:',
+			$merge_token_labels,
+			$merge_token_values,
+			$labels,
+			$values
+		);
+		
+		$dict = DevblocksDictionaryDelegate::instance($values);
+		
+		$behavior_id = $tpl_builder->build($behavior_id_template, $dict);
+		
+		if(false == ($behavior = DAO_TriggerEvent::get($behavior_id)))
+			return;
+		
+		if(false == ($event = $behavior->getEvent()))
+			return;
+		
+		if(false == ($bot = $behavior->getBot()))
+			return;
+		
+		$tpl->assign('behavior', $behavior);
+		$tpl->assign('event', $event->manifest);
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/bot/behavior/tab.tpl');
+	}
+	
+	function renderConfig(Model_WorkspaceWidget $widget) {
+		if(empty($widget))
+			return;
+		
+		$tpl = DevblocksPlatform::services()->template();
+		
+		$tpl->assign('widget', $widget);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/behavior_tree/config.tpl');
+	}
+	
+	function saveConfig(Model_WorkspaceWidget $widget) {
+		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', []);
+		
+		DAO_WorkspaceWidget::update($widget->id, array(
+			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
+		));
+	}
+};
+
+class WorkspaceWidget_RecordFields extends Extension_WorkspaceWidget {
+	const ID = 'cerb.workspace.widget.record.fields';
+	
+	function render(Model_WorkspaceWidget $widget) {
+		@$target_context = $widget->params['context'];
+		@$target_context_id = $widget->params['context_id'];
+		
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		// Are we showing fields for a different record?
+		
+		$record_dict = DevblocksDictionaryDelegate::instance([
+			'current_worker__context' => CerberusContexts::CONTEXT_WORKER,
+			'current_worker_id' => $active_worker->id,
+			'widget__context' => CerberusContexts::CONTEXT_WORKSPACE_WIDGET,
+			'widget_id' => $widget->id,
+		]);
+		
+		if(!$target_context || is_null($target_context_id))
+			return;
+		
+		$context = $target_context;
+		$context_id = $tpl_builder->build($target_context_id, $record_dict);
+		
+		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+			return;
+		
+		$dao_class = $context_ext->getDaoClass();
+		
+		if(!method_exists($dao_class, 'get') || false == ($record = $dao_class::get($context_id))) {
+			$tpl->assign('context_ext', $context_ext);
+			$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/record_fields/empty.tpl');
+			return;
+		}
+		
+		// Dictionary
+		
+		$labels = $values = [];
+		CerberusContexts::getContext($context, $record, $labels, $values, '', true, false);
+		$dict = DevblocksDictionaryDelegate::instance($values);
+		$tpl->assign('dict', $dict);
+		
+		if(!($context_ext instanceof IDevblocksContextProfile))
+			return;
+		
+		$tpl->assign('context_ext', $context_ext);
+		$tpl->assign('widget', $widget);
+		
+		// Properties
+		
+		$properties_selected = @$widget->params['properties'] ?: [];
+		
+		foreach($properties_selected as &$v)
+			$v = array_flip($v);
+		
+		$properties_available = $context_ext->profileGetFields($record);
+		
+		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds($context, $record->id)) or [];
+		$tpl->assign('custom_field_values', $values);
+		
+		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields($context, $values);
+		
+		if(!empty($properties_cfields))
+			$properties_available = array_merge($properties_available, $properties_cfields);
+		
+		$properties = [];
+		
+		// Only keep selected properties
+		if(isset($properties_selected[0]))
+			foreach(array_keys($properties_selected[0]) as $key)
+				if(isset($properties_available[$key]))
+					$properties[$key] = $properties_available[$key];
+		
+		// Empty fields
+		
+		$show_empty_fields = @$widget->params['options']['show_empty_properties'] ?: false;
+		
+		// Custom Fieldsets
+		
+		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets($context, $record->id, $values, true);
+		$properties_custom_fieldsets = array_intersect_key($properties_custom_fieldsets, $properties_selected);
+		
+		// Only keep selected properties
+		foreach($properties_custom_fieldsets as $fieldset_id => &$fieldset_properties)
+			$fieldset_properties['properties'] = array_intersect_key($fieldset_properties['properties'], @$properties_selected[$fieldset_id] ?: []);
+		
+		if(!$show_empty_fields) {
+			$filter_empty_properties = function(&$properties) {
+				foreach($properties as $k => $property) {
+					if(!empty($property['value']))
+						continue;
+					
+					switch($property['type']) {
+						// Checkboxes can be empty
+						case Model_CustomField::TYPE_CHECKBOX:
+							continue 2;
+							break;
+							
+						// Sliders can have empty values
+						case 'slider':
+							continue 2;
+							break;
+						
+						case Model_CustomField::TYPE_LINK:
+							// App-owned context links can be blank
+							if(@$property['params']['context'] == CerberusContexts::CONTEXT_APPLICATION)
+								continue 2;
+							break;
+					}
+					
+					unset($properties[$k]);
+				}
+			};
+			
+			$filter_empty_properties($properties);
+			
+			foreach($properties_custom_fieldsets as $fieldset_id => &$fieldset) {
+				$filter_empty_properties($fieldset['properties']);
+				
+				if(empty($fieldset['properties']))
+					unset($properties_custom_fieldsets[$fieldset_id]);
+			}
+		}
+		
+		$tpl->assign('properties', $properties);
+		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
+		
+		// Link counts
+		
+		@$show_links = $widget->params['links']['show'];
+		
+		if($show_links) {
+			$properties_links = [
+				$context => [
+					$record->id => 
+						DAO_ContextLink::getContextLinkCounts(
+							$context,
+							$record->id,
+							[]
+						),
+				],
+			];
+			$tpl->assign('properties_links', $properties_links);
+		}
+		
+		// Card search buttons
+		
+		$search_buttons = $this->_getSearchButtons($widget, $record_dict);
+		$tpl->assign('search_buttons', $search_buttons);
+		
+		// Template
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/record_fields/fields.tpl');
+	}
+	
+	function renderConfig(Model_WorkspaceWidget $widget) {
+		if(empty($widget))
+			return;
+		
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('widget', $widget);
+		
+		$context_mfts = Extension_DevblocksContext::getAll(false);
+		$tpl->assign('context_mfts', $context_mfts);
+		
+		@$context = $widget->params['context'];
+		
+		if($context) {
+			$context_ext = Extension_DevblocksContext::get($context);
+			$tpl->assign('context_ext', $context_ext);
+			
+			// =================================================================
+			// Properties
+			
+			$properties = $context_ext->profileGetFields();
+			
+			$tpl->assign('custom_field_values', []);
+			
+			$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields($context);
+			
+			if(!empty($properties_cfields))
+				$properties = array_merge($properties, $properties_cfields);
+			
+			// Sort properties by the configured order
+			
+			@$properties_enabled = array_flip($widget->params['properties'][0] ?: []);
+			
+			uksort($properties, function($a, $b) use ($properties_enabled, $properties) {
+				$a_pos = array_key_exists($a, $properties_enabled) ? $properties_enabled[$a] : 1000;
+				$b_pos = array_key_exists($b, $properties_enabled) ? $properties_enabled[$b] : 1000;
+				
+				if($a_pos == $b_pos)
+					return $properties[$a]['label'] > $properties[$b]['label'] ? 1 : -1;
+				
+				return $a_pos < $b_pos ? -1 : 1;
+			});
+			
+			$tpl->assign('properties', $properties);
+			
+			$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets($context, null, [], true);
+			$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
+			
+			// =================================================================
+			// Search buttons
+			
+			$search_contexts = Extension_DevblocksContext::getAll(false, ['search']);
+			$tpl->assign('search_contexts', $search_contexts);
+			
+			$search_buttons = $this->_getSearchButtons($widget, null);
+			$tpl->assign('search_buttons', $search_buttons);
+		}
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/record_fields/config.tpl');
+	}
+	
+	function saveConfig(Model_WorkspaceWidget $widget) {
+		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', []);
+		
+		DAO_WorkspaceWidget::update($widget->id, array(
+			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
+		));
+	}
+	
+	private function _getSearchButtons(Model_WorkspaceWidget $model, DevblocksDictionaryDelegate $dict=null) {
+		@$search = $model->params['search'] ?: [];
+		
+		$search_buttons = [];
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		
+		if(empty($search))
+			return [];
+		
+		if(is_array($search) && array_key_exists('context', $search))
+		foreach(array_keys($search['context']) as $idx) {
+			$query = $search['query'][$idx];
+			
+			if($dict) {
+				$query = $tpl_builder->build($query, $dict);
+			}
+			
+			$search_buttons[] = [
+				'context' => $search['context'][$idx],
+				'label_singular' => $search['label_singular'][$idx],
+				'label_plural' => $search['label_plural'][$idx],
+				'query' => $query,
+			];
+		}
+		
+		// If we have a dictionary, perform the actual counts
+		if($dict) {
+			$results = [];
+			
+			if(is_array($search_buttons))
+			foreach($search_buttons as $search_button) {
+				if(false == ($search_button_context = Extension_DevblocksContext::get($search_button['context'], true)))
+					continue;
+				
+				if(false == ($view = $search_button_context->getSearchView()))
+					continue;
+				
+				$label_aliases = Extension_DevblocksContext::getAliasesForContext($search_button_context->manifest);
+				$label_singular = @$search_button['label_singular'] ?: $label_aliases['singular'];
+				$label_plural = @$search_button['label_plural'] ?: $label_aliases['plural'];
+				
+				$search_button_query = $tpl_builder->build($search_button['query'], $dict);
+				$view->addParamsWithQuickSearch($search_button_query);
+				
+				$total = $view->getData()[1];
+				
+				$results[] = [
+					'label' => ($total == 1 ? $label_singular : $label_plural),
+					'context' => $search_button_context->id,
+					'count' => $total,
+					'query' => $search_button_query,
+				];
+			}
+			
+			return $results;
+		}
+		
+		return $search_buttons;
+	}
+};
+
 class WorkspaceWidget_BotBehavior extends Extension_WorkspaceWidget {
 	function render(Model_WorkspaceWidget $widget) {
 		$tpl = DevblocksPlatform::services()->template();
-
+		
 		@$behavior_id = $widget->params['behavior_id'];
 		@$behavior_vars = DevblocksPlatform::importVar(@$widget->params['behavior_vars'], 'array', []);
 		
@@ -564,7 +906,7 @@ class WorkspaceWidget_BotBehavior extends Extension_WorkspaceWidget {
 				if(!isset($widget_behavior->variables[$k]))
 					continue;
 				
-				$value = $widget_behavior->formatVariable($behavior->variables[$k], $v);
+				$value = $widget_behavior->formatVariable($widget_behavior->variables[$k], $v);
 				$dict->set($k, $value);
 			}
 		}
@@ -615,13 +957,40 @@ class WorkspaceWidget_Calendar extends Extension_WorkspaceWidget implements ICer
 	function render(Model_WorkspaceWidget $widget) {
 		$active_worker = CerberusApplication::getActiveWorker();
 		$tpl = DevblocksPlatform::services()->template();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		
 		@$month = DevblocksPlatform::importGPC($_REQUEST['month'], 'integer', null);
 		@$year = DevblocksPlatform::importGPC($_REQUEST['year'], 'integer', null);
 		
-		$tpl->assign('widget', $widget);
+		@$calendar_id_template = $widget->params['calendar_id'];
 		
-		@$calendar_id = $widget->params['calendar_id'];
+		$labels = $values = $merge_token_labels = $merge_token_values = [];
+		
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $active_worker, $merge_token_labels, $merge_token_values, null, true, true);
+		
+		CerberusContexts::merge(
+			'current_worker_',
+			'Current Worker:',
+			$merge_token_labels,
+			$merge_token_values,
+			$labels,
+			$values
+		);
+		
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKSPACE_WIDGET, $widget, $merge_token_labels, $merge_token_values, null, true, true);
+		
+		CerberusContexts::merge(
+			'widget_',
+			'Widget:',
+			$merge_token_labels,
+			$merge_token_values,
+			$labels,
+			$values
+		);
+		
+		$dict = DevblocksDictionaryDelegate::instance($values);
+		
+		$calendar_id = $tpl_builder->build($calendar_id_template, $dict);
 		
 		if(empty($calendar_id) || null == ($calendar = DAO_Calendar::get($calendar_id))) { /* @var Model_Calendar $calendar */
 			echo "A calendar isn't linked to this widget. Configure it to select one.";
@@ -634,6 +1003,7 @@ class WorkspaceWidget_Calendar extends Extension_WorkspaceWidget implements ICer
 		
 		// Template scope
 		
+		$tpl->assign('widget', $widget);
 		$tpl->assign('calendar', $calendar);
 		$tpl->assign('calendar_events', $calendar_events);
 		$tpl->assign('calendar_properties', $calendar_properties);
@@ -669,6 +1039,41 @@ class WorkspaceWidget_Calendar extends Extension_WorkspaceWidget implements ICer
 		DAO_WorkspaceWidget::update($widget->id, array(
 			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
 		));
+	}
+	
+	function showCalendarTabAction(Model_WorkspaceWidget $model) {
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		@$calendar_id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer');
+		
+		@$month = DevblocksPlatform::importGPC($_REQUEST['month'],'integer', 0);
+		@$year = DevblocksPlatform::importGPC($_REQUEST['year'],'integer', 0);
+		
+		$tpl = DevblocksPlatform::services()->template();
+
+		if(null == ($calendar = DAO_Calendar::get($calendar_id))) /* @var Model_Calendar $calendar */
+			return;
+		
+		$start_on_mon = @$calendar->params['start_on_mon'] ? true : false;
+		
+		$calendar_properties = DevblocksCalendarHelper::getCalendar($month, $year, $start_on_mon);
+		
+		$calendar_events = $calendar->getEvents($calendar_properties['date_range_from'], $calendar_properties['date_range_to']);
+
+		// Occlusion
+		
+		$availability = $calendar->computeAvailability($calendar_properties['date_range_from'], $calendar_properties['date_range_to'], $calendar_events);
+		$availability->occludeCalendarEvents($calendar_events);
+		
+		// Template scope
+		$tpl->assign('widget', $model);
+		$tpl->assign('calendar', $calendar);
+		$tpl->assign('calendar_events', $calendar_events);
+		$tpl->assign('calendar_properties', $calendar_properties);
+		
+		// Template
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/calendar/calendar.tpl');
 	}
 	
 	// Export
@@ -1167,7 +1572,457 @@ class WorkspaceWidget_Countdown extends Extension_WorkspaceWidget implements ICe
 	}
 };
 
-class WorkspaceWidget_Chart extends Extension_WorkspaceWidget implements ICerbWorkspaceWidget_ExportData {
+class WorkspaceWidget_ChartCategories extends Extension_WorkspaceWidget { // implements ICerbWorkspaceWidget_ExportData
+	function render(Model_WorkspaceWidget $widget) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$data = DevblocksPlatform::services()->data();
+		
+		@$query = DevblocksPlatform::importGPC($widget->params['data_query'], 'string', null);
+		@$xaxis_key = DevblocksPlatform::importGPC($widget->params['xaxis_key'], 'string', 'label');
+		@$xaxis_format = DevblocksPlatform::importGPC($widget->params['xaxis_format'], 'string', '');
+		@$yaxis_format = DevblocksPlatform::importGPC($widget->params['yaxis_format'], 'string', '');
+		@$height = DevblocksPlatform::importGPC($widget->params['height'], 'integer', 0);
+		
+		if(!$query)
+			return;
+		
+		if(false === ($results = $data->executeQuery($query, $error))) {
+			echo DevblocksPlatform::strEscapeHtml($error);
+			return;
+		}
+		
+		if(empty($results)) {
+			echo "(no data)";
+			return;
+		}
+		
+		$config_json = [
+			'bindto' => sprintf("#widget%d", $widget->id),
+			'padding' => [
+				'left' => 150,
+			],
+			'data' => [
+				'x' => $xaxis_key,
+				'columns' => $results['data'],
+				'type' => 'bar',
+				'colors' => [
+					'hits' => '#1f77b4'
+				]
+			],
+			'axis' => [
+				'rotated' => true,
+				'x' => [
+					'type' => 'category',
+					'tick' => [
+						'format' => null,
+						'multiline' => true,
+						'multilineMax' => 2,
+						'width' => 150,
+					]
+				],
+				'y' => [
+					'tick' => [
+						'rotate' => 60,
+						'format' => null
+					]
+				]
+			],
+			'legend' => [
+				'show' => true,
+			]
+		];
+		
+		if(@$results['_']['stacked']) {
+			$config_json['data']['type']  = 'bar';
+			$groups = array_column($results['data'], 0);
+			array_shift($groups);
+			$config_json['data']['groups'] = [array_values($groups)];
+			$config_json['legend']['show'] = true;
+			
+			if(!$height)
+				$height = 100 + (50 * @count($results['data'][0]));
+			
+		} else {
+			$config_json['data']['type']  = 'bar';
+			$config_json['legend']['show'] = false;
+			
+			if(!$height)
+				$height = 100 + (50 * @count($results['data'][0]));
+		}
+		
+		if($height)
+			$config_json['size'] = ['height' => $height];
+		
+		$tpl->assign('config_json', json_encode($config_json));
+		$tpl->assign('xaxis_format', $xaxis_format);
+		$tpl->assign('yaxis_format', $yaxis_format);
+		$tpl->assign('widget', $widget);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/categories/render.tpl');
+	}
+	
+	function renderConfig(Model_WorkspaceWidget $widget) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('widget', $widget);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/categories/config.tpl');
+	}
+	
+	function saveConfig(Model_WorkspaceWidget $widget) {
+		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', []);
+		
+		DAO_WorkspaceWidget::update($widget->id, array(
+			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
+		));
+	}
+};
+
+class WorkspaceWidget_ChartPie extends Extension_WorkspaceWidget { // implements ICerbWorkspaceWidget_ExportData
+	function render(Model_WorkspaceWidget $widget) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$data = DevblocksPlatform::services()->data();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		@$data_query = DevblocksPlatform::importGPC($widget->params['data_query'], 'string', null);
+		@$chart_as = DevblocksPlatform::importGPC($widget->params['chart_as'], 'string', null);
+		@$options = DevblocksPlatform::importGPC($widget->params['options'], 'array', []);
+		@$height = DevblocksPlatform::importGPC($widget->params['height'], 'integer', 0);
+		
+		$dict = DevblocksDictionaryDelegate::instance([
+			'current_worker__context' => CerberusContexts::CONTEXT_WORKER,
+			'current_worker_id' => $active_worker->id,
+			'widget__context' => CerberusContexts::CONTEXT_WORKSPACE_WIDGET,
+			'widget_id' => $widget->id,
+		]);
+		
+		$query = $tpl_builder->build($data_query, $dict);
+		
+		if(!$query)
+			return;
+		
+		if(false === ($results = $data->executeQuery($query, $error))) {
+			echo DevblocksPlatform::strEscapeHtml($error);
+			return;
+		}
+		
+		if(empty($results)) {
+			echo "(no data)";
+			return;
+		}
+		
+		$config_json = [
+			'bindto' => sprintf("#widget%d", $widget->id),
+			'data' => [
+				'columns' => $results['data'],
+				'type' => $chart_as == 'pie' ? 'pie' : 'donut'
+			],
+			'donut' => [
+				'label' => [
+					'show' => false,
+					'format' => null,
+				],
+			],
+			'pie' => [
+				'label' => [
+					'show' => false,
+					'format' => null,
+				],
+			],
+			'tooltip' => [
+				'format' => [
+					'value' => null,
+				],
+			],
+			'legend' => [
+				'show' => true,
+			]
+		];
+		
+		$config_json['legend']['show']  = @$options['show_legend'] ? true : false;
+		
+		if($height)
+			$config_json['size'] = ['height' => $height];
+		
+		$tpl->assign('config_json', json_encode($config_json));
+		$tpl->assign('widget', $widget);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/pie/render.tpl');
+	}
+	
+	function renderConfig(Model_WorkspaceWidget $widget) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('widget', $widget);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/pie/config.tpl');
+	}
+	
+	function saveConfig(Model_WorkspaceWidget $widget) {
+		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', []);
+		
+		DAO_WorkspaceWidget::update($widget->id, array(
+			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
+		));
+	}
+};
+
+class WorkspaceWidget_ChartScatterplot extends Extension_WorkspaceWidget { // implements ICerbWorkspaceWidget_ExportData
+	function render(Model_WorkspaceWidget $widget) {
+		@$data_query = DevblocksPlatform::importGPC($widget->params['data_query'], 'string', null);
+		@$xaxis_format = DevblocksPlatform::importGPC($widget->params['xaxis_format'], 'string', '');
+		@$yaxis_format = DevblocksPlatform::importGPC($widget->params['yaxis_format'], 'string', '');
+		@$height = DevblocksPlatform::importGPC($widget->params['height'], 'integer', 0);
+		
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$data = DevblocksPlatform::services()->data();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		$dict = DevblocksDictionaryDelegate::instance([
+			'current_worker__context' => CerberusContexts::CONTEXT_WORKER,
+			'current_worker_id' => $active_worker->id,
+			'widget__context' => CerberusContexts::CONTEXT_WORKSPACE_WIDGET,
+			'widget_id' => $widget->id,
+		]);
+		
+		$query = $tpl_builder->build($data_query, $dict);
+		
+		if(!$query)
+			return;
+		
+		if(false === ($results = $data->executeQuery($query, $error))) {
+			echo DevblocksPlatform::strEscapeHtml($error);
+			return;
+		}
+		
+		if(empty($results)) {
+			echo "(no data)";
+			return;
+		}
+		
+		$config_json = [
+			'bindto' => sprintf("#widget%d", $widget->id),
+			'data' => [
+				'xs' => [],
+				'columns' => $results['data'],
+				'type' => 'scatter',
+			],
+			'axis' => [
+				'x' => [
+					'tick' => [
+						'format' => null,
+						'fit' => false,
+					]
+				],
+				'y' => [
+					'tick' => [
+						'fit' => false,
+						'format' => null,
+					]
+				]
+			],
+		];
+		
+		foreach($results['data'] as $result) {
+			if(DevblocksPlatform::strEndsWith($result[0], '_x'))
+				$config_json['data']['xs'][mb_substr($result[0],0,-2)] = $result[0];
+		}
+		
+		if($height)
+			$config_json['size'] = ['height' => $height];
+		
+		$tpl->assign('config_json', json_encode($config_json));
+		$tpl->assign('xaxis_format', $xaxis_format);
+		$tpl->assign('yaxis_format', $yaxis_format);
+		$tpl->assign('widget', $widget);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/scatterplot/render.tpl');
+	}
+	
+	function renderConfig(Model_WorkspaceWidget $widget) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('widget', $widget);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/scatterplot/config.tpl');
+	}
+	
+	function saveConfig(Model_WorkspaceWidget $widget) {
+		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', []);
+		
+		DAO_WorkspaceWidget::update($widget->id, array(
+			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
+		));
+	}
+};
+
+class WorkspaceWidget_ChartTable extends Extension_WorkspaceWidget { // implements ICerbWorkspaceWidget_ExportData
+	function render(Model_WorkspaceWidget $widget) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$data = DevblocksPlatform::services()->data();
+		
+		@$query = DevblocksPlatform::importGPC($widget->params['data_query'], 'string', null);
+		
+		if(!$query)
+			return;
+		
+		if(false === ($results = $data->executeQuery($query, $error))) {
+			echo DevblocksPlatform::strEscapeHtml($error);
+			return;
+		}
+		
+		if(empty($results)) {
+			echo "(no data)";
+			return;
+		}
+		
+		if(0 != strcasecmp('table', @$results['_']['format'])) {
+			echo DevblocksPlatform::strEscapeHtml("The data should be in 'table' format.");
+			return;
+		}
+		
+		$tpl->assign('widget', $widget);
+		$tpl->assign('results', $results);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/table/render.tpl');
+	}
+	
+	function renderConfig(Model_WorkspaceWidget $widget) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('widget', $widget);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/table/config.tpl');
+	}
+	
+	function saveConfig(Model_WorkspaceWidget $widget) {
+		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', []);
+		
+		DAO_WorkspaceWidget::update($widget->id, array(
+			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
+		));
+	}
+};
+
+class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget { // implements ICerbWorkspaceWidget_ExportData
+	function render(Model_WorkspaceWidget $widget) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$data = DevblocksPlatform::services()->data();
+		
+		@$query = DevblocksPlatform::importGPC($widget->params['data_query'], 'string', null);
+		@$subchart = DevblocksPlatform::importGPC($widget->params['subchart'], 'int', 0);
+		@$chart_as = DevblocksPlatform::importGPC($widget->params['chart_as'], 'string', 'line');
+		@$options = DevblocksPlatform::importGPC($widget->params['options'], 'array', []);
+		@$xaxis_key = DevblocksPlatform::importGPC($widget->params['xaxis_key'], 'string', 'ts');
+		@$xaxis_format = DevblocksPlatform::importGPC($widget->params['xaxis_format'], 'string', '%Y-%m-%d');
+		@$yaxis_format = DevblocksPlatform::importGPC($widget->params['yaxis_format'], 'string', '');
+		@$xaxis_tick_format = DevblocksPlatform::importGPC($widget->params['xaxis_tick_format'], 'string', '');
+		@$height = DevblocksPlatform::importGPC($widget->params['height'], 'integer', 0);
+		
+		if(!$query)
+			return;
+		
+		if(false === ($results = $data->executeQuery($query, $error))) {
+			echo DevblocksPlatform::strEscapeHtml($error);
+			return;
+		}
+		
+		if(!$results) {
+			echo "(no data)";
+			return;
+		}
+		
+		if(0 != strcasecmp('timeseries', @$results['_']['format'])) {
+			echo DevblocksPlatform::strEscapeHtml("The data should be in 'timeseries' format.");
+			return;
+		}
+		
+		$config_json = [
+			'bindto' => sprintf("#widget%d", $widget->id),
+			'data' => [
+				'x' => 'ts',
+				'xFormat' => '%Y-%m-%d',
+				'json' => $results['data'],
+				'type' => 'line'
+			],
+			'axis' => [
+				'x' => [
+					'type' => 'timeseries',
+					'tick' => [
+						'fit' => true,
+					]
+				],
+				'y' => [
+					'tick' => [
+						'fit' => true,
+					]
+				]
+			],
+			'subchart' => [
+				'show' => false,
+				'size' => [
+					'height' => 50,
+				]
+			],
+			'legend' => [
+				'show' => true,
+			],
+			'point' => [
+				'show' => true,
+			]
+		];
+		
+		$config_json['data']['xFormat']  = $xaxis_format;
+		
+		if($xaxis_tick_format)
+			$config_json['axis']['x']['tick']['format']  = $xaxis_tick_format;
+		
+		$config_json['subchart']['show']  = @$options['subchart'] ? true : false;
+		$config_json['legend']['show']  = @$options['show_legend'] ? true : false;
+		$config_json['point']['show']  = @$options['show_points'] ? true : false;
+		
+		switch($chart_as) {
+			case 'line':
+				$config_json['data']['type']  = 'line';
+				break;
+				
+			case 'spline':
+				$config_json['data']['type']  = 'spline';
+				break;
+				
+			case 'area':
+				$config_json['data']['type']  = 'area';
+				$config_json['data']['groups'] = [array_values(array_diff(array_keys($results['data']), [$xaxis_key]))];
+				break;
+				
+			case 'bar':
+				$config_json['data']['type']  = 'bar';
+				break;
+				
+			case 'bar_stacked':
+				$config_json['data']['type']  = 'bar';
+				$config_json['data']['groups'] = [array_values(array_diff(array_keys($results['data']), [$xaxis_key]))];
+				break;
+		}
+		
+		if($height)
+			$config_json['size'] = ['height' => $height];
+		
+		$tpl->assign('config_json', json_encode($config_json));
+		$tpl->assign('yaxis_format', $yaxis_format);
+		$tpl->assign('widget', $widget);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/timeseries/render.tpl');
+	}
+	
+	function renderConfig(Model_WorkspaceWidget $widget) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('widget', $widget);
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/timeseries/config.tpl');
+	}
+	
+	function saveConfig(Model_WorkspaceWidget $widget) {
+		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', []);
+		
+		DAO_WorkspaceWidget::update($widget->id, array(
+			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
+		));
+	}
+};
+
+class WorkspaceWidget_ChartLegacy extends Extension_WorkspaceWidget implements ICerbWorkspaceWidget_ExportData {
 	private function _loadData(Model_WorkspaceWidget &$widget) {
 		@$series = $widget->params['series'];
 
@@ -1247,7 +2102,7 @@ class WorkspaceWidget_Chart extends Extension_WorkspaceWidget implements ICerbWo
 	
 	function render(Model_WorkspaceWidget $widget) {
 		$tpl = DevblocksPlatform::services()->template();
-
+		
 		if(false == ($this->_loadData($widget))) {
 			echo "This chart doesn't have any data sources. Configure it and select one.";
 			return;
@@ -1356,12 +2211,12 @@ class WorkspaceWidget_Chart extends Extension_WorkspaceWidget implements ICerbWo
 		
 		switch($widget->params['chart_type']) {
 			case 'bar':
-				$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/bar_chart.tpl');
+				$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/_legacy/chart/bar_chart_legacy.tpl');
 				break;
 				
 			default:
 			case 'line':
-				$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/line_chart.tpl');
+				$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/_legacy/chart/line_chart_legacy.tpl');
 				break;
 		}
 	}
@@ -1385,7 +2240,7 @@ class WorkspaceWidget_Chart extends Extension_WorkspaceWidget implements ICerbWo
 		
 		// Template
 		
-		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/config.tpl');
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/_legacy/chart/config.tpl');
 	}
 	
 	function saveConfig(Model_WorkspaceWidget $widget) {
@@ -1592,56 +2447,20 @@ class WorkspaceWidget_Subtotals extends Extension_WorkspaceWidget implements ICe
 		
 		$counts = $view->getSubtotalCounts($view->renderSubtotals);
 
-		if(null != ($limit_to = $widget->params['limit_to'])) {
+		if(null != (@$limit_to = $widget->params['limit_to'])) {
 			$counts = array_slice($counts, 0, $limit_to, true);
 		}
 		
 		switch(@$widget->params['style']) {
 			case 'pie':
-				$wedge_colors = array(
-					'#57970A',
-					'#007CBD',
-					'#7047BA',
-					'#8B0F98',
-					'#CF2C1D',
-					'#E97514',
-					'#FFA100',
-					'#3E6D07',
-					'#345C05',
-					'#005988',
-					'#004B73',
-					'#503386',
-					'#442B71',
-					'#640A6D',
-					'#55085C',
-					'#951F14',
-					'#7E1A11',
-					'#A8540E',
-					'#8E470B',
-					'#B87400',
-					'#9C6200',
-					'#CCCCCC',
-				);
-				$widget->params['wedge_colors'] = $wedge_colors;
-
-				$wedge_labels = array();
-				$wedge_values = array();
+				$data = [];
 				
-				DevblocksPlatform::sortObjects($counts, '[hits]', false);
-				
-				foreach($counts as $data) {
-					$wedge_labels[] = $data['label'];
-					$wedge_values[] = intval($data['hits']);
+				foreach($counts as $d) {
+					$data[] = [$d['label'], intval($d['hits'])];
 				}
-
-				$widget->params['wedge_labels'] = $wedge_labels;
-				$widget->params['wedge_values'] = $wedge_values;
 				
-				$widget->params['show_legend'] = true;
-				$widget->params['metric_type'] = 'number';
-				
+				$tpl->assign('data_json', json_encode($data));
 				$tpl->assign('widget', $widget);
-				
 				$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/pie_chart/pie_chart.tpl');
 				break;
 				
@@ -1675,7 +2494,7 @@ class WorkspaceWidget_Subtotals extends Extension_WorkspaceWidget implements ICe
 	}
 	
 	function saveConfig(Model_WorkspaceWidget $widget) {
-		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', array());
+		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', []);
 		
 		// Convert the serialized model to proper JSON before saving
 		
@@ -1696,9 +2515,9 @@ class WorkspaceWidget_Subtotals extends Extension_WorkspaceWidget implements ICe
 		
 		// Save the widget
 		
-		DAO_WorkspaceWidget::update($widget->id, array(
+		DAO_WorkspaceWidget::update($widget->id, [
 			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
-		));
+		]);
 	}
 	
 	// Export
@@ -1817,49 +2636,81 @@ class WorkspaceWidget_Subtotals extends Extension_WorkspaceWidget implements ICe
 class WorkspaceWidget_Worklist extends Extension_WorkspaceWidget implements ICerbWorkspaceWidget_ExportData {
 	const ID = 'core.workspace.widget.worklist';
 	
-	public function getView(Model_WorkspaceWidget $widget) {
-		$view_id = sprintf("widget%d_worklist", $widget->id);
-		
-		if(null == ($view = Extension_WorkspaceWidget::getViewFromParams($widget, $widget->params, $view_id)))
-			return false;
-		
-		return $view;
-	}
-	
 	function render(Model_WorkspaceWidget $widget) {
-		if(false == ($view = $this->getView($widget)))
-			return;
+		@$view_context = $widget->params['context'];
+		@$query = $widget->params['query'];
+		@$query_required = $widget->params['query_required'];
+		
+		$active_worker = CerberusApplication::getActiveWorker();
 		
 		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('view_id', $view->id);
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		
+		// Unique instance per widget/record combo
+		$view_id = sprintf('widget_%d_worklist', $widget->id);
+		
+		if(false == $view_context || false == ($view_context_ext = Extension_DevblocksContext::get($view_context)))
+			return;
+		
+		if(false == ($view = $view_context_ext->getSearchView($view_id)))
+			return;
+		
+		if($view->getContext() != $view_context_ext->id) {
+			DAO_WorkerViewModel::deleteView(CerberusApplication::getActiveWorker()->id, $view_id);
+			
+			if(false == ($view = $view_context_ext->getSearchView($view_id)))
+				return;
+		}
+		
+		$view->name = ' ';
+		$view->addParams([], true);
+		$view->addParamsDefault([], true);
+		$view->is_ephemeral = true;
+		$view->view_columns = @$widget->params['columns'] ?: $view->view_columns;
+		$view->options['header_color'] = @$widget->params['header_color'] ?: '#626c70';
+		$view->renderLimit = DevblocksPlatform::intClamp(@$widget->params['render_limit'], 1, 50);
+		$view->renderPage = 0;
+		
+		$dict = DevblocksDictionaryDelegate::instance([
+			'current_worker__context' => CerberusContexts::CONTEXT_WORKER,
+			'current_worker_id' => $active_worker->id,
+			'widget__context' => CerberusContexts::CONTEXT_WORKSPACE_WORKLIST,
+			'widget_id' => $widget->id,
+		]);
+		
+		if($query_required) {
+			$query_required = $tpl_builder->build($query_required, $dict);
+		}
+		
+		$view->addParamsRequiredWithQuickSearch($query_required);
+		
+		if($query) {
+			$query = $tpl_builder->build($query, $dict);
+		}
+		
+		$view->setParamsQuery($query);
+		$view->addParamsWithQuickSearch($query);
+		
+		$view->persist();
+		
 		$tpl->assign('view', $view);
-
-		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/worklist/render.tpl');
+		$tpl->display('devblocks:cerberusweb.core::internal/views/search_and_view.tpl');
 	}
 	
 	function renderConfig(Model_WorkspaceWidget $widget) {
-		if(empty($widget))
-			return;
-		
 		$tpl = DevblocksPlatform::services()->template();
-		
-		// Widget
-		
 		$tpl->assign('widget', $widget);
 		
-		// Contexts
-		
-		$context_mfts = Extension_DevblocksContext::getAll(false, 'workspace');
+		$context_mfts = Extension_DevblocksContext::getAll(false, ['workspace']);
 		$tpl->assign('context_mfts', $context_mfts);
 		
-		// Grab the latest view and copy it to _config
-
-		if(false !== ($view = $this->getView($widget))) {
-			$view->id .= '_config';
-			$view->is_ephemeral = true;
-		}
+		@$context = $widget->params['context'];
+		@$columns = @$widget->params['columns'] ?: [];
 		
-		// Template
+		if($context)
+			$columns = $this->_getContextColumns($context, $columns);
+			
+		$tpl->assign('columns', $columns);
 		
 		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/worklist/config.tpl');
 	}
@@ -1867,27 +2718,61 @@ class WorkspaceWidget_Worklist extends Extension_WorkspaceWidget implements ICer
 	function saveConfig(Model_WorkspaceWidget $widget) {
 		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', array());
 
-		// Convert the serialized model to proper JSON before saving
-		
-		if(isset($params['worklist_model_json'])) {
-			$worklist_model = json_decode($params['worklist_model_json'], true);
-			unset($params['worklist_model_json']);
-			
-			if(empty($worklist_model) && isset($params['context'])) {
-				if(false != ($context_ext = Extension_DevblocksContext::get($params['context']))) {
-					if(false != (@$worklist_model = json_decode(C4_AbstractViewLoader::serializeViewToAbstractJson($context_ext->getChooserView(), $context_ext->id), true))) {
-						$worklist_model['context'] = $context_ext->id;
-					}
-				}
-			}
-			
-			$params['worklist_model'] = $worklist_model;
-		}
-		
 		// Save
 		DAO_WorkspaceWidget::update($widget->id, array(
 			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
 		));
+	}
+	
+	private function _getContextColumns($context, $columns_selected=[]) {
+		if(null == ($context_ext = Extension_DevblocksContext::get($context))) {
+			return json_encode(false);
+		}
+		
+		$view_class = $context_ext->getViewClass();
+		
+		if(null == ($view = new $view_class())) /* @var $view C4_AbstractView */
+			return json_encode(false);
+		
+		$view->setAutoPersist(false);
+		
+		$results = [];
+		
+		$columns_avail = $view->getColumnsAvailable();
+		
+		if(empty($columns_selected))
+			$columns_selected = $view->view_columns;
+		
+		if(is_array($columns_avail))
+		foreach($columns_avail as $column) {
+			if(empty($column->db_label))
+				continue;
+			
+			$results[] = array(
+				'key' => $column->token,
+				'label' => mb_convert_case($column->db_label, MB_CASE_TITLE),
+				'type' => $column->type,
+				'is_selected' => in_array($column->token, $columns_selected),
+			);
+		}
+		
+		usort($results, function($a, $b) use ($columns_selected) {
+			if($a['is_selected'] == $b['is_selected']) {
+				if($a['is_selected']) {
+					$a_idx = array_search($a['key'], $columns_selected);
+					$b_idx = array_search($b['key'], $columns_selected);
+					return $a_idx < $b_idx ? -1 : 1;
+					
+				} else {
+					return $a['label'] < $b['label'] ? -1 : 1;
+				}
+				
+			} else {
+				return $a['is_selected'] ? -1 : 1;
+			}
+		});
+		
+		return $results;
 	}
 	
 	function exportData(Model_WorkspaceWidget $widget, $format=null) {
@@ -2031,7 +2916,7 @@ class WorkspaceWidget_CustomHTML extends Extension_WorkspaceWidget {
 		$html = $this->_getHtml($widget);
 		$tpl->assign('html', $html);
 		
-		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/custom_html/render.tpl');
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/_legacy/custom_html/render.tpl');
 	}
 	
 	// Config
@@ -2041,9 +2926,6 @@ class WorkspaceWidget_CustomHTML extends Extension_WorkspaceWidget {
 			return;
 		
 		$tpl = DevblocksPlatform::services()->template();
-		
-		// Widget
-		
 		$tpl->assign('widget', $widget);
 		
 		// Placeholders
@@ -2058,7 +2940,7 @@ class WorkspaceWidget_CustomHTML extends Extension_WorkspaceWidget {
 		
 		// Template
 		
-		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/custom_html/config.tpl');
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/_legacy/custom_html/config.tpl');
 	}
 	
 	function saveConfig(Model_WorkspaceWidget $widget) {
@@ -2091,7 +2973,7 @@ class WorkspaceWidget_CustomHTML extends Extension_WorkspaceWidget {
 		$dict = new DevblocksDictionaryDelegate($values);
 		
 		$html = $tpl_builder->build($content, $dict);
-		return DevblocksPlatform::purifyHTML($html, false, [], true);
+		return DevblocksPlatform::purifyHTML($html, false, false);
 	}
 };
 
@@ -2167,7 +3049,14 @@ class WorkspaceWidget_PieChart extends Extension_WorkspaceWidget implements ICer
 
 		$tpl->assign('widget', $widget);
 		
-		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/pie_chart/pie_chart.tpl');
+		// [TODO] Test arbitrary pie charts
+		
+		//$data = [];
+		//foreach($counts as $d) {
+		//	$data[] = [$d['label'], intval($d['hits'])];
+		//}
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/pie_chart/pie_chart_legacy.tpl');
 	}
 	
 	// Config

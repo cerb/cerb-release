@@ -2868,11 +2868,6 @@
 				<seg>Follow this ticket (F)</seg>
 			</tuv>
 		</tu>
-		<tu tuid="display.shortcut.print">
-			<tuv xml:lang="en_GB">
-				<seg>Print this ticket (P)</seg>
-			</tuv>
-		</tu>
 		<tu tuid="display.shortcut.read_all">
 			<tuv xml:lang="en_GB">
 				<seg>Read all messages in chronological order (A)</seg>
@@ -4018,11 +4013,6 @@
 				<seg>Always show plaintext messages (disable HTML)</seg>
 			</tuv>
 		</tu>
-		<tu tuid="preferences.account.mail.display.inline_log">
-			<tuv xml:lang="en_GB">
-				<seg>Include activity log entries in the timeline</seg>
-			</tuv>
-		</tu>
 		<tu tuid="preferences.account.mail.no_discard_warning">
 			<tuv xml:lang="en_GB">
 				<seg>Don't warn me about losing unsaved changes if I click links while composing mail</seg>
@@ -4823,14 +4813,9 @@ For example: *receipt*</seg>
 				<seg>Track Time</seg>
 			</tuv>
 		</tu>
-		<tu tuid="timetracking.ui.cfg.activities">
+		<tu tuid="timetracking.common.activities">
 			<tuv xml:lang="en_GB">
 				<seg>Activities</seg>
-			</tuv>
-		</tu>
-		<tu tuid="timetracking.ui.cfg.add_activity">
-			<tuv xml:lang="en_GB">
-				<seg>Add Activity</seg>
 			</tuv>
 		</tu>
 		<tu tuid="timetracking.ui.cfg.add_new_activity">

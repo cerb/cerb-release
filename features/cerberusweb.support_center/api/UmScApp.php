@@ -336,35 +336,10 @@ class UmScApp extends Extension_CommunityPortal {
 		}
 	}
 	
-	public function profileGetTabs(Model_CommunityTool $portal) {
-		$active_worker = CerberusApplication::getActiveWorker();
-		
-		$tabs = [];
-		
-		if(Context_CommunityTool::isWriteableByActor($portal, $active_worker))
-			$tabs['configuration'] = DevblocksPlatform::translateCapitalized('common.configure');
-		
-		$tabs['deploy'] = DevblocksPlatform::translateCapitalized('common.deploy');
-		
-		return $tabs;
-	}
-	
-	public function profileRenderTab($tab_id, Model_CommunityTool $portal) {
-		switch($tab_id) {
-			case 'configuration':
-				$this->_profileRenderConfigTabConfiguration($tab_id, $portal);
-				break;
-				
-			case 'deploy':
-				$this->_profileRenderConfigTabDeploy($tab_id, $portal);
-				break;
-		}
-	}
-	
-	private function _profileRenderConfigTabConfiguration($tab_id, Model_CommunityTool $portal) {
+	public function configure(Model_CommunityTool $portal) {
 		$tpl = DevblocksPlatform::services()->template();
 		
-		$tpl->assign('tab_id', $tab_id);
+		//$tpl->assign('tab_id', $tab_id);
 		$tpl->assign('portal', $portal);
 		
 		$modules = Extension_UmScController::getAll(false, ['configurable']);
@@ -1046,7 +1021,6 @@ class UmScAbstractViewLoader {
 		
 		$model->paramsEditable = $view->getEditableParams();
 		$model->paramsDefault = $view->getParamsDefault();
-		$model->paramsHidden = $view->getParamsHidden();
 		$model->paramsRequired = $view->getParamsRequired();
 
 		$model->renderPage = $view->renderPage;
@@ -1074,7 +1048,6 @@ class UmScAbstractViewLoader {
 		
 		$inst->addParams($model->paramsEditable, true);
 		$inst->addParamsDefault($model->paramsDefault, true);
-		$inst->addParamsHidden($model->paramsHidden, true);
 		$inst->addParamsRequired($model->paramsRequired, true);
 
 		$inst->renderPage = $model->renderPage;

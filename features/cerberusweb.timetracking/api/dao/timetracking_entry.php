@@ -40,137 +40,6 @@
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
 
-class DAO_TimeTrackingActivity extends Cerb_ORMHelper {
-	const ID = 'id';
-	const NAME = 'name';
-	const RATE = 'rate';
-	
-	private function __construct() {}
-
-	static function getFields() {
-		$validation = DevblocksPlatform::services()->validation();
-		
-		// int(10) unsigned
-		$validation
-			->addField(self::ID)
-			->id()
-			->setEditable(false)
-			;
-		// varchar(255)
-		$validation
-			->addField(self::NAME)
-			->string()
-			->setMaxLength(255)
-			->setRequired(true)
-			;
-		// decimal(8,2)
-		$validation
-			->addField(self::RATE)
-			->float()
-			;
-		$validation
-			->addField('_links')
-			->string()
-			->setMaxLength(65535)
-			;
-			
-		return $validation->getFields();
-	}
-
-	static function create($fields) {
-		$db = DevblocksPlatform::services()->database();
-		
-		$sql = sprintf("INSERT INTO timetracking_activity () ".
-			"VALUES ()"
-		);
-		$db->ExecuteMaster($sql);
-		$id = $db->LastInsertId();
-		
-		self::update($id, $fields);
-		
-		return $id;
-	}
-	
-	static function update($ids, $fields) {
-		parent::_update($ids, 'timetracking_activity', $fields);
-	}
-	
-	/**
-	 * @param string $where
-	 * @return Model_TimeTrackingActivity[]
-	 */
-	static function getWhere($where=null) {
-		$db = DevblocksPlatform::services()->database();
-		
-		$sql = "SELECT id, name ".
-			"FROM timetracking_activity ".
-			(!empty($where) ? sprintf("WHERE %s ",$where) : "").
-			"ORDER BY name ASC";
-		$rs = $db->ExecuteSlave($sql);
-		
-		return self::_getObjectsFromResult($rs);
-	}
-
-	/**
-	 * @param integer $id
-	 * @return Model_TimeTrackingActivity	 */
-	static function get($id) {
-		if(empty($id))
-			return null;
-		
-		$objects = self::getWhere(sprintf("%s = %d",
-			self::ID,
-			$id
-		));
-		
-		if(isset($objects[$id]))
-			return $objects[$id];
-		
-		return null;
-	}
-	
-	/**
-	 * @param resource $rs
-	 * @return Model_TimeTrackingActivity[]
-	 */
-	static private function _getObjectsFromResult($rs) {
-		$objects = array();
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object = new Model_TimeTrackingActivity();
-			$object->id = intval($row['id']);
-			$object->name = $row['name'];
-			$objects[$object->id] = $object;
-		}
-		
-		mysqli_free_result($rs);
-		
-		return $objects;
-	}
-	
-	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
-		$db = DevblocksPlatform::services()->database();
-		
-		if(empty($ids))
-			return;
-		
-		$ids_list = implode(',', $ids);
-		
-		$db->ExecuteMaster(sprintf("DELETE FROM timetracking_activity WHERE id IN (%s)", $ids_list));
-		
-		return true;
-	}
-};
-
-class Model_TimeTrackingActivity {
-	public $id;
-	public $name;
-};
-
 class DAO_TimeTrackingEntry extends Cerb_ORMHelper {
 	const ACTIVITY_ID = 'activity_id';
 	const ID = 'id';
@@ -597,12 +466,6 @@ class DAO_TimeTrackingEntry extends Cerb_ORMHelper {
 			'tables' => &$tables,
 		);
 		
-		array_walk_recursive(
-			$params,
-			array('DAO_TimeTrackingEntry', '_translateVirtualParameters'),
-			$args
-		);
-		
 		$result = array(
 			'primary_table' => 'tt',
 			'select' => $select_sql,
@@ -612,22 +475,6 @@ class DAO_TimeTrackingEntry extends Cerb_ORMHelper {
 		);
 		
 		return $result;
-	}
-	
-	private static function _translateVirtualParameters($param, $key, &$args) {
-		if(!is_a($param, 'DevblocksSearchCriteria'))
-			return;
-		
-		$from_context = 'cerberusweb.contexts.timetracking';
-		$from_index = 'tt.id';
-		
-		$param_key = $param->field;
-		settype($param_key, 'string');
-		switch($param_key) {
-			case SearchFields_TimeTrackingEntry::VIRTUAL_HAS_FIELDSET:
-				self::_searchComponentsVirtualHasFieldset($param, $from_context, $from_index, $args['join_sql'], $args['where_sql']);
-				break;
-		}
 	}
 	
 	/**
@@ -771,6 +618,10 @@ class SearchFields_TimeTrackingEntry extends DevblocksSearchFields {
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_TIMETRACKING, self::getPrimaryKey());
 				break;
 				
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_TIMETRACKING)), self::getPrimaryKey());
+				break;
+				
 			case self::VIRTUAL_WATCHERS:
 				return self::_getWhereSQLFromWatchersField($param, CerberusContexts::CONTEXT_TIMETRACKING, self::getPrimaryKey());
 				break;
@@ -787,6 +638,54 @@ class SearchFields_TimeTrackingEntry extends DevblocksSearchFields {
 				}
 				break;
 		}
+	}
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'activity':
+				$key = 'activity.id';
+				break;
+				
+			case 'closed':
+				$key = 'isClosed';
+				break;
+				
+			case 'worker':
+				$key = 'worker.id';
+				break;
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_TimeTrackingEntry::ACTIVITY_ID:
+				$models = DAO_TimeTrackingActivity::getIds($values);
+				$label_map = array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				if(in_array(0, $values))
+					$label_map[0] = DevblocksPlatform::translate('common.none');
+				return $label_map;
+				break;
+				
+			case SearchFields_TimeTrackingEntry::ID:
+				$models = DAO_TimeTrackingEntry::getIds($values);
+				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_TIMETRACKING);
+				return array_column(DevblocksPlatform::objectsToArrays($dicts), '_label', 'id');
+				break;
+				
+			case SearchFields_TimeTrackingEntry::IS_CLOSED:
+				return parent::_getLabelsForKeyBooleanValues();
+				break;
+				
+			case SearchFields_TimeTrackingEntry::WORKER_ID:
+				$models = DAO_Worker::getIds($values);
+				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_WORKER);
+				return array_column(DevblocksPlatform::objectsToArrays($dicts), '_label', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
 	}
 	
 	/**
@@ -861,11 +760,6 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 			SearchFields_TimeTrackingEntry::VIRTUAL_CONTEXT_LINK,
 			SearchFields_TimeTrackingEntry::VIRTUAL_HAS_FIELDSET,
 			SearchFields_TimeTrackingEntry::VIRTUAL_WATCHERS,
-			SearchFields_TimeTrackingEntry::VIRTUAL_WORKER_SEARCH,
-		));
-		
-		$this->addParamsHidden(array(
-			SearchFields_TimeTrackingEntry::ID,
 			SearchFields_TimeTrackingEntry::VIRTUAL_WORKER_SEARCH,
 		));
 		
@@ -948,15 +842,9 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 		
 		switch($column) {
 			case SearchFields_TimeTrackingEntry::ACTIVITY_ID:
-				$activities = DAO_TimeTrackingActivity::getWhere();
-				$label_map = array(
-					'0' => '(none)',
-				);
-				
-				foreach($activities as $activity_id => $activity) {
-					$label_map[$activity_id] = $activity->name;
-				}
-				
+				$label_map = function(array $values) use ($column) {
+					return SearchFields_TimeTrackingEntry::getLabelsForKeyValues($column, $values);
+				};
 				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $label_map, DevblocksSearchCriteria::OPER_IN, 'options[]');
 				break;
 				
@@ -986,7 +874,7 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 			
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -1007,6 +895,17 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 					'type' => DevblocksSearchCriteria::TYPE_FULLTEXT,
 					'options' => array('param_key' => SearchFields_TimeTrackingEntry::FULLTEXT_COMMENT_CONTENT),
 				),
+			'activity.id' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_CONTEXT,
+					'type_options' => [
+						'context' => CerberusContexts::CONTEXT_TIMETRACKING_ACTIVITY,
+					],
+					'options' => array('param_key' => SearchFields_TimeTrackingEntry::ACTIVITY_ID),
+					'examples' => [
+						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_TIMETRACKING_ACTIVITY, 'q' => ''],
+					]
+				),
 			'comments' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_FULLTEXT,
@@ -1016,6 +915,14 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
 					'options' => array('param_key' => SearchFields_TimeTrackingEntry::LOG_DATE),
+				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_TimeTrackingEntry::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_TIMETRACKING],
+					]
 				),
 			'id' => 
 				array(
@@ -1032,7 +939,7 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 				),
 			'timeSpent' => 
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'type' => DevblocksSearchCriteria::TYPE_NUMBER_MINUTES,
 					'options' => array('param_key' => SearchFields_TimeTrackingEntry::TIME_ACTUAL_MINS),
 					'examples' => array(
 						'30',
@@ -1054,7 +961,7 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 				),
 			'worker.id' => 
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'type' => DevblocksSearchCriteria::TYPE_WORKER,
 					'options' => array('param_key' => SearchFields_TimeTrackingEntry::WORKER_ID),
 					'examples' => [
 						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
@@ -1069,7 +976,7 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 		
 		// Add quick search links
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links', SearchFields_TimeTrackingEntry::VIRTUAL_CONTEXT_LINK);
 		
 		// Add searchable custom fields
 		
@@ -1103,6 +1010,10 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 	
 	function getParamFromQuickSearchFieldTokens($field, $tokens) {
 		switch($field) {
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
+				break;
+			
 			case 'mins':
 			case 'timeSpent':
 				$tokens = CerbQuickSearchLexer::getHumanTimeTokensAsNumbers($tokens, 60);
@@ -1183,65 +1094,6 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 		}
 	}
 	
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-		$tpl->assign('view', $this);
-
-		switch($field) {
-			case 'placeholder_string':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-			case SearchFields_TimeTrackingEntry::ID:
-			case SearchFields_TimeTrackingEntry::TIME_ACTUAL_MINS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-			case SearchFields_TimeTrackingEntry::LOG_DATE:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-			case SearchFields_TimeTrackingEntry::IS_CLOSED:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-			case SearchFields_TimeTrackingEntry::WORKER_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-			case SearchFields_TimeTrackingEntry::VIRTUAL_WATCHERS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-			case SearchFields_TimeTrackingEntry::VIRTUAL_HAS_FIELDSET:
-				$this->_renderCriteriaHasFieldset($tpl, CerberusContexts::CONTEXT_TIMETRACKING);
-				break;
-			case SearchFields_TimeTrackingEntry::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-			case SearchFields_TimeTrackingEntry::FULLTEXT_COMMENT_CONTENT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__fulltext.tpl');
-				break;
-			case SearchFields_TimeTrackingEntry::ACTIVITY_ID:
-				$options = array(
-					'0' => '(None)',
-				);
-				$activities = DAO_TimeTrackingActivity::getWhere();
-
-				foreach($activities as $activity_id => $activity) { /* @var $activity Model_TimeTrackingActivity */
-					$options[$activity_id] = $activity->name;
-				}
-				
-				$tpl->assign('options', $options);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__list.tpl');
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
-	}
-
 	function renderCriteriaParam($param) {
 		$field = $param->field;
 		$values = !is_array($param->value) ? array($param->value) : $param->value;
@@ -1274,23 +1126,8 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 				break;
 				
 			case SearchFields_TimeTrackingEntry::ACTIVITY_ID:
-				$activities = DAO_TimeTrackingActivity::getWhere(); // [TODO] getAll cache
-				$strings = array();
-
-				if(empty($values)) {
-					
-				} else {
-					foreach($values as $val) {
-						if(empty($val)) {
-							$strings[] = DevblocksPlatform::strEscapeHtml("(none)");
-						} else {
-							if(!isset($activities[$val]))
-								continue;
-							$strings[] = DevblocksPlatform::strEscapeHtml($activities[$val]->name);
-						}
-					}
-					echo implode(", ", $strings);
-				}
+				$label_map = SearchFields_TimeTrackingEntry::getLabelsForKeyValues($field, $values);
+				parent::_renderCriteriaParamString($param, $label_map);
 				break;
 
 			default:
@@ -1366,6 +1203,8 @@ class View_TimeTracking extends C4_AbstractView implements IAbstractView_Subtota
 };
 
 class Context_TimeTracking extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek {
+	const ID = 'cerberusweb.contexts.timetracking';
+	
 	static function isReadableByActor($models, $actor) {
 		// Everyone can view
 		return CerberusContexts::allowEverything($models);
@@ -1399,6 +1238,50 @@ class Context_TimeTracking extends Extension_DevblocksContext implements IDevblo
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=time_tracking&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_TimeTrackingEntry();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['status'] = array(
+			'label' => mb_ucfirst($translate->_('common.status')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => ($model->is_closed) ? $translate->_('status.closed') : $translate->_('status.open'),
+		);
+		
+		$properties['log_date'] = array(
+			'label' => mb_ucfirst($translate->_('timetracking_entry.log_date')),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->log_date,
+		);
+		
+		$properties['worker_id'] = array(
+			'label' => mb_ucfirst($translate->_('common.worker')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'params' => array('context' => CerberusContexts::CONTEXT_WORKER),
+			'value' => $model->worker_id,
+		);
+		
+		$properties['time_spent'] = array(
+			'label' => mb_ucfirst($translate->_('timetracking.ui.entry_panel.time_spent')),
+			'type' => 'time_mins',
+			'value' => $model->time_actual_mins,
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -1738,12 +1621,6 @@ class Context_TimeTracking extends Extension_DevblocksContext implements IDevblo
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			$tpl->assign('dict', $dict);
 			
-			// Counts
-			$activity_counts = array(
-				//'comments' => DAO_Comment::count($context, $context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				$context => array(
@@ -1751,7 +1628,7 @@ class Context_TimeTracking extends Extension_DevblocksContext implements IDevblo
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -1774,6 +1651,10 @@ class Context_TimeTracking extends Extension_DevblocksContext implements IDevblo
 			$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
 			$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
 			$tpl->assign('interactions_menu', $interactions_menu);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$tpl->display('devblocks:cerberusweb.timetracking::timetracking/peek.tpl');
 		}

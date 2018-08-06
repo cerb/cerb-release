@@ -314,17 +314,52 @@ var cAjaxCalls = function() {
 		}
 	}
 	
-	this.viewAddFilter = function(view_id, field, oper, values, replace) {
+	this.viewAddQuery = function(view_id, query, replace) {
 		var $view = $('#view'+view_id);
 		
 		var post_str = 'c=internal' +
 			'&a=viewAddFilter' + 
 			'&id=' + view_id +
-			'&replace=' + encodeURIComponent(replace ? 1 : 0) +
-			'&field=' + encodeURIComponent(field) +
-			'&oper=' + encodeURIComponent(oper) +
-			'&' + $.param(values, true)
+			'&add_mode=query' +
+			'&replace=' + encodeURIComponent(replace) +
+			'&query=' + encodeURIComponent(query)
 			;
+		
+		var cb = function(o) {
+			var $view_filters = $('#viewCustomFilters'+view_id);
+			
+			if(0 != $view_filters.length) {
+				$view_filters.html(o);
+				$view_filters.trigger('view_refresh')
+			}
+		}
+		
+		var options = {};
+		options.type = 'POST';
+		options.data = post_str; //$('#'+formName).serialize();
+		options.url = DevblocksAppPath+'ajax.php';//+(null!=args?('?'+args):''),
+		options.cache = false;
+		options.success = cb;
+		
+		if(null == options.headers)
+			options.headers = {};
+		
+		options.headers['X-CSRF-Token'] = $('meta[name="_csrf_token"]').attr('content');
+		
+		$.ajax(options);
+	}
+	
+	this.viewAddFilter = function(view_id, field, oper, values, replace) {
+		var $view = $('#view'+view_id);
+		
+		var post_str = 'c=internal' +
+		'&a=viewAddFilter' + 
+		'&id=' + view_id +
+		'&replace=' + encodeURIComponent(replace) +
+		'&field=' + encodeURIComponent(field) +
+		'&oper=' + encodeURIComponent(oper) +
+		'&' + $.param(values, true)
+		;
 		
 		var cb = function(o) {
 			var $view_filters = $('#viewCustomFilters'+view_id);
@@ -818,6 +853,7 @@ var ajax = new cAjaxCalls();
 					{ value: "batch(n,fill)", meta: "filter" },
 					{ value: "bytes_pretty()", snippet: "bytes_pretty(${1:2})", meta: "filter" },
 					{ value: "capitalize", meta: "filter" },
+					{ value: "cerb_translate", meta: "filter" },
 					{ value: "context_name()", snippet: "context_name(\"${1:plural}\")", meta: "filter" },
 					{ value: "convert_encoding()", snippet: "convert_encoding(${1:to_charset},${2:from_charset})", meta: "filter" },
 					{ value: "date('F d, Y')", meta: "filter" },
@@ -864,11 +900,19 @@ var ajax = new cAjaxCalls();
 				];
 				
 				var twig_functions = [
-					{ value: "array_diff(arr1,arr2)", meta: "function" },
+					{ value: "array_combine(keys,values)", meta: "function" },
+					{ value: "array_diff(array1,array2)", meta: "function" },
+					{ value: "array_intersect(array1,array2)", meta: "function" },
+					{ value: "array_sort_keys(array)", meta: "function" },
+					{ value: "array_unique(array)", meta: "function" },
+					{ value: "array_values(array)", meta: "function" },
 					{ value: "attribute(object,attr)", meta: "function" },
 					{ value: "cerb_avatar_image(context,id,updated)", meta: "function" },
 					{ value: "cerb_avatar_url(context,id,updated)", meta: "function" },
 					{ value: "cerb_file_url(file_id,full,proxy)", meta: "function" },
+					{ value: "cerb_has_priv(priv,actor_context,actor_id)", meta: "function" },
+					{ value: "cerb_record_readable(record_context,record_id,actor_context,actor_id)", meta: "function" },
+					{ value: "cerb_record_writeable(record_context,record_id,actor_context,actor_id)", meta: "function" },
 					{ value: "cerb_url('c=controller&a=action&p=param')", meta: "function" },
 					{ value: "cycle(position)", meta: "function" },
 					{ value: "date(date,timezone)", meta: "function" },
@@ -1266,52 +1310,69 @@ var ajax = new cAjaxCalls();
 				
 				$attachments.css('border', '');
 				
-				var files = e.originalEvent.dataTransfer.files;
-				var formdata = new FormData();
+				// Uploads
 				
-				formdata.append('_csrf_token', $('meta[name="_csrf_token"]').attr('content'));
+				var jobs = [];
+				var labels = [];
+				var values = [];
 				
-				for(var i = 0; i < files.length; i++) {
-					formdata.append('file_data[]', files[i]);
-				}
-				
-				var xhr = new XMLHttpRequest();
-				
-				xhr.open('POST', DevblocksAppPath + 'ajax.php?c=internal&a=chooserOpenFileUpload');
-				xhr.onload = function(e) {
-					var $ul = $attachments.find('ul.chooser-container');
+				var uploadFunc = function(f, labels, values, callback) {
+					var xhr = new XMLHttpRequest();
+					var file = f;
 					
-					$attachments.find('span.cerb-ajax-spinner').first().remove();
-					
-					if(200 == this.status) {
-						var json = JSON.parse(this.responseText);
+					if(xhr.upload) {
+						xhr.open('POST', DevblocksAppPath + 'ajax.php?c=internal&a=chooserOpenFileAjaxUpload', true);
+						xhr.setRequestHeader('X-File-Name', f.name);
+						xhr.setRequestHeader('X-File-Type', f.type);
+						xhr.setRequestHeader('X-File-Size', f.size);
+						xhr.setRequestHeader('X-CSRF-Token', $('meta[name="_csrf_token"]').attr('content'));
 						
-						for(var i = 0; i < json.length; i++) {
-							// Only add unique files
-							if(0 == $ul.find('input:hidden[value="' + json[i].id + '"]').length) {
-								var $hidden = $('<input type="hidden" name="file_ids[]"/>').val(json[i].id);
-								var $remove = $('<a href="javascript:;" onclick="$(this).parent().remove();"><span class="glyphicons glyphicons-circle-remove"></span></a>');
-								var $a = $('<a href="javascript:;"/>')
-									.attr('data-context', 'attachment')
-									.attr('data-context-id', json[i].id)
-									.text(json[i].name + ' (' + json[i].size + ' bytes)')
-									.cerbPeekTrigger()
-									;
-								var $li = $('<li/>').append($a).append($hidden).append($remove);
-								$ul.append($li);
+						xhr.onreadystatechange = function(e) {
+							if(xhr.readyState == 4) {
+								var json = {};
+								if(xhr.status == 200) {
+									json = JSON.parse(xhr.responseText);
+									labels.push(json.name + ' (' + json.size_label + ')');
+									values.push(json.id);
+									
+								} else {
+								}
+								
+								callback(null, json);
 							}
-						}
+						};
+						
+						xhr.send(f);
 					}
 				};
 				
-				xhr.upload.onprogress = function(event) {
-					if(!event.lengthComputable)
-						return;
-					
-					var complete = (event.loaded / event.total * 100 | 0);
-				};
+				var files = e.originalEvent.dataTransfer.files;
 				
-				xhr.send(formdata);
+				for(var i = 0, f; f = files[i]; i++) {
+					jobs.push(
+						async.apply(uploadFunc, f, labels, values)
+					);
+				}
+				
+				async.series(jobs, function(err, json) {
+					var $ul = $attachments.find('ul.chooser-container');
+					$attachments.find('span.cerb-ajax-spinner').first().remove();
+					
+					for(var i = 0; i < json.length; i++) {
+						if(0 == $ul.find('input:hidden[value="' + json[i].id + '"]').length) {
+							var $hidden = $('<input type="hidden" name="file_ids[]"/>').val(json[i].id);
+							var $remove = $('<a href="javascript:;" onclick="$(this).parent().remove();"><span class="glyphicons glyphicons-circle-remove"></span></a>');
+							var $a = $('<a href="javascript:;"/>')
+								.attr('data-context', 'attachment')
+								.attr('data-context-id', json[i].id)
+								.text(json[i].name + ' (' + json[i].size_label + ')')
+								.cerbPeekTrigger()
+								;
+							var $li = $('<li/>').append($a).append($hidden).append($remove);
+							$ul.append($li);
+						}
+					}
+				});
 			});
 		});
 	}

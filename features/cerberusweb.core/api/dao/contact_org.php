@@ -504,12 +504,6 @@ class DAO_ContactOrg extends Cerb_ORMHelper {
 			'tables' => &$tables,
 		);
 		
-		array_walk_recursive(
-			$params,
-			array('DAO_ContactOrg', '_translateVirtualParameters'),
-			$args
-		);
-		
 		$result = array(
 			'primary_table' => 'c',
 			'select' => $select_sql,
@@ -519,23 +513,6 @@ class DAO_ContactOrg extends Cerb_ORMHelper {
 		);
 		
 		return $result;
-	}
-	
-	private static function _translateVirtualParameters($param, $key, &$args) {
-		if(!is_a($param, 'DevblocksSearchCriteria'))
-			return;
-		
-		$from_context = 'cerberusweb.contexts.org';
-		$from_index = 'c.id';
-		
-		$param_key = $param->field;
-		settype($param_key, 'string');
-		
-		switch($param_key) {
-			case SearchFields_ContactOrg::VIRTUAL_HAS_FIELDSET:
-				self::_searchComponentsVirtualHasFieldset($param, $from_context, $from_index, $args['join_sql'], $args['where_sql']);
-				break;
-		}
 	}
 	
 	/**
@@ -662,6 +639,10 @@ class SearchFields_ContactOrg extends DevblocksSearchFields {
 				return self::_getWhereSQLFromVirtualSearchField($param, CerberusContexts::CONTEXT_ADDRESS, 'c.email_id');
 				break;
 				
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_ORG)), self::getPrimaryKey());
+				break;
+				
 			case self::VIRTUAL_WATCHERS:
 				return self::_getWhereSQLFromWatchersField($param, CerberusContexts::CONTEXT_ORG, self::getPrimaryKey());
 				break;
@@ -676,7 +657,28 @@ class SearchFields_ContactOrg extends DevblocksSearchFields {
 		}
 		
 	}
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'province':
+				$key = 'state';
+				break;
+		}
 		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_ContactOrg::ID:
+				$models = DAO_ContactOrg::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -1010,12 +1012,6 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 			SearchFields_ContactOrg::VIRTUAL_WATCHERS,
 		));
 		
-		$this->addParamsHidden(array(
-			SearchFields_ContactOrg::ID,
-			SearchFields_ContactOrg::EMAIL_ID,
-			SearchFields_ContactOrg::VIRTUAL_ALIAS,
-		));
-		
 		$this->doResetCriteria();
 	}
 
@@ -1110,7 +1106,7 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 			
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -1170,6 +1166,14 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_ADDRESS, 'q' => ''],
 					]
 				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_ContactOrg::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_ORG],
+					]
+				),
 			'id' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
@@ -1222,7 +1226,7 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 		
 		// Add quick search links
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links', SearchFields_ContactOrg::VIRTUAL_CONTEXT_LINK);
 		
 		// Add searchable custom fields
 		
@@ -1274,6 +1278,10 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 			case 'email':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_ContactOrg::VIRTUAL_EMAIL_SEARCH);
 				break;
+				
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
+				break;
 			
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
@@ -1310,58 +1318,6 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 		
 		$tpl->clearAssign('custom_fields');
 		$tpl->clearAssign('id');
-	}
-
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-		$tpl->assign('view', $this);
-
-		switch($field) {
-			case SearchFields_ContactOrg::NAME:
-			case SearchFields_ContactOrg::STREET:
-			case SearchFields_ContactOrg::CITY:
-			case SearchFields_ContactOrg::PROVINCE:
-			case SearchFields_ContactOrg::POSTAL:
-			case SearchFields_ContactOrg::COUNTRY:
-			case SearchFields_ContactOrg::PHONE:
-			case SearchFields_ContactOrg::WEBSITE:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case SearchFields_ContactOrg::CREATED:
-			case SearchFields_ContactOrg::UPDATED:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_ContactOrg::FULLTEXT_COMMENT_CONTENT:
-			case SearchFields_ContactOrg::FULLTEXT_ORG:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__fulltext.tpl');
-				break;
-				
-			case SearchFields_ContactOrg::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-				
-			case SearchFields_ContactOrg::VIRTUAL_HAS_FIELDSET:
-				$this->_renderCriteriaHasFieldset($tpl, CerberusContexts::CONTEXT_ORG);
-				break;
-				
-			case SearchFields_ContactOrg::VIRTUAL_WATCHERS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-				
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
 	}
 
 	function renderVirtualCriteria($param) {
@@ -1514,6 +1470,83 @@ class Context_Org extends Extension_DevblocksContext implements IDevblocksContex
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=org&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_ContactOrg();
+		
+		$properties['_label'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => array(
+				'context' => CerberusContexts::CONTEXT_ORG,
+			),
+		);
+		
+		$properties['email'] = array(
+			'label' => mb_ucfirst($translate->_('common.email')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->email_id,
+			'params' => array(
+				'context' => CerberusContexts::CONTEXT_ADDRESS,
+			),
+		);
+		
+		$properties['street'] = array(
+			'label' => mb_ucfirst($translate->_('contact_org.street')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->street,
+		);
+		
+		$properties['city'] = array(
+			'label' => mb_ucfirst($translate->_('contact_org.city')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->city,
+		);
+		
+		$properties['province'] = array(
+			'label' => mb_ucfirst($translate->_('contact_org.province')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->province,
+		);
+		
+		$properties['postal'] = array(
+			'label' => mb_ucfirst($translate->_('contact_org.postal')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->postal,
+		);
+		
+		$properties['country'] = array(
+			'label' => mb_ucfirst($translate->_('contact_org.country')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->country,
+		);
+		
+		$properties['phone'] = array(
+			'label' => mb_ucfirst($translate->_('common.phone')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->phone,
+		);
+		
+		$properties['website'] = array(
+			'label' => mb_ucfirst($translate->_('common.website')),
+			'type' => Model_CustomField::TYPE_URL,
+			'value' => $model->website,
+		);
+		
+		$properties['created'] = array(
+			'label' => mb_ucfirst($translate->_('common.created')),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->created,
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -1696,19 +1729,23 @@ class Context_Org extends Extension_DevblocksContext implements IDevblocksContex
 			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=org&id=%d-%s",$org->id, DevblocksPlatform::strToPermalink($org->name)), true);
 		}
 		
+		$context_stack = CerberusContexts::getStack();
+		
 		// Email
-		$merge_token_labels = array();
-		$merge_token_values = array();
-		CerberusContexts::getContext(CerberusContexts::CONTEXT_ADDRESS, null, $merge_token_labels, $merge_token_values, '', true);
-
-		CerberusContexts::merge(
-			'email_',
-			$prefix.'Email:',
-			$merge_token_labels,
-			$merge_token_values,
-			$token_labels,
-			$token_values
-		);
+		// Only link email placeholders if the email isn't nested under an org already
+		if(1 == count($context_stack) || !in_array(CerberusContexts::CONTEXT_ADDRESS, $context_stack)) {
+			$merge_token_labels = $merge_token_values = [];
+			CerberusContexts::getContext(CerberusContexts::CONTEXT_ADDRESS, null, $merge_token_labels, $merge_token_values, '', true);
+	
+			CerberusContexts::merge(
+				'email_',
+				$prefix.'Email:',
+				$merge_token_labels,
+				$merge_token_values,
+				$token_labels,
+				$token_values
+			);
+		}
 
 		return true;
 	}
@@ -1862,20 +1899,10 @@ class Context_Org extends Extension_DevblocksContext implements IDevblocksContex
 			
 		} else {
 			// Dictionary
-			$labels = array();
-			$values = array();
+			$labels = $values = [];
 			CerberusContexts::getContext($context, $contact, $labels, $values, '', true, false);
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			$tpl->assign('dict', $dict);
-			
-			// Counts
-			$activity_counts = array(
-				'comments' => DAO_Comment::count($context, $context_id),
-				'contacts' => DAO_Contact::countByOrgId($context_id),
-				'emails' => DAO_Address::countByOrgId($context_id),
-				'tickets' => DAO_Ticket::countsByOrgId($context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
 			
 			// Links
 			$links = array(
@@ -1884,7 +1911,7 @@ class Context_Org extends Extension_DevblocksContext implements IDevblocksContex
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -1907,6 +1934,12 @@ class Context_Org extends Extension_DevblocksContext implements IDevblocksContex
 			$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
 			$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
 			$tpl->assign('interactions_menu', $interactions_menu);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
+			
+			$tpl->assign('counts_tickets', DAO_Ticket::countsByOrgId($context_id));
 			
 			$tpl->display('devblocks:cerberusweb.core::contacts/orgs/peek.tpl');
 		}

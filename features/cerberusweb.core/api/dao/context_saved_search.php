@@ -516,6 +516,8 @@ class SearchFields_ContextSavedSearch extends DevblocksSearchFields {
 	const OWNER_CONTEXT = 'c_owner_context';
 	const OWNER_CONTEXT_ID = 'c_owner_context_id';
 	const UPDATED_AT = 'c_updated_at';
+	
+	const VIRTUAL_HAS_FIELDSET = '*_has_fieldset';
 
 	static private $_fields = null;
 	
@@ -531,6 +533,10 @@ class SearchFields_ContextSavedSearch extends DevblocksSearchFields {
 	
 	static function getWhereSQL(DevblocksSearchCriteria $param) {
 		switch($param->field) {
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_SAVED_SEARCH)), self::getPrimaryKey());
+				break;
+				
 			default:
 				if('cf_' == substr($param->field, 0, 3)) {
 					return self::_getWhereSQLFromCustomFields($param);
@@ -539,6 +545,28 @@ class SearchFields_ContextSavedSearch extends DevblocksSearchFields {
 				}
 				break;
 		}
+	}
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_ContextSavedSearch::CONTEXT:
+				return parent::_getLabelsForKeyContextValues();
+				break;
+				
+			case SearchFields_ContextSavedSearch::ID:
+				$models = DAO_ContextSavedSearch::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
 	}
 	
 	/**
@@ -566,6 +594,8 @@ class SearchFields_ContextSavedSearch extends DevblocksSearchFields {
 			self::OWNER_CONTEXT => new DevblocksSearchField(self::OWNER_CONTEXT, 'context_saved_search', 'owner_context', null, null, true),
 			self::OWNER_CONTEXT_ID => new DevblocksSearchField(self::OWNER_CONTEXT_ID, 'context_saved_search', 'owner_context_id', null, null, true),
 			self::UPDATED_AT => new DevblocksSearchField(self::UPDATED_AT, 'context_saved_search', 'updated_at', $translate->_('common.updated'), null, true),
+			
+			self::VIRTUAL_HAS_FIELDSET => new DevblocksSearchField(self::VIRTUAL_HAS_FIELDSET, '*', 'has_fieldset', $translate->_('common.fieldset'), null, false),
 		);
 		
 		// Custom Fields
@@ -641,11 +671,7 @@ class View_ContextSavedSearch extends C4_AbstractView implements IAbstractView_S
 		$this->addColumnsHidden(array(
 			SearchFields_ContextSavedSearch::OWNER_CONTEXT,
 			SearchFields_ContextSavedSearch::OWNER_CONTEXT_ID,
-		));
-		
-		$this->addParamsHidden(array(
-			SearchFields_ContextSavedSearch::OWNER_CONTEXT,
-			SearchFields_ContextSavedSearch::OWNER_CONTEXT_ID,
+			SearchFields_ContextSavedSearch::VIRTUAL_HAS_FIELDSET,
 		));
 		
 		$this->doResetCriteria();
@@ -687,6 +713,7 @@ class View_ContextSavedSearch extends C4_AbstractView implements IAbstractView_S
 			switch($field_key) {
 				// Fields
 				case SearchFields_ContextSavedSearch::CONTEXT:
+				case SearchFields_ContextSavedSearch::VIRTUAL_HAS_FIELDSET:
 					$pass = true;
 					break;
 			}
@@ -712,10 +739,14 @@ class View_ContextSavedSearch extends C4_AbstractView implements IAbstractView_S
 				$label_map = array_column($contexts, 'name', 'id');
 				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $label_map);
 				break;
+				
+			case SearchFields_ContextSavedSearch::VIRTUAL_HAS_FIELDSET:
+				$counts = $this->_getSubtotalCountForHasFieldsetColumn($context, $column);
+				break;
 
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -738,6 +769,14 @@ class View_ContextSavedSearch extends C4_AbstractView implements IAbstractView_S
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_ContextSavedSearch::CONTEXT, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_ContextSavedSearch::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_SAVED_SEARCH],
+					]
 				),
 			'id' => 
 				array(
@@ -781,6 +820,10 @@ class View_ContextSavedSearch extends C4_AbstractView implements IAbstractView_S
 	
 	function getParamFromQuickSearchFieldTokens($field, $tokens) {
 		switch($field) {
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
+				break;
+			
 			default:
 				$search_fields = $this->getQuickSearchFields();
 				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
@@ -809,46 +852,16 @@ class View_ContextSavedSearch extends C4_AbstractView implements IAbstractView_S
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_ContextSavedSearch::CONTEXT:
-			case SearchFields_ContextSavedSearch::NAME:
-			case SearchFields_ContextSavedSearch::QUERY:
-			case SearchFields_ContextSavedSearch::TAG:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case SearchFields_ContextSavedSearch::ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-				
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-				
-			case SearchFields_ContextSavedSearch::UPDATED_AT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
-	}
-
 	function renderCriteriaParam($param) {
 		$field = $param->field;
 		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
+			case SearchFields_ContextSavedSearch::CONTEXT:
+				$label_map = SearchFields_ContextSavedSearch::getLabelsForKeyValues($field, $values);
+				parent::_renderCriteriaParamString($param, $label_map);
+				break;
+			
 			default:
 				parent::renderCriteriaParam($param);
 				break;
@@ -861,6 +874,9 @@ class View_ContextSavedSearch extends C4_AbstractView implements IAbstractView_S
 		$translate = DevblocksPlatform::getTranslationService();
 		
 		switch($key) {
+			case SearchFields_ContextSavedSearch::VIRTUAL_HAS_FIELDSET:
+				$this->_renderVirtualHasFieldset($param);
+				break;
 		}
 	}
 
@@ -887,9 +903,9 @@ class View_ContextSavedSearch extends C4_AbstractView implements IAbstractView_S
 				$criteria = $this->_doSetCriteriaDate($field, $oper);
 				break;
 				
-			case 'placeholder_bool':
-				@$bool = DevblocksPlatform::importGPC($_REQUEST['bool'],'integer',1);
-				$criteria = new DevblocksSearchCriteria($field,$oper,$bool);
+			case SearchFields_ContextSavedSearch::VIRTUAL_HAS_FIELDSET:
+				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',array());
+				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$options);
 				break;
 				
 			default:
@@ -929,6 +945,61 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=saved_search&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_ContextSavedSearch();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['owner'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.owner'),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->owner_context_id,
+			'params' => [
+				'context' => $model->owner_context,
+			]
+		);
+		
+		$properties['tag'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.tag'),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->tag,
+		);
+		
+		
+		$search_context_ext = $model->getContextExtension(false);
+		
+		$properties['context'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.context'),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => @$search_context_ext->name ?: null,
+		);
+		
+		$properties['updated'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated_at,
+		);
+		
+		$properties['query'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.query'),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->query,
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -1170,25 +1241,22 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 			$tpl->display('devblocks:cerberusweb.core::internal/contexts/saved_search/peek_edit.tpl');
 			
 		} else {
-			// Counts
-			$activity_counts = array(
-				//'comments' => DAO_Comment::count($context, $context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Context
 			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
 				return;
 			
 			// Dictionary
-			$labels = [];
-			$values = [];
+			$labels = $values = [];
 			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			$tpl->assign('dict', $dict);
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$tpl->display('devblocks:cerberusweb.core::internal/contexts/saved_search/peek.tpl');
 		}

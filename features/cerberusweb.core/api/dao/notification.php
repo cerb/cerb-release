@@ -707,6 +707,61 @@ class SearchFields_Notification extends DevblocksSearchFields {
 		}
 	}
 	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'worker':
+				$key = 'worker.id';
+				break;
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_Notification::ACTIVITY_POINT:
+				$strings = [];
+				
+				$activities = DevblocksPlatform::getActivityPointRegistry();
+				$translate = DevblocksPlatform::getTranslationService();
+				
+				if(is_array($values))
+				foreach($values as $v) {
+					$string = $v;
+					if(isset($activities[$v])) {
+						@$string_id = $activities[$v]['params']['label_key'];
+						if(!empty($string_id))
+							$string = $translate->_($string_id);
+					}
+					
+					$strings[$v] = $string;
+				}
+				return $strings;
+				break;
+				
+			case SearchFields_Notification::ID:
+				$models = DAO_Notification::getIds($values);
+				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_NOTIFICATION);
+				return array_column(DevblocksPlatform::objectsToArrays($dicts), '_label', 'id');
+				break;
+				
+			case SearchFields_Notification::IS_READ:
+				return parent::_getLabelsForKeyBooleanValues();
+				break;
+				
+			case SearchFields_Notification::WORKER_ID:
+				$models = DAO_Worker::getIds($values);
+				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_WORKER);
+				$label_map = array_column(DevblocksPlatform::objectsToArrays($dicts), '_label', 'id');
+				if(in_array(0, $values))
+					$label_map[0] = DevblocksPlatform::translate('common.nobody');
+				return $label_map;
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -809,14 +864,6 @@ class View_Notification extends C4_AbstractView implements IAbstractView_Subtota
 			SearchFields_Notification::VIRTUAL_WORKER_SEARCH,
 		));
 		
-		$this->addParamsHidden(array(
-			SearchFields_Notification::CONTEXT,
-			SearchFields_Notification::CONTEXT_ID,
-			SearchFields_Notification::ENTRY_JSON,
-			SearchFields_Notification::ID,
-			SearchFields_Notification::VIRTUAL_WORKER_SEARCH,
-		));
-		
 		$this->doResetCriteria();
 	}
 
@@ -876,16 +923,16 @@ class View_Notification extends C4_AbstractView implements IAbstractView_Subtota
 	}
 	
 	function getSubtotalCounts($column) {
-		$counts = array();
+		$counts = [];
 		$fields = $this->getFields();
 		$context = CerberusContexts::CONTEXT_NOTIFICATION;
 
 		if(!isset($fields[$column]))
-			return array();
+			return [];
 		
 		switch($column) {
 			case SearchFields_Notification::ACTIVITY_POINT:
-				$label_map = array();
+				$label_map = [];
 				$translate = DevblocksPlatform::getTranslationService();
 				
 				$activities = DevblocksPlatform::getActivityPointRegistry();
@@ -905,7 +952,7 @@ class View_Notification extends C4_AbstractView implements IAbstractView_Subtota
 				
 			case SearchFields_Notification::WORKER_ID:
 				$workers = DAO_Worker::getAll();
-				$label_map = array();
+				$label_map = [];
 				foreach($workers as $worker_id => $worker)
 					$label_map[$worker_id] = $worker->getName();
 				$counts = $this->_getSubtotalCountForNumberColumn($context, $column, $label_map, 'in', 'worker_id[]');
@@ -913,7 +960,7 @@ class View_Notification extends C4_AbstractView implements IAbstractView_Subtota
 			
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -1024,43 +1071,6 @@ class View_Notification extends C4_AbstractView implements IAbstractView_Subtota
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-		$tpl->assign('view', $this);
-
-		switch($field) {
-			case 'placeholder_string':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-			case SearchFields_Notification::IS_READ:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-			case SearchFields_Notification::CREATED_DATE:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-			case SearchFields_Notification::WORKER_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-			case SearchFields_Notification::ACTIVITY_POINT:
-				$activities = DevblocksPlatform::getActivityPointRegistry();
-				$options = array();
-				
-				foreach($activities as $activity_id => $activity) {
-					if(isset($activity['params']['label_key']))
-						$options[$activity_id] = $activity['params']['label_key'];
-				}
-				
-				$tpl->assign('options', $options);
-				
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__list.tpl');
-				break;
-			default:
-				echo '';
-				break;
-		}
-	}
-	
 	function renderVirtualCriteria($param) {
 		$field = $param->field;
 		
@@ -1088,24 +1098,8 @@ class View_Notification extends C4_AbstractView implements IAbstractView_Subtota
 				break;
 				
 			case SearchFields_Notification::ACTIVITY_POINT:
-				$strings = array();
-				
-				$activities = DevblocksPlatform::getActivityPointRegistry();
-				$translate = DevblocksPlatform::getTranslationService();
-				
-				if(is_array($values))
-				foreach($values as $v) {
-					$string = $v;
-					if(isset($activities[$v])) {
-						@$string_id = $activities[$v]['params']['label_key'];
-						if(!empty($string_id))
-							$string = $translate->_($string_id);
-					}
-					
-					$strings[] = $string;
-				}
-				
-				return implode(' or ', $strings);
+				$label_map = SearchFields_Notification::getLabelsForKeyValues($field, $values);
+				parent::_renderCriteriaParamString($param, $label_map);
 				break;
 				
 			default:

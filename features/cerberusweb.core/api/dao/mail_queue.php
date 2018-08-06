@@ -547,6 +547,42 @@ class SearchFields_MailQueue extends DevblocksSearchFields {
 		}
 	}
 	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'worker':
+				$key = 'worker.id';
+				break;
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_MailQueue::ID:
+				$models = DAO_MailQueue::getIds($values);
+				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_DRAFT);
+				return array_column(DevblocksPlatform::objectsToArrays($dicts), '_label', 'id');
+				break;
+				
+			case SearchFields_MailQueue::TYPE:
+				$label_map = array(
+					'mail.compose' => 'Compose',
+					'ticket.reply' => 'Reply',
+				);
+				return $label_map;
+				break;
+				
+			case SearchFields_MailQueue::WORKER_ID:
+				$models = DAO_Worker::getIds($values);
+				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_WORKER);
+				return array_column(DevblocksPlatform::objectsToArrays($dicts), '_label', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -602,6 +638,10 @@ class Model_MailQueue {
 	public $is_queued;
 	public $queue_delivery_date;
 	public $queue_fails;
+	
+	public function getTicket() {
+		return DAO_Ticket::get($this->ticket_id);
+	}
 	
 	/**
 	 * @return boolean
@@ -805,12 +845,6 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 			SearchFields_MailQueue::VIRTUAL_WORKER_SEARCH,
 		));
 		
-		$this->addParamsHidden(array(
-			SearchFields_MailQueue::ID,
-			SearchFields_MailQueue::TICKET_ID,
-			SearchFields_MailQueue::VIRTUAL_WORKER_SEARCH,
-		));
-		
 		$this->doResetCriteria();
 	}
 
@@ -895,7 +929,7 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 			
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -931,6 +965,11 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_MailQueue::HINT_TO, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX),
+				),
+			'type' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'options' => array('param_key' => SearchFields_MailQueue::TYPE, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
 				),
 			'updated' => 
 				array(
@@ -1003,38 +1042,6 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-		$tpl->assign('view', $this);
-
-		switch($field) {
-			case SearchFields_MailQueue::HINT_TO:
-			case SearchFields_MailQueue::SUBJECT:
-			case SearchFields_MailQueue::TYPE:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-			case SearchFields_MailQueue::ID:
-			case SearchFields_MailQueue::TICKET_ID:
-			case SearchFields_MailQueue::QUEUE_FAILS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-			case SearchFields_MailQueue::IS_QUEUED:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-			case SearchFields_MailQueue::QUEUE_DELIVERY_DATE:
-			case SearchFields_MailQueue::UPDATED:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-			case SearchFields_MailQueue::WORKER_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-			default:
-				echo '';
-				break;
-		}
-	}
-
 	function renderCriteriaParam($param) {
 		$field = $param->field;
 		$values = !is_array($param->value) ? array($param->value) : $param->value;
@@ -1045,10 +1052,7 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 				break;
 			
 			case SearchFields_MailQueue::TYPE:
-				$label_map = array(
-					'mail.compose' => 'Compose',
-					'ticket.reply' => 'Reply',
-				);
+				$label_map = SearchFields_MailQueue::getLabelsForKeyValues($field, $values);
 				$this->_renderCriteriaParamString($param, $label_map);
 				break;
 				
@@ -1120,7 +1124,9 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 	}
 };
 
-class Context_Draft extends Extension_DevblocksContext {
+class Context_Draft extends Extension_DevblocksContext implements IDevblocksContextProfile {
+	const ID = 'cerberusweb.contexts.mail.draft';
+	
 	static function isReadableByActor($models, $actor) {
 		// Everyone can read
 		return CerberusContexts::allowEverything($models);
@@ -1167,6 +1173,57 @@ class Context_Draft extends Extension_DevblocksContext {
 	
 	function getViewClass() {
 		return 'View_MailQueue';
+	}
+	
+	function profileGetUrl($context_id) {
+		if(empty($context_id))
+			return '';
+	
+		$url_writer = DevblocksPlatform::services()->url();
+		$url = $url_writer->writeNoProxy('c=profiles&type=draft&id='.$context_id, true);
+		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		/* @var $model Model_MailQueue */
+		
+		if(is_null($model))
+			$model = new Model_MailQueue();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['ticket_id'] = array(
+			'label' => mb_ucfirst($translate->_('common.ticket')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->ticket_id,
+			'params' => [
+				'context' => CerberusContexts::CONTEXT_TICKET,
+			],
+		);
+		
+		$properties['to'] = array(
+			'label' => mb_ucfirst($translate->_('message.header.to')),
+			'type' => Model_CustomField::TYPE_MULTI_LINE,
+			'value' => $model->hint_to,
+		);
+		
+		$properties['updated'] = array(
+			'label' => mb_ucfirst($translate->_('common.updated')),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated,
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -1260,7 +1317,7 @@ class Context_Draft extends Extension_DevblocksContext {
 		);
 		
 		// Token values
-		$token_values = array();
+		$token_values = [];
 		
 		$token_values['_context'] = CerberusContexts::CONTEXT_DRAFT;
 		$token_values['_types'] = $token_types;
@@ -1376,14 +1433,6 @@ class Context_Draft extends Extension_DevblocksContext {
 		$view->addParamsRequired(array(
 			SearchFields_MailQueue::IS_QUEUED => new DevblocksSearchCriteria(SearchFields_MailQueue::IS_QUEUED,'=',0),
 		), true);
-		
-		$view->addParamsHidden(array(
-			SearchFields_MailQueue::ID,
-			SearchFields_MailQueue::IS_QUEUED,
-			SearchFields_MailQueue::QUEUE_DELIVERY_DATE,
-			SearchFields_MailQueue::QUEUE_FAILS,
-			SearchFields_MailQueue::TICKET_ID,
-		));
 		
 		$view->renderSortBy = SearchFields_MailQueue::UPDATED;
 		$view->renderSortAsc = false;

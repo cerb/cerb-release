@@ -108,6 +108,7 @@ interface IDevblocksContextBroadcast {
 
 interface IDevblocksContextProfile {
 	function profileGetUrl($context_id);
+	function profileGetFields($model=null);
 }
 
 interface IDevblocksContextAutocomplete {
@@ -359,7 +360,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		return null;
 	}
-
+	
 	public static function getByViewClass($view_class, $as_instance=false) {
 		$contexts = self::getAll(false);
 
@@ -375,6 +376,26 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		}
 
 		return null;
+	}
+	
+	public static function getByMacros($as_instances=false) {
+		$contexts = Extension_DevblocksContext::getAll(false);
+		$macro_contexts = Extension_DevblocksEvent::getWithMacroContexts();
+		$results = [];
+		
+		array_walk($macro_contexts, function($macro) use ($contexts, &$results, $as_instances) {
+			$macro_context = $macro->params['macro_context'];
+			
+			if(isset($contexts[$macro_context])) {
+				if($as_instances) {
+					$results[$macro->id] = $contexts[$macro_context]->createInstance();
+				} else {
+					$results[$macro->id] = $contexts[$macro_context];
+				}
+			}
+		});
+		
+		return $results;
 	}
 
 	/**
@@ -645,7 +666,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	}
 	
 	function getDefaultProperties() {
-		return array();
+		return [];
 	}
 	
 	/**
@@ -653,7 +674,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	 */
 	function getCardProperties() {
 		// Load cascading properties
-		$properties = DevblocksPlatform::getPluginSetting('cerberusweb.core', 'card:' . $this->id, array(), true);
+		$properties = DevblocksPlatform::getPluginSetting('cerberusweb.core', 'card:' . $this->id, [], true);
 		
 		if(empty($properties))
 			$properties = $this->getDefaultProperties();
@@ -661,6 +682,44 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		return $properties;
 	}
 
+	function getCardSearchButtons(DevblocksDictionaryDelegate $dict, array $search_buttons=[]) {
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		
+		$search_buttons = array_merge(
+			$search_buttons,
+			DevblocksPlatform::getPluginSetting('cerberusweb.core', 'card:search:' . $this->id, [], true)
+		);
+		
+		$results = [];
+		
+		if(is_array($search_buttons))
+		foreach($search_buttons as $search_button) {
+			if(false == ($search_button_context = Extension_DevblocksContext::get($search_button['context'], true)))
+				continue;
+			
+			if(false == ($view = $search_button_context->getSearchView()))
+				continue;
+			
+			$label_aliases = Extension_DevblocksContext::getAliasesForContext($search_button_context->manifest);
+			$label_singular = @$search_button['label_singular'] ?: $label_aliases['singular'];
+			$label_plural = @$search_button['label_plural'] ?: $label_aliases['plural'];
+			
+			$search_button_query = $tpl_builder->build($search_button['query'], $dict);
+			$view->addParamsWithQuickSearch($search_button_query);
+			
+			$total = $view->getData()[1];
+			
+			$results[] = [
+				'label' => ($total == 1 ? $label_singular : $label_plural),
+				'context' => $search_button_context->id,
+				'count' => $total,
+				'query' => $search_button_query,
+			];
+		}
+		
+		return $results;
+	}
+	
 	/*
 	 * @return Cerb_ORMHelper
 	 */
@@ -1075,7 +1134,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	
 	protected function _importModelCustomFieldsAsValues($model, $token_values) {
 		@$custom_fields = $model->custom_fields;
-
+		
 		if($custom_fields) {
 			$custom_values = $this->_lazyLoadCustomFields(
 				'custom_',
@@ -1095,9 +1154,6 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		$token_values['links'] = array();
 		
 		foreach($results as $result) {
-			if($result->context == CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-				continue;
-			
 			if(!isset($token_values['links'][$result->context]))
 				$token_values['links'][$result->context] = array();
 			
@@ -1110,7 +1166,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	protected function _lazyLoadCustomFields($token, $context, $context_id, $field_values=null) {
 		$fields = DAO_CustomField::getByContext($context);
 		$token_values['custom'] = [];
-
+		
 		// If (0 == $context_id), we need to null out all the fields and return w/o queries
 		if(empty($context_id))
 			return $token_values;
@@ -1418,6 +1474,16 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 
 		return $events;
 	}
+	
+	public static function getWithMacroContexts() {
+		$macros = Extension_DevblocksEvent::getAll();
+		
+		$macros = array_filter($macros, function($event) {
+			return array_key_exists('macro_context', $event->params);
+		});
+		
+		return $macros;
+	}
 
 	protected function _importLabelsTypesAsConditions($labels, $types) {
 		$conditions = [];
@@ -1504,7 +1570,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 
 	function getTypes() {
 		if(!isset($this->_values['_types']))
-			return array();
+			return [];
 
 		return $this->_values['_types'];
 	}
@@ -1515,7 +1581,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 
 		// Custom fields
 
-		$cfields = array();
+		$cfields = [];
 		$custom_fields = DAO_CustomField::getAll();
 		$vars = array();
 
@@ -1772,7 +1838,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 
 		$logger->info('');
 		$logger->info(sprintf("Checking condition `%s`...", $token));
-
+		
 		// Built-in conditions
 		switch($token) {
 			case '_calendar_availability':
@@ -1907,7 +1973,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 					if(null == (@$value = $dict->$token)) {
 						$value = '';
 					}
-
+					
 					// Automatic types
 					switch(@$condition['type']) {
 						case Model_CustomField::TYPE_CHECKBOX:
@@ -3057,7 +3123,20 @@ abstract class Extension_DevblocksSearchSchema extends DevblocksExtension {
 };
 
 abstract class Extension_DevblocksStorageEngine extends DevblocksExtension {
-	protected $_options = array();
+	const ID = 'devblocks.storage.engine';
+	
+	protected $_options = [];
+	
+	public static function getAll($as_instances=false) {
+		$extensions = DevblocksPlatform::getExtensions('devblocks.storage.engine', false);
+
+		if($as_instances)
+			DevblocksPlatform::sortObjects($extensions, 'manifest->params->[label]');
+		else
+			DevblocksPlatform::sortObjects($extensions, 'params->[label]');
+
+		return $extensions;
+	}
 
 	abstract function renderConfig(Model_DevblocksStorageProfile $profile);
 	abstract function saveConfig(Model_DevblocksStorageProfile $profile);

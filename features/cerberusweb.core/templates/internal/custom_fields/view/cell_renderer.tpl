@@ -41,7 +41,7 @@
 		{/foreach}
 	</td>
 {elseif $col->type==Model_CustomField::TYPE_DATE}
-	<td data-column="{$column}"><abbr title="{$result.$column|devblocks_date}">{$result.$column|devblocks_prettytime}</abbr></td>
+	<td data-column="{$column}" data-timestamp="{$result.$column}"><abbr title="{$result.$column|devblocks_date}">{$result.$column|devblocks_prettytime}</abbr></td>
 {elseif $col->type==Model_CustomField::TYPE_CHECKBOX}
 	<td data-column="{$column}">{if '1'==$result.$column}Yes{elseif '0'==$result.$column}No{/if}</td>
 {elseif $col->type==Model_CustomField::TYPE_LINK}
@@ -84,7 +84,7 @@
 		{$workers = DAO_Worker::getAll()}
 	{/if}
 	{if !empty($worker_id) && isset($workers.$worker_id)}
-		<a href="{devblocks_url}c=profiles&what=worker&id={$worker_id}{/devblocks_url}" target="_blank" rel="noopener">{$workers.$worker_id->getName()}</a>
+		<a href="javascript:;" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_WORKER}" data-context-id="{$worker_id}">{$workers.$worker_id->getName()}</a>
 	{/if}
 	</td>
 {else}

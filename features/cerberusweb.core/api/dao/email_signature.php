@@ -344,12 +344,6 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 			'where_sql' => &$where_sql,
 			'tables' => &$tables,
 		);
-	
-		array_walk_recursive(
-			$params,
-			array('DAO_EmailSignature', '_translateVirtualParameters'),
-			$args
-		);
 		
 		return array(
 			'primary_table' => 'email_signature',
@@ -358,23 +352,6 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 			'where' => $where_sql,
 			'sort' => $sort_sql,
 		);
-	}
-	
-	private static function _translateVirtualParameters($param, $key, &$args) {
-		if(!is_a($param, 'DevblocksSearchCriteria'))
-			return;
-			
-		$from_context = CerberusContexts::CONTEXT_EMAIL_SIGNATURE;
-		$from_index = 'email_signature.id';
-		
-		$param_key = $param->field;
-		settype($param_key, 'string');
-		
-		switch($param_key) {
-			case SearchFields_EmailSignature::VIRTUAL_HAS_FIELDSET:
-				self::_searchComponentsVirtualHasFieldset($param, $from_context, $from_index, $args['join_sql'], $args['where_sql']);
-				break;
-		}
 	}
 	
 	/**
@@ -475,6 +452,10 @@ class SearchFields_EmailSignature extends DevblocksSearchFields {
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_EMAIL_SIGNATURE, self::getPrimaryKey());
 				break;
 				
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_EMAIL_SIGNATURE)), self::getPrimaryKey());
+				break;
+				
 			case self::VIRTUAL_OWNER:
 				return self::_getWhereSQLFromContextAndID($param, 'email_signature.owner_context', 'email_signature.owner_context_id');
 				break;
@@ -487,6 +468,53 @@ class SearchFields_EmailSignature extends DevblocksSearchFields {
 				}
 				break;
 		}
+	}
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'default':
+				$key = 'isDefault';
+				break;
+				
+			case 'owner':
+				$key = 'owner';
+				$search_key = 'owner';
+				$owner_field = $search_fields[SearchFields_EmailSignature::OWNER_CONTEXT];
+				$owner_id_field = $search_fields[SearchFields_EmailSignature::OWNER_CONTEXT_ID];
+				
+				return [
+					'key_query' => $key,
+					'key_select' => $search_key,
+					'type' => DevblocksSearchCriteria::TYPE_CONTEXT,
+					'sql_select' => sprintf("CONCAT_WS(':',%s.%s,%s.%s)",
+						Cerb_ORMHelper::escape($owner_field->db_table),
+						Cerb_ORMHelper::escape($owner_field->db_column),
+						Cerb_ORMHelper::escape($owner_id_field->db_table),
+						Cerb_ORMHelper::escape($owner_id_field->db_column)
+					),
+				];
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_EmailSignature::ID:
+				$models = DAO_EmailSignature::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+				
+			case SearchFields_EmailSignature::IS_DEFAULT:
+				return parent::_getLabelsForKeyBooleanValues();
+				break;
+				
+			case 'owner':
+				return parent::_getLabelsForKeyContextAndIdValues($values);
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
 	}
 	
 	/**
@@ -563,11 +591,6 @@ class View_EmailSignature extends C4_AbstractView implements IAbstractView_Subto
 			SearchFields_EmailSignature::OWNER_CONTEXT_ID,
 			SearchFields_EmailSignature::VIRTUAL_CONTEXT_LINK,
 			SearchFields_EmailSignature::VIRTUAL_HAS_FIELDSET,
-		));
-		
-		$this->addParamsHidden(array(
-			SearchFields_EmailSignature::OWNER_CONTEXT,
-			SearchFields_EmailSignature::OWNER_CONTEXT_ID,
 		));
 		
 		$this->doResetCriteria();
@@ -663,7 +686,7 @@ class View_EmailSignature extends C4_AbstractView implements IAbstractView_Subto
 				
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -681,6 +704,14 @@ class View_EmailSignature extends C4_AbstractView implements IAbstractView_Subto
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_EmailSignature::NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_EmailSignature::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_EMAIL_SIGNATURE],
+					]
 				),
 			'id' => 
 				array(
@@ -719,7 +750,7 @@ class View_EmailSignature extends C4_AbstractView implements IAbstractView_Subto
 		
 		// Add quick search links
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links', SearchFields_EmailSignature::VIRTUAL_CONTEXT_LINK);
 		
 		// Add searchable custom fields
 		
@@ -737,6 +768,10 @@ class View_EmailSignature extends C4_AbstractView implements IAbstractView_Subto
 	
 	function getParamFromQuickSearchFieldTokens($field, $tokens) {
 		switch($field) {
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
+				break;
+			
 			default:
 				if($field == 'owner' || substr($field, 0, strlen('owner.')) == 'owner.')
 					return DevblocksSearchCriteria::getVirtualContextParamFromTokens($field, $tokens, 'owner', SearchFields_EmailSignature::VIRTUAL_OWNER);
@@ -765,62 +800,6 @@ class View_EmailSignature extends C4_AbstractView implements IAbstractView_Subto
 
 		$tpl->assign('view_template', 'devblocks:cerberusweb.core::internal/email_signature/view.tpl');
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
-	}
-
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_EmailSignature::NAME:
-			case SearchFields_EmailSignature::SIGNATURE:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case SearchFields_EmailSignature::ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-				
-			case SearchFields_EmailSignature::IS_DEFAULT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-				
-			case SearchFields_EmailSignature::UPDATED_AT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_EmailSignature::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-				
-			case SearchFields_EmailSignature::VIRTUAL_HAS_FIELDSET:
-				$this->_renderCriteriaHasFieldset($tpl, CerberusContexts::CONTEXT_EMAIL_SIGNATURE);
-				break;
-				
-			case SearchFields_EmailSignature::VIRTUAL_OWNER:
-				$groups = DAO_Group::getAll();
-				$tpl->assign('groups', $groups);
-				
-				$roles = DAO_WorkerRole::getAll();
-				$tpl->assign('roles', $roles);
-				
-				$workers = DAO_Worker::getAll();
-				$tpl->assign('workers', $workers);
-				
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_owner.tpl');
-				break;
-				
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
 	}
 
 	function renderCriteriaParam($param) {
@@ -936,6 +915,43 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=email_signature&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_EmailSignature();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['is_default'] = array(
+			'label' => mb_ucfirst($translate->_('common.is_default')),
+			'type' => Model_CustomField::TYPE_CHECKBOX,
+			'value' => $model->is_default,
+		);
+		
+		$properties['updated'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated_at,
+		);
+		
+		$properties['signature'] = array(
+			'label' => mb_ucfirst($translate->_('common.signature')),
+			'type' => Model_CustomField::TYPE_MULTI_LINE,
+			'value' => $model->signature,
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -1206,14 +1222,6 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 			$tpl->display('devblocks:cerberusweb.core::internal/email_signature/peek_edit.tpl');
 			
 		} else {
-			// Counts
-			$activity_counts = array(
-				//'comments' => DAO_Comment::count($context, $context_id),
-				'buckets' => DAO_Bucket::countByEmailSignatureId($context_id),
-				'groups' => DAO_Group::countByEmailSignatureId($context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				$context => array(
@@ -1221,7 +1229,7 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -1245,6 +1253,10 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$tpl->display('devblocks:cerberusweb.core::internal/email_signature/peek.tpl');
 		}

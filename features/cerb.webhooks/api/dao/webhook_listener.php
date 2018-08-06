@@ -343,12 +343,6 @@ class DAO_WebhookListener extends Cerb_ORMHelper {
 			'tables' => &$tables,
 		);
 	
-		array_walk_recursive(
-			$params,
-			array('DAO_WebhookListener', '_translateVirtualParameters'),
-			$args
-		);
-		
 		return array(
 			'primary_table' => 'webhook_listener',
 			'select' => $select_sql,
@@ -356,23 +350,6 @@ class DAO_WebhookListener extends Cerb_ORMHelper {
 			'where' => $where_sql,
 			'sort' => $sort_sql,
 		);
-	}
-	
-	private static function _translateVirtualParameters($param, $key, &$args) {
-		if(!is_a($param, 'DevblocksSearchCriteria'))
-			return;
-			
-		$from_context = CerberusContexts::CONTEXT_WEBHOOK_LISTENER;
-		$from_index = 'webhook_listener.id';
-		
-		$param_key = $param->field;
-		settype($param_key, 'string');
-		
-		switch($param_key) {
-			case SearchFields_WebhookListener::VIRTUAL_HAS_FIELDSET:
-				self::_searchComponentsVirtualHasFieldset($param, $from_context, $from_index, $args['join_sql'], $args['where_sql']);
-				break;
-		}
 	}
 	
 	/**
@@ -472,6 +449,10 @@ class SearchFields_WebhookListener extends DevblocksSearchFields {
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_WEBHOOK_LISTENER, self::getPrimaryKey());
 				break;
 				
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_WEBHOOK_LISTENER)), self::getPrimaryKey());
+				break;
+				
 			case self::VIRTUAL_WATCHERS:
 				return self::_getWhereSQLFromWatchersField($param, CerberusContexts::CONTEXT_WEBHOOK_LISTENER, self::getPrimaryKey());
 				break;
@@ -484,6 +465,29 @@ class SearchFields_WebhookListener extends DevblocksSearchFields {
 				}
 				break;
 		}
+	}
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_WebhookListener::ID:
+				$models = DAO_WebhookListener::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+				
+			case SearchFields_WebhookListener::EXTENSION_ID:
+				$extensions = Extension_WebhookListenerEngine::getAll(false);
+				return array_column(DevblocksPlatform::objectsToArrays($extensions), 'name', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
 	}
 	
 	/**
@@ -570,10 +574,6 @@ class View_WebhookListener extends C4_AbstractView implements IAbstractView_Subt
 			SearchFields_WebhookListener::VIRTUAL_WATCHERS,
 		));
 		
-		$this->addParamsHidden(array(
-			SearchFields_WebhookListener::EXTENSION_PARAMS_JSON,
-		));
-		
 		$this->doResetCriteria();
 	}
 
@@ -647,7 +647,7 @@ class View_WebhookListener extends C4_AbstractView implements IAbstractView_Subt
 		
 		switch($column) {
 			case SearchFields_WebhookListener::EXTENSION_ID:
-				$label_map = array();
+				$label_map = [];
 				$manifests = Extension_WebhookListenerEngine::getAll(false);
 				if(is_array($manifests))
 				foreach($manifests as $k => $mft) {
@@ -672,10 +672,9 @@ class View_WebhookListener extends C4_AbstractView implements IAbstractView_Subt
 			
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
-				
 				break;
 		}
 		
@@ -701,6 +700,14 @@ class View_WebhookListener extends C4_AbstractView implements IAbstractView_Subt
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_WebhookListener::GUID, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_WebhookListener::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_WEBHOOK_LISTENER],
+					]
 				),
 			'id' => 
 				array(
@@ -729,7 +736,7 @@ class View_WebhookListener extends C4_AbstractView implements IAbstractView_Subt
 		
 		// Add quick search links
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links', SearchFields_WebhookListener::VIRTUAL_CONTEXT_LINK);
 		
 		// Add searchable custom fields
 		
@@ -748,6 +755,10 @@ class View_WebhookListener extends C4_AbstractView implements IAbstractView_Subt
 	
 	function getParamFromQuickSearchFieldTokens($field, $tokens) {
 		switch($field) {
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
+				break;
+			
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
 					return DevblocksSearchCriteria::getContextLinksParamFromTokens($field, $tokens);
@@ -775,59 +786,16 @@ class View_WebhookListener extends C4_AbstractView implements IAbstractView_Subt
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_WebhookListener::NAME:
-			case SearchFields_WebhookListener::GUID:
-			case SearchFields_WebhookListener::EXTENSION_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case SearchFields_WebhookListener::ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-				
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-				
-			case SearchFields_WebhookListener::UPDATED_AT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_WebhookListener::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-				
-			case SearchFields_WebhookListener::VIRTUAL_HAS_FIELDSET:
-				$this->_renderCriteriaHasFieldset($tpl, CerberusContexts::CONTEXT_WEBHOOK_LISTENER);
-				break;
-				
-			case SearchFields_WebhookListener::VIRTUAL_WATCHERS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-				
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
-	}
-
 	function renderCriteriaParam($param) {
 		$field = $param->field;
 		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
+			case SearchFields_WebhookListener::EXTENSION_ID:
+				$label_map = SearchFields_WebhookListener::getLabelsForKeyValues($field, $values);
+				parent::_renderCriteriaParamString($param, $label_map);
+				break;
+				
 			default:
 				parent::renderCriteriaParam($param);
 				break;
@@ -942,6 +910,43 @@ class Context_WebhookListener extends Extension_DevblocksContext implements IDev
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=webhook_listener&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_WebhookListener();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['extension_id'] = array(
+			'label' => mb_ucfirst($translate->_('common.type')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->extension_id,
+		);
+	
+		$properties['guid'] = array(
+			'label' => mb_ucfirst($translate->_('common.guid')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->guid,
+		);
+		
+		$properties['updated'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated_at,
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -1204,12 +1209,6 @@ class Context_WebhookListener extends Extension_DevblocksContext implements IDev
 			$tpl->display('devblocks:cerb.webhooks::webhook_listener/peek_edit.tpl');
 			
 		} else {
-			// Counts
-			$activity_counts = array(
-				//'comments' => DAO_Comment::count($context, $context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				$context => array(
@@ -1217,7 +1216,7 @@ class Context_WebhookListener extends Extension_DevblocksContext implements IDev
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -1234,14 +1233,17 @@ class Context_WebhookListener extends Extension_DevblocksContext implements IDev
 				return;
 			
 			// Dictionary
-			$labels = [];
-			$values = [];
+			$labels = $values = [];
 			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			$tpl->assign('dict', $dict);
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$tpl->display('devblocks:cerb.webhooks::webhook_listener/peek.tpl');
 		}

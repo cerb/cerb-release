@@ -24,11 +24,11 @@ abstract class C4_AbstractView {
 	public $view_columns = [];
 	private $_columnsHidden = [];
 	
+	private $_paramsQuery = null;
 	private $_paramsEditable = [];
 	private $_paramsDefault = [];
 	private $_paramsRequired = [];
 	private $_paramsRequiredQuery = null;
-	private $_paramsHidden = [];
 	
 	public $renderPage = 0;
 	public $renderLimit = 10;
@@ -237,7 +237,13 @@ abstract class C4_AbstractView {
 	}
 	
 	function isCustom() {
-		return DevblocksPlatform::strStartsWith($this->id, 'cust_');
+		if(DevblocksPlatform::strStartsWith($this->id, 'cust_'))
+			return true;
+		
+		if(DevblocksPlatform::strStartsWith($this->id, 'profile_widget_'))
+			return true;
+			
+		return false;
 	}
 	
 	function getCustomWorklistModel() {
@@ -279,10 +285,6 @@ abstract class C4_AbstractView {
 	
 	function getParamsAvailable($filter_fieldsets=false) {
 		$params = $this->getFields();
-		
-		if(is_array($this->_paramsHidden))
-		foreach($this->_paramsHidden as $param)
-			unset($params[$param]);
 		
 		// Hide other custom fields when filtering to a specific fieldset
 		if($filter_fieldsets)
@@ -362,6 +364,14 @@ abstract class C4_AbstractView {
 		return $this->_paramsEditable;
 	}
 	
+	function getParamsQuery() {
+		return $this->_paramsQuery;
+	}
+	
+	function setParamsQuery($query) {
+		$this->_paramsQuery = $query;
+	}
+	
 	function addParam($param, $key=null) {
 		if(!$key || is_numeric($key))
 			$key = uniqid();
@@ -399,6 +409,7 @@ abstract class C4_AbstractView {
 		foreach($fields as $k => $p) {
 			if($p instanceof DevblocksSearchCriteria) {
 				switch($p->key) {
+					case '_limit':
 					case 'limit':
 						$oper = null;
 						$value = null;
@@ -412,6 +423,7 @@ abstract class C4_AbstractView {
 						unset($fields[$k]);
 						break;
 						
+					case '_page':
 					case 'page':
 						$oper = null;
 						$value = null;
@@ -426,6 +438,7 @@ abstract class C4_AbstractView {
 						unset($fields[$k]);
 						break;
 						
+					case '_sort':
 					case 'sort':
 						$oper = null;
 						$value = null;
@@ -441,6 +454,23 @@ abstract class C4_AbstractView {
 						
 						if(isset($sort_results['sort_asc']) && !empty($sort_results['sort_asc']))
 							$this->renderSortAsc = $sort_results['sort_asc'];
+						
+						unset($fields[$k]);
+						break;
+						
+					case '_subtotal':
+					case 'subtotal':
+						$oper = null;
+						$value = null;
+						
+						if(false == (CerbQuickSearchLexer::getOperStringFromTokens($p->tokens, $oper, $value)))
+							break;
+						
+						if(false == ($subtotal_results = $this->_getSubtotalFromQuickSearchQuery($value))) {
+							$this->renderSubtotals = '';
+						} else {
+							$this->renderSubtotals = $subtotal_results[0];
+						}
 						
 						unset($fields[$k]);
 						break;
@@ -529,6 +559,51 @@ abstract class C4_AbstractView {
 		}
 		
 		return $sort_results;
+	}
+	
+	function _getSubtotalFromQuickSearchQuery($subtotal_query) {
+		$subtotal_results = [];
+		
+		if(
+			empty($subtotal_query) 
+			|| (!$this instanceof IAbstractView_Subtotals)
+			|| (!$this instanceof IAbstractView_QuickSearch)
+			)
+			return false;
+		
+		if(false == ($subtotal_fields = $this->getSubtotalFields()))
+			return false;
+		
+		if(false == ($search_fields = $this->getQuickSearchFields()))
+			return false;
+		
+		if(0 == strcasecmp($subtotal_query, 'null'))
+			return [];
+		
+		// Tokenize the sort string with commas
+		$subtotal_keys = explode(',', $subtotal_query);
+		
+		if(!is_array($subtotal_keys) || empty($subtotal_keys))
+			return [];
+		
+		foreach($subtotal_keys as $subtotal_key) {
+			@$search_field = $search_fields[$subtotal_key];
+			
+			if(!is_array($search_field) || empty($search_field))
+				continue;
+			
+			@$param_key = $search_field['options']['param_key'];
+			
+			if(empty($param_key))
+				continue;
+			
+			if(!isset($subtotal_fields[$param_key]))
+				continue;
+			
+			$subtotal_results[] = $param_key;
+		}
+		
+		return $subtotal_results;
 	}
 	
 	function _getColumnsFromQuickSearchQuery(array $columns) {
@@ -626,19 +701,6 @@ abstract class C4_AbstractView {
 		$this->_paramsRequiredQuery = $query;
 	}
 	
-	// Params Hidden
-	
-	function addParamsHidden($params, $replace=false) {
-		if($replace)
-			$this->_paramsHidden = $params;
-		else
-			$this->_paramsHidden = array_unique(array_merge($this->_paramsHidden, $params));
-	}
-	
-	function getParamsHidden() {
-		return $this->_paramsHidden;
-	}
-	
 	// Search params
 	
 	static function findParam($field_key, $params, $recursive=true) {
@@ -674,18 +736,30 @@ abstract class C4_AbstractView {
 	
 	// Placeholders
 	
-	function setPlaceholderLabels($labels) {
-		if(is_array($labels))
+	function setPlaceholderLabels($labels, $replace=true) {
+		if(!is_array($labels))
+			return false;
+		
+		if($replace) {
 			$this->_placeholderLabels = $labels;
+		} else {
+			$this->_placeholderLabels = array_merge($this->_placeholderLabels, $labels);
+		}
 	}
 	
 	function getPlaceholderLabels() {
 		return $this->_placeholderLabels;
 	}
 	
-	function setPlaceholderValues($values) {
-		if(is_array($values))
+	function setPlaceholderValues($values, $replace=true) {
+		if(!is_array($values))
+			return false;
+		
+		if($replace) {
 			$this->_placeholderValues = $values;
+		} else {
+			$this->_placeholderValues = array_merge($this->_placeholderValues, $values);
+		}
 	}
 	
 	function getPlaceholderValues() {
@@ -845,6 +919,441 @@ abstract class C4_AbstractView {
 		}
 	}
 	
+	// Histograms
+	
+	static function getHistogram($view_context, $query, $params=[]) {
+		$date = DevblocksPlatform::services()->date();
+		$db = DevblocksPlatform::services()->database();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		
+		if(empty($view_context))
+			return;
+		
+		if(false == ($context_ext = Extension_DevblocksContext::getByAlias($view_context, true)))
+			return;
+		
+		if(null == ($dao_class = $context_ext->getDaoClass()))
+			return;
+		
+		if(null == ($search_class = $context_ext->getSearchClass()))
+			return;
+		
+		if(null == ($primary_key = $search_class::getPrimaryKey()))
+			return;
+		
+		if(false == ($view = $context_ext->getSearchView()))
+			return;
+		
+		$view->addParamsWithQuickSearch($query);
+		$view->setAutoPersist(false);
+		
+		// Use the worker's timezone for MySQL date functions
+		$db->ExecuteSlave(sprintf("SET time_zone = %s", $db->qstr($date->formatTime('P', time()))));
+		
+		$data = [];
+		
+		$view->renderPage = 0;
+		$view->renderLimit = @$params['limit'] ?: 30;
+		
+		// Initial query planner
+		
+		$query_parts = $dao_class::getSearchQueryComponents(
+			$view->view_columns,
+			$view->getParams(),
+			$view->renderSortBy,
+			$view->renderSortAsc
+		);
+		
+		// We need to know what date fields we have
+		
+		$fields = $view->getFields();
+		$xaxis_field = null;
+		$xaxis_field_type = null;
+		
+		switch($params['xaxis_field']) {
+			case '_id':
+				$xaxis_field = new DevblocksSearchField('_id', $query_parts['primary_table'], 'id', null, Model_CustomField::TYPE_NUMBER);
+				break;
+					
+			default:
+				@$xaxis_field = $fields[$params['xaxis_field']];
+				break;
+		}
+		
+		if(!empty($xaxis_field)) {
+			@$yaxis_func = $params['yaxis_func'];
+			$yaxis_field = null;
+			
+			switch($yaxis_func) {
+				case 'count':
+					break;
+					
+				default:
+					@$yaxis_field = $fields[$params['yaxis_field']];
+					
+					if(empty($yaxis_field)) {
+						$yaxis_func = 'count';
+					}
+					break;
+			}
+			
+			switch($xaxis_field->type) {
+				case Model_CustomField::TYPE_DATE:
+					// X-axis tick
+					@$xaxis_tick = $params['xaxis_tick'];
+						
+					if(empty($xaxis_tick))
+						$xaxis_tick = 'day';
+						
+					switch($xaxis_tick) {
+						case 'hour':
+							$date_format_mysql = '%Y-%m-%d %H:00';
+							$date_format_php = '%Y-%m-%d %H:00';
+							$date_label = $date_format_php;
+							break;
+								
+						default:
+						case 'day':
+							$date_format_mysql = '%Y-%m-%d';
+							$date_format_php = '%Y-%m-%d';
+							$date_label = $date_format_php;
+							break;
+								
+						case 'week':
+							$date_format_mysql = '%xW%v';
+							$date_format_php = '%YW%W';
+							$date_label = $date_format_php;
+							break;
+								
+						case 'month':
+							$date_format_mysql = '%Y-%m';
+							$date_format_php = '%Y-%m';
+							$date_label = $date_format_php;
+							break;
+								
+						case 'year':
+							$date_format_mysql = '%Y-01-01';
+							$date_format_php = '%Y-01-01';
+							$date_label = '%Y';
+							break;
+					}
+					
+					switch($yaxis_func) {
+						case 'sum':
+							$select_func = sprintf("SUM(%s.%s)",
+								$yaxis_field->db_table,
+								$yaxis_field->db_column
+							);
+							break;
+								
+						case 'avg':
+							$select_func = sprintf("AVG(%s.%s)",
+								$yaxis_field->db_table,
+								$yaxis_field->db_column
+							);
+							break;
+								
+						case 'min':
+							$select_func = sprintf("MIN(%s.%s)",
+								$yaxis_field->db_table,
+								$yaxis_field->db_column
+							);
+							break;
+								
+						case 'max':
+							$select_func = sprintf("MAX(%s.%s)",
+								$yaxis_field->db_table,
+								$yaxis_field->db_column
+							);
+							break;
+							
+						case 'value':
+							$select_func = sprintf("%s.%s",
+								$yaxis_field->db_table,
+								$yaxis_field->db_column
+							);
+							break;
+								
+						default:
+						case 'count':
+							$select_func = 'COUNT(*)';
+							break;
+					}
+					
+					// INNER JOIN the x-axis cfield
+					if($xaxis_field && DevblocksPlatform::strStartsWith($xaxis_field->token, 'cf_')) {
+						$xaxis_cfield_id = substr($xaxis_field->token, 3);
+						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
+							'custom_field_numbervalue',
+							$xaxis_cfield_id,
+							$xaxis_field->token,
+							$xaxis_field->token,
+							$primary_key
+						);
+					}
+					
+					// INNER JOIN the y-axis cfield
+					if($yaxis_field && DevblocksPlatform::strStartsWith($yaxis_field->token, 'cf_') && !($xaxis_field && $xaxis_field->token == $yaxis_field->token)) {
+						$yaxis_cfield_id = substr($yaxis_field->token, 3);
+						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
+							'custom_field_numbervalue',
+							$yaxis_cfield_id,
+							$yaxis_field->token,
+							$yaxis_field->token,
+							$primary_key
+						);
+					}
+					
+					$sql = sprintf("SELECT %s AS hits, DATE_FORMAT(FROM_UNIXTIME(%s.%s), '%s') AS histo ",
+						$select_func,
+						$xaxis_field->db_table,
+						$xaxis_field->db_column,
+						$date_format_mysql
+					).
+					str_replace('%','%%',$query_parts['join']).
+					str_replace('%','%%',$query_parts['where']).
+					sprintf("GROUP BY DATE_FORMAT(FROM_UNIXTIME(%s.%s), '%s') ",
+						$xaxis_field->db_table,
+						$xaxis_field->db_column,
+						$date_format_mysql
+					).
+					'ORDER BY histo ASC'
+					;
+					
+					$results = $db->GetArraySlave($sql);
+					
+					if(empty($results))
+						return [];
+					
+					// Find the first and last date
+					@$xaxis_param = array_shift(C4_AbstractView::findParam($xaxis_field->token, $view->getParams()));
+
+					$current_tick = null;
+					$last_tick = null;
+					
+					if(!empty($xaxis_param)) {
+						if(2 == count($xaxis_param->value)) {
+							$current_tick = strtotime($xaxis_param->value[0]);
+							$last_tick = strtotime($xaxis_param->value[1]);
+						}
+					}
+					
+					$first_result = null;
+					$last_result = null;
+					
+					if(empty($current_tick) && empty($last_tick)) {
+						$last_result = end($results);
+						$first_result = reset($results);
+						$current_tick = strtotime($first_result['histo']);
+						$last_tick = strtotime($last_result['histo']);
+					}
+					
+					// Fill in time gaps from no data
+					
+					$array = [];
+					
+					foreach($results as $k => $v) {
+						$array[$v['histo']] = $v['hits'];
+					}
+					
+					$results = $array;
+					unset($array);
+						
+					// var_dump($current_tick, $last_tick, $xaxis_tick);
+					// var_dump($results);
+
+					// Set the first histogram bucket to the beginning of its increment
+					//   e.g. 2012-July-09 10:20 -> 2012-July-09 00:00
+					switch($xaxis_tick) {
+						case 'hour':
+						case 'day':
+						case 'month':
+						case 'year':
+							$current_tick = strtotime(strftime($date_format_php, $current_tick));
+							break;
+							
+						// Always Monday
+						case 'week':
+							$current_tick = strtotime('Monday this week', $current_tick);
+							break;
+					}
+					
+					do {
+						$histo = strftime($date_format_php, $current_tick);
+						// var_dump($histo);
+
+						$value = (isset($results[$histo])) ? $results[$histo] : 0;
+						
+						$yaxis_label = ((int) $value != $value) ? sprintf("%0.2f", $value) : sprintf("%d", $value);
+						
+						if(isset($params['yaxis_format'])) {
+							$yaxis_label = DevblocksPlatform::formatNumberAs($yaxis_label, @$params['yaxis_format']);
+						}
+						
+						$data[] = [
+							'x' => $current_tick,
+							'y' => (float)$value,
+							'x_label' => strftime($date_label, $current_tick),
+							'y_label' => $yaxis_label,
+						];
+						
+						$current_tick = strtotime(sprintf('+1 %s', $xaxis_tick), $current_tick);
+
+					} while($current_tick <= $last_tick);
+						
+					unset($results);
+					break;
+
+				// x-axis is a not a date
+				//case Model_CustomField::TYPE_NUMBER:
+				default:
+					switch($xaxis_field->token) {
+						case '_id':
+							$order_by = null;
+							$group_by = sprintf("GROUP BY %s.id%s ",
+								str_replace('%','%%',$query_parts['primary_table']),
+								($yaxis_field ? sprintf(", %s.%s", $yaxis_field->db_table, $yaxis_field->db_column) : '')
+							);
+							
+							if(empty($order_by))
+								$order_by = sprintf("ORDER BY %s.id ", str_replace('%','%%',$query_parts['primary_table']));
+							
+							break;
+
+						default:
+							$group_by = sprintf("GROUP BY %s.%s",
+								$xaxis_field->db_table,
+								$xaxis_field->db_column
+							);
+							
+							$order_by = 'ORDER BY xaxis ASC';
+							break;
+					}
+					
+					switch($yaxis_func) {
+						case 'sum':
+							$select_func = sprintf("SUM(%s.%s)",
+								$yaxis_field->db_table,
+								$yaxis_field->db_column
+							);
+							break;
+								
+						case 'avg':
+							$select_func = sprintf("AVG(%s.%s)",
+								$yaxis_field->db_table,
+								$yaxis_field->db_column
+							);
+							break;
+								
+						case 'min':
+							$select_func = sprintf("MIN(%s.%s)",
+								$yaxis_field->db_table,
+								$yaxis_field->db_column
+							);
+							break;
+								
+						case 'max':
+							$select_func = sprintf("MAX(%s.%s)",
+								$yaxis_field->db_table,
+								$yaxis_field->db_column
+							);
+							break;
+								
+						case 'value':
+							$select_func = sprintf("%s.%s",
+								$yaxis_field->db_table,
+								$yaxis_field->db_column
+							);
+							break;
+								
+						default:
+						case 'count':
+							$select_func = 'COUNT(*)';
+							break;
+					}
+					
+					/*
+					// Scatterplots ignore histograms if not aggregate
+					if($widget->extension_id == 'core.workspace.widget.scatterplot') {
+						if(false === strpos($select_func, '(')) {
+							$group_by = null;
+						}
+					}
+					*/
+					
+					// INNER JOIN the x-axis cfield
+					if($xaxis_field && DevblocksPlatform::strStartsWith($xaxis_field->token, 'cf_')) {
+						$xaxis_cfield_id = substr($xaxis_field->token, 3);
+						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
+							DAO_CustomFieldValue::getValueTableName($xaxis_cfield_id),
+							$xaxis_cfield_id,
+							$xaxis_field->token,
+							$xaxis_field->token,
+							$primary_key
+						);
+					}
+					
+					// INNER JOIN the y-axis cfield
+					if($yaxis_field && DevblocksPlatform::strStartsWith($yaxis_field->token, 'cf_') && !($xaxis_field && $xaxis_field->token == $yaxis_field->token)) {
+						$yaxis_cfield_id = substr($yaxis_field->token, 3);
+						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
+							DAO_CustomFieldValue::getValueTableName($yaxis_cfield_id),
+							$yaxis_cfield_id,
+							$yaxis_field->token,
+							$yaxis_field->token,
+							$primary_key
+						);
+					}
+
+					// [TODO] Sort/Limit
+					$sql = sprintf("SELECT %s AS yaxis, %s.%s AS xaxis " .
+						str_replace('%','%%',$query_parts['join']).
+						str_replace('%','%%',$query_parts['where']).
+						"%s ".
+						"%s ",
+						$select_func,
+						$xaxis_field->db_table,
+						$xaxis_field->db_column,
+						$group_by,
+						$order_by
+					);
+					$results = $db->GetArraySlave($sql);
+					
+					if(empty($results))
+						return [];
+					
+					$data = [];
+					
+					$counter = 0;
+					
+					foreach($results as $result) {
+						switch($xaxis_field_type) {
+							case Model_CustomField::TYPE_NUMBER:
+								$x = ($params['xaxis_field'] == '_id') ? $counter++ : (float)$result['xaxis'];
+								$xaxis_label = DevblocksPlatform::formatNumberAs((float)$result['xaxis'], @$params['xaxis_format']);
+								break;
+							default:
+								$x = $result['xaxis'];
+								$xaxis_label = $result['xaxis'];
+								break;
+						}
+						
+						$yaxis_label = DevblocksPlatform::formatNumberAs((float)$result['yaxis'], @$params['yaxis_format']);
+						
+						$data[$x] = array(
+							'x' => $x,
+							'y' => (float)$result['yaxis'],
+							'x_label' => $xaxis_label,
+							'y_label' => $yaxis_label,
+						);
+					}
+					break;
+			}
+		}
+		
+		return array_values($data);
+	}
+	
 	// Render
 	
 	function render() {
@@ -853,41 +1362,6 @@ abstract class C4_AbstractView {
 	
 	function renderCustomizeOptions() {
 		echo ' '; // Expect Override
-	}
-	
-	function renderCriteria($field) {
-		echo ' '; // Expect Override
-	}
-
-	protected function _renderCriteriaCustomField($tpl, $field_id) {
-		$field = DAO_CustomField::get($field_id);
-		
-		switch($field->type) {
-			case Model_CustomField::TYPE_DROPDOWN:
-			case Model_CustomField::TYPE_MULTI_CHECKBOX:
-				$tpl->assign('field', $field);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__cfield_picklist.tpl');
-				break;
-			case Model_CustomField::TYPE_CHECKBOX:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__cfield_checkbox.tpl');
-				break;
-			case Model_CustomField::TYPE_DATE:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-			case Model_CustomField::TYPE_LINK:
-				$tpl->assign('field', $field);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__cfield_link.tpl');
-				break;
-			case Model_CustomField::TYPE_NUMBER:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-			case Model_CustomField::TYPE_WORKER:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-			default:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-		}
 	}
 	
 	protected function _renderCriteriaParamString($param, $label_map) {
@@ -967,19 +1441,6 @@ abstract class C4_AbstractView {
 		}
 		
 		echo $list_of_strings;
-	}
-	
-	protected function _renderCriteriaHasFieldset($tpl, $context) {
-		$options = [];
-		
-		$fieldsets = DAO_CustomFieldset::getByContext($context);
-		
-		foreach($fieldsets as $id => $fieldset) {
-			$options[$id] = $fieldset->name;
-		}
-		
-		$tpl->assign('options', $options);
-		$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__list.tpl');
 	}
 	
 	protected function _renderVirtualContextLinks($param, $label_singular='Link', $label_plural='Links', $label_verb='Linked to') {
@@ -1067,51 +1528,11 @@ abstract class C4_AbstractView {
 	}
 	
 	protected function _renderVirtualHasFieldset($param) {
-		$strings = [];
-		$custom_fieldsets = DAO_CustomFieldset::getAll();
-		
-		foreach($param->value as $param_data) {
-			if(isset($custom_fieldsets[$param_data]))
-				$strings[] = sprintf('<b>%s</b>', DevblocksPlatform::strEscapeHtml($custom_fieldsets[$param_data]->name));
-		}
-		
-		$label_singular = 'Fieldset';
-		$label_plural = 'Fieldsets';
-
-		$list_of_strings = implode(' or ', $strings);
-		
-		if(count($strings) > 2) {
-			$list_of_strings = sprintf("any of <abbr style='font-weight:bold;' title='%s'>(%d %s)</abbr>",
-				strip_tags($list_of_strings),
-				count($strings),
-				DevblocksPlatform::strLower($label_plural)
-			);
-		}
-		
-		switch($param->operator) {
-			case DevblocksSearchCriteria::OPER_IS_NULL:
-				echo sprintf("There are no <b>%s</b>",
-					DevblocksPlatform::strEscapeHtml(DevblocksPlatform::strLower($label_plural))
-				);
-				break;
-			case DevblocksSearchCriteria::OPER_IS_NOT_NULL:
-				echo sprintf("There are <b>%s</b>",
-					DevblocksPlatform::strEscapeHtml(DevblocksPlatform::strLower($label_plural))
-				);
-				break;
-			case DevblocksSearchCriteria::OPER_IN:
-				echo sprintf("%s is %s", DevblocksPlatform::strEscapeHtml($label_singular), $list_of_strings);
-				break;
-			case DevblocksSearchCriteria::OPER_IN_OR_NULL:
-				echo sprintf("%s is blank or %s", DevblocksPlatform::strEscapeHtml($label_singular), $list_of_strings);
-				break;
-			case DevblocksSearchCriteria::OPER_NIN:
-				echo sprintf("%s is not %s", DevblocksPlatform::strEscapeHtml($label_singular), $list_of_strings);
-				break;
-			case DevblocksSearchCriteria::OPER_NIN_OR_NULL:
-				echo sprintf("%s is blank or not %s", DevblocksPlatform::strEscapeHtml($label_singular), $list_of_strings);
-				break;
-		}
+		echo sprintf("%s matches <b>%s</b>",
+			DevblocksPlatform::strEscapeHtml(DevblocksPlatform::translateCapitalized('common.custom_fieldset')),
+			DevblocksPlatform::strEscapeHtml($param->value)
+		);
+		return;
 	}
 	
 	protected function _renderVirtualWatchers($param) {
@@ -1342,13 +1763,16 @@ abstract class C4_AbstractView {
 		return $criteria;
 	}
 	
-	protected function _appendVirtualFiltersFromQuickSearchContexts($prefix, $fields=[], $option='search') {
+	protected function _appendVirtualFiltersFromQuickSearchContexts($prefix, $fields=[], $option='search', $param_key=null) {
 		$context_mfts = Extension_DevblocksContext::getAll(false, [$option]);
 		
 		$fields[$prefix] = array(
 			'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
-			'options' => [],
+			'options' => ['param_key' => $param_key],
 		);
+		
+		if($param_key)
+			$fields[$prefix]['options']['param_key'] = $param_key;
 		
 		foreach($context_mfts as $context_mft) {
 			$aliases = Extension_DevblocksContext::getAliasesForContext($context_mft);
@@ -1360,7 +1784,9 @@ abstract class C4_AbstractView {
 			
 			$field = array(
 				'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
-				'options' => [],
+				'options' => [
+					'param_key' => $param_key
+				],
 				'examples' => [
 					['type' => 'search', 'context' => $context_mft->id, 'q' => ''],
 				]
@@ -1733,22 +2159,6 @@ abstract class C4_AbstractView {
 		$this->renderPage = 0;
 	}
 	
-	function getPresets() {
-		if(null == ($active_worker = CerberusApplication::getActiveWorker()))
-			return;
-		
-		// Presets
-		// [TODO] Cache?
-		return DAO_ViewFiltersPreset::getWhere(
-			sprintf("%s = %s AND %s = %d",
-				DAO_ViewFiltersPreset::VIEW_CLASS,
-				Cerb_ORMHelper::qstr(get_class($this)),
-				DAO_ViewFiltersPreset::WORKER_ID,
-				$active_worker->id
-			)
-		);
-	}
-	
 	// [TODO] Cache this?
 	function getQuickSearchMenu() {
 		$active_worker = CerberusApplication::getActiveWorker();
@@ -1820,10 +2230,72 @@ abstract class C4_AbstractView {
 			}
 		}
 		
+		// Search fields
+		
+		$search_fields = $this->getQuickSearchFields();
+		$params = $this->getParamsAvailable();
+		
+		// Sort
+		
+		$sort_menu = new DevblocksMenuItemPlaceholder();
+		
+		foreach($search_fields as $field_key => $field) {
+			if(!$field['is_sortable'])
+				continue;
+			
+			if(false == ($param = @$params[$field['options']['param_key']]))
+				continue;
+			
+			$item = new DevblocksMenuItemPlaceholder();
+			$item->label = $field_key;
+			$item->l = $field_key;
+			$item->key = 'sort:'.$field_key;
+			
+			$item_asc = new DevblocksMenuItemPlaceholder();
+			$item_asc->label = 'ascending';
+			$item_asc->l = 'ascending';
+			$item_asc->key = 'sort:'.$field_key;
+			$item->children['ascending'] = $item_asc;
+			
+			$item_desc = new DevblocksMenuItemPlaceholder();
+			$item_desc->label = 'descending';
+			$item_desc->l = 'descending';
+			$item_desc->key = 'sort:-'.$field_key;
+			$item->children['descending'] = $item_desc;
+			
+			$sort_menu->children[$field_key] = $item;
+		}
+		
+		$menu['(sort)'] = $sort_menu;
+		
+		// Subtotals
+		
+		if($this instanceof IAbstractView_Subtotals) {
+			$subtotals_menu = new DevblocksMenuItemPlaceholder();
+			
+			$subtotal_fields = $this->getSubtotalFields();
+			
+			foreach($search_fields as $field_key => $field) {
+				if(false == ($param = @$params[$field['options']['param_key']]))
+					continue;
+				
+				if(!array_key_exists($param->token, $subtotal_fields))
+					continue;
+				
+				$item = new DevblocksMenuItemPlaceholder();
+				$item->label = $field_key;
+				$item->l = $field_key;
+				$item->key = 'subtotal:'.$field_key;
+				
+				$subtotals_menu->children[$field_key] = $item;
+			}
+			
+			$menu['(subtotal)'] = $subtotals_menu;
+		}
+		
 		// Fields
 		
 		$fields_menu = new DevblocksMenuItemPlaceholder();
-		$search_fields = $this->getQuickSearchFields();
 		
 		if(!empty($search_fields)) {
 			$labels = array_keys($search_fields);
@@ -2254,7 +2726,7 @@ abstract class C4_AbstractView {
 							array(
 								'field' => $field_key,
 								'oper' => $value_oper,
-								'values' => array($value_key => $key),
+								'values' => [$value_key => $key],
 							),
 						'children' => []
 					);
@@ -2714,7 +3186,7 @@ abstract class C4_AbstractView {
 		$data = $this->_getSubtotalDataForHasFieldsetColumn($context, $context);
 		
 		foreach($data as $row) {
-			@$custom_fieldset = $custom_fieldsets[$row['link_fieldset_id']];
+			@$custom_fieldset = $custom_fieldsets[$row['custom_fieldset_id']];
 			
 			if(empty($custom_fieldset))
 				continue;
@@ -2724,10 +3196,7 @@ abstract class C4_AbstractView {
 				'label' => $custom_fieldset->name,
 				'filter' => array(
 					'field' => $field_key,
-					'oper' => DevblocksSearchCriteria::OPER_EQ,
-					'values' => array(
-						'options[]' => $custom_fieldset->id,
-					)
+					'query' => 'fieldset:(id:['. $custom_fieldset->id . '])',
 				),
 				'children' => [],
 			);
@@ -2749,10 +3218,6 @@ abstract class C4_AbstractView {
 		if(false == ($dao_class = $context_ext->getDaoClass()))
 			return [];
 		
-		// [TODO] Is this the best way to go about this?
-		// Show all linked custom fieldsets; ignore current fieldset filters
-		unset($params['*_has_fieldset']);
-		
 		if(!method_exists($dao_class, 'getSearchQueryComponents'))
 			return [];
 		
@@ -2768,22 +3233,18 @@ abstract class C4_AbstractView {
 		
 		$join_sql = $query_parts['join'];
 		$where_sql = $query_parts['where'];
-
-		// This intentionally isn't constrained with a LIMIT
-		$sql = sprintf("SELECT from_context_id AS link_fieldset_id, count(*) AS hits FROM context_link WHERE to_context = %s AND to_context_id IN (%s) AND from_context = %s GROUP BY from_context_id ORDER BY hits DESC ",
+		
+		$sql = sprintf("SELECT custom_fieldset_id, COUNT(*) AS hits FROM context_to_custom_fieldset WHERE context = %s AND context_id IN (%s) GROUP BY custom_fieldset_id ORDER BY hits DESC",
 			$db->qstr($context),
 			(
 				sprintf("SELECT %s.id ", $query_parts['primary_table']).
 				$query_parts['join'] .
 				$query_parts['where']
-			),
-			$db->qstr(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+			)
 		);
-		
 		$results = $db->GetArraySlave($sql);
-
-		return $results;
 		
+		return $results;
 	}
 	
 	protected function _getSubtotalCountForCustomColumn($context, $field_key) {
@@ -3136,12 +3597,6 @@ abstract class C4_AbstractView {
 						DAO_CustomFieldValue::unsetFieldValue($context,$id,$cf_id);
 				}
 			}
-		}
-		
-		// Link any utilized custom fieldsets to these IDs
-		if(is_array($ids))
-		foreach($ids as $id) {
-			DAO_CustomFieldset::linkToContextByFieldIds($context, $id, array_keys($custom_fields));
 		}
 	}
 	
@@ -3919,11 +4374,11 @@ class C4_AbstractViewModel {
 	public $view_columns = [];
 	public $columnsHidden = [];
 	
+	public $paramsQuery = '';
 	public $paramsEditable = [];
 	public $paramsDefault = [];
 	public $paramsRequired = [];
 	public $paramsRequiredQuery = '';
-	public $paramsHidden = [];
 
 	public $renderPage = 0;
 	public $renderLimit = 10;
@@ -4046,12 +4501,11 @@ class C4_AbstractViewLoader {
 		// Only persist hidden columns that are distinct from the parent (so we can inherit parent changes)
 		$model->columnsHidden = array_diff($view->getColumnsHidden(), $parent->getColumnsHidden());
 		
+		$model->paramsQuery = $view->getParamsQuery();
 		$model->paramsEditable = $view->getEditableParams();
 		$model->paramsDefault = $view->getParamsDefault();
 		$model->paramsRequired = $view->getParamsRequired();
 		$model->paramsRequiredQuery = $view->getParamsRequiredQuery();
-		// Only persist hidden params that are distinct from the parent (so we can inherit parent changes)
-		$model->paramsHidden = array_diff($view->getParamsHidden(), $parent->getParamsHidden());
 		
 		$model->renderPage = intval($view->renderPage);
 		$model->renderLimit = intval($view->renderLimit);
@@ -4062,9 +4516,6 @@ class C4_AbstractViewLoader {
 		$model->renderSubtotals = $view->renderSubtotals;
 		
 		$model->renderTemplate = $view->renderTemplate;
-		
-		$model->placeholderLabels = $view->getPlaceholderLabels();
-		$model->placeholderValues = $view->getPlaceholderValues();
 		
 		return $model;
 	}
@@ -4093,6 +4544,8 @@ class C4_AbstractViewLoader {
 		if(is_array($model->columnsHidden))
 			$inst->addColumnsHidden($model->columnsHidden, false);
 		
+		if($model->paramsQuery)
+			$inst->setParamsQuery($model->paramsQuery);
 		if(is_array($model->paramsEditable))
 			$inst->addParams($model->paramsEditable, true);
 		if(is_array($model->paramsDefault))
@@ -4101,8 +4554,6 @@ class C4_AbstractViewLoader {
 			$inst->addParamsRequired($model->paramsRequired, true);
 		if($model->paramsRequiredQuery)
 			$inst->setParamsRequiredQuery($model->paramsRequiredQuery);
-		if(is_array($model->paramsHidden))
-			$inst->addParamsHidden($model->paramsHidden, false);
 
 		if(null !== $model->renderPage)
 			$inst->renderPage = intval($model->renderPage);
@@ -4126,17 +4577,18 @@ class C4_AbstractViewLoader {
 		
 		$inst->renderTemplate = $model->renderTemplate;
 		
-		if(is_array($model->placeholderLabels))
-			$inst->setPlaceholderLabels($model->placeholderLabels);
-		if(is_array($model->placeholderValues))
-			$inst->setPlaceholderValues($model->placeholderValues);
+		if(false != ($active_worker = CerberusApplication::getActiveWorker())) {
+			$labels = $values = [];
+			$active_worker->getPlaceholderLabelsValues($labels, $values);
+			$inst->setPlaceholderLabels($labels);
+			$inst->setPlaceholderValues($values);
+		}
 		
 		// Enforce class restrictions
 		$parent = new $model->class_name;
 		$parent->__auto_persist = false;
 		// [TODO] This is a rather heavy way to accomplish this, these could be static
 		$inst->addColumnsHidden($parent->getColumnsHidden());
-		$inst->addParamsHidden($parent->getParamsHidden());
 		$inst->addParamsRequired($parent->getParamsRequired());
 		unset($parent);
 		
@@ -4219,6 +4671,10 @@ class C4_AbstractViewLoader {
 		$view->renderSortAsc = $view_model['sort_asc'];
 		$view->renderSubtotals = $view_model['subtotals'];
 		
+		if(isset($view_model['params_query'])) {
+			$view->setParamsQuery($view_model['params_query']);
+		}
+		
 		if(isset($view_model['params']) && is_array($view_model['params'])) {
 			$params = self::convertParamsJsonToObject($view_model['params']);
 			$view->addParams($params, true);
@@ -4233,15 +4689,12 @@ class C4_AbstractViewLoader {
 			$view->setParamsRequiredQuery($view_model['params_required_query']);
 		}
 		
-		$active_worker = CerberusApplication::getActiveWorker();
-		
-		$labels = [];
-		$values = [];
-		
-		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $active_worker, $worker_labels, $worker_values, null, true, true);
-		CerberusContexts::merge('current_worker_', null, $worker_labels, $worker_values, $labels, $values);
-		
-		$view->setPlaceholderValues($values);
+		if(false != ($active_worker = CerberusApplication::getActiveWorker())) {
+			$labels = $values = [];
+			$active_worker->getPlaceholderLabelsValues($labels, $values);
+			$view->setPlaceholderLabels($labels);
+			$view->setPlaceholderValues($values);
+		}
 		
 		// If the param keys changed during unserialization, then consider everything changed
 		$view_params = $view->getParams(false);
@@ -4262,12 +4715,11 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 	const COLUMNS_JSON = 'columns_json';
 	const IS_EPHEMERAL = 'is_ephemeral';
 	const OPTIONS_JSON = 'options_json';
+	const PARAMS_QUERY = 'params_query';
 	const PARAMS_DEFAULT_JSON = 'params_default_json';
 	const PARAMS_EDITABLE_JSON = 'params_editable_json';
-	const PARAMS_HIDDEN_JSON = 'params_hidden_json';
 	const PARAMS_REQUIRED_JSON = 'params_required_json';
-	const PLACEHOLDER_LABELS_JSON = 'placeholder_labels_json';
-	const PLACEHOLDER_VALUES_JSON = 'placeholder_values_json';
+	const PARAMS_REQUIRED_QUERY = 'params_required_query';
 	const RENDER_LIMIT = 'render_limit';
 	const RENDER_PAGE = 'render_page';
 	const RENDER_SORT_JSON = 'render_sort_json';
@@ -4326,7 +4778,7 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			;
 		// text
 		$validation
-			->addField(self::PARAMS_HIDDEN_JSON)
+			->addField(self::PARAMS_QUERY)
 			->string()
 			->setMaxLength(65535)
 			;
@@ -4336,17 +4788,11 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			->string()
 			->setMaxLength(65535)
 			;
-		// mediumtext
+		// text
 		$validation
-			->addField(self::PLACEHOLDER_LABELS_JSON)
+			->addField(self::PARAMS_REQUIRED_QUERY)
 			->string()
-			->setMaxLength(16777215)
-			;
-		// mediumtext
-		$validation
-			->addField(self::PLACEHOLDER_VALUES_JSON)
-			->string()
-			->setMaxLength(16777215)
+			->setMaxLength(65535)
 			;
 		// smallint(5) unsigned
 		$validation
@@ -4421,19 +4867,17 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			'options_json',
 			'columns_json',
 			'columns_hidden_json',
+			'params_query',
 			'params_editable_json',
 			'params_required_json',
 			'params_required_query',
 			'params_default_json',
-			'params_hidden_json',
 			'render_page',
 			'render_total',
 			'render_limit',
 			'render_sort_json',
 			'render_subtotals',
 			'render_template',
-			'placeholder_labels_json',
-			'placeholder_values_json',
 		);
 		
 		$sql = sprintf("SELECT %s FROM worker_view_model %s",
@@ -4451,6 +4895,7 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			$model->is_ephemeral = $row['is_ephemeral'] ? true : false;
 			$model->class_name = $row['class_name'];
 			$model->name = $row['title'];
+			$model->paramsQuery = $row['params_query'];
 			$model->paramsRequiredQuery = $row['params_required_query'];
 			$model->renderPage = $row['render_page'];
 			$model->renderTotal = $row['render_total'];
@@ -4465,11 +4910,7 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			$model->paramsEditable = self::decodeParamsJson($row['params_editable_json']);
 			$model->paramsRequired = self::decodeParamsJson($row['params_required_json']);
 			$model->paramsDefault = self::decodeParamsJson($row['params_default_json']);
-			$model->paramsHidden = json_decode($row['params_hidden_json'], true);
 			$model->renderSort = json_decode($row['render_sort_json'], true);
-			
-			$model->placeholderLabels = json_decode($row['placeholder_labels_json'], true);
-			$model->placeholderValues = json_decode($row['placeholder_values_json'], true);
 			
 			// Make sure it's a well-formed view
 			if(empty($model->class_name) || !class_exists($model->class_name, true))
@@ -4550,19 +4991,17 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			'options_json' => $db->qstr(json_encode($model->options)),
 			'columns_json' => $db->qstr(json_encode($model->view_columns)),
 			'columns_hidden_json' => $db->qstr(json_encode($model->columnsHidden)),
+			'params_query' => $db->qstr($model->paramsQuery),
 			'params_editable_json' => $db->qstr(json_encode($model->paramsEditable)),
 			'params_required_json' => $db->qstr(json_encode($model->paramsRequired)),
 			'params_required_query' => $db->qstr($model->paramsRequiredQuery),
 			'params_default_json' => $db->qstr(json_encode($model->paramsDefault)),
-			'params_hidden_json' => $db->qstr(json_encode($model->paramsHidden)),
 			'render_page' => abs(intval($model->renderPage)),
 			'render_total' => !empty($model->renderTotal) ? 1 : 0,
 			'render_limit' => max(intval($model->renderLimit),0),
 			'render_sort_json' => $db->qstr(json_encode($render_sort)),
 			'render_subtotals' => $db->qstr($model->renderSubtotals),
 			'render_template' => $db->qstr($model->renderTemplate),
-			'placeholder_labels_json' => $db->qstr(json_encode($model->placeholderLabels)),
-			'placeholder_values_json' => $db->qstr(json_encode($model->placeholderValues)),
 		);
 		
 		$sql = sprintf("REPLACE INTO worker_view_model (%s) ".

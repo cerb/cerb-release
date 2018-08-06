@@ -433,12 +433,6 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 			'tables' => &$tables,
 		);
 
-		array_walk_recursive(
-			$params,
-			array('DAO_Mailbox', '_translateVirtualParameters'),
-			$args
-		);
-
 		return array(
 			'primary_table' => 'mailbox',
 			'select' => $select_sql,
@@ -446,23 +440,6 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 			'where' => $where_sql,
 			'sort' => $sort_sql,
 		);
-	}
-
-	private static function _translateVirtualParameters($param, $key, &$args) {
-		if(!is_a($param, 'DevblocksSearchCriteria'))
-			return;
-
-		$from_context = CerberusContexts::CONTEXT_MAILBOX;
-		$from_index = 'mailbox.id';
-
-		$param_key = $param->field;
-		settype($param_key, 'string');
-
-		switch($param_key) {
-			case SearchFields_Mailbox::VIRTUAL_HAS_FIELDSET:
-				self::_searchComponentsVirtualHasFieldset($param, $from_context, $from_index, $args['join_sql'], $args['where_sql']);
-				break;
-		}
 	}
 
 	/**
@@ -629,6 +606,10 @@ class SearchFields_Mailbox extends DevblocksSearchFields {
 			case self::VIRTUAL_CONTEXT_LINK:
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_MAILBOX, self::getPrimaryKey());
 				break;
+				
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_MAILBOX)), self::getPrimaryKey());
+				break;
 
 			case self::VIRTUAL_WATCHERS:
 				return self::_getWhereSQLFromWatchersField($param, CerberusContexts::CONTEXT_MAILBOX, self::getPrimaryKey());
@@ -643,7 +624,25 @@ class SearchFields_Mailbox extends DevblocksSearchFields {
 				break;
 		}
 	}
-
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_Mailbox::ID:
+				$models = DAO_Mailbox::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -724,10 +723,6 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 			SearchFields_Mailbox::VIRTUAL_CONTEXT_LINK,
 			SearchFields_Mailbox::VIRTUAL_HAS_FIELDSET,
 			SearchFields_Mailbox::VIRTUAL_WATCHERS,
-		));
-
-		$this->addParamsHidden(array(
-			SearchFields_Mailbox::PASSWORD,
 		));
 
 		$this->doResetCriteria();
@@ -822,7 +817,7 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 
@@ -846,6 +841,19 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
 					'options' => array('param_key' => SearchFields_Mailbox::CHECKED_AT),
 				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_Mailbox::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_MAILBOX],
+					]
+				),
+			'host' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'options' => array('param_key' => SearchFields_Mailbox::HOST),
+				),
 			'id' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
@@ -858,6 +866,11 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_Mailbox::NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'protocol' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'options' => array('param_key' => SearchFields_Mailbox::PROTOCOL),
 				),
 			'updated' =>
 				array(
@@ -873,7 +886,7 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 
 		// Add quick search links
 
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links', SearchFields_Mailbox::VIRTUAL_CONTEXT_LINK);
 
 		// Add searchable custom fields
 
@@ -891,6 +904,10 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 
 	function getParamFromQuickSearchFieldTokens($field, $tokens) {
 		switch($field) {
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
+				break;
+			
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
 					return DevblocksSearchCriteria::getContextLinksParamFromTokens($field, $tokens);
@@ -916,64 +933,6 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 
 		$tpl->assign('view_template', 'devblocks:cerberusweb.core::internal/mailbox/view.tpl');
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
-	}
-
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_Mailbox::NAME:
-			case SearchFields_Mailbox::PROTOCOL:
-			case SearchFields_Mailbox::HOST:
-			case SearchFields_Mailbox::USERNAME:
-			case SearchFields_Mailbox::PASSWORD:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-
-			case SearchFields_Mailbox::ID:
-			case SearchFields_Mailbox::PORT:
-			case SearchFields_Mailbox::NUM_FAILS:
-			case SearchFields_Mailbox::TIMEOUT_SECS:
-			case SearchFields_Mailbox::MAX_MSG_SIZE_KB:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-
-			case SearchFields_Mailbox::ENABLED:
-			case SearchFields_Mailbox::SSL_IGNORE_VALIDATION:
-			case SearchFields_Mailbox::AUTH_DISABLE_PLAIN:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-
-			case SearchFields_Mailbox::CHECKED_AT:
-			case SearchFields_Mailbox::DELAY_UNTIL:
-			case SearchFields_Mailbox::UPDATED_AT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-
-			case SearchFields_Mailbox::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-
-			case SearchFields_Mailbox::VIRTUAL_HAS_FIELDSET:
-				$this->_renderCriteriaHasFieldset($tpl, CerberusContexts::CONTEXT_MAILBOX);
-				break;
-
-			case SearchFields_Mailbox::VIRTUAL_WATCHERS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
 	}
 
 	function renderCriteriaParam($param) {
@@ -1079,6 +1038,8 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 };
 
 class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek { // IDevblocksContextImport
+	const ID = 'cerberusweb.contexts.mailbox';
+	
 	static function isReadableByActor($models, $actor) {
 		// Only admins can read
 		return self::isWriteableByActor($models, $actor);
@@ -1108,6 +1069,97 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=mailbox&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_Mailbox();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['enabled'] = array(
+			'label' => mb_ucfirst($translate->_('common.enabled')),
+			'type' => Model_CustomField::TYPE_CHECKBOX,
+			'value' => $model->enabled,
+		);
+		
+		$properties['protocol'] = array(
+			'label' => mb_ucfirst($translate->_('dao.mailbox.protocol')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->protocol,
+		);
+			
+		$properties['host'] = array(
+			'label' => mb_ucfirst($translate->_('common.host')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->host,
+		);
+			
+		$properties['username'] = array(
+			'label' => mb_ucfirst($translate->_('common.user')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->username,
+		);
+		
+		$properties['port'] = array(
+			'label' => mb_ucfirst($translate->_('dao.mailbox.port')),
+			'type' => Model_CustomField::TYPE_NUMBER,
+			'value' => $model->port,
+		);
+			
+		$properties['num_fails'] = array(
+			'label' => mb_ucfirst($translate->_('dao.mailbox.num_fails')),
+			'type' => Model_CustomField::TYPE_NUMBER,
+			'value' => $model->num_fails,
+		);
+		
+		$properties['delay_until'] = array(
+			'label' => mb_ucfirst($translate->_('dao.mailbox.delay_until')),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->delay_until,
+		);
+		
+		$properties['delay_until'] = array(
+			'label' => 'Timeout (secs)',
+			'type' => Model_CustomField::TYPE_NUMBER,
+			'value' => $model->timeout_secs,
+		);
+		
+		$properties['max_msg_size_kb'] = array(
+			'label' => 'Max. Msg. Size',
+			'type' => Model_CustomField::TYPE_NUMBER,
+			'value' => DevblocksPlatform::strPrettyBytes($model->max_msg_size_kb * 1000),
+		);
+		
+		$properties['ssl_ignore_validation'] = array(
+			'label' => mb_ucfirst($translate->_('dao.mailbox.ssl_ignore_validation')),
+			'type' => Model_CustomField::TYPE_CHECKBOX,
+			'value' => $model->ssl_ignore_validation,
+		);
+		
+		$properties['auth_disable_plain'] = array(
+			'label' => mb_ucfirst($translate->_('dao.mailbox.auth_disable_plain')),
+			'type' => Model_CustomField::TYPE_CHECKBOX,
+			'value' => $model->auth_disable_plain,
+		);
+		
+		$properties['updated'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated_at,
+		);
+		
+		return $properties;
 	}
 
 	function getMeta($context_id) {
@@ -1397,12 +1449,6 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 			$tpl->display('devblocks:cerberusweb.core::internal/mailbox/peek_edit.tpl');
 			
 		} else {
-			// Counts
-			$activity_counts = array(
-				//'comments' => DAO_Comment::count($context, $context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				$context => array(
@@ -1410,7 +1456,7 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -1435,6 +1481,10 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$tpl->display('devblocks:cerberusweb.core::internal/mailbox/peek.tpl');
 		}

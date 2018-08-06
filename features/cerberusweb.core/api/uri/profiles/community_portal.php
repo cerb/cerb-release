@@ -17,114 +17,15 @@
 
 class PageSection_ProfilesCommunityPortal extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // community_tool 
-		$id = array_shift($stack); // 123
+		@$context_id = intval(array_shift($stack)); // 123
 		
-		@$id = intval($id);
+		$context = CerberusContexts::CONTEXT_PORTAL;
 		
-		if(null == ($community_tool = DAO_CommunityTool::get($id)))
-			return;
-			
-		$tpl->assign('community_tool', $community_tool);
-		
-		if(null == ($extension = $community_tool->getExtension()))
-			return;
-		
-		$tpl->assign('extension', $extension);
-		
-		// Tab persistence
-		
-		$point = 'profiles.community_tool.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-		
-		// Properties
-		
-		$properties = [];
-		
-		$properties['extension'] = array(
-			'label' => mb_ucfirst($translate->_('common.extension')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $extension->manifest->name,
-		);
-		
-		$properties['path'] = array(
-			'label' => mb_ucfirst($translate->_('common.path')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $community_tool->uri,
-		);
-		
-		$properties['code'] = array(
-			'label' => mb_ucfirst($translate->_('community_portal.code')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $community_tool->code,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $community_tool->updated_at,
-		);
-		
-		// Custom Fields
-		
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_PORTAL, $community_tool->id)) or [];
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_PORTAL, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-		
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_PORTAL, $community_tool->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Profile counts
-		$profile_counts = array(
-			'comments' => DAO_Comment::count(CerberusContexts::CONTEXT_PORTAL, $community_tool->id),
-			'log' => DAO_ContextActivityLog::countByTarget(CerberusContexts::CONTEXT_PORTAL, $community_tool->id),
-		);
-		$tpl->assign('profile_counts', $profile_counts);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_PORTAL => array(
-				$community_tool->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_PORTAL,
-						$community_tool->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-		
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_PORTAL);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/community_portal.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -225,7 +126,6 @@ class PageSection_ProfilesCommunityPortal extends Extension_PageSection {
 			return;
 			
 		}
-	
 	}
 	
 	function viewExploreAction() {
@@ -268,7 +168,6 @@ class PageSection_ProfilesCommunityPortal extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=community_portal', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.community.tool.explore.toolbar',
 				);
 				$models[] = $model;
 				
@@ -299,19 +198,6 @@ class PageSection_ProfilesCommunityPortal extends Extension_PageSection {
 		} while(!empty($results));
 		
 		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('explore',$hash,$orig_pos)));
-	}
-	
-	function showProfileTabAction() {
-		@$portal_id = DevblocksPlatform::importGPC($_REQUEST['portal_id'], 'integer', 0);
-		@$tab_id = DevblocksPlatform::importGPC($_REQUEST['tab_id'], 'string', '');
-		
-		if(false == ($portal = DAO_CommunityTool::get($portal_id)))
-			return;
-		
-		if(false == ($extension = $portal->getExtension()))
-			return;
-		
-		$extension->profileRenderTab($tab_id, $portal);
 	}
 	
 	function handleProfileTabActionAction() {

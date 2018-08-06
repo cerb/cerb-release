@@ -216,10 +216,6 @@ abstract class Extension_ReplyToolbarItem extends DevblocksExtension {
 	function render(Model_Message $message) { }
 };
 
-abstract class Extension_ExplorerToolbar extends DevblocksExtension {
-	function render(Model_ExplorerSet $item) { }
-};
-
 abstract class Extension_MailTransport extends DevblocksExtension {
 	const POINT = 'cerberusweb.mail.transport';
 	
@@ -260,40 +256,116 @@ abstract class Extension_MailTransport extends DevblocksExtension {
 	abstract function getLastError();
 };
 
-abstract class Extension_ContextProfileTab extends DevblocksExtension {
-	const POINT = 'cerberusweb.ui.context.profile.tab';
-	
+abstract class Extension_ProfileTab extends DevblocksExtension {
+	const POINT = 'cerb.profile.tab';
+
+	static $_registry = [];
+
 	/**
-	 * @return DevblocksExtensionManifest[]|Extension_ContextProfileTab[]
+	 * @return DevblocksExtensionManifest[]|Extension_ProfileTab[]
 	 */
-	static function getExtensions($as_instances=true, $context=null) {
-		if(empty($context))
-			return DevblocksPlatform::getExtensions(self::POINT, $as_instances);
-	
-		$results = [];
-	
-		$exts = DevblocksPlatform::getExtensions(self::POINT, false);
-		
-		foreach($exts as $ext_id => $ext) {
-			if(isset($ext->params['contexts'][0]))
-			foreach(array_keys($ext->params['contexts'][0]) as $ctx_pattern) {
-				$ctx_pattern = DevblocksPlatform::strToRegExp($ctx_pattern);
-				
-				if(preg_match($ctx_pattern, $context))
-					$results[$ext_id] = $as_instances ? $ext->createInstance() : $ext;
-			}
-		}
-	
+	static function getAll($as_instances=true) {
+		$exts = DevblocksPlatform::getExtensions(self::POINT, $as_instances);
+
 		// Sorting
 		if($as_instances)
-			DevblocksPlatform::sortObjects($results, 'manifest->name');
+			DevblocksPlatform::sortObjects($exts, 'manifest->name');
 		else
-			DevblocksPlatform::sortObjects($results, 'name');
+			DevblocksPlatform::sortObjects($exts, 'name');
 	
-		return $results;
+		return $exts;
 	}
 	
-	function showTab($context, $context_id) {}
+	static function getByContext($context, $as_instances=true) {
+		$extensions = self::getAll($as_instances);
+		
+		$extensions = array_filter($extensions, function($extension) use ($context, $as_instances) {
+			$ptr = ($as_instances) ? $extension->manifest : $extension;
+			
+			if(!array_key_exists('contexts', $ptr->params))
+				return true;
+			
+			@$contexts = $ptr->params['contexts'][0] ?: [];
+			
+			return isset($contexts[$context]);
+		});
+		
+		return $extensions;
+	}
+	
+	static function get($extension_id) {
+		if(isset(self::$_registry[$extension_id]))
+			return self::$_registry[$extension_id];
+		
+		if(null != ($extension = DevblocksPlatform::getExtension($extension_id, true))
+			&& $extension instanceof Extension_ProfileTab) {
+
+			self::$_registry[$extension->id] = $extension;
+			return $extension;
+		}
+		
+		return null;
+	}
+	
+	abstract function showTab(Model_ProfileTab $model, $context, $context_id);
+	abstract function renderConfig(Model_ProfileTab $model);
+	abstract function saveConfig(Model_ProfileTab $model);
+};
+
+abstract class Extension_ProfileWidget extends DevblocksExtension {
+	const POINT = 'cerb.profile.tab.widget';
+
+	static $_registry = [];
+
+	/**
+	 * @return DevblocksExtensionManifest[]|Extension_ProfileWidget[]
+	 */
+	static function getAll($as_instances=true) {
+		$exts = DevblocksPlatform::getExtensions(self::POINT, $as_instances);
+
+		// Sorting
+		if($as_instances)
+			DevblocksPlatform::sortObjects($exts, 'manifest->name');
+		else
+			DevblocksPlatform::sortObjects($exts, 'name');
+	
+		return $exts;
+	}
+	
+	static function get($extension_id) {
+		if(isset(self::$_registry[$extension_id]))
+			return self::$_registry[$extension_id];
+		
+		if(null != ($extension = DevblocksPlatform::getExtension($extension_id, true))
+			&& $extension instanceof Extension_ProfileWidget) {
+
+			self::$_registry[$extension->id] = $extension;
+			return $extension;
+		}
+		
+		return null;
+	}
+	
+	static function getByContext($context, $as_instances=true) {
+		$extensions = self::getAll($as_instances);
+		
+		$extensions = array_filter($extensions, function($extension) use ($context, $as_instances) {
+			$ptr = ($as_instances) ? $extension->manifest : $extension;
+			
+			if(!array_key_exists('contexts', $ptr->params))
+				return true;
+			
+			@$contexts = $ptr->params['contexts'][0] ?: [];
+			
+			return isset($contexts[$context]);
+		});
+		
+		return $extensions;
+	}
+	
+	abstract function render(Model_ProfileWidget $model, $context, $context_id, $refresh_options=[]);
+	abstract function renderConfig(Model_ProfileWidget $model);
+	function saveConfig(array $fields, $id, &$error=null) { return true; }
 };
 
 abstract class Extension_ContextProfileScript extends DevblocksExtension {
@@ -516,6 +588,8 @@ interface ICerbWorkspaceWidget_ExportData {
 };
 
 abstract class Extension_WorkspaceWidget extends DevblocksExtension {
+	const POINT = 'cerberusweb.ui.workspace.widget';
+	
 	static $_registry = [];
 	
 	static function getAll($as_instances=false) {
@@ -546,45 +620,6 @@ abstract class Extension_WorkspaceWidget extends DevblocksExtension {
 		}
 		
 		return null;
-	}
-	
-	static function renderWidgetFromCache($widget, $autoload=true, $nocache=false) {
-		// Polymorph
-		if($widget instanceof Model_WorkspaceWidget) {
-			// Do nothing, it's what we want.
-			
-		} elseif (is_numeric($widget)) {
-			$widget = DAO_WorkspaceWidget::get($widget);
-			
-		} else {
-			$widget = null;
-		}
-		
-		$cache = DevblocksPlatform::services()->cache();
-		$is_cached = false;
-				
-		if($widget && $widget instanceof Model_WorkspaceWidget) {
-			$cache_key = sprintf("widget%d_render", $widget->id);
-			
-			// Fetch and cache
-			if($nocache || empty($widget->cache_ttl) || null === ($widget_contents = $cache->load($cache_key))) {
-				if($autoload) {
-					$tpl = DevblocksPlatform::services()->template();
-					$tpl->assign('widget', $widget);
-					
-					if(false !== ($widget_contents = $tpl->fetch('devblocks:cerberusweb.core::internal/workspaces/widgets/render.tpl')))
-						$cache->save($widget_contents, $cache_key, null, $widget->cache_ttl);
-				}
-				
-			} else {
-				$is_cached = true;
-			}
-			
-			if(isset($widget_contents))
-				echo $widget_contents;
-		}
-		
-		return $is_cached;
 	}
 	
 	abstract function render(Model_WorkspaceWidget $widget);
@@ -767,6 +802,8 @@ abstract class CerberusCronPageExtension extends DevblocksExtension {
 };
 
 abstract class Extension_CommunityPortal extends DevblocksExtension implements DevblocksHttpRequestHandler {
+	const ID = 'cerb.portal';
+	
 	private $portal = '';
 	
 	static $_registry = [];
@@ -824,50 +861,6 @@ abstract class Extension_CommunityPortal extends DevblocksExtension implements D
 	}
 	
 	public function saveConfiguration(Model_CommunityTool $instance) {
-	}
-	
-	abstract public function profileGetTabs(Model_CommunityTool $portal);
-	abstract public function profileRenderTab($tab_id, Model_CommunityTool $portal);
-	
-	protected function _profileRenderConfigTabDeploy($tab_id, Model_CommunityTool $portal) {
-		$tpl = DevblocksPlatform::services()->template();
-		$url_writer = DevblocksPlatform::services()->url();
-		
-		$tpl->assign('portal', $portal);
-			
-		// Built-in
-		
-		$url = $url_writer->write('c=portal&uri=' . $portal->uri, true, false);
-		$tpl->assign('url', $url);
-		
-		// Pure PHP reverse proxy
-		
-		@$portal_id = DevblocksPlatform::importGPC($_REQUEST['portal_id'],'integer',0);
-		
-		// Install
-		$url_writer = DevblocksPlatform::services()->url();
-		$url = $url_writer->writeNoProxy('c=portal&a='.$portal->code,true);
-		$url_parts = parse_url($url);
-		
-		$host = $url_parts['host'];
-		$port = isset($url_parts['port']) ? $url_parts['port'] : ($url_writer->isSSL() ? 443 : 80);
-		$base = substr(DEVBLOCKS_WEBPATH,0,-1); // consume trailing
-		$path = substr($url_parts['path'],strlen(DEVBLOCKS_WEBPATH)-1); // consume trailing slash
-
-		@$parts = explode('/', $path);
-		if($parts[1]=='index.php') // 0 is null from /part1/part2 paths.
-			unset($parts[1]);
-		$path = implode('/', $parts);
-		
-		$tpl->assign('host', $host);
-		$tpl->assign('is_ssl', ($url_writer->isSSL() ? 1 : 0));
-		$tpl->assign('port', $port);
-		$tpl->assign('base', $base);
-		$tpl->assign('path', $path);
-		
-		// Template
-		
-		$tpl->display("devblocks:cerberusweb.core::internal/community_portal/deploy.tpl");
 	}
 };
 

@@ -3,7 +3,6 @@
 {$is_writeable = Context_CommunityTool::isWriteableByActor($dict, $active_worker)}
 
 <div id="{$div_id}">
-	
 	<div style="float:left;">
 		<h1>
 			{$dict->_label}
@@ -27,7 +26,6 @@
 	<legend>{'common.properties'|devblocks_translate|capitalize}</legend>
 	
 	<div class="cerb-properties-grid" data-column-width="100">
-	
 		{$labels = $dict->_labels}
 		{$types = $dict->_types}
 		{foreach from=$properties item=k name=props}
@@ -44,13 +42,7 @@
 	
 	<div style="clear:both;"></div>
 	
-	{*
-	<div style="margin-top:5px;">
-		<button type="button" class="cerb-search-trigger" data-context="{CerberusContexts::CONTEXT_CALENDAR_EVENT}" data-query="calendar.id:{$dict->id}"><div class="badge-count">{$activity_counts.events|default:0}</div> {'common.events'|devblocks_translate|capitalize}</button>
-		<button type="button" class="cerb-search-trigger" data-context="{CerberusContexts::CONTEXT_CALENDAR_EVENT_RECURRING}" data-query="calendar.id:{$dict->id}"><div class="badge-count">{$activity_counts.events_recurring|default:0}</div> {'common.events.recurring'|devblocks_translate|capitalize}</button>
-	</div>
-	*}
-	
+	{include file="devblocks:cerberusweb.core::internal/peek/peek_search_buttons.tpl"}
 </fieldset>
 
 {include file="devblocks:cerberusweb.core::internal/profiles/profile_record_links.tpl" properties_links=$links peek=true page_context=$peek_context page_context_id=$dict->id}

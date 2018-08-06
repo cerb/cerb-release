@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2018072301);
-define("APP_VERSION", '8.3.10');
+define("APP_BUILD", 2018080601);
+define("APP_VERSION", '9.0.0');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -980,6 +980,7 @@ class CerberusContexts {
 	const CONTEXT_ASSET = 'cerberusweb.contexts.asset';
 	const CONTEXT_ATTACHMENT = 'cerberusweb.contexts.attachment';
 	const CONTEXT_BEHAVIOR = 'cerberusweb.contexts.behavior';
+	const CONTEXT_BEHAVIOR_SCHEDULED = 'cerberusweb.contexts.behavior.scheduled';
 	const CONTEXT_BOT = 'cerberusweb.contexts.bot';
 	const CONTEXT_BUCKET = 'cerberusweb.contexts.bucket';
 	const CONTEXT_CALENDAR = 'cerberusweb.contexts.calendar';
@@ -1020,6 +1021,8 @@ class CerberusContexts {
 	const CONTEXT_OPPORTUNITY = 'cerberusweb.contexts.opportunity';
 	const CONTEXT_ORG = 'cerberusweb.contexts.org';
 	const CONTEXT_PORTAL = 'cerberusweb.contexts.portal';
+	const CONTEXT_PROFILE_TAB = 'cerberusweb.contexts.profile.tab';
+	const CONTEXT_PROFILE_WIDGET = 'cerberusweb.contexts.profile.widget';
 	const CONTEXT_PROJECT = 'cerberusweb.contexts.project';
 	const CONTEXT_PROJECT_ISSUE = 'cerberusweb.contexts.project.issue';
 	const CONTEXT_REMINDER = 'cerberusweb.contexts.reminder';
@@ -1033,6 +1036,7 @@ class CerberusContexts {
 	const CONTEXT_TASK = 'cerberusweb.contexts.task';
 	const CONTEXT_TICKET = 'cerberusweb.contexts.ticket';
 	const CONTEXT_TIMETRACKING = 'cerberusweb.contexts.timetracking';
+	const CONTEXT_TIMETRACKING_ACTIVITY = 'cerberusweb.contexts.timetracking.activity';
 	const CONTEXT_WEBAPI_CREDENTIAL = 'cerberusweb.contexts.webapi.credential';
 	const CONTEXT_WEBHOOK_LISTENER = 'cerberusweb.contexts.webhook_listener';
 	const CONTEXT_WORKER = 'cerberusweb.contexts.worker';
@@ -2213,13 +2217,6 @@ class CerberusContexts {
 					if(in_array($activity_point, $dont_notify_on_activities))
 						continue;
 
-					// Ignore link notifications for custom fieldsets
-					if(
-						in_array($activity_point, ['connection.link', 'connection.unlink'])
-						&& $target_context == CerberusContexts::CONTEXT_CUSTOM_FIELDSET
-						)
-						continue;
-
 					// If yes, send it
 					DAO_Notification::create(array(
 						DAO_Notification::CONTEXT => $target_context,
@@ -2364,7 +2361,9 @@ class Model_Application {
 	public $name = 'Cerb';
 }
 
-class Context_Application extends Extension_DevblocksContext {
+class Context_Application extends Extension_DevblocksContext implements IDevblocksContextProfile {
+	const ID = 'cerberusweb.contexts.app';
+	
 	static function isReadableByActor($models, $actor) {
 		// Everyone can read
 		return CerberusContexts::allowEverything($models);
@@ -2381,7 +2380,38 @@ class Context_Application extends Extension_DevblocksContext {
 
 		return CerberusContexts::denyEverything($models);
 	}
-
+	
+	function profileGetUrl($context_id) {
+		return null;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		/* @var $model Model_Application */
+		
+		if(is_null($model))
+			$model = new Model_Application();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['id'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.id'),
+			'type' => Model_CustomField::TYPE_NUMBER,
+			'value' => $model->id,
+		);
+		
+		return $properties;
+	}
+	
 	function getRandom() {
 		return 0;
 	}
@@ -2621,7 +2651,8 @@ class CerberusLicense {
 class CerberusSettings {
 	const HELPDESK_TITLE = 'helpdesk_title';
 	const HELPDESK_FAVICON_URL = 'helpdesk_favicon_url';
-	const HELPDESK_LOGO_URL = 'helpdesk_logo_url';
+	const UI_USER_STYLESHEET = 'ui_user_stylesheet';
+	const UI_USER_STYLESHEET_UPDATED_AT = 'ui_user_stylesheet_updated_at';
 	const ATTACHMENTS_ENABLED = 'attachments_enabled';
 	const ATTACHMENTS_MAX_SIZE = 'attachments_max_size';
 	const PARSER_AUTO_REQ = 'parser_autoreq';
@@ -2644,6 +2675,8 @@ class CerberusSettings {
 
 class CerberusSettingsDefaults {
 	const HELPDESK_TITLE = 'Cerb';
+	const UI_USER_STYLESHEET = '';
+	const UI_USER_STYLESHEET_UPDATED_AT = 0;
 	const ATTACHMENTS_ENABLED = 1;
 	const ATTACHMENTS_MAX_SIZE = 10;
 	const PARSER_AUTO_REQ = 0;
@@ -3064,49 +3097,6 @@ class Cerb_ORMHelper extends DevblocksORMHelper {
 					);
 					break;
 			}
-		}
-	}
-
-	static function _searchComponentsVirtualHasFieldset(&$param, $to_context, $to_index, &$join_sql, &$where_sql) {
-		if($param->operator != DevblocksSearchCriteria::OPER_TRUE) {
-			if(empty($param->value) || !is_array($param->value))
-				$param->operator = DevblocksSearchCriteria::OPER_IS_NULL;
-		}
-
-		$table_alias = 'fieldset_' . uniqid();
-		$where_contexts = [];
-
-		if(is_array($param->value))
-		foreach($param->value as $context_id) {
-			$where_contexts[] = sprintf("(%s.from_context = %s%s)",
-				$table_alias,
-				self::qstr(CerberusContexts::CONTEXT_CUSTOM_FIELDSET),
-				(!empty($context_id) ? sprintf(" AND %s.from_context_id = %d", $table_alias, $context_id) : '')
-			);
-		}
-
-		switch($param->operator) {
-			case DevblocksSearchCriteria::OPER_TRUE:
-				break;
-
-			case DevblocksSearchCriteria::OPER_IS_NULL:
-				$where_sql .= sprintf("AND (SELECT count(*) FROM context_link WHERE context_link.to_context=%s AND context_link.to_context_id=%s) = 0 ",
-					self::qstr($to_context),
-					$to_index
-				);
-				break;
-
-			case DevblocksSearchCriteria::OPER_IN:
-				$join_sql .= sprintf("INNER JOIN context_link AS %s ON (%s.to_context=%s AND %s.to_context_id=%s) ",
-					$table_alias,
-					$table_alias,
-					Cerb_ORMHelper::qstr($to_context),
-					$table_alias,
-					$to_index
-				);
-
-				$where_sql .= 'AND (' . implode(' OR ', $where_contexts) . ') ';
-				break;
 		}
 	}
 };

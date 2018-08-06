@@ -17,114 +17,18 @@
 
 class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // connected_account
-		$id = array_shift($stack); // 123
+		@$context_id = intval(array_shift($stack)); // 123
 
-		@$id = intval($id);
+		$context = CerberusContexts::CONTEXT_CONNECTED_ACCOUNT;
 		
-		if(null == ($connected_account = DAO_ConnectedAccount::get($id))) {
-			return;
-		}
-		
-		if(!Context_ConnectedAccount::isReadableByActor($connected_account, $active_worker)) {
-			echo DevblocksPlatform::translateCapitalized('common.access_denied');
-			return;
-		}
-		
-		$tpl->assign('connected_account', $connected_account);
-	
-		// Tab persistence
-		
-		$point = 'profiles.connected_account.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-	
-		// Properties
-			
-		$properties = array();
-		
-		$properties['owner'] = array(
-			'label' => mb_ucfirst($translate->_('common.owner')),
-			'type' => Model_CustomField::TYPE_LINK,
-			'value' => $connected_account->owner_context_id,
-			'params' => [
-				'context' => $connected_account->owner_context,
-			],
-		);
-			
-		$properties['extension'] = array(
-			'label' => mb_ucfirst($translate->_('common.service.provider')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $connected_account->extension_id,
-		);
-		
-		$properties['created'] = array(
-			'label' => mb_ucfirst($translate->_('common.created')),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $connected_account->created_at,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $connected_account->updated_at,
-		);
-			
-	
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_CONNECTED_ACCOUNT, $connected_account->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_CONNECTED_ACCOUNT, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_CONNECTED_ACCOUNT, $connected_account->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_CONNECTED_ACCOUNT => array(
-				$connected_account->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_CONNECTED_ACCOUNT,
-						$connected_account->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-			
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_CONNECTED_ACCOUNT);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/connected_account.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
+	// [TODO] Is this used?
 	function showPeekPopupAction() {
 		@$context_id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'], 'string', '');
@@ -356,7 +260,6 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=connected_account', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.connected_account.explore.toolbar',
 				);
 				$models[] = $model;
 				

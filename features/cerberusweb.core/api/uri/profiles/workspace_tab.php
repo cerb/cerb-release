@@ -17,99 +17,15 @@
 
 class PageSection_ProfilesWorkspaceTab extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // workspace_tab 
-		$id = array_shift($stack); // 123
+		@$context_id = intval(array_shift($stack)); // 123
 		
-		@$id = intval($id);
+		$context = CerberusContexts::CONTEXT_WORKSPACE_TAB;
 		
-		if(null == ($workspace_tab = DAO_WorkspaceTab::get($id))) {
-			return;
-		}
-		$tpl->assign('workspace_tab', $workspace_tab);
-		
-		// Tab persistence
-		
-		$point = 'profiles.workspace_tab.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-		
-		// Properties
-		
-		$properties = [];
-		
-		$properties['workspace_page_id'] = array(
-			'label' => mb_ucfirst($translate->_('common.page')),
-			'type' => Model_CustomField::TYPE_LINK,
-			'value' => $workspace_tab->workspace_page_id,
-			'params' => [
-				'context' => CerberusContexts::CONTEXT_WORKSPACE_PAGE,
-			]
-		);
-		
-		$properties['extension_id'] = array(
-			'label' => mb_ucfirst($translate->_('common.type')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $workspace_tab->getExtensionName(),
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $workspace_tab->updated_at,
-		);
-		
-		// Custom Fields
-		
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_WORKSPACE_TAB, $workspace_tab->id)) or [];
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_WORKSPACE_TAB, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-		
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_WORKSPACE_TAB, $workspace_tab->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_WORKSPACE_TAB => array(
-				$workspace_tab->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_WORKSPACE_TAB,
-						$workspace_tab->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-		
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_WORKSPACE_TAB);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/workspace_tab.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function getTabParamsAction() {
@@ -372,7 +288,6 @@ class PageSection_ProfilesWorkspaceTab extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=workspace_tab', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.workspace.tab.explore.toolbar',
 				);
 				$models[] = $model;
 				

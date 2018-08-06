@@ -2388,11 +2388,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="display.shortcut.print">
-			<tuv xml:lang="nl_NL">
-				<seg>Print dit ticket (P)</seg>
-			</tuv>
-		</tu>
 		<tu tuid="display.shortcut.read_all">
 			<tuv xml:lang="nl_NL">
 				<seg>Lees alle berichten in chronologische volgorde (A)</seg>
@@ -3504,11 +3499,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="preferences.account.mail.display.inline_log">
-			<tuv xml:lang="nl_NL">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="preferences.account.mail.no_discard_warning">
 			<tuv xml:lang="nl_NL">
 				<seg/>
@@ -4319,14 +4309,9 @@
 				<seg>Track Time</seg>
 			</tuv>
 		</tu>
-		<tu tuid="timetracking.ui.cfg.activities">
+		<tu tuid="timetracking.common.activities">
 			<tuv xml:lang="nl_NL">
 				<seg>Activiteiten</seg>
-			</tuv>
-		</tu>
-		<tu tuid="timetracking.ui.cfg.add_activity">
-			<tuv xml:lang="nl_NL">
-				<seg>Activiteit toevoegen</seg>
 			</tuv>
 		</tu>
 		<tu tuid="timetracking.ui.cfg.add_new_activity">

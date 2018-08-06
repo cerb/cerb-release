@@ -467,6 +467,24 @@ class SearchFields_DevblocksTemplate extends DevblocksSearchFields {
 		}
 	}
 	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_DevblocksTemplate::ID:
+				$models = DAO_DevblocksTemplate::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -590,25 +608,6 @@ class View_DevblocksTemplate extends C4_AbstractView implements IAbstractView_Qu
 		$tpl->assign('view', $this);
 		
 		$tpl->display('devblocks:cerberusweb.support_center::portal/sc/profile/tabs/configuration/templates/view.tpl');
-	}
-
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_DevblocksTemplate::PATH:
-			case SearchFields_DevblocksTemplate::PLUGIN_ID:
-			case SearchFields_DevblocksTemplate::TAG:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-			case SearchFields_DevblocksTemplate::LAST_UPDATED:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-			case SearchFields_DevblocksTemplate::ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-		}
 	}
 
 	function renderCriteriaParam($param) {

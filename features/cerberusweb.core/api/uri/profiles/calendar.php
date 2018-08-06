@@ -17,113 +17,15 @@
 
 class PageSection_ProfilesCalendar extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		
-		$context = CerberusContexts::CONTEXT_CALENDAR;
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // calendar
-		$id = array_shift($stack); // 123
-
-		@$id = intval($id);
+		@$context_id = intval(array_shift($stack)); // 123
 		
-		if(null == ($calendar = DAO_Calendar::get($id))) { /* @var $calenar Model_Calendar */
-			return;
-		}
-		$tpl->assign('calendar', $calendar);
+		$context = CerberusContexts::CONTEXT_CALENDAR;
 		
-		// Dictionary
-		$labels = array();
-		$values = array();
-		CerberusContexts::getContext($context, $calendar, $labels, $values, '', true, false);
-		$dict = DevblocksDictionaryDelegate::instance($values);
-		$tpl->assign('dict', $dict);
-	
-		// Tab persistence
-		
-		$point = 'profiles.calendar.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-	
-		// Properties
-			
-		$properties = array();
-			
-		$properties['owner'] = array(
-			'label' => mb_ucfirst($translate->_('common.owner')),
-			'type' => Model_CustomField::TYPE_LINK,
-			'params' => array('context' => $calendar->owner_context),
-			'value' => $calendar->owner_context_id,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $calendar->updated_at,
-		);
-	
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds($context, $calendar->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields($context, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets($context, $calendar->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Counts
-		
-		$counts = array(
-			'events' => DAO_CalendarEvent::countByCalendar($calendar->id),
-			'events_recurring' => DAO_CalendarRecurringProfile::countByCalendar($calendar->id),
-		);
-		$tpl->assign('counts', $counts);
-		
-		// Link counts
-		
-		$properties_links = array(
-			$context => array(
-				$calendar->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						$context,
-						$calendar->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-				
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-			
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, $context);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Interactions
-		$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
-		$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
-		$tpl->assign('interactions_menu', $interactions_menu);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/calendar.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {

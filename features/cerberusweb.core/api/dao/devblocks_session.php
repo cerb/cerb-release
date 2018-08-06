@@ -1,18 +1,18 @@
 <?php
 /***********************************************************************
- | Cerb(tm) developed by Webgroup Media, LLC.
- |-----------------------------------------------------------------------
- | All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
- |   unless specifically noted otherwise.
- |
- | This source code is released under the Devblocks Public License.
- | The latest version of this license can be found here:
- | http://cerb.ai/license
- |
- | By using this software, you acknowledge having read this license
- | and agree to be bound thereby.
- | ______________________________________________________________________
- |	http://cerb.ai	    http://webgroup.media
+| Cerb(tm) developed by Webgroup Media, LLC.
+|-----------------------------------------------------------------------
+| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+|   unless specifically noted otherwise.
+|
+| This source code is released under the Devblocks Public License.
+| The latest version of this license can be found here:
+| http://cerb.ai/license
+|
+| By using this software, you acknowledge having read this license
+| and agree to be bound thereby.
+| ______________________________________________________________________
+|	http://cerb.ai	    http://webgroup.media
  ***********************************************************************/
 /*
  * IMPORTANT LICENSING NOTE from your friends at Cerb
@@ -407,6 +407,24 @@ class SearchFields_DevblocksSession extends DevblocksSearchFields {
 		}
 	}
 	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_DevblocksSession::ID:
+				$models = DAO_DevblocksSession::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -463,12 +481,6 @@ class View_DevblocksSession extends C4_AbstractView implements IAbstractView_Qui
 		);
 
 		$this->addColumnsHidden(array(
-			SearchFields_DevblocksSession::SESSION_KEY,
-			SearchFields_DevblocksSession::SESSION_DATA,
-			SearchFields_DevblocksSession::VIRTUAL_WORKER_SEARCH,
-		));
-		
-		$this->addParamsHidden(array(
 			SearchFields_DevblocksSession::SESSION_KEY,
 			SearchFields_DevblocksSession::SESSION_DATA,
 			SearchFields_DevblocksSession::VIRTUAL_WORKER_SEARCH,
@@ -635,38 +647,6 @@ class View_DevblocksSession extends C4_AbstractView implements IAbstractView_Qui
 		
 		$tpl->assign('view_template', 'devblocks:cerberusweb.core::configuration/section/sessions/view.tpl');
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
-	}
-
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_DevblocksSession::SESSION_KEY:
-			case SearchFields_DevblocksSession::USER_IP:
-			case SearchFields_DevblocksSession::USER_AGENT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case 'placeholder_number':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-				
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-				
-			case SearchFields_DevblocksSession::CREATED:
-			case SearchFields_DevblocksSession::UPDATED:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_DevblocksSession::USER_ID:
-				$tpl->assign('workers', DAO_Worker::getAllActive());
-				$tpl->assign('param_name', 'worker_id');
-				$tpl->display('devblocks:cerberusweb.core::internal/views/helpers/_shared_placeholder_worker_picker.tpl');
-				break;
-		}
 	}
 
 	function renderCriteriaParam($param) {

@@ -17,98 +17,15 @@
 
 class PageSection_ProfilesWebhookListener extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
+		$context = CerberusContexts::CONTEXT_WEBHOOK_LISTENER;
 		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // webhook_listener
-		$id = array_shift($stack); // 123
-
-		@$id = intval($id);
+		@$context_id = intval(array_shift($stack)); // 123
 		
-		if(null == ($webhook_listener = DAO_WebhookListener::get($id))) {
-			return;
-		}
-		$tpl->assign('webhook_listener', $webhook_listener);
-	
-		// Tab persistence
-		
-		$point = 'profiles.webhook_listener.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-	
-		// Properties
-			
-		$properties = array();
-			
-		// [TODO] Translate type
-		$properties['extension_id'] = array(
-			'label' => mb_ucfirst($translate->_('common.type')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $webhook_listener->extension_id,
-		);
-	
-		// [TODO] HREF?
-		$properties['guid'] = array(
-			'label' => mb_ucfirst($translate->_('common.guid')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $webhook_listener->guid,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $webhook_listener->updated_at,
-		);
-		
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_WEBHOOK_LISTENER, $webhook_listener->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_WEBHOOK_LISTENER, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_WEBHOOK_LISTENER, $webhook_listener->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_WEBHOOK_LISTENER => array(
-				$webhook_listener->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_WEBHOOK_LISTENER,
-						$webhook_listener->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-			
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_WEBHOOK_LISTENER);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerb.webhooks::webhook_listener/profile.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -256,7 +173,6 @@ class PageSection_ProfilesWebhookListener extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=webhook_listener', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.webhook_listener.explore.toolbar',
 				);
 				$models[] = $model;
 				

@@ -645,6 +645,7 @@ class SearchFields_TriggerEvent extends DevblocksSearchFields {
 	const UPDATED_AT = 't_updated_at';
 	
 	const VIRTUAL_BOT_SEARCH = '*_bot_search';
+	const VIRTUAL_HAS_FIELDSET = '*_has_fieldset';
 	const VIRTUAL_USABLE_BY = '*_usable_by';
 	const VIRTUAL_WATCHERS = '*_workers';
 	
@@ -665,6 +666,10 @@ class SearchFields_TriggerEvent extends DevblocksSearchFields {
 		switch($param->field) {
 			case self::VIRTUAL_BOT_SEARCH:
 				return self::_getWhereSQLFromVirtualSearchField($param, CerberusContexts::CONTEXT_BOT, 'trigger_event.bot_id');
+				break;
+				
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_BEHAVIOR)), self::getPrimaryKey());
 				break;
 				
 			case self::VIRTUAL_USABLE_BY:
@@ -712,6 +717,41 @@ class SearchFields_TriggerEvent extends DevblocksSearchFields {
 		return '0';
 	}
 	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'bot':
+				$key = 'bot.id';
+				break;
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_TriggerEvent::BOT_ID:
+				$models = DAO_Bot::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+				
+			case SearchFields_TriggerEvent::EVENT_POINT:
+				return parent::_getLabelsForKeyExtensionValues(Extension_DevblocksEvent::POINT);
+				break;
+				
+			case SearchFields_TriggerEvent::ID:
+				$models = DAO_TriggerEvent::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'title', 'id');
+				break;
+				
+			case SearchFields_TriggerEvent::IS_DISABLED:
+			case SearchFields_TriggerEvent::IS_PRIVATE:
+				return parent::_getLabelsForKeyBooleanValues();
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -739,6 +779,7 @@ class SearchFields_TriggerEvent extends DevblocksSearchFields {
 			self::UPDATED_AT => new DevblocksSearchField(self::UPDATED_AT, 'trigger_event', 'updated_at', $translate->_('common.updated'), null, true),
 				
 			self::VIRTUAL_BOT_SEARCH => new DevblocksSearchField(self::VIRTUAL_BOT_SEARCH, '*', 'bot_search', null, null, false),
+			self::VIRTUAL_HAS_FIELDSET => new DevblocksSearchField(self::VIRTUAL_HAS_FIELDSET, '*', 'has_fieldset', $translate->_('common.fieldset'), null, false),
 			self::VIRTUAL_USABLE_BY => new DevblocksSearchField(self::VIRTUAL_USABLE_BY, '*', 'usable_by', null, null, false),
 			self::VIRTUAL_WATCHERS => new DevblocksSearchField(self::VIRTUAL_WATCHERS, '*', 'workers', $translate->_('common.watchers'), 'WS', false),
 		);
@@ -1465,8 +1506,8 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 		$this->id = self::DEFAULT_ID;
 		$this->name = DevblocksPlatform::translateCapitalized('common.behaviors');
 		$this->renderLimit = 25;
-		$this->renderSortBy = SearchFields_TriggerEvent::PRIORITY;
-		$this->renderSortAsc = true;
+		$this->renderSortBy = SearchFields_TriggerEvent::UPDATED_AT;
+		$this->renderSortAsc = false;
 
 		$this->view_columns = array(
 			SearchFields_TriggerEvent::EVENT_POINT,
@@ -1476,11 +1517,6 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 		);
 		
 		$this->addColumnsHidden(array(
-			SearchFields_TriggerEvent::VIRTUAL_BOT_SEARCH,
-			SearchFields_TriggerEvent::VIRTUAL_USABLE_BY,
-		));
-		
-		$this->addParamsHidden(array(
 			SearchFields_TriggerEvent::VIRTUAL_BOT_SEARCH,
 			SearchFields_TriggerEvent::VIRTUAL_USABLE_BY,
 		));
@@ -1532,6 +1568,7 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 					break;
 					
 				// Virtuals
+				case SearchFields_TriggerEvent::VIRTUAL_HAS_FIELDSET:
 				case SearchFields_TriggerEvent::VIRTUAL_WATCHERS:
 					$pass = true;
 					break;
@@ -1559,10 +1596,12 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 			return array();
 		
 		switch($column) {
+			case SearchFields_TriggerEvent::BOT_ID:
 			case SearchFields_TriggerEvent::EVENT_POINT:
-				$events = Extension_DevblocksEvent::getAll(false);
-				$labels = array_column(json_decode(json_encode($events), true), 'name', 'id');
-				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $labels);
+				$label_map = function(array $values) use ($column) {
+					return SearchFields_TriggerEvent::getLabelsForKeyValues($column, $values);
+				};
+				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $label_map);
 				break;
 				
 			case SearchFields_TriggerEvent::IS_DISABLED:
@@ -1574,10 +1613,8 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 				$counts = $this->_getSubtotalCountForNumberColumn($context, $column);
 				break;
 
-			case SearchFields_TriggerEvent::BOT_ID:
-				$bots = DAO_Bot::getAll();
-				$labels = array_column(json_decode(json_encode($bots), true), 'name', 'id');
-				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $labels);
+			case SearchFields_TriggerEvent::VIRTUAL_HAS_FIELDSET:
+				$counts = $this->_getSubtotalCountForHasFieldsetColumn($context, $column);
 				break;
 				
 			case SearchFields_TriggerEvent::VIRTUAL_WATCHERS:
@@ -1586,7 +1623,7 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 			
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -1637,6 +1674,14 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 					'options' => array('param_key' => SearchFields_TriggerEvent::EVENT_POINT),
 					'examples' => [
 						['type' => 'list', 'values' => $events],
+					]
+				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_TriggerEvent::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_BEHAVIOR],
 					]
 				),
 			'id' => 
@@ -1697,6 +1742,10 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_TriggerEvent::VIRTUAL_BOT_SEARCH);
 				break;
 				
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
+				break;
+				
 			case 'usableBy.bot':
 				$oper = $value = null;
 				CerbQuickSearchLexer::getOperStringFromTokens($tokens, $oper, $value);
@@ -1739,46 +1788,6 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 
 		$tpl->assign('view_template', 'devblocks:cerberusweb.core::internal/bot/behavior/view.tpl');
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
-	}
-
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_TriggerEvent::TITLE:
-			case SearchFields_TriggerEvent::EVENT_POINT:
-			case SearchFields_TriggerEvent::BOT_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case SearchFields_TriggerEvent::ID:
-			case SearchFields_TriggerEvent::PRIORITY:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-				
-			case SearchFields_TriggerEvent::IS_DISABLED:
-			case SearchFields_TriggerEvent::IS_PRIVATE:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-				
-			case SearchFields_TriggerEvent::UPDATED_AT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_TriggerEvent::VIRTUAL_WATCHERS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-				
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
 	}
 
 	function renderCriteriaParam($param) {
@@ -1853,7 +1862,10 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 						);
 						break;
 				}
-				
+				break;
+			
+			case SearchFields_TriggerEvent::VIRTUAL_HAS_FIELDSET:
+				$this->_renderVirtualHasFieldset($param);
 				break;
 			
 			case SearchFields_TriggerEvent::VIRTUAL_WATCHERS:
@@ -1929,8 +1941,8 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 		$view = $context_ext->getSearchView('autocomplete_behavior');
 		$view->renderLimit = 25;
 		$view->renderPage = 0;
-		$view->renderSortBy = SearchFields_TriggerEvent::PRIORITY;
-		$view->renderSortAsc = true;
+		$view->renderSortBy = SearchFields_TriggerEvent::UPDATED_AT;
+		$view->renderSortAsc = false;
 		$view->is_ephemeral = true;
 		
 		$view->addParamsWithQuickSearch($query, true);
@@ -1959,6 +1971,64 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=trigger_event&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_TriggerEvent();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => CerberusContexts::CONTEXT_BEHAVIOR,
+			],
+		);
+		
+		$properties['bot_id'] = array(
+			'label' => mb_ucfirst($translate->_('common.bot')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->bot_id,
+			'params' => [
+				'context' => CerberusContexts::CONTEXT_BOT,
+			]
+		);
+		
+		$properties['event_point'] = array(
+			'label' => mb_ucfirst($translate->_('common.event')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => @$model->getEvent()->manifest->name ?: '',
+		);
+		
+		$properties['updated'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated_at,
+		);
+		
+		$properties['is_disabled'] = array(
+			'label' => mb_ucfirst($translate->_('common.disabled')),
+			'type' => Model_CustomField::TYPE_CHECKBOX,
+			'value' => $model->is_disabled,
+		);
+		
+		$properties['is_private'] = array(
+			'label' => mb_ucfirst($translate->_('common.is_private')),
+			'type' => Model_CustomField::TYPE_CHECKBOX,
+			'value' => $model->is_private,
+		);
+		
+		$properties['priority'] = array(
+			'label' => mb_ucfirst($translate->_('common.priority')),
+			'type' => Model_CustomField::TYPE_NUMBER,
+			'value' => $model->priority,
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -2171,8 +2241,8 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 			SearchFields_TriggerEvent::UPDATED_AT => new DevblocksSearchCriteria(SearchFields_TriggerEvent::UPDATED_AT,'=',0),
 		), true);
 		*/
-		$view->renderSortBy = SearchFields_TriggerEvent::PRIORITY;
-		$view->renderSortAsc = true;
+		$view->renderSortBy = SearchFields_TriggerEvent::UPDATED_AT;
+		$view->renderSortAsc = false;
 		$view->renderLimit = 10;
 		$view->renderTemplate = 'contextlinks_chooser';
 		
@@ -2188,7 +2258,7 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
 		$view->name = 'Behavior';
 		
-		$params_req = array();
+		$params_req = [];
 		
 		if(!empty($context) && !empty($context_id)) {
 			$params_req = array(
@@ -2277,12 +2347,6 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 			$tpl->display('devblocks:cerberusweb.core::internal/bot/behavior/peek_edit.tpl');
 			
 		} else {
-			// Counts
-			$activity_counts = array(
-				'comments' => DAO_Comment::count(CerberusContexts::CONTEXT_BEHAVIOR, $context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				CerberusContexts::CONTEXT_BEHAVIOR => array(
@@ -2290,7 +2354,7 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 						DAO_ContextLink::getContextLinkCounts(
 							CerberusContexts::CONTEXT_BEHAVIOR,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -2325,6 +2389,10 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$tpl->display('devblocks:cerberusweb.core::internal/bot/behavior/peek.tpl');
 		}

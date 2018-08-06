@@ -555,6 +555,49 @@ class SearchFields_WorkspacePage extends DevblocksSearchFields {
 		}
 	}
 	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'owner':
+				$key = 'owner';
+				$search_key = 'owner';
+				$owner_field = $search_fields[SearchFields_WorkspacePage::OWNER_CONTEXT];
+				$owner_id_field = $search_fields[SearchFields_WorkspacePage::OWNER_CONTEXT_ID];
+				
+				return [
+					'key_query' => $key,
+					'key_select' => $search_key,
+					'type' => DevblocksSearchCriteria::TYPE_CONTEXT,
+					'sql_select' => sprintf("CONCAT_WS(':',%s.%s,%s.%s)",
+						Cerb_ORMHelper::escape($owner_field->db_table),
+						Cerb_ORMHelper::escape($owner_field->db_column),
+						Cerb_ORMHelper::escape($owner_id_field->db_table),
+						Cerb_ORMHelper::escape($owner_id_field->db_column)
+					),
+				];
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_WorkspacePage::EXTENSION_ID:
+				return parent::_getLabelsForKeyExtensionValues(Extension_WorkspacePage::POINT);
+				break;
+				
+			case SearchFields_WorkspacePage::ID:
+				$models = DAO_WorkspacePage::getIds($values);
+				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				break;
+				
+			case 'owner':
+				return self::_getLabelsForKeyContextAndIdValues($values);
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
+	}
+	
 	/**
 	 * @return DevblocksSearchField[]
 	 */
@@ -669,12 +712,6 @@ class View_WorkspacePage extends C4_AbstractView implements IAbstractView_QuickS
 			SearchFields_WorkspacePage::VIRTUAL_CONTEXT_LINK,
 		));
 
-		$this->addParamsHidden(array(
-			SearchFields_WorkspacePage::ID,
-			SearchFields_WorkspacePage::OWNER_CONTEXT,
-			SearchFields_WorkspacePage::OWNER_CONTEXT_ID,
-		));
-
 		$this->doResetCriteria();
 	}
 
@@ -742,15 +779,9 @@ class View_WorkspacePage extends C4_AbstractView implements IAbstractView_QuickS
 		
 		switch($column) {
 			case SearchFields_WorkspacePage::EXTENSION_ID:
-				$page_extensions = Extension_WorkspacePage::getAll(false);
-				
-				$label_map = array_map(
-					function($manifest) {
-						return DevblocksPlatform::translateCapitalized($manifest->params['label']);
-					},
-					$page_extensions
-				);
-				
+				$label_map = function(array $values) use ($column) {
+					return SearchFields_WorkspacePage::getLabelsForKeyValues($column, $values);
+				};
 				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $label_map, '=', 'value');
 				break;
 				
@@ -764,7 +795,7 @@ class View_WorkspacePage extends C4_AbstractView implements IAbstractView_QuickS
 				
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -810,7 +841,7 @@ class View_WorkspacePage extends C4_AbstractView implements IAbstractView_QuickS
 		
 		// Add 'owner.*'
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('owner', $fields, 'owner');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('owner', $fields, 'owner', SearchFields_WorkspacePage::VIRTUAL_OWNER);
 		
 		// Add searchable custom fields
 		
@@ -855,49 +886,6 @@ class View_WorkspacePage extends C4_AbstractView implements IAbstractView_QuickS
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_WorkspacePage::EXTENSION_ID:
-			case SearchFields_WorkspacePage::NAME:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-
-			case 'placeholder_number':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-
-			case SearchFields_WorkspacePage::UPDATED_AT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_WorkspacePage::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-				
-			case SearchFields_WorkspacePage::VIRTUAL_OWNER:
-				$groups = DAO_Group::getAll();
-				$tpl->assign('groups', $groups);
-				
-				$roles = DAO_WorkerRole::getAll();
-				$tpl->assign('roles', $roles);
-				
-				$workers = DAO_Worker::getAll();
-				$tpl->assign('workers', $workers);
-				
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_owner.tpl');
-				break;
-		}
-	}
-
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
 		
@@ -918,14 +906,7 @@ class View_WorkspacePage extends C4_AbstractView implements IAbstractView_QuickS
 
 		switch($field) {
 			case SearchFields_WorkspacePage::EXTENSION_ID:
-				$page_extensions = Extension_WorkspacePage::getAll(false);
-				
-				$label_map = array_map(
-					function($manifest) {
-						return DevblocksPlatform::translateCapitalized($manifest->params['label']);
-					},
-					$page_extensions
-				);
+				$label_map = SearchFields_WorkspacePage::getLabelsForKeyValues($field, $values);
 				parent::_renderCriteriaParamString($param, $label_map);
 				break;
 				
@@ -979,13 +960,64 @@ class View_WorkspacePage extends C4_AbstractView implements IAbstractView_QuickS
 	}
 };
 
-class Context_WorkspacePage extends Extension_DevblocksContext implements IDevblocksContextPeek {
+class Context_WorkspacePage extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek {
+	const ID = 'cerberusweb.contexts.workspace.page';
+	
 	static function isReadableByActor($models, $actor) {
 		return CerberusContexts::isReadableByDelegateOwner($actor, CerberusContexts::CONTEXT_WORKSPACE_PAGE, $models);
 	}
 	
 	static function isWriteableByActor($models, $actor) {
 		return CerberusContexts::isWriteableByDelegateOwner($actor, CerberusContexts::CONTEXT_WORKSPACE_PAGE, $models);
+	}
+	
+	function profileGetUrl($context_id) {
+		if(empty($context_id))
+			return '';
+	
+		$url_writer = DevblocksPlatform::services()->url();
+		$url = $url_writer->writeNoProxy('c=pages&id='.$context_id, true);
+		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$translate = DevblocksPlatform::getTranslationService();
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_WorkspacePage();
+		
+		$properties['name'] = array(
+			'label' => mb_ucfirst($translate->_('common.name')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['owner'] = array(
+			'label' => mb_ucfirst($translate->_('common.owner')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->owner_context_id,
+			'params' => [
+				'context' => $model->owner_context,
+			]
+		);
+		
+		$properties['extension_id'] = array(
+			'label' => mb_ucfirst($translate->_('common.type')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => @$model->getExtension()->manifest->name,
+		);
+		
+		$properties['updated'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated_at,
+		);
+		
+		return $properties;
 	}
 	
 	function getRandom() {
@@ -998,11 +1030,7 @@ class Context_WorkspacePage extends Extension_DevblocksContext implements IDevbl
 		if(null == ($workspace_page = DAO_WorkspacePage::get($context_id)))
 			return [];
 		
-		$url = $url_writer->write(sprintf("c=pages&id=%d",
-			$workspace_page->id
-		));
-		
-		//$url = $this->profileGetUrl($context_id);
+		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($workspace_page->name);
 
 		if(!empty($friendly))
@@ -1045,6 +1073,7 @@ class Context_WorkspacePage extends Extension_DevblocksContext implements IDevbl
 		// Token labels
 		$token_labels = array(
 			'_label' => $prefix,
+			'id' => $prefix.$translate->_('common.id'),
 			'name' => $prefix.$translate->_('common.name'),
 			'owner__label' => $prefix.$translate->_('common.owner'),
 			'extension_id' => $prefix.$translate->_('Extension ID'),
@@ -1056,6 +1085,7 @@ class Context_WorkspacePage extends Extension_DevblocksContext implements IDevbl
 		// Token types
 		$token_types = array(
 			'_label' => 'context_url',
+			'id' => Model_CustomField::TYPE_NUMBER,
 			'name' => Model_CustomField::TYPE_SINGLE_LINE,
 			'owner__label' =>'context_url',
 			'extension__label' => Model_CustomField::TYPE_SINGLE_LINE,
@@ -1333,13 +1363,6 @@ class Context_WorkspacePage extends Extension_DevblocksContext implements IDevbl
 			$tpl->display('devblocks:cerberusweb.core::internal/workspaces/pages/peek_edit.tpl');
 			
 		} else {
-			// Counts
-			$activity_counts = array(
-				'tabs' => DAO_WorkspaceTab::countByPageId($context_id),
-				//'comments' => DAO_Comment::count($context, $context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				$context => array(
@@ -1347,7 +1370,7 @@ class Context_WorkspacePage extends Extension_DevblocksContext implements IDevbl
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -1372,6 +1395,10 @@ class Context_WorkspacePage extends Extension_DevblocksContext implements IDevbl
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			// Page users
 			// [TODO] Redo this as another popup

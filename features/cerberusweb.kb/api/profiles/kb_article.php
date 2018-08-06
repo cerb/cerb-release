@@ -17,109 +17,15 @@
 
 class PageSection_ProfilesKbArticle extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
 		$request = DevblocksPlatform::getHttpRequest();
-		$translate = DevblocksPlatform::getTranslationService();
-		
-		$active_worker = CerberusApplication::getActiveWorker();
-		$context = CerberusContexts::CONTEXT_KB_ARTICLE;
-		
 		$stack = $request->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // article
-		@$id = intval(array_shift($stack));
+		@$context_id = intval(array_shift($stack));
 		
-		if(null == ($article = DAO_KbArticle::get($id))) {
-			return;
-		}
-		$tpl->assign('article', $article);	/* @var $article Model_KbArticle */
+		$context = CerberusContexts::CONTEXT_KB_ARTICLE;
 		
-		// Dictionary
-		$labels = array();
-		$values = array();
-		CerberusContexts::getContext($context, $article, $labels, $values, '', true, false);
-		$dict = DevblocksDictionaryDelegate::instance($values);
-		$tpl->assign('dict', $dict);
-		
-		$point = 'cerberusweb.profiles.kb';
-		$tpl->assign('point', $point);
-		
-		// Categories
-		
-		$categories = DAO_KbCategory::getAll();
-		$tpl->assign('categories', $categories);
-		
-		$breadcrumbs = $article->getCategories();
-		$tpl->assign('breadcrumbs', $breadcrumbs);
-			
-		// Properties
-			
-		$properties = array();
-			
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $article->updated,
-		);
-			
-		$properties['views'] = array(
-			'label' => mb_ucfirst($translate->_('kb_article.views')),
-			'type' => Model_CustomField::TYPE_NUMBER,
-			'value' => $article->views,
-		);
-			
-		$properties['id'] = array(
-			'label' => mb_ucfirst($translate->_('common.id')),
-			'type' => Model_CustomField::TYPE_NUMBER,
-			'value' => $article->id,
-		);
-			
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds($context, $article->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields($context, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets($context, $article->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			$context => array(
-				$article->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						$context,
-						$article->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-			
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, $context);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Interactions
-		$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
-		$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
-		$tpl->assign('interactions_menu', $interactions_menu);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.kb::kb/article/profile.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -270,7 +176,6 @@ class PageSection_ProfilesKbArticle extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=kb', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.kb.article.explore.toolbar',
 				);
 				$models[] = $model;
 				
@@ -301,18 +206,6 @@ class PageSection_ProfilesKbArticle extends Extension_PageSection {
 		} while(!empty($results));
 		
 		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('explore',$hash,$orig_pos)));
-	}
-	
-	function showArticleTabAction() {
-		@$id = DevblocksPlatform::importGPC($_REQUEST['context_id'], 'integer', 0);
-		
-		if(!$id || false == ($article = DAO_KbArticle::get($id)))
-			return;
-		
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('article', $article);
-		
-		$tpl->display('devblocks:cerberusweb.kb::kb/ajax/tab_article.tpl');
 	}
 	
 	function showBulkPopupAction() {

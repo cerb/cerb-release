@@ -46,6 +46,14 @@ class _DevblocksServices {
 	
 	/**
 	 * 
+	 * @return _DevblocksDataService
+	 */
+	function data() {
+		return _DevblocksDataService::getInstance();
+	}
+	
+	/**
+	 * 
 	 * @return _DevblocksDatabaseManager|NULL
 	 */
 	function database() {
@@ -248,6 +256,10 @@ class DevblocksPlatform extends DevblocksEngine {
 	
 	static function translateCapitalized($token) {
 		return self::translate($token, DevblocksPlatform::TRANSLATE_CAPITALIZE);
+	}
+	
+	static function translateLower($token) {
+		return self::translate($token, DevblocksPlatform::TRANSLATE_LOWER);
 	}
 
 	static function installPluginZip($zip_filename) {
@@ -829,6 +841,10 @@ class DevblocksPlatform extends DevblocksEngine {
 	
 	static function strUpper($string) {
 		return mb_convert_case($string, MB_CASE_UPPER);
+	}
+	
+	static function strTitleCase($string) {
+		return mb_convert_case($string, MB_CASE_TITLE);
 	}
 	
 	static function strUpperFirst($string, $lower_rest=false) {
@@ -1501,76 +1517,52 @@ class DevblocksPlatform extends DevblocksEngine {
 		return ltrim($str);
 	}
 	
-	/**
-	 * 
-	 * @param string $dirty_html
-	 * @param boolean $inline_css
-	 * @param array $options
-	 * @return string
-	 * @test DevblocksPlatformTest
-	 */
-	static function purifyHTML($dirty_html, $inline_css=false, $options=[], $allow_cerb_markup=false) {
+	static private $_purifier_configs = null;
+	
+	static function purifyHTMLOptions($inline_css=false, $untrusted=true) {
 		require_once(DEVBLOCKS_PATH . 'libs/htmlpurifier/HTMLPurifier.standalone.php');
 		
-		// If we're passed a file pointer, load the literal string
-		if(is_resource($dirty_html)) {
-			$fp = $dirty_html;
-			$dirty_html = null;
-			while(!feof($fp))
-				$dirty_html .= fread($fp, 4096);
-		}
+		@$config = self::$_purifier_configs[$inline_css][$untrusted];
 		
-		// Handle inlining CSS
-		
-		if($inline_css) {
-			$css_converter = new TijsVerkoyen\CssToInlineStyles\CssToInlineStyles();
-			$css_converter->setHTML(sprintf('<?xml encoding="%s">', LANG_CHARSET_CODE) . $dirty_html);
-			$css_converter->setUseInlineStylesBlock(true);
-			$dirty_html = $css_converter->convert();
-			unset($css_converter);
-		}
-		
-		// Purify
-		
-		$config = HTMLPurifier_Config::createDefault();
-		$config->set('Core.ConvertDocumentToFragment', true);
-		$config->set('HTML.Doctype', 'HTML 4.01 Transitional');
-		$config->set('CSS.AllowTricky', true);
-		$config->set('Attr.EnableID', true);
-		//$config->set('HTML.TidyLevel', 'light');
-		
-		// Remove class attributes if we inlined CSS styles
-		if($inline_css) {
-			$config->set('HTML.ForbiddenAttributes', array(
-				'class',
+		if(!$config) {
+			$config = HTMLPurifier_Config::createDefault();
+			$config->set('Core.ConvertDocumentToFragment', true);
+			$config->set('HTML.Doctype', 'HTML 4.01 Transitional');
+			$config->set('CSS.AllowTricky', true);
+			$config->set('Attr.EnableID', true);
+			//$config->set('HTML.TidyLevel', 'light');
+			
+			if(!$untrusted) {
+				$config->set('HTML.TargetBlank', true);
+				//$config->set('HTML.TargetNoreferrer', true);
+				//$config->set('HTML.TargetNoopener', true);
+			}
+			
+			// Remove class attributes if we inlined CSS styles
+			if($inline_css) {
+				$config->set('HTML.ForbiddenAttributes', array(
+					'class',
+				));
+			}
+			
+			$config->set('URI.AllowedSchemes', array(
+				'http' => true,
+				'https' => true,
+				'mailto' => true,
+				'ftp' => true,
+				'nntp' => true,
+				'news' => true,
+				'data' => true,
 			));
-		}
-		
-		$config->set('URI.AllowedSchemes', array(
-			'http' => true,
-			'https' => true,
-			'mailto' => true,
-			'ftp' => true,
-			'nntp' => true,
-			'news' => true,
-			'data' => true,
-		));
-		
-		$dir_htmlpurifier_cache = APP_TEMP_PATH . '/cache/htmlpurifier/';
-		
-		if(!is_dir($dir_htmlpurifier_cache)) {
-			mkdir($dir_htmlpurifier_cache, 0755, true);
-		}
-		
-		$config->set('Cache.SerializerPath', $dir_htmlpurifier_cache);
-		
-		// Set any config overrides
-		if(is_array($options) && !empty($options))
-		foreach($options as $k => $v) {
-			$config->set($k, $v);
-		}
-		
-		if($allow_cerb_markup) {
+			
+			$dir_htmlpurifier_cache = APP_TEMP_PATH . '/cache/htmlpurifier/';
+			
+			if(!is_dir($dir_htmlpurifier_cache)) {
+				mkdir($dir_htmlpurifier_cache, 0755, true);
+			}
+			
+			$config->set('Cache.SerializerPath', $dir_htmlpurifier_cache);
+			
 			$def = $config->getHTMLDefinition(true);
 			
 			// Allow Cerb data-* markup
@@ -1594,8 +1586,43 @@ class DevblocksPlatform extends DevblocksEngine {
 				]
 			);
 			$html_button->excludes = ['a','Formctrl','form','isindex','fieldset','iframe'];
+			
+			self::$_purifier_configs[$inline_css][$untrusted] = $config;
 		}
 		
+		return $config;
+	}
+	
+	/**
+	 * 
+	 * @param string $dirty_html
+	 * @param boolean $inline_css
+	 * @param array $options
+	 * @return string
+	 * @test DevblocksPlatformTest
+	 */
+	static function purifyHTML($dirty_html, $inline_css=false, $is_untrusted=true) {
+		require_once(DEVBLOCKS_PATH . 'libs/htmlpurifier/HTMLPurifier.standalone.php');
+		
+		// If we're passed a file pointer, load the literal string
+		if(is_resource($dirty_html)) {
+			$fp = $dirty_html;
+			$dirty_html = null;
+			while(!feof($fp))
+				$dirty_html .= fread($fp, 4096);
+		}
+		
+		// Handle inlining CSS
+		
+		if($inline_css) {
+			$css_converter = new TijsVerkoyen\CssToInlineStyles\CssToInlineStyles();
+			$css_converter->setHTML(sprintf('<?xml encoding="%s">', LANG_CHARSET_CODE) . $dirty_html);
+			$css_converter->setUseInlineStylesBlock(true);
+			$dirty_html = $css_converter->convert();
+			unset($css_converter);
+		}
+		
+		$config = self::purifyHTMLOptions($inline_css, $is_untrusted);
 		$purifier = new HTMLPurifier($config);
 		
 		$dirty_html = $purifier->purify($dirty_html);
@@ -2220,15 +2247,16 @@ class DevblocksPlatform extends DevblocksEngine {
 			
 		} else { // All
 			$cache->remove(self::CACHE_ACL);
-			$cache->remove(self::CACHE_CONTEXT_ALIASES);
-			$cache->remove(self::CACHE_PLUGINS);
 			$cache->remove(self::CACHE_ACTIVITY_POINTS);
-			$cache->remove(self::CACHE_EVENT_POINTS);
+			$cache->remove(self::CACHE_CONTEXT_ALIASES);
 			$cache->remove(self::CACHE_EVENTS);
+			$cache->remove(self::CACHE_EVENT_POINTS);
 			$cache->remove(self::CACHE_EXTENSIONS);
+			$cache->remove(self::CACHE_PLUGINS);
 			$cache->remove(self::CACHE_POINTS);
 			$cache->remove(self::CACHE_TABLES);
-			$cache->remove('devblocks:plugin:devblocks.core:settings');
+			$cache->remove('devblocks:plugin:cerberusweb.core:params');
+			$cache->remove('devblocks:plugin:devblocks.core:params');
 			$cache->remove(_DevblocksClassLoadManager::CACHE_CLASS_MAP);
 			
 			// Flush template cache

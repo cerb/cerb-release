@@ -2403,11 +2403,6 @@
 				<seg>Seguir este ticket (F)</seg>
 			</tuv>
 		</tu>
-		<tu tuid="display.shortcut.print">
-			<tuv xml:lang="pt_PT">
-				<seg>Imprimir este ticket (P)</seg>
-			</tuv>
-		</tu>
 		<tu tuid="display.shortcut.read_all">
 			<tuv xml:lang="pt_PT">
 				<seg>Ler todas as mensagens por ordem cronolgica (A)</seg>
@@ -3518,11 +3513,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="preferences.account.mail.display.inline_log">
-			<tuv xml:lang="pt_PT">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="preferences.account.mail.no_discard_warning">
 			<tuv xml:lang="pt_PT">
 				<seg>Não avisar sobre perder alterações que não foram gravadas se carregar em hiperligações enquanto escrevo uma mensagem</seg>
@@ -4362,14 +4352,9 @@ Por exemplo: *recipiente*</seg>
 				<seg>Registar Tempo</seg>
 			</tuv>
 		</tu>
-		<tu tuid="timetracking.ui.cfg.activities">
+		<tu tuid="timetracking.common.activities">
 			<tuv xml:lang="pt_PT">
 				<seg>Actividades</seg>
-			</tuv>
-		</tu>
-		<tu tuid="timetracking.ui.cfg.add_activity">
-			<tuv xml:lang="pt_PT">
-				<seg>Adicionar Actividade</seg>
 			</tuv>
 		</tu>
 		<tu tuid="timetracking.ui.cfg.add_new_activity">

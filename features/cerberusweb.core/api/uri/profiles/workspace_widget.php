@@ -17,105 +17,15 @@
 
 class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // workspace_widget 
-		$id = array_shift($stack); // 123
+		@$context_id = intval(array_shift($stack)); // 123
+
+		$context = CerberusContexts::CONTEXT_WORKSPACE_WIDGET;
 		
-		@$id = intval($id);
-		
-		if(null == ($workspace_widget = DAO_WorkspaceWidget::get($id))) {
-			return;
-		}
-		$tpl->assign('workspace_widget', $workspace_widget);
-		
-		// Tab persistence
-		
-		$point = 'profiles.workspace_widget.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-		
-		// Properties
-		
-		$properties = [];
-		
-		$properties['extension_id'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.type'),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $workspace_widget->extension_id,
-		);
-		
-		$properties['workspace_tab_id'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('dashboard'),
-			'type' => Model_CustomField::TYPE_LINK,
-			'value' => $workspace_widget->workspace_tab_id,
-			'params' => [
-				'context' => CerberusContexts::CONTEXT_WORKSPACE_TAB
-			]
-		);
-		
-		$properties['cache_ttl'] = array(
-			'label' => DevblocksPlatform::translate('Cache TTL'),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => DevblocksPlatform::strSecsToString($workspace_widget->cache_ttl),
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $workspace_widget->updated_at,
-		);
-		
-		// Custom Fields
-		
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_WORKSPACE_WIDGET, $workspace_widget->id)) or [];
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_WORKSPACE_WIDGET, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-		
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_WORKSPACE_WIDGET, $workspace_widget->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_WORKSPACE_WIDGET => array(
-				$workspace_widget->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_WORKSPACE_WIDGET,
-						$workspace_widget->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-		
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_WORKSPACE_WIDGET);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/workspace_widget.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function getWidgetParamsAction() {
@@ -236,7 +146,6 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 							DAO_WorkspaceWidget::EXTENSION_ID => $extension_id,
 							DAO_WorkspaceWidget::WORKSPACE_TAB_ID => $workspace_tab_id,
 							DAO_WorkspaceWidget::POS => '0000',
-							DAO_WorkspaceWidget::CACHE_TTL => @$widget_json['widget']['cache_ttl'] ?: 60,
 							DAO_WorkspaceWidget::PARAMS_JSON => json_encode($widget_json['widget']['params'])
 						];
 						
@@ -251,7 +160,7 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 						
 						if(!empty($view_id) && !empty($id))
 							C4_AbstractView::setMarqueeContextCreated($view_id, CerberusContexts::CONTEXT_WORKSPACE_WIDGET, $id);
-			
+						
 						echo json_encode([
 							'status' => true,
 							'id' => $id,
@@ -265,16 +174,16 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 						@$name = DevblocksPlatform::importGPC($_REQUEST['name'], 'string', '');
 						@$workspace_tab_id = DevblocksPlatform::importGPC($_REQUEST['workspace_tab_id'], 'integer', 0);
 						@$extension_id = DevblocksPlatform::importGPC($_REQUEST['extension_id'], 'string', '');
-						@$cache_ttl = DevblocksPlatform::importGPC($_REQUEST['cache_ttl'], 'integer', 0);
+						@$width_units = DevblocksPlatform::importGPC($_REQUEST['width_units'], 'integer', 1);
 						
-						$cache_ttl = DevblocksPlatform::intClamp($cache_ttl, 0, 604800);
+						$width_units = DevblocksPlatform::intClamp($width_units, 1, 4);
 						
 						if(empty($id)) { // New
 							$fields = array(
-								DAO_WorkspaceWidget::CACHE_TTL => $cache_ttl,
 								DAO_WorkspaceWidget::EXTENSION_ID => $extension_id,
 								DAO_WorkspaceWidget::LABEL => $name,
 								DAO_WorkspaceWidget::UPDATED_AT => time(),
+								DAO_WorkspaceWidget::WIDTH_UNITS => $width_units,
 								DAO_WorkspaceWidget::WORKSPACE_TAB_ID => $workspace_tab_id,
 							);
 							
@@ -292,9 +201,9 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 							
 						} else { // Edit
 							$fields = array(
-								DAO_WorkspaceWidget::CACHE_TTL => $cache_ttl,
 								DAO_WorkspaceWidget::LABEL => $name,
 								DAO_WorkspaceWidget::UPDATED_AT => time(),
+								DAO_WorkspaceWidget::WIDTH_UNITS => $width_units,
 								DAO_WorkspaceWidget::WORKSPACE_TAB_ID => $workspace_tab_id,
 							);
 							
@@ -368,6 +277,136 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 		$datasource_ext->renderConfig($widget, $widget->params, $params_prefix);
 	}
 	
+	function renderWidgetAction() {
+		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
+		@$full = DevblocksPlatform::importGPC($_REQUEST['full'], 'bool', false);
+		@$refresh_options = DevblocksPlatform::importGPC($_REQUEST['options'], 'array', []);
+		
+		if(false == ($widget = DAO_WorkspaceWidget::get($id)))
+			return;
+		
+		if(false == ($extension = $widget->getExtension()))
+			return;
+		
+		// If full, we also want to replace the container
+		if($full) {
+			$tpl = DevblocksPlatform::services()->template();
+			$tpl->assign('widget', $widget);
+			
+			if(false == ($tab = $widget->getWorkspaceTab()))
+				return;
+			
+			$tpl->assign('extension', $extension);
+			
+			$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/render.tpl');
+			
+		} else {
+			$extension->render($widget, $refresh_options);
+		}
+	}
+	
+	function reorderWidgetsAction() {
+		@$tab_id = DevblocksPlatform::importGPC($_REQUEST['tab_id'], 'integer', 0);
+		@$zones = DevblocksPlatform::importGPC($_REQUEST['zones'], 'array', []);
+		
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(false == ($tab = DAO_WorkspaceTab::get($tab_id)))
+			return;
+		
+		// ACL
+		if(!Context_WorkspaceTab::isWriteableByActor($tab, $active_worker))
+			return;
+		
+		$widgets = DAO_WorkspaceWidget::getByTab($tab_id);
+		
+		// Sanitize widget IDs
+		foreach($zones as &$zone) {
+			$zone = array_values(array_intersect($zone, array_keys($widgets)));
+		}
+		
+		DAO_WorkspaceWidget::reorder($zones);
+	}
+	
+	function getFieldsTabsByContextAction() {
+		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string','');
+		
+		$tpl = DevblocksPlatform::services()->template();
+		
+		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+			return;
+		
+		if(!($context_ext instanceof IDevblocksContextProfile))
+			return;
+		
+		$tpl->assign('context_ext', $context_ext);
+		
+		// =================================================================
+		// Properties
+		
+		$properties = $context_ext->profileGetFields();
+		
+		$tpl->assign('custom_field_values', []);
+		
+		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields($context, null);
+		
+		if(!empty($properties_cfields))
+			$properties = array_merge($properties, $properties_cfields);
+		
+		$tpl->assign('properties', $properties);
+		
+		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets($context, null, [], true);
+		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
+		
+		// =================================================================
+		// Search buttons
+		
+		$search_contexts = Extension_DevblocksContext::getAll(false, ['search']);
+		$tpl->assign('search_contexts', $search_contexts);
+		
+		// =================================================================
+		// Template
+		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/record_fields/fields_config_tabs.tpl');
+	}
+	
+	function testWidgetTemplateAction() {
+		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'int', 0);
+		@$params = DevblocksPlatform::importGPC($_REQUEST['params'], 'array', []);
+		@$template_key = DevblocksPlatform::importGPC($_REQUEST['template_key'], 'string', '');
+		
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$tpl = DevblocksPlatform::services()->template();
+		
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		@$template = $params[$template_key];
+		
+		$dict = DevblocksDictionaryDelegate::instance([
+			'current_worker_id' => $active_worker->id,
+			'current_worker__context' => CerberusContexts::CONTEXT_WORKER,
+			'widget_id' => $id,
+			'widget__context' => CerberusContexts::CONTEXT_WORKSPACE_WIDGET,
+		]);
+		
+		$success = false;
+		$output = '';
+		
+		if(!is_string($template) || false === (@$out = $tpl_builder->build($template, $dict))) {
+			// If we failed, show the compile errors
+			$errors = $tpl_builder->getErrors();
+			$success = false;
+			$output = @array_shift($errors);
+			
+		} else {
+			$success = true;
+			$output = $out;
+		}
+		
+		$tpl->assign('success', $success);
+		$tpl->assign('output', $output);
+		$tpl->display('devblocks:cerberusweb.core::internal/renderers/test_results.tpl');
+	}
+	
 	function viewExploreAction() {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
 		
@@ -408,7 +447,6 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=workspace_widget', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.workspace.widget.explore.toolbar',
 				);
 				$models[] = $model;
 				

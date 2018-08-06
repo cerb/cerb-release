@@ -17,136 +17,15 @@
 
 class PageSection_ProfilesBot extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // bot
-		$id = array_shift($stack); // 123
+		@$context_id = intval(array_shift($stack)); // 123
 
 		$context = CerberusContexts::CONTEXT_BOT;
-		@$id = intval($id);
 		
-		if(null == ($model = DAO_Bot::get($id))) {
-			DevblocksPlatform::redirect(new DevblocksHttpRequest(array('search','bot')));
-			return;
-		}
-		$tpl->assign('model', $model);
-	
-		// Dictionary
-		$labels = array();
-		$values = array();
-		CerberusContexts::getContext(CerberusContexts::CONTEXT_BOT, $model, $labels, $values, '', true, false);
-		$dict = DevblocksDictionaryDelegate::instance($values);
-		$tpl->assign('dict', $dict);
-		
-		// Tab persistence
-		
-		$point = 'profiles.bot.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-	
-		// Properties
-			
-		$properties = array();
-		
-		$properties['owner'] = array(
-			'label' => mb_ucfirst($translate->_('common.owner')),
-			'type' => Model_CustomField::TYPE_LINK,
-			'value' => $model->owner_context_id,
-			'params' => [
-				'context' => $model->owner_context,
-			],
-		);
-		
-		$properties['mention_name'] = array(
-			'label' => mb_ucfirst($translate->_('worker.at_mention_name')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $model->at_mention_name,
-		);
-		
-		$properties['is_disabled'] = array(
-			'label' => mb_ucfirst($translate->_('common.disabled')),
-			'type' => Model_CustomField::TYPE_CHECKBOX,
-			'value' => $model->is_disabled,
-		);
-		
-		$properties['created'] = array(
-			'label' => mb_ucfirst($translate->_('common.created')),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $model->created_at,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $model->updated_at,
-		);
-	
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds($context, $model->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields($context, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets($context, $model->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Counts
-		
-		$owner_counts = array(
-			'behaviors' => DAO_TriggerEvent::countByBot($model->id),
-			'calendars' => DAO_Calendar::count($context, $model->id),
-			'classifiers' => DAO_Classifier::countByBot($model->id),
-			'comments' => DAO_Comment::count($context, $model->id),
-			'custom_fieldsets' => DAO_CustomFieldset::count($context, $model->id),
-		);
-		$tpl->assign('owner_counts', $owner_counts);
-		
-		// Link counts
-		
-		$properties_links = array(
-			$context => array(
-				$model->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						$context,
-						$model->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-			
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_BOT);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Interactions
-		$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
-		$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
-		$tpl->assign('interactions_menu', $interactions_menu);
-	
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/bot.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -392,7 +271,6 @@ class PageSection_ProfilesBot extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=bot', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.bot.explore.toolbar',
 				);
 				$models[] = $model;
 				

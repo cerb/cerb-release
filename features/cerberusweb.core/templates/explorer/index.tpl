@@ -3,6 +3,7 @@
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset={$smarty.const.LANG_CHARSET_CODE}">
 		<meta http-equiv="Cache-Control" content="no-cache">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
 		
 		<title>{$title}</title>
 		{$favicon_url = DevblocksPlatform::getPluginSetting('cerberusweb.core','helpdesk_favicon_url','')}
@@ -33,44 +34,40 @@
 	</head>
 	
 	<body>
-		<table height="100%" width="100%" cellpadding="0" cellspacing="0" border="0">
+		<table cellpadding="0" cellspacing="0" border="0" style="height:100vh;width:100vw;">
 			<tr>
 				<td style="height:50px;">
-					<div class="block">
-					<table cellpadding="0" cellspacing="0" border="0" width="100%">
-						<tr>
-							<td width="1%" nowrap="nowrap" align="left" style="padding-right:10px;padding-bottom:5px;">
-								<a href="{if !empty($return_url)}{$return_url}{else}{devblocks_url}{/devblocks_url}{/if}"><img src="{devblocks_url}c=resource&p=cerberusweb.core&f=images/wgm/cerb_logo.png{/devblocks_url}?v={$smarty.const.APP_BUILD}" border="0" width="140" height="40"></span></a>
-							</td>
-							<td align="left" width="98%;" valign="top">
-								<h2>{$title}</h2> &nbsp;
-								{if !empty($content)}
-									<a href="{$url}" target="_blank" rel="noopener">{$content}</a>
-								{else} 
-									<a href="{$url}" target="_blank" rel="noopener">{$url|truncate:100}</a>
-								{/if} 
-								<div style="margin-top:5px;">
-								{if !empty($toolbar_extension) && !empty($item) && method_exists($toolbar_extension, 'render')}
-									{$toolbar_extension->render($item)}
-								{/if}
+					<div class="block" id="explorerToolbar">
+						<div style="display:flex;flex-flow:row wrap;">
+							<div style="flex:1 1 auto;">
+								<div style="display:flex;flex-flow:row wrap;">
+									<div style="flex:0 0 60px;">
+										<a href="{if !empty($return_url)}{$return_url}{else}{devblocks_url}{/devblocks_url}{/if}"><img src="{devblocks_url}c=resource&p=cerberusweb.core&f=images/wgm/cerby.png{/devblocks_url}?v={$smarty.const.APP_BUILD}" border="0" height="40"></span></a>
+									</div>
+									<div style="flex:1 1 auto;">
+										<b style="font-size:1.5em;margin-right:5px;">{$title|trim|default:"Results"}</b>
+										
+										<div style="max-width:75vw;text-overflow:ellipsis;word-wrap:break-word;word-break:break-all;">
+											{if !empty($content)}
+											<a href="{$url}" target="_blank" rel="noopener">{$content}</a>
+											{else} 
+											<a href="{$url}" target="_blank" rel="noopener">{$url|truncate:100}</a>
+											{/if}
+										</div> 
+									</div>
 								</div>
-							</td>
-							<td width="1%" nowrap="nowrap" align="right" valign="top" style="padding-right:10px;padding-top:10px;">
+							</div>
+							<div style="flex:1 1 auto;text-align:right;">
 								{if !empty($count)}
 								<form action="#" method="get">
 								{if $prev}<button id="btnExplorerPrev" type="button" onclick="this.form.action='{devblocks_url}c=explore&hash={$hashset}&p={$prev}{/devblocks_url}';this.form.submit();"><span class="glyphicons glyphicons-chevron-left"></span></button>{/if}
 								<b>{$p}</b> of <b>{$count}</b> 
 								{if $next}<button id="btnExplorerNext" type="button" onclick="this.form.action='{devblocks_url}c=explore&hash={$hashset}&p={$next}{/devblocks_url}';this.form.submit();"><span class="glyphicons glyphicons-chevron-right"></span></button>{/if}
+								<button type="button" onclick="window.document.location.href='{if !empty($url)}{$url}{else}{$return_url}{/if}';"><span class="glyphicons glyphicons-circle-remove"></span></button>
 								</form>
 								{/if}
-							</td>
-							<td style="padding-right:10px;padding-top:10px;" valign="top">
-								<form action="{if !empty($url)}{$url}{else}{$return_url}{/if}" method="get">
-								<button type="button" onclick="this.form.submit();"><span class="glyphicons glyphicons-circle-remove"></span></button>
-								</form>
-							</td>
-						</tr>
-					</table>
+							</div>
+						</div>
 					</div>
 				</td>
 			</tr>
@@ -81,38 +78,40 @@
 			</tr>
 		</table>
 	</body>
-</html>
 
-<script type="text/javascript">
-var keys = function(event) {
-	if(event.altKey || event.ctrlKey || event.shiftKey || event.metaKey)
-		return;
+	<script type="text/javascript">
+	$(function(e) {
+		var $explorerBody = $('body');
+		var $explorerFrame = $('#explorerFrame');
 		
-	// Don't fire if we're inside any form elements
-	if($(event.target).filter(':input').length > 0)
-		return;
-	
-	switch(event.which) {
-		case 91:
+		var keyPrev = '[';
+		var keyNext = ']';
+		
+		var funcPrev = function(event) {
 			$('#btnExplorerPrev').click();
 			event.stopPropagation();
-			break;
-		case 93:
+		};
+		
+		var funcNext = function(event) {
 			$('#btnExplorerNext').click();
 			event.stopPropagation();
-			break;
-	}
-}
-	
-$(document).ready(function(e) {
-	// The outer frame document
-	$(document).keypress(keys);
-	
-	$('#explorerFrame').load(function() {
-		try {
-			$('#explorerFrame').contents().find('body').parent().keypress(keys);
-			$('#explorerFrame').focus();
-		} catch(e) { }
+		};
+		
+		// Toolbar keyboard shortcuts
+		
+		$explorerBody.bind('keypress', keyPrev, funcPrev);
+		$explorerBody.bind('keypress', keyNext, funcNext);
+		
+		// Frame keyboard shortcuts
+		
+		$explorerFrame.load(function() {
+			try {
+				var $explorerBody = $explorerFrame.contents().find('body').parent();
+				$explorerBody.bind('keypress', keyPrev, funcPrev);
+				$explorerBody.bind('keypress', keyNext, funcNext);
+				$explorerFrame.focus();
+			} catch(e) {}
+		});
 	});
-});
-</script>
+	</script>
+</html>

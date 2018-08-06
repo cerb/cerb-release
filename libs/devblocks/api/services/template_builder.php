@@ -72,6 +72,7 @@ class _DevblocksTemplateBuilder {
 				'base64_encode',
 				'base64_decode',
 				'bytes_pretty',
+				'cerb_translate',
 				'context_name',
 				'date_pretty',
 				'hash_hmac',
@@ -122,10 +123,18 @@ class _DevblocksTemplateBuilder {
 			];
 			
 			$functions = [
+				'array_combine',
 				'array_diff',
+				'array_intersect',
+				'array_sort_keys',
+				'array_unique',
+				'array_values',
 				'cerb_avatar_image',
 				'cerb_avatar_url',
 				'cerb_file_url',
+				'cerb_has_priv',
+				'cerb_record_readable',
+				'cerb_record_writeable',
 				'cerb_url',
 				'dict_set',
 				'json_decode',
@@ -333,8 +342,12 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		unset($this->_dictionary[$name]);
 	}
 	
+	public function clearCaches() {
+		$this->_cached_contexts = null;
+	}
+	
 	private function _cacheContexts() {
-		$contexts = array();
+		$contexts = [];
 		
 		// Match our root context
 		if(isset($this->_dictionary['_context'])) {
@@ -388,6 +401,8 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		
 		$contexts = $this->getContextsForName($name);
 		
+		$is_cache_invalid = false;
+		
 		if(is_array($contexts))
 		foreach($contexts as $context_data) {
 			$context_ext = $this->_dictionary[$context_data['key']];
@@ -403,7 +418,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 			$local = $this->getDictionary($context_data['prefix'], false);
 			
 			$loaded_values = $context->lazyLoadContextValues($token, $local);
-
+			
 			// Push the context into the stack so we can track ancestry
 			CerberusContexts::pushStack($context_data['context']);
 			
@@ -412,20 +427,34 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 			
 			if(is_array($loaded_values))
 			foreach($loaded_values as $k => $v) {
+				$new_key = $context_data['prefix'] . $k;
+				
+				// Only invalidate the cache if we loaded new contexts the first time
+				if(DevblocksPlatform::strEndsWith($new_key, '__context')
+					&& !array_key_exists($new_key, $this->_dictionary)) {
+					$is_cache_invalid = true;
+				}
+				
 				// The getDictionary() call above already filters out _labels and _types
-				$this->_dictionary[$context_data['prefix'] . $k] = $v;
+				$this->_dictionary[$new_key] = $v;
 			}
-			
-			// [TODO] Is there a better way to test that we loaded new contexts?
-			$this->_cached_contexts = null;
 		}
+		
+		if($is_cache_invalid)
+			$this->clearCaches();
 		
 		if(is_array($contexts))
 		for($n=0; $n < count($contexts); $n++)
 			CerberusContexts::popStack();
 		
-		if(!$this->exists($name))
-			return $this->_null;
+		if(!$this->exists($name)) {
+			// If the key isn't found and we invalidated the cache, recurse
+			if($is_cache_invalid) {
+				return $this->__get($name);
+			} else {
+				return $this->_null;
+			}
+		}
 		
 		return $this->_dictionary[$name];
 	}
@@ -617,8 +646,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 				// These context loads will be cached
 				if(is_array($models))
 				foreach($models as $model_id => $model) {
-					$labels = array();
-					$values = array();
+					$labels = $values = []; 
 					CerberusContexts::getContext($context_data['context'], $model, $labels, $values, null, true);
 				}
 				
@@ -676,10 +704,18 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 	
 	public function getFunctions() {
 		return array(
+			new Twig_SimpleFunction('array_combine', [$this, 'function_array_combine']),
 			new Twig_SimpleFunction('array_diff', [$this, 'function_array_diff']),
+			new Twig_SimpleFunction('array_intersect', [$this, 'function_array_intersect']),
+			new Twig_SimpleFunction('array_sort_keys', [$this, 'function_array_sort_keys']),
+			new Twig_SimpleFunction('array_unique', [$this, 'function_array_unique']),
+			new Twig_SimpleFunction('array_values', [$this, 'function_array_values']),
 			new Twig_SimpleFunction('cerb_avatar_image', [$this, 'function_cerb_avatar_image']),
 			new Twig_SimpleFunction('cerb_avatar_url', [$this, 'function_cerb_avatar_url']),
 			new Twig_SimpleFunction('cerb_file_url', [$this, 'function_cerb_file_url']),
+			new Twig_SimpleFunction('cerb_has_priv', [$this, 'function_cerb_has_priv']),
+			new Twig_SimpleFunction('cerb_record_readable', [$this, 'function_cerb_record_readable']),
+			new Twig_SimpleFunction('cerb_record_writeable', [$this, 'function_cerb_record_writeable']),
 			new Twig_SimpleFunction('cerb_url', [$this, 'function_cerb_url']),
 			new Twig_SimpleFunction('dict_set', [$this, 'function_dict_set']),
 			new Twig_SimpleFunction('json_decode', [$this, 'function_json_decode']),
@@ -697,11 +733,87 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 		);
 	}
 	
+	function function_array_combine($keys, $values) {
+		if(!is_array($keys) || !is_array($values))
+			return;
+		
+		return array_combine($keys, $values);
+	}
+	
 	function function_array_diff($arr1, $arr2) {
 		if(!is_array($arr1) || !is_array($arr2))
 			return;
 		
 		return array_diff($arr1, $arr2);
+	}
+	
+	function function_array_intersect($arr1, $arr2) {
+		if(!is_array($arr1) || !is_array($arr2))
+			return;
+		
+		return array_intersect($arr1, $arr2);
+	}
+	
+	function function_array_sort_keys($arr) {
+		if(!is_array($arr))
+			return;
+		
+		ksort($arr);
+		
+		return $arr;
+	}
+	
+	function function_array_unique($arr) {
+		if(!is_array($arr))
+			return;
+		
+		return array_unique($arr);
+	}
+	
+	function function_array_values($arr) {
+		if(!is_array($arr))
+			return;
+		
+		return array_values($arr);
+	}
+	
+	function function_cerb_has_priv($priv, $actor_context=null, $actor_id=null) {
+		if(is_null($actor_context) && is_null($actor_context)) {
+			$active_worker = CerberusApplication::getActiveWorker();
+			return $active_worker->hasPriv($priv);
+		}
+		
+		if(false == ($context_ext = Extension_DevblocksContext::getByAlias($actor_context, true)))
+		if(false == ($context_ext = Extension_DevblocksContext::get($actor_context)))
+			return false;
+		
+		if(!($context_ext instanceof Context_Worker))
+			return false;
+		
+		if(false == ($worker = DAO_Worker::get($actor_id)))
+			return false;
+		
+		return $worker->hasPriv($priv);
+	}
+	
+	function function_cerb_record_readable($record_context, $record_id, $actor_context=null, $actor_context_id=null) {
+		if(is_null($actor_context) && is_null($actor_context)) {
+			$actor = CerberusApplication::getActiveWorker();
+		} else {
+			$actor = [$actor_context, $actor_context_id];
+		}
+		
+		return CerberusContexts::isReadableByActor($record_context, $record_id, $actor);
+	}
+	
+	function function_cerb_record_writeable($record_context, $record_id, $actor_context=null, $actor_context_id=null) {
+		if(is_null($actor_context) && is_null($actor_context)) {
+			$actor = CerberusApplication::getActiveWorker();
+		} else {
+			$actor = [$actor_context, $actor_context_id];
+		}
+		
+		return CerberusContexts::isWriteableByActor($record_context, $record_id, $actor);
 	}
 	
 	function function_cerb_avatar_image($context, $id, $updated=0) {
@@ -716,7 +828,7 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 		$url_writer = DevblocksPlatform::services()->url();
 		
 		if(false == ($context_ext = Extension_DevblocksContext::getByAlias($context, true)))
-		if(false == ($context_ext = Extension_DevblocksContext::get($id)))
+		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
 			return null;
 		
 		if(false == ($aliases = Extension_DevblocksContext::getAliasesForContext($context_ext->manifest)))
@@ -908,6 +1020,7 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 			new Twig_SimpleFilter('base64_encode', [$this, 'filter_base64_encode']),
 			new Twig_SimpleFilter('base64_decode', [$this, 'filter_base64_decode']),
 			new Twig_SimpleFilter('bytes_pretty', [$this, 'filter_bytes_pretty']),
+			new Twig_SimpleFilter('cerb_translate', [$this, 'filter_cerb_translate']),
 			new Twig_SimpleFilter('context_name', [$this, 'filter_context_name']),
 			new Twig_SimpleFilter('date_pretty', [$this, 'filter_date_pretty']),
 			new Twig_SimpleFilter('hash_hmac', [$this, 'filter_hash_hmac']),
@@ -952,6 +1065,10 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 			return '';
 		
 		return DevblocksPlatform::strPrettyBytes($string, $precision);
+	}
+	
+	function filter_cerb_translate($string) {
+		return DevblocksPlatform::translate($string);
 	}
 	
 	function filter_context_name($string, $type='plural') {

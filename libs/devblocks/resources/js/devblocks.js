@@ -113,18 +113,13 @@ function DevblocksClass() {
 	}
 	
 	this.getDefaultjQueryUiTabOptions = function() {
+		var $this = this;
+		
 		return {
 			activate: function(event, ui) {
 				var tabsId = ui.newPanel.closest('.ui-tabs').attr('id');
 				var index = ui.newTab.index();
-				
-				var selectedTabs = {};
-				
-				if(undefined != localStorage.selectedTabs)
-					selectedTabs = JSON.parse(localStorage.selectedTabs);
-				
-				selectedTabs[tabsId] = index;
-				localStorage.selectedTabs = JSON.stringify(selectedTabs);
+				$this.setjQueryUiTabSelected(tabsId, index);
 			},
 			beforeLoad: function(event, ui) {
 				var tab_title = ui.tab.find('> a').first().clone();
@@ -137,6 +132,16 @@ function DevblocksClass() {
 				ui.panel.html($div);
 			}
 		};
+	}
+	
+	this.setjQueryUiTabSelected = function(tabsId, index) {
+		var selectedTabs = {};
+		
+		if(undefined != localStorage.selectedTabs)
+			selectedTabs = JSON.parse(localStorage.selectedTabs);
+		
+		selectedTabs[tabsId] = index;
+		localStorage.selectedTabs = JSON.stringify(selectedTabs);
 	}
 	
 	this.getjQueryUiTabSelected = function(tabsId, activeTab) {
@@ -177,7 +182,7 @@ function DevblocksClass() {
 		if(!(typeof e == 'object'))
 			return false;
 		
-		var $button = $(this);
+		var $button = $(e.target);
 		var $popup = genericAjaxPopupFind($button);
 		var $frm = $popup.find('form').first();
 		var $status = $popup.find('div.status');
@@ -254,7 +259,171 @@ function DevblocksClass() {
 	this.triggerEvent = function(element, e) {
 		$(element).trigger(e);
 	}
+	
+	this._loadedResources = {};
+	
+	this.getResourceState = function(url) {
+		var state = this._loadedResources.hasOwnProperty(url) ? this._loadedResources[url] : null;
+		return state;
+	}
+	
+	this.setResourceState = function(url, state) {
+		this._loadedResources[url] = state;
+	}
+	
+	this.loadStylesheet = function(url, callback) {
+		var $instance = this;
+		var state = $instance.getResourceState(url);
+		
+		if(null == state) {
+			var options = {
+				dataType: "text",
+				cache: true,
+				url: url
+			}
+			
+			$instance.setResourceState(url, 'loading');
+			
+			return jQuery.ajax(options)
+				.done(function(data) {
+					$('<style type="text/css">\n' + data + '</style>').appendTo('head');
+					$instance.setResourceState(url, 'loaded');
+					callback();
+				})
+				.fail(function() {
+					$instance.setResourceState(url, 'failed');
+					callback(false);
+				})
+			;
+			
+		} else if ('loading' === state) {
+			var timer = null;
+			
+			timer = setInterval(function() {
+				var state = $instance.getResourceState(url);
+				
+				if('loaded' == state) {
+					clearInterval(timer);
+					callback();
+					
+				} else if ('failed' == state) {
+					clearInterval(timer);
+					callback(false);
+				}
+			}, 50);
+			
+		} else {
+			callback();
+		}
+	}
+	
+	this.loadScript = function(url, callback) {
+		var $instance = this;
+		var state = $instance.getResourceState(url);
+		
+		if(null == state) {
+			var options = {
+				dataType: "script",
+				cache: true,
+				url: url
+			}
+			
+			$instance.setResourceState(url, 'loading');
+			
+			return jQuery.ajax(options)
+				.done(function() {
+					$instance.setResourceState(url, 'loaded');
+					callback();
+				})
+				.fail(function() {
+					$instance.setResourceState(url, 'failed');
+					callback(false);
+				})
+			;
+			
+		} else if ('loading' === state) {
+			var timer = null;
+			
+			timer = setInterval(function() {
+				var state = $instance.getResourceState(url);
+				
+				if('loaded' == state) {
+					clearInterval(timer);
+					callback();
+					
+				} else if ('failed' == state) {
+					clearInterval(timer);
+					callback(false);
+				}
+			}, 50);
+			
+		} else {
+			callback();
+		}
+	}
+	
+	this.loadScripts = function(urls, finished) {
+		if(!$.isArray(urls))
+			return callback(false);
+		
+		var $instance = this;
+		var jobs = [];
+		
+		urls.forEach(function(url) {
+			if(url.substring(0,1) == '/')
+				url = DevblocksWebPath + url.substring(1);
+			
+			jobs.push(async.apply($instance.loadScript.bind($instance), url));
+		});
+		
+		async.parallelLimit(jobs, 2, function(err, json) {
+			if(err)
+				return finished(err);
+			
+			finished();
+		});
+	}
+	
+	this.loadResources = function(resources, finished) {
+		if(typeof(resources) != 'object')
+			return callback(false);
+		
+		var $instance = this;
+		var jobs = [];
+		
+		if(resources.hasOwnProperty('css')) {
+			if(!$.isArray(resources.css))
+				return callback(false);
+			
+			resources.css.forEach(function(url) {
+				if(url.substring(0,1) == '/')
+					url = DevblocksWebPath + url.substring(1);
+				
+				jobs.push(async.apply($instance.loadStylesheet.bind($instance), url));
+			});
+		}
+		
+		if(resources.hasOwnProperty('js')) {
+			if(!$.isArray(resources.js))
+				return callback(false);
+			
+			resources.js.forEach(function(url) {
+				if(url.substring(0,1) == '/')
+					url = DevblocksWebPath + url.substring(1);
+				
+				jobs.push(async.apply($instance.loadScript.bind($instance), url));
+			});
+		}
+		
+		async.parallelLimit(jobs, 2, function(err, json) {
+			if(err)
+				return finished(err);
+			
+			finished();
+		});
+	}
 };
+
 var Devblocks = new DevblocksClass();
 
 // [TODO] Remove this in favor of jQuery $(select).val()
@@ -529,7 +698,13 @@ function genericAjaxPopup($layer,request,target,modal,width,cb) {
 			width = Math.floor($(window).width() * parseInt(width)/100);
 		}
 		
-		options.width = Math.max(parseInt(width), 500) + 'px';
+		if(width < 500)
+			width = 500;
+		
+		if(width > window.innerWidth)
+			width = window.innerWidth - 30;
+		
+		options.width = width + 'px';
 	}
 	
 	if(null != modal)

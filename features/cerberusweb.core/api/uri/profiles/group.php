@@ -17,117 +17,15 @@
 
 class PageSection_ProfilesGroup extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
 		$request = DevblocksPlatform::getHttpRequest();
-		
-		$context = CerberusContexts::CONTEXT_GROUP;
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$stack = $request->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // group
+		@$context_id = intval(array_shift($stack));
 		
-		$groups = DAO_Group::getAll();
-		$tpl->assign('groups', $groups);
+		$context = CerberusContexts::CONTEXT_GROUP;
 		
-		$workers = DAO_Worker::getAllActive();
-		$tpl->assign('workers', $workers);
-		
-		@$group_id = intval(array_shift($stack));
-		$point = 'cerberusweb.profiles.group.' . $group_id;
-
-		if(empty($group_id) || null == ($group = DAO_Group::get($group_id)))
-			return;
-		
-		$tpl->assign('group', $group);
-		
-		// Dictionary
-		$labels = array();
-		$values = array();
-		CerberusContexts::getContext($context, $group, $labels, $values, '', true, false);
-		$dict = DevblocksDictionaryDelegate::instance($values);
-		$tpl->assign('dict', $dict);
-		
-		// Properties
-		
-		$translate = DevblocksPlatform::getTranslationService();
-		
-		$properties = array();
-		
-		$reply_to = $group->getReplyTo();
-		
-		$properties['reply_to'] = array(
-			'label' => mb_ucfirst($translate->_('common.email')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $reply_to->email,
-		);
-		
-		$properties['is_default'] = array(
-			'label' => mb_ucfirst($translate->_('common.default')),
-			'type' => Model_CustomField::TYPE_CHECKBOX,
-			'value' => $group->is_default,
-		);
-		
-		$properties['is_private'] = array(
-			'label' => mb_ucfirst($translate->_('common.private')),
-			'type' => Model_CustomField::TYPE_CHECKBOX,
-			'value' => $group->is_private,
-		);
-				
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_GROUP, $group->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_GROUP, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_GROUP, $group->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Profile counts
-		$profile_counts = array(
-			'bots' => DAO_Bot::count($context, $dict->id),
-			'buckets' => DAO_Bucket::countByGroupId($dict->id),
-			'custom_fieldsets' => DAO_CustomFieldset::count($context, $dict->id),
-			'members' => DAO_Worker::countByGroupId($dict->id),
-		);
-		$tpl->assign('profile_counts', $profile_counts);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_GROUP => array(
-				$group->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_GROUP,
-						$group->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-		
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_GROUP);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Interactions
-		$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
-		$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
-		$tpl->assign('interactions_menu', $interactions_menu);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/group.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -341,7 +239,6 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 					//'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=group', true),
-//					'toolbar_extension_id' => 'cerberusweb.explorer.toolbar.',
 				);
 				$models[] = $model;
 				

@@ -17,108 +17,15 @@
 
 class PageSection_ProfilesClassifier extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // classifier
-		$id = array_shift($stack); // 123
+		@$context_id = intval(array_shift($stack)); // 123
 
-		@$id = intval($id);
+		$context = CerberusContexts::CONTEXT_CLASSIFIER;
 		
-		if(null == ($classifier = DAO_Classifier::get($id))) {
-			return;
-		}
-		$tpl->assign('classifier', $classifier);
-	
-		// Tab persistence
-		
-		$point = 'profiles.classifier.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-	
-		// Properties
-			
-		$properties = array();
-			
-		$properties['owner'] = array(
-			'label' => mb_ucfirst($translate->_('common.owner')),
-			'type' => Model_CustomField::TYPE_LINK,
-			'value' => $classifier->owner_context_id,
-			'params' => [
-				'context' => $classifier->owner_context,
-			]
-		);
-		
-		$properties['created'] = array(
-			'label' => mb_ucfirst($translate->_('common.created')),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $classifier->created_at,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $classifier->updated_at,
-		);
-	
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_CLASSIFIER, $classifier->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_CLASSIFIER, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_CLASSIFIER, $classifier->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Counts
-		
-		$owner_counts = array(
-			'classes' => DAO_ClassifierClass::count($classifier->id),
-			'examples' => DAO_ClassifierExample::countByClassifier($classifier->id),
-			//'comments' => DAO_Comment::count($context, $classifier->id),
-		);
-		$tpl->assign('owner_counts', $owner_counts);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_CLASSIFIER => array(
-				$classifier->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_CLASSIFIER,
-						$classifier->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-			
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_CLASSIFIER);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/classifier.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -366,7 +273,6 @@ class PageSection_ProfilesClassifier extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=classifier', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.classifier.explore.toolbar',
 				);
 				$models[] = $model;
 				

@@ -441,7 +441,8 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		
 		$results = $db->GetArraySlave(sprintf("SELECT id ".
 			"FROM kb_category ".
-			"WHERE name LIKE %s ",
+			"WHERE name LIKE %s ".
+			"LIMIT 25",
 			$db->qstr($term.'%')
 		));
 		
@@ -560,11 +561,52 @@ class SearchFields_KbCategory extends DevblocksSearchFields {
 	}
 	
 	static function getWhereSQL(DevblocksSearchCriteria $param) {
-		if('cf_' == substr($param->field, 0, 3)) {
-			return self::_getWhereSQLFromCustomFields($param);
-		} else {
-			return $param->getWhereSQL(self::getFields(), self::getPrimaryKey());
+		switch($param->field) {
+			case self::VIRTUAL_HAS_FIELDSET:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_KB_CATEGORY)), self::getPrimaryKey());
+				break;
+				
+			default:
+				if('cf_' == substr($param->field, 0, 3)) {
+					return self::_getWhereSQLFromCustomFields($param);
+				} else {
+					return $param->getWhereSQL(self::getFields(), self::getPrimaryKey());
+				}
+				break;
 		}
+	}
+	
+	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
+		switch($key) {
+			case 'parent':
+				$key = 'parent.id';
+				break;
+		}
+		
+		return parent::getFieldForSubtotalKey($key, $context, $query_fields, $search_fields, $primary_key);
+	}
+	
+	static function getLabelsForKeyValues($key, $values) {
+		switch($key) {
+			case SearchFields_KbCategory::ARTICLE_ID:
+				$models = DAO_KbArticle::getIds($values);
+				$label_map = array_column(DevblocksPlatform::objectsToArrays($models), 'title', 'id');
+				if(in_array(0, $values))
+					$label_map[0] = DevblocksPlatform::translate('common.none');
+				return $label_map;
+				break;
+				
+			case SearchFields_KbCategory::ID:
+			case SearchFields_KbCategory::PARENT_ID:
+				$models = DAO_KbCategory::getIds($values);
+				$label_map = array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
+				if(in_array(0, $values))
+					$label_map[0] = DevblocksPlatform::translate('common.none');
+				return $label_map;
+				break;
+		}
+		
+		return parent::getLabelsForKeyValues($key, $values);
 	}
 	
 	/**
@@ -590,6 +632,8 @@ class SearchFields_KbCategory extends DevblocksSearchFields {
 			self::UPDATED_AT => new DevblocksSearchField(self::UPDATED_AT, 'kbc', 'updated_at', $translate->_('common.updated'), null, true),
 			
 			self::ARTICLE_ID => new DevblocksSearchField(self::ARTICLE_ID, 'katc', 'kb_article_id', DevblocksPlatform::translateCapitalized('kb.common.knowledgebase_article'), Model_CustomField::TYPE_NUMBER, true),
+			
+			self::VIRTUAL_HAS_FIELDSET => new DevblocksSearchField(self::VIRTUAL_HAS_FIELDSET, '*', 'has_fieldset', $translate->_('common.fieldset'), null, false),
 		);
 		
 		// Custom fields with fieldsets
@@ -607,6 +651,8 @@ class SearchFields_KbCategory extends DevblocksSearchFields {
 };
 
 class Context_KbCategory extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextAutocomplete {
+	const ID = 'cerberusweb.contexts.kb_category';
+	
 	static function isReadableByActor($models, $actor) {
 		// Everyone can read
 		return CerberusContexts::allowEverything($models);
@@ -628,6 +674,39 @@ class Context_KbCategory extends Extension_DevblocksContext implements IDevblock
 		$url_writer = DevblocksPlatform::services()->url();
 		$url = $url_writer->writeNoProxy('c=profiles&type=kb_category&id='.$context_id, true);
 		return $url;
+	}
+	
+	function profileGetFields($model=null) {
+		$properties = [];
+		
+		if(is_null($model))
+			$model = new Model_KbCategory();
+		
+		$properties['name'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.name'),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->id,
+			'params' => [
+				'context' => self::ID,
+			],
+		);
+		
+		$properties['parent_id'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.parent'),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->parent_id,
+			'params' => [
+				'context' => CerberusContexts::CONTEXT_KB_CATEGORY,
+			]
+		);
+		
+		$properties['updated'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->updated_at,
+		);
+		
+		return $properties;
 	}
 	
 	function getMeta($context_id) {
@@ -886,13 +965,6 @@ class Context_KbCategory extends Extension_DevblocksContext implements IDevblock
 			$tpl->display('devblocks:cerberusweb.kb::kb/category/peek_edit.tpl');
 			
 		} else {
-			// Counts
-			$activity_counts = array(
-				'articles' => DAO_KbArticle::countByCategoryId($context_id),
-				'subcategories' => DAO_KbCategory::countByParentId($context_id),
-			);
-			$tpl->assign('activity_counts', $activity_counts);
-			
 			// Links
 			$links = array(
 				$context => array(
@@ -900,7 +972,7 @@ class Context_KbCategory extends Extension_DevblocksContext implements IDevblock
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
 							$context_id,
-							array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
+							[]
 						),
 				),
 			);
@@ -925,6 +997,10 @@ class Context_KbCategory extends Extension_DevblocksContext implements IDevblock
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);
+			
+			// Card search buttons
+			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
+			$tpl->assign('search_buttons', $search_buttons);
 			
 			$ancestors = DAO_KbCategory::getAncestors($dict->id);
 			$tpl->assign('breadcrumbs', $ancestors);
@@ -960,9 +1036,6 @@ class View_KbCategory extends C4_AbstractView implements IAbstractView_Subtotals
 			SearchFields_KbCategory::VIRTUAL_CONTEXT_LINK,
 			SearchFields_KbCategory::VIRTUAL_HAS_FIELDSET,
 			SearchFields_KbCategory::VIRTUAL_WATCHERS,
-		));
-		
-		$this->addParamsHidden(array(
 		));
 		
 		$this->doResetCriteria();
@@ -1003,9 +1076,9 @@ class View_KbCategory extends C4_AbstractView implements IAbstractView_Subtotals
 			
 			switch($field_key) {
 				// Fields
-//				case SearchFields_KbCategory::EXAMPLE:
-//					$pass = true;
-//					break;
+				case SearchFields_KbCategory::PARENT_ID:
+					$pass = true;
+					break;
 					
 				// Virtuals
 				case SearchFields_KbCategory::VIRTUAL_CONTEXT_LINK:
@@ -1037,13 +1110,12 @@ class View_KbCategory extends C4_AbstractView implements IAbstractView_Subtotals
 			return [];
 		
 		switch($column) {
-//			case SearchFields_KbCategory::EXAMPLE_BOOL:
-//				$counts = $this->_getSubtotalCountForBooleanColumn($context, $column);
-//				break;
-
-//			case SearchFields_KbCategory::EXAMPLE_STRING:
-//				$counts = $this->_getSubtotalCountForStringColumn($context, $column);
-//				break;
+			case SearchFields_KbCategory::PARENT_ID:
+				$label_map = function(array $values) use ($column) {
+					return SearchFields_KbCategory::getLabelsForKeyValues($column, $values);
+				};
+				$counts = $this->_getSubtotalCountForStringColumn($context, $column, $label_map);
+				break;
 				
 			case SearchFields_KbCategory::VIRTUAL_CONTEXT_LINK:
 				$counts = $this->_getSubtotalCountForContextLinkColumn($context, $column);
@@ -1059,7 +1131,7 @@ class View_KbCategory extends C4_AbstractView implements IAbstractView_Subtotals
 			
 			default:
 				// Custom fields
-				if('cf_' == substr($column,0,3)) {
+				if(DevblocksPlatform::strStartsWith($column, 'cf_')) {
 					$counts = $this->_getSubtotalCountForCustomColumn($context, $column);
 				}
 				
@@ -1084,6 +1156,14 @@ class View_KbCategory extends C4_AbstractView implements IAbstractView_Subtotals
 					'options' => array('param_key' => SearchFields_KbCategory::ARTICLE_ID),
 					'examples' => [
 						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_KB_ARTICLE, 'q' => ''],
+					]
+				),
+			'fieldset' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_KbCategory::VIRTUAL_HAS_FIELDSET),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_KB_CATEGORY],
 					]
 				),
 			'id' => 
@@ -1121,7 +1201,7 @@ class View_KbCategory extends C4_AbstractView implements IAbstractView_Subtotals
 		
 		// Add quick search links
 		
-		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links');
+		$fields = self::_appendVirtualFiltersFromQuickSearchContexts('links', $fields, 'links', SearchFields_KbCategory::VIRTUAL_CONTEXT_LINK);
 		
 		// Add searchable custom fields
 		
@@ -1139,6 +1219,10 @@ class View_KbCategory extends C4_AbstractView implements IAbstractView_Subtotals
 	
 	function getParamFromQuickSearchFieldTokens($field, $tokens) {
 		switch($field) {
+			case 'fieldset':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
+				break;
+			
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
 					return DevblocksSearchCriteria::getContextLinksParamFromTokens($field, $tokens);
@@ -1166,90 +1250,15 @@ class View_KbCategory extends C4_AbstractView implements IAbstractView_Subtotals
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
 
-	function renderCriteria($field) {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('id', $this->id);
-
-		switch($field) {
-			case SearchFields_KbCategory::NAME:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__string.tpl');
-				break;
-				
-			case SearchFields_KbCategory::ID:
-			case SearchFields_KbCategory::PARENT_ID:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__number.tpl');
-				break;
-				
-			case 'placeholder_bool':
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__bool.tpl');
-				break;
-				
-			case SearchFields_KbCategory::UPDATED_AT:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__date.tpl');
-				break;
-				
-			case SearchFields_KbCategory::VIRTUAL_CONTEXT_LINK:
-				$contexts = Extension_DevblocksContext::getAll(false);
-				$tpl->assign('contexts', $contexts);
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_link.tpl');
-				break;
-				
-			case SearchFields_KbCategory::VIRTUAL_HAS_FIELDSET:
-				$this->_renderCriteriaHasFieldset($tpl, CerberusContexts::CONTEXT_KB_CATEGORY);
-				break;
-				
-			case SearchFields_KbCategory::VIRTUAL_WATCHERS:
-				$tpl->display('devblocks:cerberusweb.core::internal/views/criteria/__context_worker.tpl');
-				break;
-				
-			default:
-				// Custom Fields
-				if('cf_' == substr($field,0,3)) {
-					$this->_renderCriteriaCustomField($tpl, substr($field,3));
-				} else {
-					echo ' ';
-				}
-				break;
-		}
-	}
-
 	function renderCriteriaParam($param) {
 		$field = $param->field;
 		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
 			case SearchFields_KbCategory::ARTICLE_ID:
-				$articles = DAO_KbArticle::getIds($values);
-				
-				$strings = [];
-
-				foreach($values as $val) {
-					if(0==$val) {
-						$strings[] = DevblocksPlatform::strEscapeHtml("(none)");
-					} else {
-						if(!isset($articles[$val]))
-							continue;
-						$strings[] = DevblocksPlatform::strEscapeHtml($articles[$val]->title);
-					}
-				}
-				echo implode(" or ", $strings);
-				break;
-			
 			case SearchFields_KbCategory::PARENT_ID:
-				$categories = DAO_KbCategory::getAll();
-				
-				$strings = [];
-
-				foreach($values as $val) {
-					if(0==$val) {
-						$strings[] = DevblocksPlatform::strEscapeHtml("(none)");
-					} else {
-						if(!isset($categories[$val]))
-							continue;
-						$strings[] = DevblocksPlatform::strEscapeHtml($categories[$val]->name);
-					}
-				}
-				echo implode(" or ", $strings);
+				$label_map = SearchFields_KbCategory::getLabelsForKeyValues($field, $values);
+				parent::_renderCriteriaParamString($param, $label_map);
 				break;
 			
 			default:

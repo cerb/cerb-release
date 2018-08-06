@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>8.3.8</version>
+	<version>9.0.0</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -65,6 +65,9 @@
 		<patch version="8.1.0" revision="1227" file="patches/8.x/8.1.0.php" />
 		<patch version="8.2.0" revision="1250" file="patches/8.x/8.2.0.php" />
 		<patch version="8.3.0" revision="1271" file="patches/8.x/8.3.0.php" />
+		<patch version="8.4.0" revision="1282" file="patches/8.x/8.4.0.php" />
+		
+		<patch version="9.0.0" revision="1307" file="patches/9.x/9.0.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -315,6 +318,7 @@
 		</file>
 		
 		<file path="api/dao/context_scheduled_behavior.php">
+			<class name="Context_ContextScheduledBehavior" />
 			<class name="DAO_ContextScheduledBehavior" />
 			<class name="Model_ContextScheduledBehavior" />
 			<class name="SearchFields_ContextScheduledBehavior" />
@@ -441,6 +445,14 @@
 			<class name="View_MailTransport" />
 		</file>
 
+		<file path="api/dao/mailbox.php">
+			<class name="Context_Mailbox" />
+			<class name="DAO_Mailbox" />
+			<class name="Model_Mailbox" />
+			<class name="SearchFields_Mailbox" />
+			<class name="View_Mailbox" />
+		</file>
+
 		<file path="api/dao/message.php">
 			<class name="Context_Message" />
 			<class name="DAO_Message" />
@@ -462,13 +474,21 @@
 			<class name="SearchFields_PluginLibrary" />
 			<class name="View_PluginLibrary" />
 		</file>
-		
-		<file path="api/dao/mailbox.php">
-			<class name="Context_Mailbox" />
-			<class name="DAO_Mailbox" />
-			<class name="Model_Mailbox" />
-			<class name="SearchFields_Mailbox" />
-			<class name="View_Mailbox" />
+
+		<file path="api/dao/profile_tab.php">
+			<class name="Context_ProfileTab" />
+			<class name="DAO_ProfileTab" />
+			<class name="Model_ProfileTab" />
+			<class name="SearchFields_ProfileTab" />
+			<class name="View_ProfileTab" />
+		</file>
+
+		<file path="api/dao/profile_widget.php">
+			<class name="Context_ProfileWidget" />
+			<class name="DAO_ProfileWidget" />
+			<class name="Model_ProfileWidget" />
+			<class name="SearchFields_ProfileWidget" />
+			<class name="View_ProfileWidget" />
 		</file>
 		
 		<file path="api/dao/reminder.php">
@@ -528,12 +548,6 @@
 			<class name="Model_TriggerEvent" />
 			<class name="SearchFields_TriggerEvent" />
 			<class name="View_TriggerEvent" />
-		</file>
-		
-		<file path="api/dao/view_filters_preset.php">
-			<class name="DAO_ViewFiltersPreset" />
-			<class name="Model_ViewFiltersPreset" />
-			<class name="SearchFields_ViewFiltersPreset" />
 		</file>
 		
 		<file path="api/dao/bot.php">
@@ -1197,6 +1211,97 @@
 		</extension>
 		
 		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.profile.tab</id>
+			<name>Profile Tab</name>
+			<class>
+				<file>api/dao/profile_tab.php</file>
+				<name>Context_ProfileTab</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="profile tab" value="singular" />
+						<data key="profile tabs" value="plural" />
+					</value>
+				</param>
+				<param key="alias" value="profile_tab" />
+				<param key="dao_class" value="DAO_ProfileTab" />
+				<param key="view_class" value="View_ProfileTab" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="records" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="watchers" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="merge" />
+						<data key="update" />
+						<data key="update.bulk" />
+					</value>
+				</param>
+			</params>
+		</extension>
+
+		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.profile.widget</id>
+			<name>Profile Widget</name>
+			<class>
+				<file>api/dao/profile_widget.php</file>
+				<name>Context_ProfileWidget</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="profile widget" value="singular" />
+						<data key="profile widgets" value="plural" />
+						<data key="profile_widgets" value="plural" />
+					</value>
+				</param>
+				<param key="alias" value="profile_widget" />
+				<param key="dao_class" value="DAO_ProfileWidget" />
+				<param key="view_class" value="View_ProfileWidget" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="records" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="watchers" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="merge" />
+						<data key="update" />
+						<data key="update.bulk" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
 			<id>cerberusweb.contexts.portal</id>
 			<name>Community Portal</name>
 			<class>
@@ -1392,7 +1497,7 @@
 						<data key="custom_fields" />
 						<data key="links" />
 						<data key="records" />
-						<!-- <data key="search" /> -->
+						<data key="search" />
 						<data key="va_variable" />
 						<data key="workspace" />
 					</value>
@@ -1473,7 +1578,7 @@
 						<data key="cards" />
 						<data key="links" />
 						<data key="records" />
-						<!-- <data key="search" /> -->
+						<data key="search" />
 						<data key="va_variable" />
 						<data key="workspace" />
 					</value>
@@ -1817,6 +1922,7 @@
 				<param key="view_class" value="View_CalendarEvent" />
 				<param key="options">
 					<value>
+						<data key="cards" />
 						<data key="custom_fields" />
 						<data key="links" />
 						<data key="records" />
@@ -1851,6 +1957,9 @@
 					<value>
 						<data key="calendar recurring event" value="singular" />
 						<data key="calendar recurring events" value="plural" />
+						<data key="calendar_event_recurring" value="singular" />
+						<data key="calendar_events_recurring" value="plural" />
+						<data key="calendar_recurring_events" value="plural" />
 						<data key="recurring event" value="singular short" />
 						<data key="recurring events" value="plural short" />
 					</value>
@@ -2106,6 +2215,7 @@
 				<param key="options">
 					<value>
 						<data key="autocomplete" />
+						<data key="cards" />
 						<data key="custom_fields" />
 						<data key="links" />
 						<data key="records" />
@@ -2737,6 +2847,52 @@
 		</extension>
 		
 		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.behavior.scheduled</id>
+			<name>Behavior Scheduled</name>
+			<class>
+				<file>api/dao/context_scheduled_behavior.php</file>
+				<name>Context_ContextScheduledBehavior</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="behavior scheduled" value="singular" />
+						<data key="behaviors scheduled" value="plural" />
+					</value>
+				</param>
+				<param key="alias" value="scheduled_behavior" />
+				<param key="dao_class" value="DAO_ContextScheduledBehavior" />
+				<param key="view_class" value="View_ContextScheduledBehavior" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="records" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="watchers" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="broadcast" />
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="merge" />
+						<data key="update" />
+						<data key="update.bulk" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
 			<id>cerberusweb.contexts.bot</id>
 			<name>Bot</name>
 			<class>
@@ -3208,6 +3364,16 @@
 					</value>
 				</param>
 			</params>
+		</extension>
+		
+		<extension point="devblocks.event">
+			<id>event.data.query.datasource</id>
+			<name>Data Query Datasource</name>
+			<class>
+				<file>api/events/datasource/data_query_datasource.php</file>
+				<name>Event_DataQueryDatasource</name>
+			</class>
+			<params/>
 		</extension>
 		
 		<extension point="devblocks.event">
@@ -3869,7 +4035,7 @@
 		
 		<extension point="devblocks.event">
 			<id>event.ui.worklist.render.worker</id>
-			<name>[UI] Before displaying a worklist</name>
+			<name>[UI] Render record worklist</name>
 			<class>
 				<file>api/events/ui/ui_worklist_render_by_worker.php</file>
 				<name>Event_UiWorklistRenderByWorker</name>
@@ -3961,7 +4127,7 @@
 			</params>
 		</extension>
 		
-		<!-- VA Actions -->
+		<!-- Bot Actions -->
 		
 		<extension point="devblocks.event.action">
 			<id>core.va.action.classifier_prediction</id>
@@ -3972,6 +4138,23 @@
 			</class>
 			<params>
 				<param key="label" value="Execute classifier prediction" />
+				<param key="events">
+					<value>
+						<data key="*" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event.action">
+			<id>core.bot.action.data_query</id>
+			<name>Data Query</name>
+			<class>
+				<file>api/plugin.classes.php</file>
+				<name>BotAction_DataQuery</name>
+			</class>
+			<params>
+				<param key="label" value="Execute data query" />
 				<param key="events">
 					<value>
 						<data key="*" />
@@ -4257,19 +4440,6 @@
 			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
-				<id>core.internal.section.responsibilities</id>
-				<name>Internal Section Responsibilities</name>
-				<class>
-					<file>api/uri/internal/responsibilities.php</file>
-					<name>PageSection_InternalResponsibilities</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.controller.internal" />
-					<param key="uri" value="responsibilities" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
 				<id>core.internal.section.skills</id>
 				<name>Internal Section Skills</name>
 				<class>
@@ -4307,18 +4477,6 @@
 					<param key="uri" value="workspaces" />
 				</params>
 			</extension>
-			
-		<extension point="devblocks.controller">
-			<id>core.controller.print</id>
-			<name>Print Controller</name>
-			<class>
-				<file>api/uri/print.php</file>
-				<name>ChPrintController</name>
-			</class>
-			<params>
-				<param key="uri" value="print" />
-			</params>
-		</extension>
 		
 		<extension point="devblocks.controller">
 			<id>core.controller.avatars</id>
@@ -4749,15 +4907,15 @@
 			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.cards</id>
-				<name>Cards Section</name>
+				<id>core.page.setup.records</id>
+				<name>Records Section</name>
 				<class>
-					<file>api/uri/config/cards.php</file>
-					<name>PageSection_SetupCards</name>
+					<file>api/uri/config/records.php</file>
+					<name>PageSection_SetupRecords</name>
 				</class>
 				<params>
 					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="cards" />
+					<param key="uri" value="records" />
 				</params>
 			</extension>
 			
@@ -5089,6 +5247,19 @@
 			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.scheduled_behavior</id>
+				<name>Scheduled Behavior Section</name>
+				<class>
+					<file>api/uri/profiles/context_scheduled_behavior.php</file>
+					<name>PageSection_ProfilesContextScheduledBehavior</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="scheduled_behavior" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
 				<id>core.calendars.page.profiles.calendar</id>
 				<name>Calendar Section</name>
 				<class>
@@ -5412,6 +5583,32 @@
 					<param key="uri" value="org" />
 				</params>
 			</extension>
+
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.profile_tab</id>
+				<name>Profile Tab Section</name>
+				<class>
+					<file>api/uri/profiles/profile_tab.php</file>
+					<name>PageSection_ProfilesProfileTab</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="profile_tab" />
+				</params>
+			</extension>
+
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.profile_widget</id>
+				<name>Profile Widget Section</name>
+				<class>
+					<file>api/uri/profiles/profile_widget.php</file>
+					<name>PageSection_ProfilesProfileWidget</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="profile_widget" />
+				</params>
+			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.profiles.reminder</id>
@@ -5544,6 +5741,19 @@
 			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.workspace_page</id>
+				<name>Workspace Page Section</name>
+				<class>
+					<file>api/uri/profiles/workspace_page.php</file>
+					<name>PageSection_ProfilesWorkspacePage</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="workspace_page" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.profiles.workspace_tab</id>
 				<name>Workspace Tab Section</name>
 				<class>
@@ -5582,11 +5792,288 @@
 				</params>
 			</extension>
 			
+		<!-- Profile Tabs -->
+
+		<extension point="cerb.profile.tab">
+			<id>cerb.profile.tab.bot</id>
+			<name>Custom</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileTab_BotBehavior</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+
+		<extension point="cerb.profile.tab">
+			<id>cerb.profile.tab.dashboard</id>
+			<name>Dashboard</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileTab_Dashboard</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab">
+			<id>cerb.profile.tab.portal.config</id>
+			<name>Portal Configure</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileTab_PortalConfigure</name>
+			</class>
+			<params>
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.portal" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab">
+			<id>cerb.profile.tab.portal.deploy</id>
+			<name>Portal Deploy</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileTab_PortalDeploy</name>
+			</class>
+			<params>
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.portal" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab">
+			<id>cerb.profile.tab.worker.settings</id>
+			<name>Worker Settings</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileTab_WorkerSettings</name>
+			</class>
+			<params>
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.worker" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<!-- Profile Widgets -->
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.behavior.tree</id>
+			<name>Behavior Tree</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_BehaviorTree</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.calendar</id>
+			<name>Calendar</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_Calendar</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.calendar.availability</id>
+			<name>Calendar Availability</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_CalendarAvailability</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.chart.categories</id>
+			<name>Chart: Categories</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_ChartCategories</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.chart.pie</id>
+			<name>Chart: Pie</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_ChartPie</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.chart.scatterplot</id>
+			<name>Chart: Scatterplot</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_ChartScatterplot</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.chart.table</id>
+			<name>Chart: Table</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_ChartTable</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.chart.time_series</id>
+			<name>Chart: Time Series</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_ChartTimeSeries</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.comments</id>
+			<name>Comments</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_Comments</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.bot</id>
+			<name>Custom</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_BotBehavior</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.html</id>
+			<name>HTML/Javascript</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_CustomHtml</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.fields</id>
+			<name>Record Fields</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_Fields</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.responsibilities</id>
+			<name>Responsibilities</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_Responsibilities</name>
+			</class>
+			<params>
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.group" />
+						<data key="cerberusweb.contexts.worker" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.ticket.convo</id>
+			<name>Ticket Conversation</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_TicketConvo</name>
+			</class>
+			<params>
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.ticket" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.ticket.spam_analysis</id>
+			<name>Ticket Spam Analysis</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_TicketSpamAnalysis</name>
+			</class>
+			<params>
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.ticket" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.visualization</id>
+			<name>Data Query Visualization</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_Visualization</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.worklist</id>
+			<name>Worklist</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_Worklist</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
 		<!-- Workspace Pages -->
 		
 		<extension point="cerberusweb.ui.workspace.page">
 			<id>core.workspace.page.workspace</id>
-			<name>Workspace Page</name>
+			<name>Workspace</name>
 			<class>
 				<file>api/uri/internal/workspaces.php</file>
 				<name>WorkspacePage_Workspace</name>
@@ -5599,20 +6086,8 @@
 		<!-- Workspace Tabs -->
 		
 		<extension point="cerberusweb.ui.workspace.tab">
-			<id>core.workspace.tab.calendar</id>
-			<name>Calendar Workspace Tab</name>
-			<class>
-				<file>api/uri/internal/workspaces/calendar.php</file>
-				<name>WorkspaceTab_Calendar</name>
-			</class>
-			<params>
-				<param key="label" value="common.calendar" />
-			</params>
-		</extension>
-
-		<extension point="cerberusweb.ui.workspace.tab">
-			<id>core.workspace.tab</id>
-			<name>Dashboards Workspace Tab</name>
+			<id>core.workspace.tab.dashboard</id>
+			<name>Dashboard</name>
 			<class>
 				<file>api/uri/internal/dashboards.php</file>
 				<name>WorkspaceTab_Dashboards</name>
@@ -5624,7 +6099,7 @@
 		
 		<extension point="cerberusweb.ui.workspace.tab">
 			<id>core.workspace.tab.worklists</id>
-			<name>Workspace Worklists Tab</name>
+			<name>Worklists</name>
 			<class>
 				<file>api/uri/internal/workspaces.php</file>
 				<name>WorkspaceTab_Worklists</name>
@@ -5638,10 +6113,21 @@
 		
 		<extension point="cerberusweb.ui.workspace.widget">
 			<id>core.workspace.widget.bot</id>
-			<name>Bot Behavior</name>
+			<name>Custom</name>
 			<class>
 				<file>api/uri/internal/dashboards.php</file>
 				<name>WorkspaceWidget_BotBehavior</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.ui.workspace.widget">
+			<id>cerb.workspace.widget.behavior.tree</id>
+			<name>Behavior Tree</name>
+			<class>
+				<file>api/uri/internal/dashboards.php</file>
+				<name>WorkspaceWidget_BehaviorTree</name>
 			</class>
 			<params>
 			</params>
@@ -5670,11 +6156,66 @@
 		</extension>
 		
 		<extension point="cerberusweb.ui.workspace.widget">
-			<id>core.workspace.widget.chart</id>
-			<name>Line/Bar Chart</name>
+			<id>cerb.workspace.widget.chart.categories</id>
+			<name>Chart: Categories</name>
 			<class>
 				<file>api/uri/internal/dashboards.php</file>
-				<name>WorkspaceWidget_Chart</name>
+				<name>WorkspaceWidget_ChartCategories</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.ui.workspace.widget">
+			<id>cerb.workspace.widget.chart.pie</id>
+			<name>Chart: Pie</name>
+			<class>
+				<file>api/uri/internal/dashboards.php</file>
+				<name>WorkspaceWidget_ChartPie</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.ui.workspace.widget">
+			<id>cerb.workspace.widget.chart.scatterplot</id>
+			<name>Chart: Scatterplot</name>
+			<class>
+				<file>api/uri/internal/dashboards.php</file>
+				<name>WorkspaceWidget_ChartScatterplot</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.ui.workspace.widget">
+			<id>cerb.workspace.widget.chart.table</id>
+			<name>Chart: Table</name>
+			<class>
+				<file>api/uri/internal/dashboards.php</file>
+				<name>WorkspaceWidget_ChartTable</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.ui.workspace.widget">
+			<id>cerb.workspace.widget.chart.timeseries</id>
+			<name>Chart: Time Series</name>
+			<class>
+				<file>api/uri/internal/dashboards.php</file>
+				<name>WorkspaceWidget_ChartTimeSeries</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.ui.workspace.widget">
+			<id>core.workspace.widget.chart</id>
+			<name>(Deprecated) Line/Bar Chart</name>
+			<class>
+				<file>api/uri/internal/dashboards.php</file>
+				<name>WorkspaceWidget_ChartLegacy</name>
 			</class>
 			<params>
 			</params>
@@ -5715,7 +6256,7 @@
 	
 		<extension point="cerberusweb.ui.workspace.widget">
 			<id>core.workspace.widget.custom_html</id>
-			<name>Custom HTML</name>
+			<name>(Deprecated) HTML/Javascript</name>
 			<class>
 				<file>api/uri/internal/dashboards.php</file>
 				<name>WorkspaceWidget_CustomHtml</name>
@@ -5726,7 +6267,7 @@
 		
 		<extension point="cerberusweb.ui.workspace.widget">
 			<id>core.workspace.widget.pie_chart</id>
-			<name>Pie Chart</name>
+			<name>(Deprecated) Pie Chart</name>
 			<class>
 				<file>api/uri/internal/dashboards.php</file>
 				<name>WorkspaceWidget_PieChart</name>
@@ -5736,8 +6277,19 @@
 		</extension>
 
 		<extension point="cerberusweb.ui.workspace.widget">
+			<id>core.workspace.widget.record.fields</id>
+			<name>Record Fields</name>
+			<class>
+				<file>api/uri/internal/dashboards.php</file>
+				<name>WorkspaceWidget_RecordFields</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+	
+		<extension point="cerberusweb.ui.workspace.widget">
 			<id>core.workspace.widget.scatterplot</id>
-			<name>Scatterplot</name>
+			<name>(Deprecated) Scatterplot</name>
 			<class>
 				<file>api/uri/internal/dashboards.php</file>
 				<name>WorkspaceWidget_Scatterplot</name>
@@ -5745,10 +6297,10 @@
 			<params>
 			</params>
 		</extension>
-	
+		
 		<extension point="cerberusweb.ui.workspace.widget">
 			<id>core.workspace.widget.subtotals</id>
-			<name>Subtotals</name>
+			<name>(Deprecated) Subtotals</name>
 			<class>
 				<file>api/uri/internal/dashboards.php</file>
 				<name>WorkspaceWidget_Subtotals</name>
@@ -5776,6 +6328,23 @@
 			<class>
 				<file>api/uri/internal/dashboards/widget_datasources.php</file>
 				<name>WorkspaceWidgetDatasource_Manual</name>
+			</class>
+			<params>
+				<param key="widgets">
+					<value>
+						<data key="core.workspace.widget.counter" />
+						<data key="core.workspace.widget.gauge" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.ui.workspace.widget.datasource">
+			<id>cerb.workspace.widget.datasource.data_query</id>
+			<name>Data Query</name>
+			<class>
+				<file>api/uri/internal/dashboards/widget_datasources.php</file>
+				<name>WorkspaceWidgetDatasource_DataQueryMetric</name>
 			</class>
 			<params>
 				<param key="widgets">

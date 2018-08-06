@@ -4,14 +4,14 @@
 	<name>Support Center</name>
 	<description>Adds a Support Center community portal for public-facing support.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>8.3.8</version>
+	<version>9.0.0</version>
 	<link>http://wiki.cerbweb.com/Support_Center</link>
 	<image>plugin.png</image>
 
 	<!-- Requirements -->
 
 	<requires>
-		<app_version min="8.3" max="8.3.99" />
+		<app_version min="9.0" max="9.0.99" />
 	</requires>
 
 	<!-- Plugin Dependencies -->
@@ -77,7 +77,6 @@
 		<template path="support_center/history/index.tpl" />
 		<template path="support_center/history/view.tpl" />
 		<template path="support_center/home/index.tpl" />
-		<template path="support_center/internal/view/view_filters.tpl" />
 		<template path="support_center/login/default/forgot_confirm.tpl" />
 		<template path="support_center/login/default/forgot.tpl" />
 		<template path="support_center/login/default/login.tpl" />

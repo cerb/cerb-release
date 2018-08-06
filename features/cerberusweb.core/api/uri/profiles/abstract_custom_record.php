@@ -25,100 +25,15 @@ class PageSection_ProfilesAbstractCustomRecord extends Extension_PageSection {
 		if(get_called_class() == 'PageSection_ProfilesAbstractCustomRecord')
 			return;
 		
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // uri 
-		$id = array_shift($stack); // 123
-		
-		@$id = intval($id);
-		
-		if(null == ($custom_record = DAO_CustomRecord::get(static::_ID)))
-			return;
-		
-		$dao_class = sprintf('DAO_AbstractCustomRecord_%d', static::_ID);
-		
-		if(null == ($abstract_record = $dao_class::get($id))) {
-			return;
-		}
-		
-		$tpl->assign('custom_record', $custom_record);
-		$tpl->assign('abstract_custom_record', $abstract_record);
+		$context_id = intval(array_shift($stack)); // 123
 		
 		$context = self::_getContextName();
-		$tpl->assign('page_context', $context);
 		
-		// Tab persistence
-		
-		$point = sprintf('profiles.abstract_custom_record_%d.tab', static::_ID);
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-		
-		// Properties
-		
-		$properties = [];
-		
-		$properties['name'] = array(
-			'label' => mb_ucfirst($translate->_('common.name')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $abstract_record->name,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $abstract_record->updated_at,
-		);
-		
-		// Custom Fields
-		
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds($context, $abstract_record->id)) or [];
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields($context, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-		
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets($context, $abstract_record->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			$context => array(
-				$abstract_record->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						$context,
-						$abstract_record->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-		
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, $context);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::internal/abstract_custom_record/profile.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -432,7 +347,6 @@ class PageSection_ProfilesAbstractCustomRecord extends Extension_PageSection {
 					'created' => time(),
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy(sprintf('c=search&type=%s', $custom_record->uri), true),
-					'toolbar_extension_id' => sprintf('%s.explore.toolbar', self::_getContextName()),
 				];
 				$models[] = $model;
 				

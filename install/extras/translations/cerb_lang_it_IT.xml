@@ -2383,11 +2383,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="display.shortcut.print">
-			<tuv xml:lang="it_IT">
-				<seg>Stampa ticket (P)</seg>
-			</tuv>
-		</tu>
 		<tu tuid="display.shortcut.read_all">
 			<tuv xml:lang="it_IT">
 				<seg>Leggi tutti i messaggi in ordine cronologico (A)</seg>
@@ -3498,11 +3493,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="preferences.account.mail.display.inline_log">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="preferences.account.mail.no_discard_warning">
 			<tuv xml:lang="it_IT">
 				<seg/>
@@ -4313,12 +4303,7 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="timetracking.ui.cfg.activities">
-			<tuv xml:lang="it_IT">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="timetracking.ui.cfg.add_activity">
+		<tu tuid="timetracking.common.activities">
 			<tuv xml:lang="it_IT">
 				<seg/>
 			</tuv>

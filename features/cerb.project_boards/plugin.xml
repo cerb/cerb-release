@@ -4,14 +4,14 @@
 	<name>Project Boards</name>
 	<description>Bot-powered project management using Kanban-style boards</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>8.3.8</version>
+	<version>9.0.0</version>
 	<link>https://cerb.ai/</link>
 	<image>plugin.png</image>
 
 	<!-- Requirements -->
 
 	<requires>
-		<app_version min="8.3" max="8.3.99" />
+		<app_version min="9.0" max="9.0.99" />
 	</requires>
 
 	<!-- Plugin Dependencies -->
@@ -24,6 +24,7 @@
 	
 	<patches>
 		<patch version="8.0.0" revision="2" file="patches/8.0.0.php" />
+		<patch version="9.0.0" revision="4" file="patches/9.0.0.php" />
 	</patches>
 
 	<!-- Classloader -->
@@ -121,6 +122,7 @@
 						<data key="custom_fields" />
 						<data key="links" />
 						<data key="records" />
+						<data key="search" />
 						<data key="snippets" />
 						<data key="va_variable" />
 						<data key="watchers" />
@@ -167,17 +169,29 @@
 			</params>
 		</extension>
 		
-		<!-- Workspace Tabs -->
+		<!-- Profile widgets -->
 		
-		<extension point="cerberusweb.ui.workspace.tab">
-			<id>core.workspace.tab.board</id>
-			<name>Board Workspace Tab</name>
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.project_board</id>
+			<name>Project Board</name>
 			<class>
 				<file>api/App.php</file>
-				<name>WorkspaceTab_Board</name>
+				<name>ProfileWidget_ProjectBoard</name>
 			</class>
 			<params>
-				<param key="label" value="Project Board" />
+			</params>
+		</extension>
+		
+		<!-- Workspace widgets -->
+		
+		<extension point="cerberusweb.ui.workspace.widget">
+			<id>cerb.workspace.widget.project_board</id>
+			<name>Project Board</name>
+			<class>
+				<file>api/App.php</file>
+				<name>WorkspaceWidget_ProjectBoard</name>
+			</class>
+			<params>
 			</params>
 		</extension>
 		

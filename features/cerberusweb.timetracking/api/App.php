@@ -40,17 +40,14 @@
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
 
-if (class_exists('Extension_AppPreBodyRenderer',true)):
-	class ChTimeTrackingPreBodyRenderer extends Extension_AppPreBodyRenderer {
-		function render() {
-			$tpl = DevblocksPlatform::services()->template();
-			$tpl->assign('current_timestamp', time());
-			$tpl->display('devblocks:cerberusweb.timetracking::timetracking/renderers/prebody.tpl');
-		}
-	};
-endif;
+class ChTimeTrackingPreBodyRenderer extends Extension_AppPreBodyRenderer {
+	function render() {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('current_timestamp', time());
+		$tpl->display('devblocks:cerberusweb.timetracking::timetracking/renderers/prebody.tpl');
+	}
+};
 
-if (class_exists('Extension_ContextProfileScript')):
 class ChTimeTrackingProfileScript extends Extension_ContextProfileScript {
 	const ID = 'timetracking.profile_script.timer';
 	
@@ -63,19 +60,16 @@ class ChTimeTrackingProfileScript extends Extension_ContextProfileScript {
 		$tpl->display('devblocks:cerberusweb.timetracking::timetracking/renderers/toolbar_timer.js.tpl');
 	}
 }
-endif;
 
-if (class_exists('Extension_ReplyToolbarItem',true)):
-	class ChTimeTrackingReplyToolbarTimer extends Extension_ReplyToolbarItem {
-		function render(Model_Message $message) {
-			$tpl = DevblocksPlatform::services()->template();
-			
-			$tpl->assign('message', $message); /* @var $message Model_Message */
-			
-			$tpl->display('devblocks:cerberusweb.timetracking::timetracking/renderers/tickets/reply_toolbar_timer.tpl');
-		}
-	};
-endif;
+class ChTimeTrackingReplyToolbarTimer extends Extension_ReplyToolbarItem {
+	function render(Model_Message $message) {
+		$tpl = DevblocksPlatform::services()->template();
+		
+		$tpl->assign('message', $message); /* @var $message Model_Message */
+		
+		$tpl->display('devblocks:cerberusweb.timetracking::timetracking/renderers/tickets/reply_toolbar_timer.tpl');
+	}
+};
 
 class ChTimeTrackingEventListener extends DevblocksEventListenerExtension {
 	/**
@@ -230,7 +224,6 @@ class ChTimeTrackingPage extends CerberusPageExtension {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=time_entry', true),
-//					'toolbar_extension_id' => 'cerberusweb.explorer.toolbar.',
 				);
 				$models[] = $model;
 				
@@ -265,83 +258,3 @@ class ChTimeTrackingPage extends CerberusPageExtension {
 		$this->_destroyTimer();
 	}
 };
-
-if(class_exists('Extension_PageSection')):
-class ChTimeTracking_SetupPageSection extends Extension_PageSection {
-	const ID = 'timetracking.setup.section.timetracking';
-	
-	function render() {
-		$settings = DevblocksPlatform::services()->pluginSettings();
-		$tpl = DevblocksPlatform::services()->template();
-
-		$activities = DAO_TimeTrackingActivity::getWhere();
-		$tpl->assign('activities', $activities);
-		
-		$tpl->display('devblocks:cerberusweb.timetracking::config/activities/index.tpl');
-	}
-
-	function saveAction() {
-		$settings = DevblocksPlatform::services()->pluginSettings();
-		@$plugin_id = DevblocksPlatform::importGPC($_REQUEST['plugin_id'],'string');
-
-		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer',0);
-		@$name = DevblocksPlatform::importGPC($_REQUEST['name'],'string','');
-		@$do_delete = DevblocksPlatform::importGPC($_REQUEST['do_delete'],'integer',0);
-
-		if(empty($name)) {
-			$name = "(no name)";
-		}
-		
-		if(empty($id)) { // Add
-			$fields = array(
-				DAO_TimeTrackingActivity::NAME => $name,
-			);
-			$activity_id = DAO_TimeTrackingActivity::create($fields);
-			
-		} else { // Edit
-			if($do_delete) { // Delete
-				DAO_TimeTrackingActivity::delete($id);
-				
-			} else { // Modify
-				$fields = array(
-					DAO_TimeTrackingActivity::NAME => $name,
-				);
-				DAO_TimeTrackingActivity::update($id, $fields);
-			}
-			
-		}
-		
-		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('config','timetracking')));
-		exit;
-	}
-	
-	function getActivityAction() {
-		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
-		
-		$tpl = DevblocksPlatform::services()->template();
-		
-		if(!empty($id) && null != ($activity = DAO_TimeTrackingActivity::get($id)))
-			$tpl->assign('activity', $activity);
-		
-		$tpl->display('devblocks:cerberusweb.timetracking::config/activities/edit_activity.tpl');
-	}
-}
-endif;
-
-if(class_exists('Extension_PageMenuItem')):
-class ChTimeTracking_SetupPluginsMenuItem extends Extension_PageMenuItem {
-	const ID = 'timetracking.setup.menu.plugins.timetracking';
-	
-	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->display('devblocks:cerberusweb.timetracking::config/menu_item.tpl');
-	}
-}
-endif;
-
-if (class_exists('Extension_ReportGroup',true)):
-class ChReportGroupTimeTracking extends Extension_ReportGroup {
-	// [TODO] This stub is pointless and should be refactored out.
-};
-endif;
-

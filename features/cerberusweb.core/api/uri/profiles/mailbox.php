@@ -17,153 +17,15 @@
 
 class PageSection_ProfilesMailbox extends Extension_PageSection {
 	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
-		$translate = DevblocksPlatform::getTranslationService();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$response = DevblocksPlatform::getHttpResponse();
 		$stack = $response->path;
 		@array_shift($stack); // profiles
 		@array_shift($stack); // mailbox
-		$id = array_shift($stack); // 123
+		@$context_id = intval(array_shift($stack)); // 123
 
-		@$id = intval($id);
+		$context = CerberusContexts::CONTEXT_MAILBOX;
 		
-		if(!$id || (false == ($mailbox = DAO_Mailbox::get($id))))
-			return;
-
-		$tpl->assign('mailbox', $mailbox);
-	
-		// Tab persistence
-		
-		$point = 'profiles.mailbox.tab';
-		$tpl->assign('point', $point);
-		
-		if(null == (@$tab_selected = $stack[0])) {
-			$tab_selected = $visit->get($point, '');
-		}
-		$tpl->assign('tab_selected', $tab_selected);
-	
-		// Properties
-			
-		$properties = array();
-			
-		$properties['enabled'] = array(
-			'label' => mb_ucfirst($translate->_('common.enabled')),
-			'type' => Model_CustomField::TYPE_CHECKBOX,
-			'value' => $mailbox->enabled,
-		);
-		
-		$properties['protocol'] = array(
-			'label' => mb_ucfirst($translate->_('dao.mailbox.protocol')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $mailbox->protocol,
-		);
-			
-		$properties['host'] = array(
-			'label' => mb_ucfirst($translate->_('common.host')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $mailbox->host,
-		);
-			
-		$properties['username'] = array(
-			'label' => mb_ucfirst($translate->_('common.user')),
-			'type' => Model_CustomField::TYPE_SINGLE_LINE,
-			'value' => $mailbox->username,
-		);
-		
-		$properties['port'] = array(
-			'label' => mb_ucfirst($translate->_('dao.mailbox.port')),
-			'type' => Model_CustomField::TYPE_NUMBER,
-			'value' => $mailbox->port,
-		);
-			
-		$properties['num_fails'] = array(
-			'label' => mb_ucfirst($translate->_('dao.mailbox.num_fails')),
-			'type' => Model_CustomField::TYPE_NUMBER,
-			'value' => $mailbox->num_fails,
-		);
-		
-		if($mailbox->delay_until) {
-			$properties['delay_until'] = array(
-				'label' => mb_ucfirst($translate->_('dao.mailbox.delay_until')),
-				'type' => Model_CustomField::TYPE_DATE,
-				'value' => $mailbox->delay_until,
-			);
-		}
-		
-		$properties['delay_until'] = array(
-			'label' => 'Timeout (secs)',
-			'type' => Model_CustomField::TYPE_NUMBER,
-			'value' => $mailbox->timeout_secs,
-		);
-		
-		$properties['max_msg_size_kb'] = array(
-			'label' => 'Max. Msg. Size',
-			'type' => Model_CustomField::TYPE_NUMBER,
-			'value' => DevblocksPlatform::strPrettyBytes($mailbox->max_msg_size_kb * 1000),
-		);
-		
-		$properties['ssl_ignore_validation'] = array(
-			'label' => mb_ucfirst($translate->_('dao.mailbox.ssl_ignore_validation')),
-			'type' => Model_CustomField::TYPE_CHECKBOX,
-			'value' => $mailbox->ssl_ignore_validation,
-		);
-		
-		$properties['auth_disable_plain'] = array(
-			'label' => mb_ucfirst($translate->_('dao.mailbox.auth_disable_plain')),
-			'type' => Model_CustomField::TYPE_CHECKBOX,
-			'value' => $mailbox->auth_disable_plain,
-		);
-		
-		$properties['updated'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
-			'type' => Model_CustomField::TYPE_DATE,
-			'value' => $mailbox->updated_at,
-		);
-			
-	
-		// Custom Fields
-
-		@$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_MAILBOX, $mailbox->id)) or array();
-		$tpl->assign('custom_field_values', $values);
-		
-		$properties_cfields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_MAILBOX, $values);
-		
-		if(!empty($properties_cfields))
-			$properties = array_merge($properties, $properties_cfields);
-		
-		// Custom Fieldsets
-
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_MAILBOX, $mailbox->id, $values);
-		$tpl->assign('properties_custom_fieldsets', $properties_custom_fieldsets);
-		
-		// Link counts
-		
-		$properties_links = array(
-			CerberusContexts::CONTEXT_MAILBOX => array(
-				$mailbox->id => 
-					DAO_ContextLink::getContextLinkCounts(
-						CerberusContexts::CONTEXT_MAILBOX,
-						$mailbox->id,
-						array(CerberusContexts::CONTEXT_CUSTOM_FIELDSET)
-					),
-			),
-		);
-		
-		$tpl->assign('properties_links', $properties_links);
-		
-		// Properties
-		
-		$tpl->assign('properties', $properties);
-			
-		// Tabs
-		$tab_manifests = Extension_ContextProfileTab::getExtensions(false, CerberusContexts::CONTEXT_MAILBOX);
-		$tpl->assign('tab_manifests', $tab_manifests);
-		
-		// Template
-		$tpl->display('devblocks:cerberusweb.core::profiles/mailbox.tpl');
+		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
 	function savePeekJsonAction() {
@@ -412,7 +274,6 @@ class PageSection_ProfilesMailbox extends Extension_PageSection {
 //					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=mailbox', true),
-					'toolbar_extension_id' => 'cerberusweb.contexts.mailbox.explore.toolbar',
 				);
 				$models[] = $model;
 				
