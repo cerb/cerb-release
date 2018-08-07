@@ -46,6 +46,7 @@ final class Encoding
      * @throws Ex\EnvironmentIsBrokenException
      *
      * @return string
+     * @psalm-suppress TypeDoesNotContainType
      */
     public static function hexToBin($hex_string)
     {
@@ -178,11 +179,10 @@ final class Encoding
     {
         // Headers must be a constant length to prevent one type's header from
         // being a prefix of another type's header, leading to ambiguity.
-        if (Core::ourStrlen($header) !== self::SERIALIZE_HEADER_BYTES) {
-            throw new Ex\EnvironmentIsBrokenException(
-                'Header must be ' . self::SERIALIZE_HEADER_BYTES . ' bytes.'
-            );
-        }
+        Core::ensureTrue(
+            Core::ourStrlen($header) === self::SERIALIZE_HEADER_BYTES,
+            'Header must be ' . self::SERIALIZE_HEADER_BYTES . ' bytes.'
+        );
 
         return Encoding::binToHex(
             $header .
@@ -211,11 +211,10 @@ final class Encoding
     {
         // Headers must be a constant length to prevent one type's header from
         // being a prefix of another type's header, leading to ambiguity.
-        if (Core::ourStrlen($expected_header) !== self::SERIALIZE_HEADER_BYTES) {
-            throw new Ex\EnvironmentIsBrokenException(
-                'Header must be 4 bytes.'
-            );
-        }
+        Core::ensureTrue(
+            Core::ourStrlen($expected_header) === self::SERIALIZE_HEADER_BYTES,
+            'Header must be 4 bytes.'
+        );
 
         /* If you get an exception here when attempting to load from a file, first pass your
            key to Encoding::trimTrailingWhitespace() to remove newline characters, etc.      */

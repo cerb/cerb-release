@@ -46,6 +46,16 @@ What this library provides is symmetric encryption for "data at rest." This
 means it is not suitable for use in building protocols where "data is in motion"
 (i.e. moving over a network) except in limited set of cases.
 
+Please note that **encryption does not, and is not intended to, hide the
+*length* of the data being encrypted.** For example, it is not safe to encrypt
+a field in which only a small number of different-length values are possible
+(e.g. "male" or "female") since it would be possible to tell what the plaintext
+is by looking at the length of the ciphertext. In order to do this safely, it is
+your responsibility to, before encrypting, pad the data out to the length of the
+longest string that will ever be encrypted. This way, all plaintexts are the
+same length, and no information about the plaintext can be gleaned from the
+length of the ciphertext.
+
 Getting the Code
 -----------------
 
@@ -210,6 +220,12 @@ function CreateUserAccount($username, $password)
     // ... save $protected_key_encoded into the user's account record
 }
 ```
+
+**WARNING:** Because of the way `KeyProtectedByPassword` is implemented, knowing
+`SHA256($password)` is enough to decrypt a `KeyProtectedByPassword`. To be
+secure, your application MUST NOT EVER compute `SHA256($password)` and use or
+store it for any reason. You must also make sure that other libraries your
+application is using don't compute it either.
 
 Then, when the user logs in, Dave's code will load the protected key from the
 user's account record, unlock it to get a `Key` object, and save the `Key`
