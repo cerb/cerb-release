@@ -200,15 +200,15 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 		$tpl->assign('workers', $workers);
 		
 		// Custom Fields: Address
-		$address_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_ADDRESS);
+		$address_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_ADDRESS, true, true);
 		$tpl->assign('address_fields', $address_fields);
 		
 		// Custom Fields: Orgs
-		$org_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_ORG);
+		$org_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_ORG, true, true);
 		$tpl->assign('org_fields', $org_fields);
 
 		// Custom Fields: Ticket
-		$ticket_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_TICKET);
+		$ticket_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_TICKET, true, true);
 		$tpl->assign('ticket_fields', $ticket_fields);
 		
 		$tpl->display('devblocks:cerberusweb.core::configuration/section/mail_incoming/tabs/mail_routing_peek.tpl');
@@ -310,11 +310,17 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 								$criteria['oper'] = $oper;
 								break;
 								
+							case Model_CustomField::TYPE_CURRENCY:
+							case Model_CustomField::TYPE_DECIMAL:
+								$oper = DevblocksPlatform::importGPC($_REQUEST['value_cf_'.$field_id.'_oper'],'string','=');
+								$criteria['oper'] = $oper;
+								break;
+								
 							case Model_CustomField::TYPE_DROPDOWN:
 							case Model_CustomField::TYPE_MULTI_CHECKBOX:
 							case Model_CustomField::TYPE_WORKER:
-								$in_array = DevblocksPlatform::importGPC($_REQUEST['value_cf_'.$field_id],'array',array());
-								$out_array = array();
+								$in_array = DevblocksPlatform::importGPC($_REQUEST['value_cf_'.$field_id],'array',[]);
+								$out_array = [];
 								
 								// Hash key on the option for quick lookup later
 								if(is_array($in_array))
@@ -357,7 +363,7 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 		// Actions
 		if(is_array($do))
 		foreach($do as $act) {
-			$action = array();
+			$action = [];
 			
 			switch($act) {
 				// Move group/bucket
@@ -375,16 +381,20 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 					if("cf_" == substr($act,0,3)) {
 						$field_id = intval(substr($act,3));
 						
-						if(!isset($custom_fields[$field_id]))
+						@$custom_field = $custom_fields[$field_id];
+						
+						if(!$custom_field)
 							continue;
 
-						$action = array();
+						$action = [];
 						
 						switch($custom_fields[$field_id]->type) {
-							case Model_CustomField::TYPE_SINGLE_LINE:
-							case Model_CustomField::TYPE_MULTI_LINE:
-							case Model_CustomField::TYPE_URL:
+							case Model_CustomField::TYPE_CURRENCY:
+							case Model_CustomField::TYPE_DECIMAL:
 							case Model_CustomField::TYPE_DROPDOWN:
+							case Model_CustomField::TYPE_MULTI_LINE:
+							case Model_CustomField::TYPE_SINGLE_LINE:
+							case Model_CustomField::TYPE_URL:
 							case Model_CustomField::TYPE_WORKER:
 								$value = DevblocksPlatform::importGPC($_REQUEST['do_cf_'.$field_id],'string','');
 								$action['value'] = $value;

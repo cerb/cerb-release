@@ -335,13 +335,14 @@ abstract class C4_AbstractView {
 			foreach($params_required as $key => $param) {
 				$params['req_'.$key] = $param;
 			}
-			
-			// Quick search
-			if($this->_paramsRequiredQuery) {
-				if(false != ($params_required = $this->getParamsFromQuickSearch($this->_paramsRequiredQuery))) {
-					foreach($params_required as $key => $param) {
-						$params['req_'.$key] = $param;
-					}
+		}
+		
+		// Required quick search
+		
+		if($this->_paramsRequiredQuery) {
+			if(false != ($params_required = $this->getParamsFromQuickSearch($this->_paramsRequiredQuery))) {
+				foreach($params_required as $key => $param) {
+					$params['req_'.$key] = $param;
 				}
 			}
 		}
@@ -374,7 +375,7 @@ abstract class C4_AbstractView {
 	
 	function addParam($param, $key=null) {
 		if(!$key || is_numeric($key))
-			$key = uniqid();
+			$key = substr(sha1(json_encode($param)), 0, 16);
 		
 		$this->_paramsEditable[$key] = $param;
 	}
@@ -4459,10 +4460,12 @@ class C4_AbstractViewLoader {
 		
 		$worker_id = $active_worker->id;
 		
+		$exit_model = self::serializeViewToAbstractJson($view, $view->getContext());
+		
 		// Is the view dirty? (do we need to persist it?)
 		if(false != ($_init_checksum = @$view->_init_checksum)) {
 			unset($view->_init_checksum);
-			$_exit_checksum = sha1(serialize($view));
+			$_exit_checksum = sha1($exit_model);
 			
 			// If the view model is not dirty (we wouldn't end up changing anything in the database)
 			if($_init_checksum == $_exit_checksum) {
@@ -4470,9 +4473,8 @@ class C4_AbstractViewLoader {
 			}
 		}
 		
-		$model = self::serializeAbstractView($view);
-		
-		DAO_WorkerViewModel::setView($worker_id, $view_id, $model);
+		$exit_model = self::serializeAbstractView($view);
+		DAO_WorkerViewModel::setView($worker_id, $view_id, $exit_model);
 	}
 
 	static function deleteView($view_id, $worker_id=null) {
@@ -4598,13 +4600,8 @@ class C4_AbstractViewLoader {
 		unset($parent);
 		
 		if($checksum) {
-			// If the param keys changed during unserialization, then consider everything changed
-			if(array_keys($model->paramsEditable) != array_keys($inst->getParams(false))) {
-				$inst->_init_checksum = sha1(mt_rand());
-				
-			} else {
-				$inst->_init_checksum = sha1(serialize($inst));
-			}
+			$init_model = C4_AbstractViewLoader::serializeViewToAbstractJson($inst, $inst->getContext());
+			$inst->_init_checksum = sha1($init_model);
 		}
 		
 		return $inst;
@@ -4616,8 +4613,8 @@ class C4_AbstractViewLoader {
 			'columns' => $view->view_columns,
 			'params' => json_decode(json_encode($view->getEditableParams()), true),
 			'limit' => intval($view->renderLimit),
-			'sort_by' => $view->renderSortBy,
-			'sort_asc' => $view->renderSortAsc,
+			'sort_by' => is_array($view->renderSortBy) ? $view->renderSortBy : [$view->renderSortBy],
+			'sort_asc' => is_array($view->renderSortAsc) ? $view->renderSortAsc : [$view->renderSortAsc],
 			'subtotals' => $view->renderSubtotals,
 		);
 		
@@ -4701,14 +4698,8 @@ class C4_AbstractViewLoader {
 			$view->setPlaceholderValues($values);
 		}
 		
-		// If the param keys changed during unserialization, then consider everything changed
-		$view_params = $view->getParams(false);
-		if(isset($view_model['params']) && is_array($view_model['params']) && is_array($view_params) && array_keys($view_model['params']) != array_keys($view_params)) {
-			$view->_init_checksum = sha1(mt_rand());
-			
-		} else {
-			$view->_init_checksum = sha1(serialize($view));
-		}
+		$init_model = C4_AbstractViewLoader::serializeViewToAbstractJson($view, $view->getContext());
+		$view->_init_checksum = sha1($init_model);
 		
 		return $view;
 	}
@@ -5042,6 +5033,22 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 		return $db->ExecuteMaster(sprintf("DELETE FROM worker_view_model WHERE worker_id = %d AND view_id = %s",
 			$worker_id,
 			$db->qstr($view_id)
+		));
+	}
+	
+	static public function deleteByViewId($view_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		return $db->ExecuteMaster(sprintf("DELETE FROM worker_view_model WHERE view_id = %s",
+			$db->qstr($view_id)
+		));
+	}
+	
+	static public function deleteByViewIdPrefix($view_id) {
+		$db = DevblocksPlatform::services()->database();
+		
+		return $db->ExecuteMaster(sprintf("DELETE FROM worker_view_model WHERE view_id LIKE %s",
+			$db->qstr($view_id . '%')
 		));
 	}
 	

@@ -991,23 +991,22 @@ class ProfileWidget_Worklist extends Extension_ProfileWidget {
 		if(false == $view_context || false == ($view_context_ext = Extension_DevblocksContext::get($view_context)))
 			return;
 		
-		if(false == ($view = $view_context_ext->getSearchView($view_id)))
-			return;
-		
-		if($view->getContext() != $view_context_ext->id) {
-			DAO_WorkerViewModel::deleteView(CerberusApplication::getActiveWorker()->id, $view_id);
+		if(null == ($view = C4_AbstractViewLoader::getView($view_id))) {
+			$defaults = C4_AbstractViewModel::loadFromClass($view_context_ext->getViewClass());
+			$defaults->id = $view_id;
+			$defaults->is_ephemeral = true;
+			$defaults->options = [];
+			$defaults->name = ' ';
+			$defaults->paramsEditable = [];
+			$defaults->paramsDefault = [];
+			$defaults->view_columns = $model->extension_params['columns'];
+			$defaults->options['header_color'] = @$model->extension_params['header_color'] ?: '#626c70';
+			$defaults->renderLimit = DevblocksPlatform::intClamp(@$model->extension_params['render_limit'], 1, 50);
 			
-			if(false == ($view = $view_context_ext->getSearchView($view_id)))
+			if(false == ($view = C4_AbstractViewLoader::unserializeAbstractView($defaults, false)))
 				return;
 		}
 		
-		$view->name = ' ';
-		$view->addParams([], true);
-		$view->addParamsDefault([], true);
-		$view->is_ephemeral = true;
-		$view->view_columns = @$model->extension_params['columns'] ?: $view->view_columns;
-		$view->options['header_color'] = @$model->extension_params['header_color'] ?: '#626c70';
-		$view->renderLimit = DevblocksPlatform::intClamp(@$model->extension_params['render_limit'], 1, 50);
 		$view->renderPage = 0;
 		
 		$dict = DevblocksDictionaryDelegate::instance([
@@ -1032,8 +1031,6 @@ class ProfileWidget_Worklist extends Extension_ProfileWidget {
 		$view->setParamsQuery($query);
 		$view->addParamsWithQuickSearch($query);
 		
-		$view->persist();
-		
 		$tpl->assign('view', $view);
 		$tpl->display('devblocks:cerberusweb.core::internal/views/search_and_view.tpl');
 	}
@@ -1057,6 +1054,12 @@ class ProfileWidget_Worklist extends Extension_ProfileWidget {
 	}
 	
 	function saveConfig(array $fields, $id=null, &$error=null) {
+		if($id) {
+			// Remove worker view models
+			$view_id = sprintf('profile_widget_%d_', $id);
+			DAO_WorkerViewModel::deleteByViewIdPrefix($view_id);
+		}
+		
 		return true;
 	}
 	
@@ -2002,7 +2005,7 @@ class ProfileWidget_Fields extends Extension_ProfileWidget {
 				if(false == ($search_button_context = Extension_DevblocksContext::get($search_button['context'], true)))
 					continue;
 				
-				if(false == ($view = $search_button_context->getSearchView()))
+				if(false == ($view = $search_button_context->getTempView()))
 					continue;
 				
 				$label_aliases = Extension_DevblocksContext::getAliasesForContext($search_button_context->manifest);
