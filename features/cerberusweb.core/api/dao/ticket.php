@@ -306,74 +306,6 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		);
 	}
 	
-	static function getViewCountForRequesterHistory($view_id, $dict, $scope=null) {
-		$view = self::getViewForRequesterHistory($view_id, $dict, $scope);
-		list($results, $count) = $view->getData();
-		return $count;
-	}
-	
-	static function getViewForRequesterHistory($view_id, DevblocksDictionaryDelegate $dict, $scope=null) {
-		/* @var $ticket Model_Ticket */
-		$translate = DevblocksPlatform::getTranslationService();
-		
-		// Defaults
-		$defaults = C4_AbstractViewModel::loadFromClass('View_Ticket');
-		$defaults->id = $view_id;
-		$defaults->name = $translate->_('addy_book.history.view.title');
-		
-		// View
-		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
-		
-		// Sanitize scope options
-		if('org'==$scope) {
-			if(empty($dict->org_id))
-				$scope = '';
-		}
-		
-		if('domain'==$scope) {
-			$email_parts = explode('@', $dict->initial_message_sender_address);
-			if(!is_array($email_parts) || 2 != count($email_parts))
-				$scope = '';
-		}
-
-		switch($scope) {
-			case 'org':
-				$view->addParamsRequired(array(
-					SearchFields_Ticket::TICKET_ORG_ID => new DevblocksSearchCriteria(SearchFields_Ticket::TICKET_ORG_ID,'=',$dict->org_id),
-					SearchFields_Ticket::TICKET_STATUS_ID => new DevblocksSearchCriteria(SearchFields_Ticket::TICKET_STATUS_ID,'!=',Model_Ticket::STATUS_DELETED),
-				), true);
-				$view->name = 'History: Tickets from this organization';
-				break;
-				
-			case 'domain':
-				$view->addParamsRequired(array(
-					SearchFields_Ticket::VIRTUAL_PARTICIPANT_SEARCH => new DevblocksSearchCriteria(SearchFields_Ticket::VIRTUAL_PARTICIPANT_SEARCH, DevblocksSearchCriteria::OPER_CUSTOM, 'host:' . $email_parts[1]),
-					SearchFields_Ticket::TICKET_STATUS_ID => new DevblocksSearchCriteria(SearchFields_Ticket::TICKET_STATUS_ID,'!=',Model_Ticket::STATUS_DELETED),
-				), true);
-				$view->name = 'History: Tickets from *@' . $email_parts[1];
-				break;
-				
-			default:
-			case 'email':
-				$scope = 'email';
-				$requesters = $dict->requesters;
-				
-				if(!is_array($requesters))
-					break;
-				
-				$view->addParamsRequired(array(
-					SearchFields_Ticket::REQUESTER_ID => new DevblocksSearchCriteria(SearchFields_Ticket::REQUESTER_ID,'in',array_keys($requesters)),
-					SearchFields_Ticket::TICKET_STATUS_ID => new DevblocksSearchCriteria(SearchFields_Ticket::TICKET_STATUS_ID,'!=',Model_Ticket::STATUS_DELETED),
-				), true);
-				$view->name = "History: Tickets from these participants";
-				break;
-		}
-		
-		$view->renderPage = 0;
-		
-		return $view;
-	}
-	
 	static function getParticipants($ticket_id) {
 		$db = DevblocksPlatform::services()->database();
 		
@@ -902,7 +834,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		}
 	}
 	
-	static public function onBeforeUpdateByActor($actor, $fields, $id=null, &$error=null) {
+	static public function onBeforeUpdateByActor($actor, &$fields, $id=null, &$error=null) {
 		$context = CerberusContexts::CONTEXT_TICKET;
 		
 		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
@@ -919,6 +851,22 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			if(!$group_id || false == DAO_Group::get($group_id)) {
 				$error = "Invalid 'group_id' value.";
 				return false;
+			}
+		}
+		
+		// If we have only a bucket_id and no group_id then figure it out
+		
+		if(isset($fields[self::BUCKET_ID])) {
+			@$group_id = $fields[self::GROUP_ID];
+			@$bucket_id = $fields[self::BUCKET_ID];
+			
+			if(!$bucket_id || false == ($bucket = DAO_Bucket::get($bucket_id))) {
+				$error = "Invalid 'bucket_id' value.";
+				return false;
+			}
+			
+			if(!$group_id) {
+				$fields[self::GROUP_ID] = $bucket->group_id;
 			}
 		}
 		
