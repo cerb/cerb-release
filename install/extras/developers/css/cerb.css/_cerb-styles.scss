@@ -3,17 +3,6 @@
 
 // Cerb custom styles
 
-// Logo
-
-#cerb-logo {
-	display: inline-block;
-	max-width: 100vw;
-	background: url(../../common/images/logo.png) no-repeat;
-	background-size: contain;
-	width: 281px;
-	height: 80px;
-}
-
 // Forms
 
 DIV.cerb-form {
@@ -1796,4 +1785,16 @@ div.cerb-uploads {
 			font-weight: bold;
 		}
 	}
+}
+
+// jQuery overrides
+
+.ui-dialog .ui-dialog-titlebar-minmax {
+	position: absolute;
+	right: 2.0em;
+	top: 50%;
+	width: 20px;
+	margin: -10px 0 0 0;
+	padding: 1px;
+	height: 20px;
 }

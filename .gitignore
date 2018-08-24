@@ -4,3 +4,5 @@
 .externalToolBuilders
 /phpunit.phar
 /tags
+/vendor/
+storage/logo

@@ -131,15 +131,6 @@ BUTTON SPAN {
   vertical-align: middle;
 }
 
-#cerb-logo {
-  display: inline-block;
-  max-width: 100vw;
-  background: url(../../common/images/logo.png) no-repeat;
-  background-size: contain;
-  width: 281px;
-  height: 80px;
-}
-
 DIV.cerb-form {
   margin: 0px 0px 10px 0px;
 }
@@ -1744,6 +1735,16 @@ div.cerb-uploads p.success {
 div.cerb-uploads p.failure {
   background: #ff3c64 none 0 0 no-repeat;
   font-weight: bold;
+}
+
+.ui-dialog .ui-dialog-titlebar-minmax {
+  position: absolute;
+  right: 2.0em;
+  top: 50%;
+  width: 20px;
+  margin: -10px 0 0 0;
+  padding: 1px;
+  height: 20px;
 }
 
 @keyframes cerb-badge-bounce {
