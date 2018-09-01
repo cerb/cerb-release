@@ -1567,7 +1567,6 @@ class WorkspaceWidget_ChartCategories extends Extension_WorkspaceWidget implemen
 	function render(Model_WorkspaceWidget $widget) {
 		$tpl = DevblocksPlatform::services()->template();
 		
-		@$xaxis_key = DevblocksPlatform::importGPC($widget->params['xaxis_key'], 'string', 'label');
 		@$xaxis_format = DevblocksPlatform::importGPC($widget->params['xaxis_format'], 'string', '');
 		@$yaxis_format = DevblocksPlatform::importGPC($widget->params['yaxis_format'], 'string', '');
 		@$height = DevblocksPlatform::importGPC($widget->params['height'], 'integer', 0);
@@ -1581,6 +1580,8 @@ class WorkspaceWidget_ChartCategories extends Extension_WorkspaceWidget implemen
 			echo "(no data)";
 			return;
 		}
+		
+		@$xaxis_key = $results['_']['format_params']['xaxis_key'] ?: '';
 		
 		$config_json = [
 			'bindto' => sprintf("#widget%d", $widget->id),
@@ -1608,7 +1609,7 @@ class WorkspaceWidget_ChartCategories extends Extension_WorkspaceWidget implemen
 				],
 				'y' => [
 					'tick' => [
-						'rotate' => 60,
+						'rotate' => -90,
 						'format' => null
 					]
 				]
@@ -1910,7 +1911,9 @@ class WorkspaceWidget_ChartScatterplot extends Extension_WorkspaceWidget impleme
 	
 	function render(Model_WorkspaceWidget $widget) {
 		@$xaxis_format = DevblocksPlatform::importGPC($widget->params['xaxis_format'], 'string', '');
+		@$xaxis_label = DevblocksPlatform::importGPC($widget->params['xaxis_label'], 'string', '');
 		@$yaxis_format = DevblocksPlatform::importGPC($widget->params['yaxis_format'], 'string', '');
+		@$yaxis_label = DevblocksPlatform::importGPC($widget->params['yaxis_label'], 'string', '');
 		@$height = DevblocksPlatform::importGPC($widget->params['height'], 'integer', 0);
 		
 		$tpl = DevblocksPlatform::services()->template();
@@ -1937,6 +1940,7 @@ class WorkspaceWidget_ChartScatterplot extends Extension_WorkspaceWidget impleme
 					'tick' => [
 						'format' => null,
 						'fit' => false,
+						'rotate' => -90,
 					]
 				],
 				'y' => [
@@ -1949,12 +1953,18 @@ class WorkspaceWidget_ChartScatterplot extends Extension_WorkspaceWidget impleme
 		];
 		
 		foreach($results['data'] as $result) {
-			if(DevblocksPlatform::strEndsWith($result[0], '_x'))
+			if(@DevblocksPlatform::strEndsWith($result[0], '_x'))
 				$config_json['data']['xs'][mb_substr($result[0],0,-2)] = $result[0];
 		}
 		
 		if($height)
 			$config_json['size'] = ['height' => $height];
+		
+		if($xaxis_label)
+			$config_json['axis']['x']['label'] = $xaxis_label;
+		
+		if($yaxis_label)
+			$config_json['axis']['y']['label'] = $yaxis_label;
 		
 		$tpl->assign('config_json', json_encode($config_json));
 		$tpl->assign('xaxis_format', $xaxis_format);
@@ -2232,10 +2242,9 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 		@$subchart = DevblocksPlatform::importGPC($widget->params['subchart'], 'int', 0);
 		@$chart_as = DevblocksPlatform::importGPC($widget->params['chart_as'], 'string', 'line');
 		@$options = DevblocksPlatform::importGPC($widget->params['options'], 'array', []);
-		@$xaxis_key = DevblocksPlatform::importGPC($widget->params['xaxis_key'], 'string', 'ts');
-		@$xaxis_format = DevblocksPlatform::importGPC($widget->params['xaxis_format'], 'string', '%Y-%m-%d');
+		@$xaxis_label = DevblocksPlatform::importGPC($widget->params['xaxis_label'], 'string', '');
+		@$yaxis_label = DevblocksPlatform::importGPC($widget->params['yaxis_label'], 'string', '');
 		@$yaxis_format = DevblocksPlatform::importGPC($widget->params['yaxis_format'], 'string', '');
-		@$xaxis_tick_format = DevblocksPlatform::importGPC($widget->params['xaxis_tick_format'], 'string', '');
 		@$height = DevblocksPlatform::importGPC($widget->params['height'], 'integer', 0);
 		
 		if(false === ($results = $this->getData($widget, $error))) {
@@ -2253,6 +2262,10 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 			return;
 		}
 		
+		// Error
+		$xaxis_key = @$results['_']['format_params']['xaxis_key'];
+		$xaxis_format = @$results['_']['format_params']['xaxis_format'];
+		
 		$config_json = [
 			'bindto' => sprintf("#widget%d", $widget->id),
 			'data' => [
@@ -2265,12 +2278,13 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 				'x' => [
 					'type' => 'timeseries',
 					'tick' => [
-						'fit' => true,
+						'rotate' => -90,
+						'fit' => false,
 					]
 				],
 				'y' => [
 					'tick' => [
-						'fit' => true,
+						'fit' => false,
 					]
 				]
 			],
@@ -2290,8 +2304,8 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 		
 		$config_json['data']['xFormat']  = $xaxis_format;
 		
-		if($xaxis_tick_format)
-			$config_json['axis']['x']['tick']['format']  = $xaxis_tick_format;
+		if($xaxis_format)
+			$config_json['axis']['x']['tick']['format']  = $xaxis_format;
 		
 		$config_json['subchart']['show']  = @$options['subchart'] ? true : false;
 		$config_json['legend']['show']  = @$options['show_legend'] ? true : false;
@@ -2307,19 +2321,31 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 				break;
 				
 			case 'area':
-				$config_json['data']['type']  = 'area';
+				$config_json['data']['type']  = 'area-step';
 				$config_json['data']['groups'] = [array_values(array_diff(array_keys($results['data']), [$xaxis_key]))];
 				break;
 				
 			case 'bar':
-				$config_json['data']['type']  = 'bar';
+				$config_json['data']['type'] = 'bar';
+				$config_json['bar']['width'] = [
+					'ratio' => 0.6,
+				];
 				break;
 				
 			case 'bar_stacked':
 				$config_json['data']['type']  = 'bar';
+				$config_json['bar']['width'] = [
+					'ratio' => 0.6,
+				];
 				$config_json['data']['groups'] = [array_values(array_diff(array_keys($results['data']), [$xaxis_key]))];
 				break;
 		}
+		
+		if($xaxis_label)
+			$config_json['axis']['x']['label'] = $xaxis_label;
+		
+		if($yaxis_label)
+			$config_json['axis']['y']['label'] = $yaxis_label;
 		
 		if($height)
 			$config_json['size'] = ['height' => $height];

@@ -2054,9 +2054,9 @@ class ProfileWidget_TicketConvo extends Extension_ProfileWidget {
 	
 	private function _showConversationAction($id, $display_options=[]) {
 		@$expand_all = DevblocksPlatform::importVar($display_options['expand_all'], 'bit', 0);
-
+		
 		$tpl = DevblocksPlatform::services()->template();
-
+		
 		@$active_worker = CerberusApplication::getActiveWorker();
 		
 		$prefs_mail_always_read_all = DAO_WorkerPref::get($active_worker->id, 'mail_always_read_all', 0);
@@ -2169,7 +2169,7 @@ class ProfileWidget_TicketConvo extends Extension_ProfileWidget {
 			}
 		}
 		
-		// sort the timeline
+		// Sort the timeline
 		if(!$expand_all) {
 			krsort($convo_timeline);
 		} else {
@@ -2234,7 +2234,6 @@ class ProfileWidget_ChartCategories extends Extension_ProfileWidget {
 	
 	function render(Model_ProfileWidget $model, $context, $context_id, $refresh_options=[]) {
 		@$data_query = DevblocksPlatform::importGPC($model->extension_params['data_query'], 'string', null);
-		@$xaxis_key = DevblocksPlatform::importGPC($model->extension_params['xaxis_key'], 'string', 'label');
 		@$xaxis_format = DevblocksPlatform::importGPC($model->extension_params['xaxis_format'], 'string', 'label');
 		@$yaxis_format = DevblocksPlatform::importGPC($model->extension_params['yaxis_format'], 'string', 'label');
 		@$height = DevblocksPlatform::importGPC($model->extension_params['height'], 'integer', 0);
@@ -2268,6 +2267,8 @@ class ProfileWidget_ChartCategories extends Extension_ProfileWidget {
 			return;
 		}
 		
+		@$xaxis_key = $results['_']['format_params']['xaxis_key'] ?: '';
+		
 		if(!array_key_exists('data', $results))
 			return;
 		
@@ -2300,7 +2301,7 @@ class ProfileWidget_ChartCategories extends Extension_ProfileWidget {
 						'format' => null,
 						'multiline' => true,
 						'multilineMax' => 2,
-						'rotate' => 60,
+						'rotate' => -90,
 					]
 				]
 			],
@@ -2440,7 +2441,9 @@ class ProfileWidget_ChartScatterplot extends Extension_ProfileWidget {
 	
 	function render(Model_ProfileWidget $model, $context, $context_id, $refresh_options=[]) {
 		@$data_query = DevblocksPlatform::importGPC($model->extension_params['data_query'], 'string', null);
+		@$xaxis_label = DevblocksPlatform::importGPC($model->extension_params['xaxis_label'], 'string', '');
 		@$xaxis_format = DevblocksPlatform::importGPC($model->extension_params['xaxis_format'], 'string', '');
+		@$yaxis_label = DevblocksPlatform::importGPC($model->extension_params['yaxis_label'], 'string', '');
 		@$yaxis_format = DevblocksPlatform::importGPC($model->extension_params['yaxis_format'], 'string', '');
 		@$height = DevblocksPlatform::importGPC($model->extension_params['height'], 'integer', 0);
 		
@@ -2485,6 +2488,7 @@ class ProfileWidget_ChartScatterplot extends Extension_ProfileWidget {
 					'tick' => [
 						'format' => null,
 						'fit' => false,
+						'rotate' => -90,
 					]
 				],
 				'y' => [
@@ -2497,9 +2501,15 @@ class ProfileWidget_ChartScatterplot extends Extension_ProfileWidget {
 		];
 		
 		foreach($results['data'] as $result) {
-			if(DevblocksPlatform::strEndsWith($result[0], '_x'))
+			if(@DevblocksPlatform::strEndsWith($result[0], '_x'))
 				$config_json['data']['xs'][mb_substr($result[0],0,-2)] = $result[0];
 		}
+		
+		if($xaxis_label)
+			$config_json['axis']['x']['label'] = $xaxis_label;
+		
+		if($yaxis_label)
+			$config_json['axis']['y']['label'] = $yaxis_label;
 		
 		if($height)
 			$config_json['size'] = ['height' => $height];
@@ -2580,10 +2590,9 @@ class ProfileWidget_ChartTimeSeries extends Extension_ProfileWidget {
 		@$subchart = DevblocksPlatform::importGPC($model->extension_params['subchart'], 'int', 0);
 		@$chart_as = DevblocksPlatform::importGPC($model->extension_params['chart_as'], 'string', 'line');
 		@$options = DevblocksPlatform::importGPC($model->extension_params['options'], 'array', []);
-		@$xaxis_key = DevblocksPlatform::importGPC($model->extension_params['xaxis_key'], 'string', 'ts');
-		@$xaxis_format = DevblocksPlatform::importGPC($model->extension_params['xaxis_format'], 'string', '%Y-%m-%d');
+		@$xaxis_label = DevblocksPlatform::importGPC($model->extension_params['xaxis_label'], 'string', '');
+		@$yaxis_label = DevblocksPlatform::importGPC($model->extension_params['yaxis_label'], 'string', '');
 		@$yaxis_format = DevblocksPlatform::importGPC($model->extension_params['yaxis_format'], 'string', '');
-		@$xaxis_tick_format = DevblocksPlatform::importGPC($model->extension_params['xaxis_tick_format'], 'string', '');
 		@$height = DevblocksPlatform::importGPC($model->extension_params['height'], 'integer', 0);
 		
 		$tpl = DevblocksPlatform::services()->template();
@@ -2619,6 +2628,10 @@ class ProfileWidget_ChartTimeSeries extends Extension_ProfileWidget {
 			return;
 		}
 		
+		// Error
+		$xaxis_key = @$results['_']['format_params']['xaxis_key'];
+		$xaxis_format = @$results['_']['format_params']['xaxis_format'];
+		
 		$config_json = [
 			'bindto' => sprintf("#widget%d", $model->id),
 			'data' => [
@@ -2631,12 +2644,13 @@ class ProfileWidget_ChartTimeSeries extends Extension_ProfileWidget {
 				'x' => [
 					'type' => 'timeseries',
 					'tick' => [
-						'fit' => true,
+						'rotate' => -90,
+						'fit' => false,
 					]
 				],
 				'y' => [
 					'tick' => [
-						'fit' => true,
+						'fit' => false,
 					]
 				]
 			],
@@ -2647,17 +2661,17 @@ class ProfileWidget_ChartTimeSeries extends Extension_ProfileWidget {
 				]
 			],
 			'legend' => [
-				'show' => true
+				'show' => true,
 			],
 			'point' => [
-				'show' => true
+				'show' => true,
 			]
 		];
 		
 		$config_json['data']['xFormat']  = $xaxis_format;
 		
-		if($xaxis_tick_format)
-			$config_json['axis']['x']['tick']['format']  = $xaxis_tick_format;
+		if($xaxis_format)
+			$config_json['axis']['x']['tick']['format']  = $xaxis_format;
 		
 		$config_json['subchart']['show']  = @$options['subchart'] ? true : false;
 		$config_json['legend']['show']  = @$options['show_legend'] ? true : false;
@@ -2673,19 +2687,31 @@ class ProfileWidget_ChartTimeSeries extends Extension_ProfileWidget {
 				break;
 				
 			case 'area':
-				$config_json['data']['type']  = 'area';
+				$config_json['data']['type']  = 'area-step';
 				$config_json['data']['groups'] = [array_values(array_diff(array_keys($results['data']), [$xaxis_key]))];
 				break;
 				
 			case 'bar':
-				$config_json['data']['type']  = 'bar';
+				$config_json['data']['type'] = 'bar';
+				$config_json['bar']['width'] = [
+					'ratio' => 0.6,
+				];
 				break;
 				
 			case 'bar_stacked':
 				$config_json['data']['type']  = 'bar';
+				$config_json['bar']['width'] = [
+					'ratio' => 0.6,
+				];
 				$config_json['data']['groups'] = [array_values(array_diff(array_keys($results['data']), [$xaxis_key]))];
 				break;
 		}
+		
+		if($xaxis_label)
+			$config_json['axis']['x']['label'] = $xaxis_label;
+		
+		if($yaxis_label)
+			$config_json['axis']['y']['label'] = $yaxis_label;
 		
 		if($height)
 			$config_json['size'] = ['height' => $height];

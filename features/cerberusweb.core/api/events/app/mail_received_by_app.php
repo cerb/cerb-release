@@ -55,6 +55,7 @@ class Event_MailReceivedByApp extends Extension_DevblocksEvent {
 		$parser_message->headers['bcc'] = 'secret@example.com';
 		$parser_message->headers['subject'] = 'This is the subject';
 		$parser_message->body = "This is the message body\r\nOn more than one line.\r\n";
+		$parser_message->htmlbody = "This is the message body\r\n<i>with</i> <b>some</b> <span style='color:red;'>formatting</span>.\r\n";
 		$parser_message->build();
 		
 		if(empty($parser_model) || !($parser_model instanceof CerberusParserModel)) {
@@ -104,6 +105,9 @@ class Event_MailReceivedByApp extends Extension_DevblocksEvent {
 		$labels['body'] = $prefix.'body';
 		$values['body'] = '';
 		
+		$labels['body_html'] = $prefix.'body (HTML)';
+		$values['body_html'] = '';
+		
 		$labels['subject'] = $prefix.'subject';
 		$values['subject'] = '';
 		
@@ -113,6 +117,7 @@ class Event_MailReceivedByApp extends Extension_DevblocksEvent {
 		if(!empty($parser_model)) {
 			$values['_parser_model'] = $parser_model;
 			$values['body'] =& $parser_model->getMessage()->body;
+			$values['body_html'] =& $parser_model->getMessage()->htmlbody;
 			$values['encoding'] =& $parser_model->getMessage()->encoding;
 			$values['headers'] =& $parser_model->getHeaders();
 			$values['subject'] =& $parser_model->getSubject();
@@ -219,6 +224,7 @@ class Event_MailReceivedByApp extends Extension_DevblocksEvent {
 		
 		$types['subject'] = Model_CustomField::TYPE_SINGLE_LINE;
 		$types['body'] = Model_CustomField::TYPE_MULTI_LINE;
+		$types['body_html'] = Model_CustomField::TYPE_MULTI_LINE;
 		$types['encoding'] = Model_CustomField::TYPE_SINGLE_LINE;
 		
 		$types['attachment_mimetype'] = null; // Leave this null
@@ -556,27 +562,38 @@ class Event_MailReceivedByApp extends Extension_DevblocksEvent {
 				
 			case 'replace_content':
 				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-				$replace = $tpl_builder->build($params['replace'], $dict);
-				$with = $tpl_builder->build($params['with'], $dict);
 				
-				if(isset($params['is_regexp']) && !empty($params['is_regexp'])) {
-					@$value = preg_replace($replace, $with, $dict->body);
-				} else {
-					$value = str_replace($replace, $with, $dict->body);
+				@$replace = $tpl_builder->build($params['replace'], $dict);
+				@$replace_mode = $params['replace_mode'];
+				@$with = $tpl_builder->build($params['with'], $dict);
+				
+				$out = '';
+				
+				$before_text = $dict->body;
+				$before_html = $dict->body_html;
+				
+				$this->runActionExtension($token, $trigger, $params, $dict);
+				
+				if(!$replace_mode || $replace_mode == 'text') {
+					$out .= sprintf(">>> Replacing plaintext content\n".
+						"Before:\n%s\n\n".
+						"After:\n%s\n".
+						"\r\n",
+						trim($before_text,"\r\n"),
+						$dict->body
+					);
 				}
-				
-				$before = $dict->body;
-				
-				if(!empty($value)) {
-					$dict->body = trim($value,"\r\n");
+					
+				if(!$replace_mode || $replace_mode == 'html') {
+					$out .= sprintf(">>> Replacing HTML content\n".
+						"Before:\n%s\n\n".
+						"After:\n%s\n".
+						"\r\n",
+						trim($before_html,"\r\n"),
+						$dict->body_html
+					);
+					
 				}
-				
-				$out = sprintf(">>> Replacing content\n".
-					"Before:\n%s\n\n".
-					"After:\n%s\n",
-					trim($before,"\r\n"),
-					$dict->body
-				);
 				
 				return $out;
 				break;
@@ -782,17 +799,33 @@ class Event_MailReceivedByApp extends Extension_DevblocksEvent {
 				
 			case 'replace_content':
 				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				
 				$replace = $tpl_builder->build($params['replace'], $dict);
+				$replace_mode = $tpl_builder->build($params['replace_mode'], $dict);
 				$with = $tpl_builder->build($params['with'], $dict);
 				
-				if(isset($params['is_regexp']) && !empty($params['is_regexp'])) {
-					@$value = preg_replace($replace, $with, $dict->body);
-				} else {
-					$value = str_replace($replace, $with, $dict->body);
+				if(!$replace_mode || $replace_mode == 'text') {
+					if(isset($params['is_regexp']) && !empty($params['is_regexp'])) {
+						@$value = preg_replace($replace, $with, $dict->body);
+					} else {
+						$value = str_replace($replace, $with, $dict->body);
+					}
+					
+					if($value) {
+						$dict->body = trim($value,"\r\n");
+					}
 				}
 				
-				if(!empty($value)) {
-					$dict->body = trim($value,"\r\n");
+				if(!$replace_mode || $replace_mode == 'html') {
+					if(isset($params['is_regexp']) && !empty($params['is_regexp'])) {
+						@$value = preg_replace($replace, $with, $dict->body_html);
+					} else {
+						$value = str_replace($replace, $with, $dict->body_html);
+					}
+					
+					if($value) {
+						$dict->body_html = trim($value,"\r\n");
+					}
 				}
 				break;
 				

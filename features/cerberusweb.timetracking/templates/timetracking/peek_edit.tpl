@@ -2,8 +2,7 @@
 {$form_id = uniqid()}
 {if empty($workers)}{$workers = DAO_Worker::getAll()}{/if}
 
-{* [TODO] Move action to profile *}
-<form action="{devblocks_url}{/devblocks_url}" method="post" id="{$form_id}">
+<form action="{devblocks_url}{/devblocks_url}" method="post" id="{$form_id}" onsubmit="return false;">
 <input type="hidden" name="c" value="profiles">
 <input type="hidden" name="a" value="handleSectionAction">
 <input type="hidden" name="section" value="time_tracking">
@@ -133,7 +132,7 @@ $(function() {
 		
 		var $textarea = $(this).find('textarea[name=comment]');
 		
-		$popup.find('> fieldset:first input.input_date').cerbDateInputHelper();
+		$popup.find('input.input_date').cerbDateInputHelper();
 		
 		$popup.find('button.chooser_worker').each(function() {
 			ajax.chooser(this,'cerberusweb.contexts.worker','worker_id', { autocomplete:true });

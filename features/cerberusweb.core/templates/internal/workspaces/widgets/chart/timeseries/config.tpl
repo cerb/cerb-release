@@ -31,27 +31,19 @@
 		</div>
 		
 		<div>
-			The <b>x-axis dates</b> are in the key:
+			<b>Label x-axis</b>: (optional)
 		</div>
 		
 		<div style="margin:0 0 5px 10px;">
-			<textarea name="params[xaxis_key]" data-editor-mode="ace/mode/twig" class="placeholders" style="width:95%;height:50px;">{$widget->params.xaxis_key|default:'ts'}</textarea>
+			<input type="text" name="params[xaxis_label]" value="{$widget->params.xaxis_label}" style="width:100%;">
 		</div>
 		
 		<div>
-			Parse the <b>x-axis data</b> using this <b>date format</b>:
+			<b>Label y-axis</b>: (optional)
 		</div>
 		
 		<div style="margin:0 0 5px 10px;">
-			<textarea name="params[xaxis_format]" data-editor-mode="ace/mode/twig" class="placeholders" style="width:95%;height:50px;">{$widget->params.xaxis_format|default:'%Y-%m-%d'}</textarea>
-		</div>
-		
-		<div>
-			Format <b>x-axis</b> dates using this <b>date format</b> (optional):
-		</div>
-		
-		<div style="margin:0 0 5px 10px;">
-			<textarea name="params[xaxis_tick_format]" data-editor-mode="ace/mode/twig" class="placeholders" style="width:95%;height:50px;">{$widget->params.xaxis_tick_format|default:''}</textarea>
+			<input type="text" name="params[yaxis_label]" value="{$widget->params.yaxis_label}" style="width:100%;">
 		</div>
 		
 		{$formats = ['number'=>'Number','number.minutes'=>'Time elapsed (minutes)','number.seconds'=>'Time elapsed (seconds)']}
