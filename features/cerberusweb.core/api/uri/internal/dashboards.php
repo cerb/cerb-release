@@ -152,6 +152,7 @@ class WorkspaceTab_Dashboards extends Extension_WorkspaceTab {
 	public function renderTab(Model_WorkspacePage $page, Model_WorkspaceTab $tab) {
 		$tpl = DevblocksPlatform::services()->template();
 		
+		$active_worker = CerberusApplication::getActiveWorker();
 		$widgets = DAO_WorkspaceWidget::getByTab($tab->id);
 		
 		@$layout = $tab->params['layout'] ?: '';
@@ -191,6 +192,13 @@ class WorkspaceTab_Dashboards extends Extension_WorkspaceTab {
 		$tpl->assign('zones', $zones);
 		$tpl->assign('model', $tab);
 		
+		// Prompted placeholders
+		$prompts = $tab->getPlaceholderPrompts();
+		$tpl->assign('prompts', $prompts);
+		
+		$tab_prefs = $tab->getDashboardPrefsAsWorker($active_worker);
+		$tpl->assign('tab_prefs', $tab_prefs);
+		
 		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/tab.tpl');
 	}
 	
@@ -198,6 +206,7 @@ class WorkspaceTab_Dashboards extends Extension_WorkspaceTab {
 		$json = array(
 			'tab' => array(
 				'uid' => 'workspace_tab_' . $tab->id,
+				'_context' => CerberusContexts::CONTEXT_WORKSPACE_TAB,
 				'name' => $tab->name,
 				'extension_id' => $tab->extension_id,
 				'params' => $tab->params,
@@ -210,6 +219,7 @@ class WorkspaceTab_Dashboards extends Extension_WorkspaceTab {
 		foreach($widgets as $widget) {
 			$widget_json = array(
 				'uid' => 'workspace_widget_' . $widget->id,
+				'_context' => CerberusContexts::CONTEXT_WORKSPACE_WIDGET,
 				'label' => $widget->label,
 				'extension_id' => $widget->extension_id,
 				'pos' => $widget->pos,
@@ -495,6 +505,8 @@ class WorkspaceWidget_BehaviorTree extends Extension_WorkspaceWidget {
 		
 		$dict = DevblocksDictionaryDelegate::instance($values);
 		
+		$widget->_loadDashboardPrefsForWorker($active_worker, $dict);
+		
 		$behavior_id = $tpl_builder->build($behavior_id_template, $dict);
 		
 		if(false == ($behavior = DAO_TriggerEvent::get($behavior_id)))
@@ -574,6 +586,9 @@ class WorkspaceWidget_RecordFields extends Extension_WorkspaceWidget {
 		$labels = $values = [];
 		CerberusContexts::getContext($context, $record, $labels, $values, '', true, false);
 		$dict = DevblocksDictionaryDelegate::instance($values);
+		
+		$widget->_loadDashboardPrefsForWorker($active_worker, $dict);
+		
 		$tpl->assign('dict', $dict);
 		
 		if(!($context_ext instanceof IDevblocksContextProfile))
@@ -820,7 +835,7 @@ class WorkspaceWidget_RecordFields extends Extension_WorkspaceWidget {
 
 class WorkspaceWidget_BotBehavior extends Extension_WorkspaceWidget {
 	function render(Model_WorkspaceWidget $widget) {
-		$tpl = DevblocksPlatform::services()->template();
+		$active_worker = CerberusApplication::getActiveWorker();
 		
 		@$behavior_id = $widget->params['behavior_id'];
 		@$behavior_vars = DevblocksPlatform::importVar(@$widget->params['behavior_vars'], 'array', []);
@@ -855,6 +870,8 @@ class WorkspaceWidget_BotBehavior extends Extension_WorkspaceWidget {
 		
 		$dict = DevblocksDictionaryDelegate::instance($values);
 		
+		$widget->_loadDashboardPrefsForWorker($active_worker, $dict);
+		
 		// Format behavior vars
 		
 		if(is_array($behavior_vars))
@@ -870,7 +887,7 @@ class WorkspaceWidget_BotBehavior extends Extension_WorkspaceWidget {
 		
 		// Run tree
 		
-		$result = $widget_behavior->runDecisionTree($dict, false, $event);
+		$widget_behavior->runDecisionTree($dict, false, $event);
 		
 		$value = null;
 		
@@ -946,6 +963,8 @@ class WorkspaceWidget_Calendar extends Extension_WorkspaceWidget implements ICer
 		);
 		
 		$dict = DevblocksDictionaryDelegate::instance($values);
+		
+		$widget->_loadDashboardPrefsForWorker($active_worker, $dict);
 		
 		$calendar_id = $tpl_builder->build($calendar_id_template, $dict);
 		
@@ -1551,6 +1570,8 @@ class WorkspaceWidget_ChartCategories extends Extension_WorkspaceWidget implemen
 			'widget_id' => $widget->id,
 		]);
 		
+		$widget->_loadDashboardPrefsForWorker($active_worker, $dict);
+		
 		$query = $tpl_builder->build($data_query, $dict);
 		
 		if(!$query) {
@@ -1734,6 +1755,8 @@ class WorkspaceWidget_ChartPie extends Extension_WorkspaceWidget implements ICer
 			'widget_id' => $widget->id,
 		]);
 		
+		$widget->_loadDashboardPrefsForWorker($active_worker, $dict);
+		
 		$query = $tpl_builder->build($data_query, $dict);
 		
 		if(!$query) {
@@ -1895,6 +1918,8 @@ class WorkspaceWidget_ChartScatterplot extends Extension_WorkspaceWidget impleme
 			'widget__context' => CerberusContexts::CONTEXT_WORKSPACE_WIDGET,
 			'widget_id' => $widget->id,
 		]);
+		
+		$widget->_loadDashboardPrefsForWorker($active_worker, $dict);
 		
 		$query = $tpl_builder->build($data_query, $dict);
 		
@@ -2089,6 +2114,8 @@ class WorkspaceWidget_ChartTable extends Extension_WorkspaceWidget implements IC
 			'widget_id' => $widget->id,
 		]);
 		
+		$widget->_loadDashboardPrefsForWorker($active_worker, $dict);
+		
 		$query = $tpl_builder->build($data_query, $dict);
 		
 		if(!$query) {
@@ -2223,6 +2250,8 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 			'widget_id' => $widget->id,
 		]);
 		
+		$widget->_loadDashboardPrefsForWorker($active_worker, $dict);
+		
 		$query = $tpl_builder->build($data_query, $dict);
 		
 		if(!$query) {
@@ -2239,13 +2268,14 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 	function render(Model_WorkspaceWidget $widget) {
 		$tpl = DevblocksPlatform::services()->template();
 		
-		@$subchart = DevblocksPlatform::importGPC($widget->params['subchart'], 'int', 0);
 		@$chart_as = DevblocksPlatform::importGPC($widget->params['chart_as'], 'string', 'line');
 		@$options = DevblocksPlatform::importGPC($widget->params['options'], 'array', []);
 		@$xaxis_label = DevblocksPlatform::importGPC($widget->params['xaxis_label'], 'string', '');
 		@$yaxis_label = DevblocksPlatform::importGPC($widget->params['yaxis_label'], 'string', '');
 		@$yaxis_format = DevblocksPlatform::importGPC($widget->params['yaxis_format'], 'string', '');
 		@$height = DevblocksPlatform::importGPC($widget->params['height'], 'integer', 0);
+		
+		$error = null;
 		
 		if(false === ($results = $this->getData($widget, $error))) {
 			echo DevblocksPlatform::strEscapeHtml($error);
@@ -2279,12 +2309,12 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 					'type' => 'timeseries',
 					'tick' => [
 						'rotate' => -90,
-						'fit' => false,
+						'fit' => true,
 					]
 				],
 				'y' => [
 					'tick' => [
-						'fit' => false,
+						'fit' => true,
 					]
 				]
 			],
@@ -2328,14 +2358,14 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 			case 'bar':
 				$config_json['data']['type'] = 'bar';
 				$config_json['bar']['width'] = [
-					'ratio' => 0.6,
+					'ratio' => 0.75,
 				];
 				break;
 				
 			case 'bar_stacked':
 				$config_json['data']['type']  = 'bar';
 				$config_json['bar']['width'] = [
-					'ratio' => 0.6,
+					'ratio' => 0.75,
 				];
 				$config_json['data']['groups'] = [array_values(array_diff(array_keys($results['data']), [$xaxis_key]))];
 				break;
@@ -2368,6 +2398,20 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 		DAO_WorkspaceWidget::update($widget->id, array(
 			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
 		));
+	}
+	
+	// Prompted placeholders
+	
+	function getPlaceholderPrompts(Model_WorkspaceWidget $widget) {
+		$json = DevblocksPlatform::importVar($widget->params['data_query_inputs'], 'string', '');
+		
+		if(!$json)
+			return [];
+		
+		if(false == ($prompts = json_decode($json, true)))
+			return [];
+		
+		return $prompts;
 	}
 	
 	// Export
@@ -3124,6 +3168,8 @@ class WorkspaceWidget_Worklist extends Extension_WorkspaceWidget implements ICer
 			'widget__context' => CerberusContexts::CONTEXT_WORKSPACE_WORKLIST,
 			'widget_id' => $widget->id,
 		]);
+		
+		$widget->_loadDashboardPrefsForWorker($active_worker, $dict);
 		
 		if($query_required) {
 			$query_required = $tpl_builder->build($query_required, $dict);

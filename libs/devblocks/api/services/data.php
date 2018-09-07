@@ -3,6 +3,274 @@ abstract class _DevblocksDataProvider {
 	abstract function getData($query, $chart_fields, &$error=null, array $options=[]);
 }
 
+class _DevblocksDataProviderSampleXy extends _DevblocksDataProvider {
+	function getData($query, $chart_fields, &$error=null, array $options=[]) {
+		
+		$chart_model = [
+			'type' => 'sample.xy',
+			'format' => 'scatterplot',
+			'series' => [],
+		];
+		
+		foreach($chart_fields as $field) {
+			if(!($field instanceof DevblocksSearchCriteria))
+				continue;
+			
+			if(DevblocksPlatform::strStartsWith($field->key, 'series.')) {
+				$series_query = CerbQuickSearchLexer::getTokensAsQuery($field->tokens);
+				$series_query = substr($series_query, 1, -1);
+				
+				$series_fields = CerbQuickSearchLexer::getFieldsFromQuery($series_query);
+				
+				$series_id = explode('.', $field->key, 2)[1];
+				
+				$series_model = [
+					'id' => $series_id,
+					'label' => DevblocksPlatform::strTitleCase(str_replace('_',' ',$series_id)),
+					'trend' => 'up',
+					'samples' => 100,
+					'x.min' => 0,
+					'x.max' => 2000,
+					'y.min' => 0,
+					'y.max' => 100,
+				];
+				
+				foreach($series_fields as $series_field) {
+					if($series_field->key == 'label') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['label'] = $value;
+					} else if($series_field->key == 'samples') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['samples'] = intval($value);
+					} else if($series_field->key == 'trend') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['trend'] = in_array($value,['up','down']) ? $value : 'up';
+					} else if($series_field->key == 'x.min') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['x.min'] = intval($value);
+					} else if($series_field->key == 'x.max') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['x.max'] = intval($value);
+					} else if($series_field->key == 'y.min') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['y.min'] = intval($value);
+					} else if($series_field->key == 'y.max') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['y.max'] = intval($value);
+					}
+				}
+				
+				$chart_model['series'][] = $series_model;
+			}
+		}
+		
+		$data = [];
+		
+		foreach($chart_model['series'] as $idx => $series) {
+			$x_values = [$series['label'] . '_x'];
+			$y_values = [$series['label']];
+			
+			$samples = $series['samples'];
+			$trend = $series['trend'];
+			$x_min = $series['x.min'];
+			$x_max = $series['x.max'];
+			$y_min = $series['y.min'];
+			$y_max = $series['y.max'];
+			
+			for($i=0;$i<$samples;$i++) {
+				$x = mt_rand($x_min, $x_max);
+				$x_p = $x/$x_max;
+				$y = mt_rand($y_min, $y_max);
+				
+				$y_var = 0.1 * $y_max;
+				
+				if('down' == $trend) {
+					$y = DevblocksPlatform::intClamp(((1-$x_p) * $y_max) + mt_rand(-$y_var, $y_var), $y_min, $y_max);
+				} else {
+					$y = DevblocksPlatform::intClamp(($x_p * $y_max) + mt_rand(-$y_var, $y_var), $y_min, $y_max);
+				}
+				
+				$x_values[] = $x;
+				$y_values[] = $y;
+			}
+			
+			$data[] = $x_values;
+			$data[] = $y_values;
+		}
+		
+		return [
+			'data' => $data,
+			'_' => [
+				'type' => 'sample.xy',
+				'format' => 'scatterplot',
+			]
+		];
+	}
+}
+
+class _DevblocksDataProviderSampleTimeSeries extends _DevblocksDataProvider {
+	function getData($query, $chart_fields, &$error=null, array $options=[]) {
+		
+		$chart_model = [
+			'type' => 'sample.timeseries',
+			'format' => 'timeseries',
+			'x.count' => '12',
+			'x.unit' => 'months',
+			'series' => [],
+		];
+		
+		foreach($chart_fields as $field) {
+			if(!($field instanceof DevblocksSearchCriteria))
+				continue;
+			
+			$oper = $value = null;
+			
+			if($field->key == 'x.count') {
+				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
+				$chart_model['x.count'] = intval($value);
+				
+			} else if($field->key == 'x.unit') {
+				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
+				$chart_model['x.unit'] = DevblocksPlatform::strLower($value);
+				
+			} else if(DevblocksPlatform::strStartsWith($field->key, 'series.')) {
+				$series_query = CerbQuickSearchLexer::getTokensAsQuery($field->tokens);
+				$series_query = substr($series_query, 1, -1);
+				
+				$series_fields = CerbQuickSearchLexer::getFieldsFromQuery($series_query);
+				
+				$series_id = explode('.', $field->key, 2)[1];
+				
+				$series_model = [
+					'id' => $series_id,
+					'label' => DevblocksPlatform::strTitleCase(str_replace('_',' ',$series_id)),
+					'y.min' => 0,
+					'y.max' => 1000,
+					'trend' => 'random',
+				];
+				
+				foreach($series_fields as $series_field) {
+					if($series_field->key == 'label') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['label'] = $value;
+					} else if($series_field->key == 'trend') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['trend'] = $value;
+					} else if($series_field->key == 'y.min') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['y.min'] = intval($value);
+					} else if($series_field->key == 'y.max') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['y.max'] = intval($value);
+					}
+				}
+				
+				$chart_model['series'][] = $series_model;
+			}
+		}
+		
+		$x_domain = [];
+		$x_count = $chart_model['x.count'];
+		
+		$xaxis_format = '%Y-%m-%d';
+		$xaxis_step = 'day';
+		
+		switch($chart_model['x.unit']) {
+			case 'day':
+			case 'days':
+				$ts = strtotime(sprintf('today -%d days', $x_count));
+				for($i=$x_count-1; $i >= 0; $i--) {
+					$x_domain[] = strftime('%Y-%m-%d', $ts);
+					$ts = strtotime('+1 day', $ts);
+				}
+				break;
+				
+			case 'week':
+			case 'weeks':
+				$xaxis_step = 'week';
+				$ts = strtotime(sprintf('Monday -%d weeks', $x_count));
+				for($i=$x_count-1; $i >= 0; $i--) {
+					$x_domain[] = strftime('%Y-%m-%d', $ts);
+					$ts = strtotime('+1 week', $ts);
+				}
+				break;
+				
+			case 'month':
+			case 'months':
+				$xaxis_step = 'month';
+				$xaxis_format = '%Y-%m';
+				
+				for($i=$x_count-1; $i >= 0; $i--) {
+					$ts = strtotime(sprintf('first day of this month -%d months', $i));
+					$x_domain[] = strftime('%Y-%m', $ts);
+				}
+				break;
+				
+			case 'year':
+			case 'years':
+				$xaxis_step = 'year';
+				$xaxis_format = '%Y';
+				
+				for($i=$x_count-1; $i >= 0; $i--) {
+					$ts = strtotime(sprintf('first day of this year -%d years', $i));
+					$x_domain[] = strftime('%Y', $ts);
+				}
+				break;
+		}
+		
+		$data = [
+			'ts' => $x_domain,
+		];
+		
+		foreach($chart_model['series'] as $series) {
+			$y_min = $series['y.min'];
+			$y_max = $series['y.max'];
+			@$trend = $series['trend'] ?: 'random';
+			
+			$y_values = [];
+			
+			foreach(array_keys($x_domain) as $x_idx) {
+				switch($trend) {
+					case 'up':
+						$y_p = ($x_idx+1)/($x_count-1);
+						$y_inc = ceil($y_p * $y_max * 0.2);
+						$y = ($y_p*$y_max*0.8) + mt_rand(-$y_inc,$y_inc);
+						break;
+						
+					case 'down':
+						$y_p = 1-(($x_idx)/($x_count));
+						$y_inc = ceil($y_p * $y_max * 0.2);
+						$y = ($y_p*$y_max*0.8) + mt_rand(-$y_inc,$y_inc);
+						break;
+						
+					default:
+					case 'random':
+						$y = mt_rand($y_min, $y_max);
+						break;
+				}
+				
+				$y = DevblocksPlatform::intClamp($y, $y_min, $y_max);
+				$y_values[] = $y;
+			}
+			
+			$data[$series['label']] = $y_values;
+		}
+		
+		return [
+			'data' => $data,
+			'_' => [
+				'type' => 'sample.timeseries',
+				'format' => 'timeseries',
+				'format_params' => [
+					'xaxis_key' => 'ts',
+					'xaxis_step' => $xaxis_step,
+					'xaxis_format' => $xaxis_format,
+				],
+			]
+		];
+	}
+}
+
 class _DevblocksDataProviderWorklistMetrics extends _DevblocksDataProvider {
 	function getData($query, $chart_fields, &$error=null, array $options=[]) {
 		$db = DevblocksPlatform::services()->database();
@@ -1143,7 +1411,13 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 		if(!isset($response['children']))
 			return [];
 		
-		$x_series = array_fill_keys(array_column($response['children'], 'name'), 0);
+		@$xaxis_format = @$chart_model['by'][0]['timestamp_format'];
+		@$xaxis_step = @$chart_model['by'][0]['timestamp_step'];
+		
+		$x_series = array_column($response['children'], 'name');
+		$x_series = DevblocksPlatform::dateLerpArray($x_series, $xaxis_step, $xaxis_format);
+		$x_series = array_fill_keys($x_series, 0);
+		
 		$output = [ 'ts' => array_map(function($d) { return strval($d); }, array_keys($x_series)) ];
 		
 		foreach($response['children'] as $date) {
@@ -1167,7 +1441,8 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 			'format' => 'timeseries',
 			'format_params' => [
 				'xaxis_key' => 'ts',
-				'xaxis_format' => @$chart_model['by'][0]['timestamp_format'],
+				'xaxis_step' => $xaxis_step,
+				'xaxis_format' => $xaxis_format,
 			],
 		]];
 	}
@@ -1439,6 +1714,7 @@ class _DevblocksDataProviderWorklistSeries extends _DevblocksDataProvider {
 		// Domain
 		
 		$xaxis_format = @$chart_model['series'][0]['x']['timestamp_format'] ?: '';
+		$xaxis_step = @$chart_model['series'][0]['x']['timestamp_step'] ?: '';
 		
 		$x_domain = [];
 		
@@ -1477,6 +1753,7 @@ class _DevblocksDataProviderWorklistSeries extends _DevblocksDataProvider {
 				'format' => 'timeseries',
 				'format_params' => [
 					'xaxis_key' => 'ts',
+					'xaxis_step' => $xaxis_step,
 					'xaxis_format' => $xaxis_format, // [TODO] Multi-series?
 				],
 			]
@@ -1955,6 +2232,7 @@ class _DevblocksDataProviderUsageSnippets extends _DevblocksDataProvider {
 				'format' => 'timeseries',
 				'format_params' => [
 					'xaxis_key' => 'ts',
+					'xaxis_step' => 'month',
 					'xaxis_format' => '%Y-%m',
 				]
 			]
@@ -2030,6 +2308,22 @@ class _DevblocksDataService {
 		$results = [];
 		
 		switch($chart_type) {
+			case 'sample.timeseries':
+				$provider = new _DevblocksDataProviderSampleTimeSeries();
+				
+				if(false === ($results = $provider->getData($query, $chart_fields, $error)))
+					return false;
+				
+				break;
+				
+			case 'sample.xy':
+				$provider = new _DevblocksDataProviderSampleXy();
+				
+				if(false === ($results = $provider->getData($query, $chart_fields, $error)))
+					return false;
+				
+				break;
+				
 			case 'usage.behaviors':
 				$provider = new _DevblocksDataProviderUsageBotBehaviors();
 				

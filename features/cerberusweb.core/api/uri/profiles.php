@@ -2587,7 +2587,6 @@ class ProfileWidget_ChartTimeSeries extends Extension_ProfileWidget {
 	
 	function render(Model_ProfileWidget $model, $context, $context_id, $refresh_options=[]) {
 		@$data_query = DevblocksPlatform::importGPC($model->extension_params['data_query'], 'string', null);
-		@$subchart = DevblocksPlatform::importGPC($model->extension_params['subchart'], 'int', 0);
 		@$chart_as = DevblocksPlatform::importGPC($model->extension_params['chart_as'], 'string', 'line');
 		@$options = DevblocksPlatform::importGPC($model->extension_params['options'], 'array', []);
 		@$xaxis_label = DevblocksPlatform::importGPC($model->extension_params['xaxis_label'], 'string', '');
@@ -2613,6 +2612,8 @@ class ProfileWidget_ChartTimeSeries extends Extension_ProfileWidget {
 		
 		if(!$query)
 			return;
+		
+		$error = null;
 		
 		if(false === ($results = $data->executeQuery($query, $error))) {
 			echo DevblocksPlatform::strEscapeHtml($error);
@@ -2645,12 +2646,12 @@ class ProfileWidget_ChartTimeSeries extends Extension_ProfileWidget {
 					'type' => 'timeseries',
 					'tick' => [
 						'rotate' => -90,
-						'fit' => false,
+						'fit' => true,
 					]
 				],
 				'y' => [
 					'tick' => [
-						'fit' => false,
+						'fit' => true,
 					]
 				]
 			],
@@ -2694,14 +2695,14 @@ class ProfileWidget_ChartTimeSeries extends Extension_ProfileWidget {
 			case 'bar':
 				$config_json['data']['type'] = 'bar';
 				$config_json['bar']['width'] = [
-					'ratio' => 0.6,
+					'ratio' => 0.75,
 				];
 				break;
 				
 			case 'bar_stacked':
 				$config_json['data']['type']  = 'bar';
 				$config_json['bar']['width'] = [
-					'ratio' => 0.6,
+					'ratio' => 0.75,
 				];
 				$config_json['data']['groups'] = [array_values(array_diff(array_keys($results['data']), [$xaxis_key]))];
 				break;
