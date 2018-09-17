@@ -20,7 +20,7 @@ class Page_Profiles extends CerberusPageExtension {
 	
 	function isVisible() {
 		// The current session must be a logged-in worker to use this page.
-		if(null == ($worker = CerberusApplication::getActiveWorker()))
+		if(null == (CerberusApplication::getActiveWorker()))
 			return false;
 		
 		return true;
@@ -28,8 +28,6 @@ class Page_Profiles extends CerberusPageExtension {
 	
 	function render() {
 		$tpl = DevblocksPlatform::services()->template();
-		$active_worker = CerberusApplication::getActiveWorker();
-		$visit = CerberusApplication::getVisit();
 		$response = DevblocksPlatform::getHttpResponse();
 		
 		$stack = $response->path;
@@ -48,7 +46,6 @@ class Page_Profiles extends CerberusPageExtension {
 	
 	static function renderProfile($context, $context_id, $path=[]) {
 		$tpl = DevblocksPlatform::services()->template();
-		$translate = DevblocksPlatform::getTranslationService();
 		$active_worker = CerberusApplication::getActiveWorker();
 
 		// Context
@@ -1710,8 +1707,6 @@ class ProfileWidget_Calendar extends Extension_ProfileWidget {
 	}
 	
 	function showCalendarTabAction(Model_ProfileWidget $model) {
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		@$calendar_id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer');
 		
 		@$month = DevblocksPlatform::importGPC($_REQUEST['month'],'integer', 0);
@@ -1723,7 +1718,6 @@ class ProfileWidget_Calendar extends Extension_ProfileWidget {
 			return;
 		
 		$start_on_mon = @$calendar->params['start_on_mon'] ? true : false;
-		
 		$calendar_properties = DevblocksCalendarHelper::getCalendar($month, $year, $start_on_mon);
 		
 		$calendar_events = $calendar->getEvents($calendar_properties['date_range_from'], $calendar_properties['date_range_to']);
