@@ -70,9 +70,14 @@ class PageSection_ProfilesContact extends Extension_PageSection {
 				@$mobile = DevblocksPlatform::importGPC($_REQUEST['mobile'], 'string', '');
 				@$password = DevblocksPlatform::importGPC($_REQUEST['password'], 'string', '');
 				
+				$error = null;
+				
 				// Defaults
 				
 				$dob_ts = null;
+				
+				if(!empty($dob) && false == ($dob_ts = strtotime($dob . ' 00:00 GMT')))
+					$dob_ts = null;
 				
 				// Insert/Update
 				
@@ -273,8 +278,6 @@ class PageSection_ProfilesContact extends Extension_PageSection {
 		@$ids = DevblocksPlatform::importGPC($_REQUEST['ids']);
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id']);
 
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 

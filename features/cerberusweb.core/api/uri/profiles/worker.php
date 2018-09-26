@@ -45,7 +45,6 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		@$delete = DevblocksPlatform::importGPC($_POST['do_delete'],'integer',0);
 
-		$translate = DevblocksPlatform::getTranslationService();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		header('Content-Type: application/json; charset=utf-8');
@@ -54,8 +53,6 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 			if(!$active_worker || !$active_worker->is_superuser)
 				throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.admin'));
 	
-			if(empty($first_name)) $first_name = "Anonymous";
-			
 			if(!empty($id) && !empty($delete)) {
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_WORKER)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
@@ -97,13 +94,21 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 				@$disabled = DevblocksPlatform::importGPC($_POST['is_disabled'],'bit',0);
 				@$group_memberships = DevblocksPlatform::importGPC($_POST['group_memberships'],'array');
 				
+				$error = null;
+				
 				// ============================================
 				// Defaults
-
+				
+				if(empty($first_name))
+					$first_name = "Anonymous";
+				
 				if(!in_array($gender, array('M','F','')))
 					$gender = '';
 				
 				$dob_ts = null;
+				
+				if(!empty($dob) && false == ($dob_ts = strtotime($dob . ' 00:00 GMT')))
+					$dob_ts = null;
 				
 				$is_superuser = ($active_worker->is_superuser && $is_superuser) ? 1 : 0;
 				
@@ -153,7 +158,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 						$url = DevblocksPlatform::services()->url();
 						$worker = DAO_Worker::get($id);
 						
-						$labels = $values = [];
+						$labels = $values = $worker_labels = $worker_values = [];
 						CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $worker, $worker_labels, $worker_values, '', true, true);
 						CerberusContexts::merge('worker_', null, $worker_labels, $worker_values, $labels, $values);
 						

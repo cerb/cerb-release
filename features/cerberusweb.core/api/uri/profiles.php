@@ -667,6 +667,7 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 				$prefs['mail_reply_textbox_size_auto'] = DAO_WorkerPref::get($worker->id,'mail_reply_textbox_size_auto',0);
 				$prefs['mail_reply_textbox_size_px'] = DAO_WorkerPref::get($worker->id,'mail_reply_textbox_size_px',300);
 				$prefs['mail_reply_button'] = DAO_WorkerPref::get($worker->id,'mail_reply_button',0);
+				$prefs['mail_reply_format'] = DAO_WorkerPref::get($worker->id,'mail_reply_format','');
 				$prefs['mail_status_compose'] = DAO_WorkerPref::get($worker->id,'compose.status','waiting');
 				$prefs['mail_status_reply'] = DAO_WorkerPref::get($worker->id,'mail_status_reply','waiting');
 				$prefs['mail_signature_pos'] = DAO_WorkerPref::get($worker->id,'mail_signature_pos',2);
@@ -889,6 +890,9 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 					
 					@$mail_reply_button = DevblocksPlatform::importGPC($_REQUEST['mail_reply_button'],'integer',0);
 					DAO_WorkerPref::set($worker->id, 'mail_reply_button', $mail_reply_button);
+					
+					@$mail_reply_format = DevblocksPlatform::importGPC($_REQUEST['mail_reply_format'],'string','');
+					DAO_WorkerPref::set($worker->id, 'mail_reply_format', $mail_reply_format);
 					
 					@$mail_signature_pos = DevblocksPlatform::importGPC($_REQUEST['mail_signature_pos'],'integer',0);
 					DAO_WorkerPref::set($worker->id, 'mail_signature_pos', $mail_signature_pos);
@@ -1190,7 +1194,7 @@ class ProfileWidget_BotBehavior extends Extension_ProfileWidget {
 		
 		// Run tree
 		
-		$result = $behavior->runDecisionTree($dict, false, $event);
+		$behavior->runDecisionTree($dict, false, $event);
 		
 		foreach($actions as $action) {
 			switch($action['_action']) {
@@ -1457,8 +1461,6 @@ class ProfileWidget_CalendarAvailability extends Extension_ProfileWidget {
 		@$month = DevblocksPlatform::importGPC($_REQUEST['month'],'integer', 0);
 		@$year = DevblocksPlatform::importGPC($_REQUEST['year'],'integer', 0);
 		
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$tpl->assign('context', $context);
 		$tpl->assign('context_id', $context_id);
 		
@@ -1602,7 +1604,7 @@ class ProfileWidget_BehaviorTree extends Extension_ProfileWidget {
 		if(false == ($event = $behavior->getEvent()))
 			return;
 		
-		if(false == ($bot = $behavior->getBot()))
+		if(false == ($behavior->getBot()))
 			return;
 		
 		$tpl->assign('behavior', $behavior);
@@ -1922,7 +1924,11 @@ class ProfileWidget_Fields extends Extension_ProfileWidget {
 		@$context = $model->extension_params['context'];
 		
 		if($context) {
-			$context_ext = Extension_DevblocksContext::get($context);
+			if(false == ($context_ext = Extension_DevblocksContext::get($context))) {
+				echo '(ERROR: Missing record type: ' . DevblocksPlatform::strEscapeHtml($context) . ')';
+				return;
+			}
+			
 			$tpl->assign('context_ext', $context_ext);
 			
 			// =================================================================
@@ -2199,7 +2205,7 @@ class ProfileWidget_TicketConvo extends Extension_ProfileWidget {
 		$messageToolbarItems = DevblocksPlatform::getExtensions('cerberusweb.message.toolbaritem', true);
 		if(!empty($messageToolbarItems))
 			$tpl->assign('message_toolbaritems', $messageToolbarItems);
-
+		
 		// Workers
 		$workers = DAO_Worker::getAll();
 		$tpl->assign('workers', $workers);
@@ -2207,6 +2213,9 @@ class ProfileWidget_TicketConvo extends Extension_ProfileWidget {
 		// Prefs
 		$mail_reply_button = DAO_WorkerPref::get($active_worker->id, 'mail_reply_button', 0);
 		$tpl->assign('mail_reply_button', $mail_reply_button);
+		
+		$mail_reply_format = DAO_WorkerPref::get($active_worker->id, 'mail_reply_format', '');
+		$tpl->assign('mail_reply_format', $mail_reply_format);
 		
 		$tpl->display('devblocks:cerberusweb.core::internal/profiles/widgets/ticket/convo/conversation.tpl');
 	}
@@ -2236,6 +2245,8 @@ class ProfileWidget_ChartCategories extends Extension_ProfileWidget {
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		$data = DevblocksPlatform::services()->data();
 		$active_worker = CerberusApplication::getActiveWorker();
+		
+		$error = null;
 		
 		$dict = DevblocksDictionaryDelegate::instance([
 			'current_worker__context' => CerberusContexts::CONTEXT_WORKER,
