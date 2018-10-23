@@ -366,6 +366,8 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		
 		// Find the embedded contexts for each token
 		foreach(array_keys($this->_dictionary) as $key) {
+			$matches = [];
+			
 			if(preg_match('#(.*)__context#', $key, $matches)) {
 				$contexts[$matches[1]] = array(
 					'key' => $key,
@@ -448,6 +450,16 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 					$is_cache_invalid = true;
 				}
 				
+				if($k == '_types') {
+					// If the parent has a `_types` key, append these values to it
+					if(array_key_exists('_types', $this->_dictionary)) {
+						foreach($v as $type_k => $type_v) {
+							$this->_dictionary['_types'][$context_data['prefix'] . $type_k] = $type_v;
+						}
+					}
+					continue;
+				}
+				
 				// The getDictionary() call above already filters out _labels and _types
 				$this->_dictionary[$new_key] = $v;
 			}
@@ -524,6 +536,14 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		if(is_array($this->_dictionary))
 		foreach(array_keys($this->_dictionary) as $key) {
 			if(DevblocksPlatform::strStartsWith($key, $prefix))
+				unset($this->_dictionary[$key]);
+		}
+	}
+	
+	public function scrubKeySuffix($suffix) {
+		if(is_array($this->_dictionary))
+		foreach(array_keys($this->_dictionary) as $key) {
+			if(DevblocksPlatform::strEndsWith($key, $suffix))
 				unset($this->_dictionary[$key]);
 		}
 	}
@@ -612,7 +632,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		return $dicts;
 	}
 	
-	public static function bulkLazyLoad(array $dicts, $token) {
+	public static function bulkLazyLoad(array $dicts, $token, $skip_meta=false) {
 		if(empty($dicts))
 			return;
 		
@@ -654,13 +674,13 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 				// Load model objects from the context
 				$models = $context_ext->getModelObjects(array_keys($id_counts));
 				
-				CerberusContexts::setCacheLoads(true);
+				$was_caching_loads = CerberusContexts::setCacheLoads(true);
 				
 				// These context loads will be cached
 				if(is_array($models))
-				foreach($models as $model_id => $model) {
+				foreach($models as $model) {
 					$labels = $values = []; 
-					CerberusContexts::getContext($context_data['context'], $model, $labels, $values, null, true);
+					CerberusContexts::getContext($context_data['context'], $model, $labels, $values, null, true, $skip_meta);
 				}
 				
 				$prefix_key = $context_prefix . '_';
@@ -671,7 +691,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 				}
 				
 				// Flush the temporary cache
-				CerberusContexts::setCacheLoads(false);
+				CerberusContexts::setCacheLoads($was_caching_loads);
 			}
 		}
 		

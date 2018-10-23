@@ -238,8 +238,6 @@ class DAO_ProjectBoardColumn extends Cerb_ORMHelper {
 		if(!method_exists(get_called_class(), 'getWhere'))
 			return array();
 
-		$db = DevblocksPlatform::services()->database();
-
 		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
 
 		$models = array();
@@ -328,8 +326,6 @@ class DAO_ProjectBoardColumn extends Cerb_ORMHelper {
 		if(!is_array($ids))
 			$ids = array($ids);
 		
-		$db = DevblocksPlatform::services()->database();
-		
 		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(empty($ids))
@@ -348,7 +344,7 @@ class DAO_ProjectBoardColumn extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_ProjectBoardColumn::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ProjectBoardColumn', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ProjectBoardColumn', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"project_board_column.id as %s, ".
@@ -367,14 +363,6 @@ class DAO_ProjectBoardColumn extends Cerb_ORMHelper {
 			(!empty($wheres) ? sprintf("WHERE %s ",implode(' AND ',$wheres)) : "WHERE 1 ");
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_ProjectBoardColumn');
-	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
 	
 		return array(
 			'primary_table' => 'project_board_column',
@@ -619,7 +607,6 @@ class Model_ProjectBoardColumn {
 		$sort = [];
 		
 		foreach($this->cards as $row) {
-			list($context, $context_id) = explode(':', $row, 2);
 			$key = sha1($row);
 			$sort[] = $key;
 		}
@@ -907,8 +894,6 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
 		
-		$translate = DevblocksPlatform::getTranslationService();
-		
 		switch($key) {
 			case SearchFields_ProjectBoardColumn::VIRTUAL_BOARD_SEARCH:
 				echo sprintf("Project matches <b>%s</b>", DevblocksPlatform::strEscapeHtml($param->value));
@@ -1052,8 +1037,6 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 		if(false == ($project_board_column = DAO_ProjectBoardColumn::get($context_id)))
 			return [];
 		
-		$url_writer = DevblocksPlatform::services()->url();
-		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($project_board_column->name);
 		
@@ -1160,6 +1143,28 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['cards'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'An array of record `type:id` tuples to add to this column',
+			'type' => 'links',
+		];
+		
+		$keys['params'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'JSON-encoded key/value object',
+			'type' => 'object',
+		];
+		
+		$keys['board_id']['notes'] = "The [project board](/docs/records/types/project_board/) containing this column";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		$dict_key = DevblocksPlatform::strLower($key);
 		switch($dict_key) {
@@ -1219,6 +1224,11 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 		
 		return true;
 	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
+	}
 
 	function lazyLoadContextValues($token, $dictionary) {
 		if(!isset($dictionary['id']))
@@ -1260,8 +1270,6 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 	

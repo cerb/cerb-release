@@ -272,8 +272,6 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 		if(!method_exists(get_called_class(), 'getWhere'))
 			return [];
 
-		$db = DevblocksPlatform::services()->database();
-
 		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
 
 		$models = [];
@@ -358,7 +356,7 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_ProfileWidget::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ProfileWidget', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ProfileWidget', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"profile_widget.id as %s, ".
@@ -387,14 +385,6 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 			(!empty($wheres) ? sprintf("WHERE %s ",implode(' AND ',$wheres)) : "WHERE 1 ");
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_ProfileWidget');
-	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
 	
 		return array(
 			'primary_table' => 'profile_widget',
@@ -898,8 +888,6 @@ class View_ProfileWidget extends C4_AbstractView implements IAbstractView_Subtot
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
 		
-		$translate = DevblocksPlatform::getTranslationService();
-		
 		switch($key) {
 			case SearchFields_ProfileWidget::VIRTUAL_CONTEXT_LINK:
 				$this->_renderVirtualContextLinks($param);
@@ -1042,7 +1030,6 @@ class Context_ProfileWidget extends Extension_DevblocksContext implements IDevbl
 	
 	function getMeta($context_id) {
 		$profile_widget = DAO_ProfileWidget::get($context_id);
-		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($profile_widget->name);
@@ -1174,6 +1161,25 @@ class Context_ProfileWidget extends Extension_DevblocksContext implements IDevbl
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['extension_params'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'JSON-encoded key/value object',
+			'type' => 'object',
+		];
+		
+		$keys['extension_id']['notes'] = "The [plugin](/docs/plugins/) extension";
+		$keys['pos']['notes'] = "The order of the widget on the profile; `0` is first (top-left) proceeding in rows then columns";
+		$keys['profile_tab_id']['notes'] = "The ID of the [profile tab](/docs/records/types/profile_tab/) dashboard containing this widget";
+		$keys['width_units']['notes'] = "`1` (25%), `2` (50%), `3` (75%), `4` (100%)";
+		$keys['zone']['notes'] = "The name of the dashboard zone containing the widget; this varies by layout; generally `sidebar` and `content`";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'extension_params':
@@ -1196,6 +1202,11 @@ class Context_ProfileWidget extends Extension_DevblocksContext implements IDevbl
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1231,8 +1242,6 @@ class Context_ProfileWidget extends Extension_DevblocksContext implements IDevbl
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 	

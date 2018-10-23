@@ -4,8 +4,8 @@
 		"options": {
 			"db_host": "localhost",
 			"db_name": "cerb",
-			"db_user": "root",
-			"db_pass": "",
+			"db_user": "cerb",
+			"db_pass": "cerb",
 			"mask_prefix": "",
 			"storage_path": "/path/to/cerb/storage/"
 		}

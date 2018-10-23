@@ -338,14 +338,6 @@ class DAO_ClassifierEntity extends Cerb_ORMHelper {
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_ClassifierEntity');
 	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
-	
 		return array(
 			'primary_table' => 'classifier_entity',
 			'select' => $select_sql,
@@ -993,6 +985,22 @@ class Context_ClassifierEntity extends Extension_DevblocksContext implements IDe
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['params'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'JSON-encoded key/value object',
+			'type' => 'object',
+		];
+		
+		$keys['description']['notes'] = "A description of this entity";
+		$keys['type']['notes'] = "The type of this entity: `list`, `regexp`, or `text`";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
@@ -1015,6 +1023,11 @@ class Context_ClassifierEntity extends Extension_DevblocksContext implements IDe
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1050,8 +1063,6 @@ class Context_ClassifierEntity extends Extension_DevblocksContext implements IDe
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 	

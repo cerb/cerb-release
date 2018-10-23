@@ -99,7 +99,7 @@ class DAO_Task extends Cerb_ORMHelper {
 		return $validation->getFields();
 	}
 	
-	static function create($fields, $custom_fields=array()) {
+	static function create($fields, $custom_fields=[]) {
 		$db = DevblocksPlatform::services()->database();
 		
 		$sql = sprintf("INSERT INTO task () ".
@@ -216,8 +216,6 @@ class DAO_Task extends Cerb_ORMHelper {
 	 * @return boolean
 	 */
 	static function bulkUpdate(Model_ContextBulkUpdate $update) {
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-
 		$do = $update->actions;
 		$ids = $update->context_ids;
 
@@ -401,7 +399,7 @@ class DAO_Task extends Cerb_ORMHelper {
 	 * @return Model_Task[]
 	 */
 	static private function _getObjectsFromResult($rs) {
-		$objects = array();
+		$objects = [];
 		
 		if(!($rs instanceof mysqli_result))
 			return false;
@@ -427,8 +425,6 @@ class DAO_Task extends Cerb_ORMHelper {
 	}
 	
 	static function mergeIds($from_ids, $to_id) {
-		$db = DevblocksPlatform::services()->database();
-
 		$context = CerberusContexts::CONTEXT_TASK;
 		
 		if(empty($from_ids) || empty($to_id))
@@ -501,7 +497,7 @@ class DAO_Task extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_Task::getFields();
 		
-		list($tables, $wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_Task', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_Task', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"t.id as %s, ".
@@ -533,14 +529,6 @@ class DAO_Task extends Cerb_ORMHelper {
 			(!empty($wheres) ? sprintf("WHERE %s ",implode(' AND ',$wheres)) : "WHERE 1 ");
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_Task');
-		
-		// Translate virtual fields
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
 		
 		$result = array(
 			'primary_table' => 't',
@@ -584,7 +572,7 @@ class DAO_Task extends Cerb_ORMHelper {
 		if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
 			return false;
 		
-		$results = array();
+		$results = [];
 		
 		if(!($rs instanceof mysqli_result))
 			return false;
@@ -863,7 +851,7 @@ class View_Task extends C4_AbstractView implements IAbstractView_Subtotals, IAbs
 	function getSubtotalFields() {
 		$all_fields = $this->getParamsAvailable(true);
 		
-		$fields = array();
+		$fields = [];
 
 		if(is_array($all_fields))
 		foreach($all_fields as $field_key => $field_model) {
@@ -903,7 +891,7 @@ class View_Task extends C4_AbstractView implements IAbstractView_Subtotals, IAbs
 		$context = CerberusContexts::CONTEXT_TASK;
 
 		if(!isset($fields[$column]))
-			return array();
+			return [];
 		
 		switch($column) {
 			case SearchFields_Task::IMPORTANCE:
@@ -1059,7 +1047,7 @@ class View_Task extends C4_AbstractView implements IAbstractView_Subtotals, IAbs
 		
 		// Engine/schema examples: Comments
 		
-		$ft_examples = array();
+		$ft_examples = [];
 		
 		if(false != ($schema = Extension_DevblocksSearchSchema::get(Search_CommentContent::ID))) {
 			if(false != ($engine = $schema->getEngine())) {
@@ -1099,10 +1087,10 @@ class View_Task extends C4_AbstractView implements IAbstractView_Subtotals, IAbs
 				
 				CerbQuickSearchLexer::getOperArrayFromTokens($tokens, $oper, $value);
 				
-				$values = array();
+				$values = [];
 				
 				// Normalize status labels
-				foreach($value as $idx => $status) {
+				foreach($value as $status) {
 					switch(substr(DevblocksPlatform::strLower($status), 0, 1)) {
 						case 'o':
 						case '0':
@@ -1193,8 +1181,7 @@ class View_Task extends C4_AbstractView implements IAbstractView_Subtotals, IAbs
 	}
 	
 	function renderCriteriaParam($param) {
-		$field = !is_null($param_key) ? $param_key : $param->field;
-		$translate = DevblocksPlatform::getTranslationService();
+		$field = $param->field;
 		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
@@ -1239,23 +1226,23 @@ class View_Task extends C4_AbstractView implements IAbstractView_Subtotals, IAbs
 				break;
 
 			case SearchFields_Task::STATUS_ID:
-				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',array());
+				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$options);
 				break;
 				
 			case SearchFields_Task::VIRTUAL_CONTEXT_LINK:
-				@$context_links = DevblocksPlatform::importGPC($_REQUEST['context_link'],'array',array());
+				@$context_links = DevblocksPlatform::importGPC($_REQUEST['context_link'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$context_links);
 				break;
 				
 			case SearchFields_Task::VIRTUAL_HAS_FIELDSET:
-				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',array());
+				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$options);
 				break;
 				
 			case SearchFields_Task::OWNER_ID:
 			case SearchFields_Task::VIRTUAL_WATCHERS:
-				@$worker_ids = DevblocksPlatform::importGPC($_REQUEST['worker_id'],'array',array());
+				@$worker_ids = DevblocksPlatform::importGPC($_REQUEST['worker_id'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$worker_ids);
 				break;
 				
@@ -1490,7 +1477,7 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 			$token_types = array_merge($token_types, $custom_field_types);
 		
 		// Token values
-		$token_values = array();
+		$token_values = [];
 		
 		$token_values['_context'] = CerberusContexts::CONTEXT_TASK;
 		$token_values['_types'] = $token_types;
@@ -1532,8 +1519,8 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 		}
 		
 		// Owner
-		$merge_token_labels = array();
-		$merge_token_values = array();
+		$merge_token_labels = [];
+		$merge_token_values = [];
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, null, $merge_token_labels, $merge_token_values, '', true);
 
 			// Clear dupe content
@@ -1573,6 +1560,27 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['status'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => '`o` (open), `w` (waiting), `c` (closed); alternative to `status_id`',
+			'type' => 'string',
+		];
+		
+		$keys['completed']['notes'] = "The date/time this task was completed";
+		$keys['due']['notes'] = "The date/time of this task's deadline";
+		$keys['importance']['notes'] = "A number from `0` (least) to `100` (most)";
+		$keys['owner_id']['notes'] = "The ID of the [worker](/docs/records/types/worker/) responsible for this task";
+		$keys['reopen']['notes'] = "If the status is `waiting`, the date/time to automatically change the status back to `open`";
+		$keys['status_id']['notes'] = "`0` (open), `1` (closed), `2` (waiting); alternative to `status`";
+		$keys['title']['notes'] = "The name of this task";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
@@ -1603,6 +1611,11 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 		
 		return true;
 	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
+	}
 
 	function lazyLoadContextValues($token, $dictionary) {
 		if(!isset($dictionary['id']))
@@ -1612,10 +1625,10 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 		$context_id = $dictionary['id'];
 		
 		@$is_loaded = $dictionary['_loaded'];
-		$values = array();
+		$values = [];
 		
 		if(!$is_loaded) {
-			$labels = array();
+			$labels = [];
 			CerberusContexts::getContext($context, $context_id, $labels, $values, null, true, true);
 		}
 		
@@ -1644,8 +1657,6 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 		
@@ -1672,7 +1683,7 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 		return $view;
 	}
 	
-	function getView($context=null, $context_id=null, $options=array(), $view_id=null) {
+	function getView($context=null, $context_id=null, $options=[], $view_id=null) {
 		$view_id = !empty($view_id) ? $view_id : str_replace('.','_',$this->id);
 		
 		$defaults = C4_AbstractViewModel::loadFromClass($this->getViewClass());
@@ -1681,7 +1692,7 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
 		$view->name = 'Tasks';
 		
-		$params_req = array();
+		$params_req = [];
 		
 		if(!empty($context) && !empty($context_id)) {
 			$params_req = array(
@@ -1708,6 +1719,12 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 		}
 
 		if(empty($context_id) || $edit) {
+			if(!isset($task)) {
+				$task = new Model_Task();
+				$task->importance = 50;
+				$tpl->assign('task', $task);
+			}
+			
 			// Custom fields
 			$custom_fields = DAO_CustomField::getByContext($context, false);
 			$tpl->assign('custom_fields', $custom_fields);
@@ -1726,8 +1743,7 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 			
 		} else {
 			// Dictionary
-			$labels = array();
-			$values = array();
+			$labels = $values = [];
 			CerberusContexts::getContext($context, $task, $labels, $values, '', true, false);
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			$tpl->assign('dict', $dict);

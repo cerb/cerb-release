@@ -1829,6 +1829,7 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 			
 		// Token labels
 		$token_labels = array(
+			'_label' => $prefix,
 			'id' => $prefix.$translate->_('common.id'),
 			'mime_type' => $prefix.$translate->_('attachment.mime_type'),
 			'name' => $prefix.$translate->_('common.name'),
@@ -1900,6 +1901,18 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['attach']['type'] = 'links';
+		$keys['attach']['notes'] = 'An array of `type:id` tuples to attach this file to';
+		$keys['content']['notes'] = 'The content of this file';
+		$keys['mime_type']['notes'] = 'The MIME type of this file (e.g. `image/png`); defaults to `application/octet-stream`';
+		$keys['name']['notes'] = 'The filename';
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'attach':
@@ -1952,6 +1965,11 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 		$out_fields['_attach'] = $json;
 	}
 	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
+	}
+	
 	function lazyLoadContextValues($token, $dictionary) {
 		if(!isset($dictionary['id']))
 			return;
@@ -1985,8 +2003,6 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 		
@@ -2039,7 +2055,6 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_ATTACHMENT;
-		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if(!empty($context_id)) {
 			if(false != ($model = DAO_Attachment::get($context_id))) {

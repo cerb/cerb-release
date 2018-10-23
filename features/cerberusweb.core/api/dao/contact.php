@@ -588,14 +588,6 @@ class DAO_Contact extends Cerb_ORMHelper {
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_Contact');
 	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
-	
 		return array(
 			'primary_table' => 'contact',
 			'select' => $select_sql,
@@ -2111,6 +2103,34 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['email'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'Email address (e.g. `customer@example.com`); alternative to `email_id`',
+			'type' => 'string',
+		];
+		
+		$keys['dob']['notes'] = "Date of birth: `YYYY-MM-DD`";
+		$keys['email_id']['notes'] = "ID of this contact's primary [email address](/docs/records/types/address/)";
+		$keys['first_name']['notes'] = "Given name";
+		$keys['gender']['notes'] = "Gender: `F` (female), `M` (male), or blank";
+		$keys['language']['notes'] = "Language: `en_US`";
+		$keys['last_login_at']['notes'] = "Date of their last [community portal](/docs/portals/) login";
+		$keys['last_name']['notes'] = "Surname";
+		$keys['location']['notes'] = "Location (e.g. `Los Angeles, California, USA`)";
+		$keys['mobile']['notes'] = "Mobile number";
+		$keys['org_id']['notes'] = "ID of this contact's [organization](/docs/records/types/org/)";
+		$keys['phone']['notes'] = "Phone number";
+		$keys['timezone']['notes'] = "Timezone (e.g. `America/Los_Angeles`)";
+		$keys['title']['notes'] = "Job title / Position";
+		$keys['username']['notes'] = "Username for public display";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'email':
@@ -2128,6 +2148,17 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		
+		$lazy_keys['emails'] = [
+			'label' => 'Email Addresses',
+			'type' => 'Records',
+		];
+		
+		return $lazy_keys;
 	}
 	
 	function lazyLoadContextValues($token, $dictionary) {
@@ -2183,8 +2214,6 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 	

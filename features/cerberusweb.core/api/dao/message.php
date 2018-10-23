@@ -283,7 +283,7 @@ class DAO_Message extends Cerb_ORMHelper {
 	 * @return Model_Message[]
 	 */
 	static private function _getObjectsFromResult($rs) {
-		$objects = array();
+		$objects = [];
 		
 		if(!($rs instanceof mysqli_result))
 			return false;
@@ -345,7 +345,7 @@ class DAO_Message extends Cerb_ORMHelper {
 			$ids = array($ids);
 		
 		if(empty($ids))
-			return array();
+			return [];
 		
 		$ids_list = implode(',', $ids);
 
@@ -401,7 +401,7 @@ class DAO_Message extends Cerb_ORMHelper {
 		if(false == ($rs = $db->ExecuteMaster($sql)))
 			return false;
 
-		$ids_buffer = array();
+		$ids_buffer = [];
 		$count = 0;
 		
 		if(!($rs instanceof mysqli_result))
@@ -413,7 +413,7 @@ class DAO_Message extends Cerb_ORMHelper {
 			// Flush buffer every 50
 			if(0 == $count % 50) {
 				Storage_MessageContent::delete($ids_buffer);
-				$ids_buffer = array();
+				$ids_buffer = [];
 				$count = 0;
 			}
 		}
@@ -467,7 +467,7 @@ class DAO_Message extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_Message::getFields();
 		
-		list($tables,$wheres,$selects) = parent::_parseSearchParams($params, array(), 'SearchFields_Message', $sortBy);
+		list($tables,$wheres,$selects) = parent::_parseSearchParams($params, [], 'SearchFields_Message', $sortBy);
 
 		$select_sql = sprintf("SELECT ".
 			"m.id as %s, ".
@@ -538,7 +538,7 @@ class DAO_Message extends Cerb_ORMHelper {
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
 		$db = DevblocksPlatform::services()->database();
 		
-		$fulltext_params = array();
+		$fulltext_params = [];
 		
 		foreach($params as $param_key => $param) {
 			if(!($param instanceof DevblocksSearchCriteria))
@@ -594,7 +594,7 @@ class DAO_Message extends Cerb_ORMHelper {
 		if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
 			return false;
 		
-		$results = array();
+		$results = [];
 		
 		if(!($rs instanceof mysqli_result))
 			return false;
@@ -682,9 +682,9 @@ class SearchFields_Message extends DevblocksSearchFields {
 		);
 	}
 	
-	static function getWhereSQL(DevblocksSearchCriteria $param, $options=array()) {
+	static function getWhereSQL(DevblocksSearchCriteria $param, $options=[]) {
 		if(!is_array($options))
-			$options = array();
+			$options = [];
 		
 		switch($param->field) {
 			case self::VIRTUAL_ATTACHMENTS_SEARCH:
@@ -1095,7 +1095,7 @@ class Search_MessageContent extends Extension_DevblocksSearchSchema {
 	}
 	
 	public function getAttributes() {
-		return array();
+		return [];
 	}
 	
 	public function getFields() {
@@ -1144,7 +1144,7 @@ class Search_MessageContent extends Extension_DevblocksSearchSchema {
 		}
 	}
 	
-	public function query($query, $attributes=array(), $limit=null) {
+	public function query($query, $attributes=[], $limit=null) {
 		if(false == ($engine = $this->getEngine()))
 			return false;
 		
@@ -1192,7 +1192,7 @@ class Search_MessageContent extends Extension_DevblocksSearchSchema {
 		return true;
 	}
 	
-	public function indexIds(array $ids=array()) {
+	public function indexIds(array $ids=[]) {
 		if(empty($ids))
 			return;
 		
@@ -1655,7 +1655,7 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 	function getSubtotalFields() {
 		$all_fields = $this->getParamsAvailable(true);
 		
-		$fields = array();
+		$fields = [];
 
 		if(is_array($all_fields))
 		foreach($all_fields as $field_key => $field_model) {
@@ -1692,12 +1692,12 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 	}
 	
 	function getSubtotalCounts($column) {
-		$counts = array();
+		$counts = [];
 		$fields = $this->getFields();
 		$context = CerberusContexts::CONTEXT_MESSAGE;
 
 		if(!isset($fields[$column]))
-			return array();
+			return [];
 		
 		switch($column) {
 			case SearchFields_Message::ADDRESS_EMAIL:
@@ -1717,7 +1717,7 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 				break;
 			
 			case SearchFields_Message::TICKET_ID:
-				$counts = $this->_getSubtotalCountForNumberColumn($context, $column, array(), '=', 'value');
+				$counts = $this->_getSubtotalCountForNumberColumn($context, $column, [], '=', 'value');
 				break;
 				
 			case SearchFields_Message::TICKET_MASK:
@@ -1730,7 +1730,7 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 				
 			case SearchFields_Message::WORKER_ID:
 				$workers = DAO_Worker::getAll();
-				$label_map = array();
+				$label_map = [];
 				foreach($workers as $worker_id => $worker)
 					$label_map[$worker_id] = $worker->getName();
 				$counts = $this->_getSubtotalCountForNumberColumn($context, $column, $label_map, 'in', 'worker_id[]');
@@ -1782,7 +1782,7 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 			'attachments' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
-					'options' => array(),
+					'options' => [],
 					'examples' => [
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_ATTACHMENT, 'q' => ''],
 					]
@@ -2175,12 +2175,12 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 				break;
 
 			case SearchFields_Message::TICKET_GROUP_ID:
-				@$group_ids = DevblocksPlatform::importGPC($_REQUEST['group_id'],'array',array());
+				@$group_ids = DevblocksPlatform::importGPC($_REQUEST['group_id'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$group_ids);
 				break;
 				
 			case SearchFields_Message::WORKER_ID:
-				@$worker_ids = DevblocksPlatform::importGPC($_REQUEST['worker_id'],'array',array());
+				@$worker_ids = DevblocksPlatform::importGPC($_REQUEST['worker_id'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$worker_ids);
 				break;
 				
@@ -2191,12 +2191,12 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 				break;
 				
 			case SearchFields_Message::VIRTUAL_CONTEXT_LINK:
-				@$context_links = DevblocksPlatform::importGPC($_REQUEST['context_link'],'array',array());
+				@$context_links = DevblocksPlatform::importGPC($_REQUEST['context_link'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$context_links);
 				break;
 				
 			case SearchFields_Message::VIRTUAL_HAS_FIELDSET:
-				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',array());
+				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$options);
 				break;
 				
@@ -2413,7 +2413,7 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 			$token_types = array_merge($token_types, $custom_field_types);
 		
 		// Token values
-		$token_values = array();
+		$token_values = [];
 		
 		$token_values['_context'] = CerberusContexts::CONTEXT_MESSAGE;
 		$token_values['_types'] = $token_types;
@@ -2448,8 +2448,8 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 		
 		// Only link ticket placeholders if the message isn't nested under a ticket already
 		if(1 == count($context_stack) || !in_array(CerberusContexts::CONTEXT_TICKET, $context_stack)) {
-			$merge_token_labels = array();
-			$merge_token_values = array();
+			$merge_token_labels = [];
+			$merge_token_values = [];
 			CerberusContexts::getContext(CerberusContexts::CONTEXT_TICKET, null, $merge_token_labels, $merge_token_values, '', true);
 	
 			CerberusContexts::merge(
@@ -2463,8 +2463,8 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 		}
 		
 		// Sender
-		$merge_token_labels = array();
-		$merge_token_values = array();
+		$merge_token_labels = [];
+		$merge_token_values = [];
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_ADDRESS, null, $merge_token_labels, $merge_token_values, '', true);
 
 		CerberusContexts::merge(
@@ -2477,8 +2477,8 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 		);
 		
 		// Sender Worker
-		$merge_token_labels = array();
-		$merge_token_values = array();
+		$merge_token_labels = [];
+		$merge_token_values = [];
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, null, $merge_token_labels, $merge_token_values, '', true);
 
 		CerberusContexts::merge(
@@ -2513,6 +2513,46 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['content'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'Message content',
+			'type' => 'string',
+		];
+		
+		$keys['headers'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'Message headers',
+			'type' => 'string',
+		];
+		
+		$keys['sender'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'The [email address](/docs/records/types/address/) of the sender; alternative to `sender_id`',
+			'type' => 'string',
+		];
+		
+		$keys['hash_header_message_id']['notes'] = "A SHA-1 hash of the `Message-Id:` header; used for message threading";
+		$keys['html_attachment_id']['notes'] = "The [attachment](/docs/records/types/attachment/) ID containing the HTML message content";
+		$keys['is_broadcast']['notes'] = "Was this message sent using the broadcast feature?";
+		$keys['is_not_sent']['notes'] = "Was this message saved without sending?";
+		$keys['is_outgoing']['notes'] = "Was this an outgoing reply from a worker?";
+		$keys['response_time']['notes'] = "Response time in seconds";
+		$keys['sender_id']['notes'] = "The ID of the sender's [email address](/docs/records/types/address/) record";
+		$keys['storage_size']['notes'] = "Size of the message in bytes";
+		$keys['ticket_id']['notes'] = "The ID of the message's [ticket](/docs/records/types/ticket/) record";
+		$keys['was_encrypted']['notes'] = "Was the message sent encrypted?";
+		$keys['was_signed']['notes'] = "Was the message cryptographically signed?";
+		$keys['worker_id']['notes'] = "If outgoing, the ID of the [worker](/docs/records/types/worker/) who sent the message";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		$dict_key = DevblocksPlatform::strLower($key);
 		switch($dict_key) {
@@ -2541,6 +2581,42 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 		return true;
 	}
 	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		
+		$lazy_keys['attachments'] = [
+			'label' => 'Attachments',
+			'type' => 'Records',
+		];
+		
+		$lazy_keys['content'] = [
+			'label' => 'Content',
+			'type' => 'Text',
+		];
+		
+		$lazy_keys['content_html'] = [
+			'label' => 'Content (HTML)',
+			'type' => 'Text',
+		];
+		
+		$lazy_keys['headers'] = [
+			'label' => 'Headers',
+			'type' => 'HashMap',
+		];
+		
+		$lazy_keys['reply_cc'] = [
+			'label' => '`Cc:` recipients (comma-separated)',
+			'type' => 'Text',
+		];
+		
+		$lazy_keys['reply_to'] = [
+			'label' => '`To:` recipients (comma-separated)',
+			'type' => 'Text',
+		];
+		
+		return $lazy_keys;
+	}
+	
 	function lazyLoadContextValues($token, $dictionary) {
 		if(!isset($dictionary['id']))
 			return;
@@ -2549,10 +2625,10 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 		$context_id = $dictionary['id'];
 		
 		@$is_loaded = $dictionary['_loaded'];
-		$values = array();
+		$values = [];
 		
 		if(!$is_loaded) {
-			$labels = array();
+			$labels = [];
 			CerberusContexts::getContext($context, $context_id, $labels, $values, null, true, true);
 			$dictionary = $values;
 		}
@@ -2615,7 +2691,7 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 				if(isset($message_headers['to'])) {
 					$from = isset($message_headers['reply-to']) ? $message_headers['reply-to'] : $message_headers['from'];
 					$addys = CerberusMail::parseRfcAddresses($from . ', ' . $message_headers['to'], true);
-					$recipients = array();
+					$recipients = [];
 					
 					if(is_array($addys))
 					foreach($addys as $addy) {
@@ -2633,7 +2709,7 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 				
 				if(isset($message_headers['cc'])) {
 					$addys = CerberusMail::parseRfcAddresses($message_headers['cc'], true);
-					$recipients = array();
+					$recipients = [];
 					
 					if(is_array($addys))
 					foreach($addys as $addy) {
@@ -2661,8 +2737,6 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 		
@@ -2682,7 +2756,7 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 		return $view;
 	}
 	
-	function getView($context=null, $context_id=null, $options=array(), $view_id=null) {
+	function getView($context=null, $context_id=null, $options=[], $view_id=null) {
 		$view_id = !empty($view_id) ? $view_id : str_replace('.','_',$this->id);
 		
 		$defaults = C4_AbstractViewModel::loadFromClass($this->getViewClass());
@@ -2691,7 +2765,7 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
 		$view->name = DevblocksPlatform::translateCapitalized('common.messages');
 		
-		$params_req = array();
+		$params_req = [];
 		
 		if(!empty($context) && !empty($context_id)) {
 			$params_req = array(
@@ -2745,8 +2819,8 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 				return;
 			
 			// Dictionary
-			$labels = array();
-			$values = array();
+			$labels = [];
+			$values = [];
 			CerberusContexts::getContext(CerberusContexts::CONTEXT_MESSAGE, $message, $labels, $values, '', true, false);
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			$tpl->assign('dict', $dict);

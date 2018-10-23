@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2018100801);
-define("APP_VERSION", '9.0.6');
+define("APP_BUILD", 2018102201);
+define("APP_VERSION", '9.0.7');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -1045,12 +1045,15 @@ class CerberusContexts {
 	const CONTEXT_WORKSPACE_WORKLIST = 'cerberusweb.contexts.workspace.list';
 
 	public static function setCacheLoads($state) {
+		$was_caching_loads = self::$_is_caching_loads;
 		self::$_is_caching_loads = ($state ? true : false);
 
 		// Clear the cache when disabled
 		if(!self::$_is_caching_loads) {
 			self::$_cache_loads = [];
 		}
+		
+		return $was_caching_loads;
 	}
 
 	public static function getStack() {
@@ -1098,7 +1101,6 @@ class CerberusContexts {
 							$loaded_labels = [];
 							$loaded_values = [];
 							$ctx->getContext(null, $loaded_labels, $loaded_values, $prefix);
-
 							$cache->save(array('labels' => $loaded_labels, 'values' => $loaded_values), $cache_key, [], 0, $cache_local);
 						}
 
@@ -1183,11 +1185,10 @@ class CerberusContexts {
 				}
 			}
 		}
-
+		
 		// Rename labels
-		// [TODO] mb_*
 		// [TODO] Phase out $labels
-
+		
 		if($skip_labels) {
 			unset($values['_labels']);
 
@@ -1208,7 +1209,6 @@ class CerberusContexts {
 				$values['_labels'] = $labels;
 			}
 		}
-
 
 		// Pop the stack
 		array_pop(self::$_stack);
@@ -2489,6 +2489,11 @@ class Context_Application extends Extension_DevblocksContext implements IDevbloc
 		return [
 			'links' => '_links',
 		];
+	}
+	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		return $keys;
 	}
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {

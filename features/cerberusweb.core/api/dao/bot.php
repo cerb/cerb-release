@@ -433,14 +433,6 @@ class DAO_Bot extends Cerb_ORMHelper {
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_Bot');
 	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
-	
 		return array(
 			'primary_table' => 'bot',
 			'select' => $select_sql,
@@ -1395,6 +1387,15 @@ class Context_Bot extends Extension_DevblocksContext implements IDevblocksContex
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['is_disabled']['notes'] = "Is this bot disabled?";
+		$keys['mention_name']['notes'] = "(deprecated)";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
@@ -1403,6 +1404,17 @@ class Context_Bot extends Extension_DevblocksContext implements IDevblocksContex
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		
+		$lazy_keys['behaviors'] = [
+			'label' => 'Behaviors',
+			'type' => 'Records',
+		];
+		
+		return $lazy_keys;
 	}
 	
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1468,8 +1480,6 @@ class Context_Bot extends Extension_DevblocksContext implements IDevblocksContex
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 	

@@ -322,12 +322,6 @@ class DAO_CalendarEvent extends Cerb_ORMHelper {
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_CalendarEvent');
 	
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
-		
 		return array(
 			'primary_table' => 'calendar_event',
 			'select' => $select_sql,
@@ -1162,6 +1156,18 @@ class Context_CalendarEvent extends Extension_DevblocksContext implements IDevbl
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['calendar_id']['notes'] = "The parent [calendar](/docs/records/types/calendar/) of this event";
+		$keys['date_end']['notes'] = "The end date/time of the event";
+		$keys['date_start']['notes'] = "The start date/time of the event";
+		$keys['is_available']['notes'] = "`true` for available; `false` for busy";
+		$keys['name']['notes'] = "The name of the event";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
@@ -1170,6 +1176,11 @@ class Context_CalendarEvent extends Extension_DevblocksContext implements IDevbl
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1210,8 +1221,6 @@ class Context_CalendarEvent extends Extension_DevblocksContext implements IDevbl
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		// View
 		$defaults = C4_AbstractViewModel::loadFromClass($this->getViewClass());
 		$defaults->id = $view_id;

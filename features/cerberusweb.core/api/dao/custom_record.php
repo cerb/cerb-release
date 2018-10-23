@@ -413,14 +413,6 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_CustomRecord');
 	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
-	
 		return array(
 			'primary_table' => 'custom_record',
 			'select' => $select_sql,
@@ -1150,6 +1142,16 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['name']['notes'] = "The singular name of the record; `Issue`";
+		$keys['name_plural']['notes'] = "The plural name of the record; `Issues`";
+		$keys['uri']['notes'] = "The alias of the record (e.g. `issue`); used in URLs, API, etc.";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
@@ -1158,6 +1160,11 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1193,8 +1200,6 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 	

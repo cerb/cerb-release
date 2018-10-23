@@ -272,8 +272,6 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 		if(!method_exists(get_called_class(), 'getWhere'))
 			return [];
 
-		$db = DevblocksPlatform::services()->database();
-
 		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
 
 		$models = [];
@@ -401,7 +399,7 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_WorkspaceList::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_WorkspaceList', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_WorkspaceList', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"workspace_list.id as %s, ".
@@ -440,14 +438,6 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 			(!empty($wheres) ? sprintf("WHERE %s ",implode(' AND ',$wheres)) : "WHERE 1 ");
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_WorkspaceList');
-	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
 	
 		return array(
 			'primary_table' => 'workspace_list',
@@ -941,8 +931,6 @@ class View_WorkspaceList extends C4_AbstractView implements IAbstractView_Subtot
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
 		
-		$translate = DevblocksPlatform::getTranslationService();
-		
 		switch($key) {
 			case SearchFields_WorkspaceList::VIRTUAL_CONTEXT_LINK:
 				$this->_renderVirtualContextLinks($param);
@@ -1087,13 +1075,10 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 	}
 	
 	function getMeta($context_id) {
-		$url_writer = DevblocksPlatform::services()->url();
-		
 		if(null == ($workspace_list = DAO_WorkspaceList::get($context_id)))
 			return [];
 		
 		$url = $this->profileGetUrl($context_id);
-		$friendly = DevblocksPlatform::strToPermalink($workspace_list->name);
 
 		return [
 			'id' => $workspace_list->id,
@@ -1242,6 +1227,37 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['context']['notes'] = "The [record type](/docs/records/#record-types) of the worklist";
+		$keys['params_required_query']['notes'] = "The [search query](/docs/search/) for required filters";
+		$keys['pos']['notes'] = "The order of the worklist on the workspace tab; `0` is first";
+		$keys['render_limit']['notes'] = "The number of records per page";
+		$keys['tab_id']['notes'] = "The ID of the [workspace tab](/docs/records/types/workspace_tab/) containing this worklist";
+		
+		$keys['columns'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'JSON-encoded key/value array of column names',
+			'type' => 'object',
+		];
+		
+		$keys['options'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'JSON-encoded key/value object',
+			'type' => 'object',
+		];
+		
+		unset($keys['params']);
+		unset($keys['params_required']);
+		unset($keys['render_sort']);
+		unset($keys['render_subtotals']);
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		$dict_key = DevblocksPlatform::strLower($key);
 		
@@ -1336,6 +1352,11 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 		return true;
 	}
 	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
+	}
+	
 	function lazyLoadContextValues($token, $dictionary) {
 		if(!isset($dictionary['id']))
 			return;
@@ -1344,10 +1365,10 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 		$context_id = $dictionary['id'];
 		
 		@$is_loaded = $dictionary['_loaded'];
-		$values = array();
+		$values = [];
 		
 		if(!$is_loaded) {
-			$labels = array();
+			$labels = [];
 			CerberusContexts::getContext($context, $context_id, $labels, $values, null, true, false);
 		}
 		
@@ -1373,8 +1394,6 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 	}
 
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 	

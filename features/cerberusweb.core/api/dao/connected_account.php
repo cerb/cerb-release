@@ -428,14 +428,6 @@ class DAO_ConnectedAccount extends Cerb_ORMHelper {
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_ConnectedAccount');
 	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
-	
 		return array(
 			'primary_table' => 'connected_account',
 			'select' => $select_sql,
@@ -1251,6 +1243,17 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['service']['type'] = "extension";
+		$keys['service']['notes'] = "The service provider's [plugin](/docs/plugins/) extension";
+		
+		unset($keys['extension_id']);
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
@@ -1259,6 +1262,11 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1307,11 +1315,11 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
 		$this->name = DevblocksPlatform::translateCapitalized('common.connected_accounts');
 		
-		$params_req = array();
+		$params_req = [];
 		
 		if($active_worker && !$active_worker->is_superuser) {
 			$worker_group_ids = array_keys($active_worker->getManagerships());
-			$worker_role_ids = array_keys(DAO_WorkerRole::getRolesByWorker($active_worker->id));
+			//$worker_role_ids = array_keys(DAO_WorkerRole::getRolesByWorker($active_worker->id));
 			
 			// Restrict owners
 			

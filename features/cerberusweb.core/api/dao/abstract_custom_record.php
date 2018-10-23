@@ -509,14 +509,6 @@ class DAO_AbstractCustomRecord extends Cerb_ORMHelper {
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, $search_class);
 	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
-	
 		return array(
 			'primary_table' => $table_name,
 			'select' => $select_sql,
@@ -1353,6 +1345,17 @@ class Context_AbstractCustomRecord extends Extension_DevblocksContext implements
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['contact_id']['notes'] = "The [contact](/docs/records/types/contact/) linked to this email";
+		$keys['owner__context']['notes'] = "The [record type](/docs/records/#record-type) of the owner";
+		$keys['owner_id']['notes'] = "The ID of the owner";
+		$keys['name']['notes'] = "The name of the record";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
@@ -1361,6 +1364,11 @@ class Context_AbstractCustomRecord extends Extension_DevblocksContext implements
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
 	}
 	
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1403,8 +1411,6 @@ class Context_AbstractCustomRecord extends Extension_DevblocksContext implements
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(false == ($custom_record = DAO_CustomRecord::get(static::_ID)))
 			return;
 		

@@ -372,14 +372,6 @@ class DAO_CalendarRecurringProfile extends Cerb_ORMHelper {
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_CalendarRecurringProfile');
 	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
-	
 		return array(
 			'primary_table' => 'calendar_recurring_profile',
 			'select' => $select_sql,
@@ -1359,24 +1351,23 @@ class Context_CalendarRecurringProfile extends Extension_DevblocksContext implem
 			// Custom fields
 			$token_values = $this->_importModelCustomFieldsAsValues($calendar_recurring_profile, $token_values);
 			
-			// Calendar
-			$merge_token_labels = array();
-			$merge_token_values = array();
-			CerberusContexts::getContext(CerberusContexts::CONTEXT_CALENDAR, null, $merge_token_labels, $merge_token_values, '', true);
-	
-			CerberusContexts::merge(
-				'calendar_',
-				$prefix.'Calendar:',
-				$merge_token_labels,
-				$merge_token_values,
-				$token_labels,
-				$token_values
-			);
-			
 			// URL
 			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=calendar_recurring_event&id=%d-%s",$calendar_recurring_profile->id, DevblocksPlatform::strToPermalink($calendar_recurring_profile->event_name)), true);
 		}
+		
+		// Calendar
+		$merge_token_labels = $merge_token_values = [];
+		CerberusContexts::getContext(CerberusContexts::CONTEXT_CALENDAR, null, $merge_token_labels, $merge_token_values, '', true);
+
+		CerberusContexts::merge(
+			'calendar_',
+			$prefix.'Calendar:',
+			$merge_token_labels,
+			$merge_token_values,
+			$token_labels,
+			$token_values
+		);
 		
 		return true;
 	}
@@ -1397,6 +1388,22 @@ class Context_CalendarRecurringProfile extends Extension_DevblocksContext implem
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['calendar_id']['notes'] = "The parent [calendar](/docs/records/types/calendar/) of this event";
+		$keys['event_end']['notes'] = "The end date/time of the event";
+		$keys['event_start']['notes'] = "The start date/time of the event";
+		$keys['is_available']['notes'] = "`true` for available; `false` for busy";
+		$keys['name']['notes'] = "The name of the event";
+		$keys['patterns']['notes'] = "One pattern per line";
+		$keys['recur_end']['notes'] = "The end date/time of the recurring range";
+		$keys['recur_start']['notes'] = "The start date/time of the recurring range";
+		$keys['tz']['notes'] = "The timezone of the recurring event (e.g. `America/Los_Angeles`)";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
@@ -1405,6 +1412,11 @@ class Context_CalendarRecurringProfile extends Extension_DevblocksContext implem
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1447,8 +1459,6 @@ class Context_CalendarRecurringProfile extends Extension_DevblocksContext implem
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 	

@@ -357,14 +357,6 @@ class DAO_ClassifierExample extends Cerb_ORMHelper {
 			
 		$sort_sql = self::_buildSortClause($sortBy, $sortAsc, $fields, $select_sql, 'SearchFields_ClassifierExample');
 	
-		// Virtuals
-		
-		$args = array(
-			'join_sql' => &$join_sql,
-			'where_sql' => &$where_sql,
-			'tables' => &$tables,
-		);
-	
 		return array(
 			'primary_table' => 'classifier_example',
 			'select' => $select_sql,
@@ -1130,6 +1122,16 @@ class Context_ClassifierExample extends Extension_DevblocksContext implements ID
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['class_id']['notes'] = "The ID of the [classification](/docs/records/types/classifier_class/) this example trains";
+		$keys['classifier_id']['notes'] = "The ID of the [classifier](/docs/records/types/classifier/) this example belongs to";
+		$keys['expression']['notes'] = "The expression used for training the classifier";
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
@@ -1138,6 +1140,11 @@ class Context_ClassifierExample extends Extension_DevblocksContext implements ID
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1180,8 +1187,6 @@ class Context_ClassifierExample extends Extension_DevblocksContext implements ID
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 	

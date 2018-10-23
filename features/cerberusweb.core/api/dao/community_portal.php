@@ -400,7 +400,7 @@ class DAO_CommunityTool extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_CommunityTool::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_CommunityTool', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_CommunityTool', $sortBy);
 					
 		$select_sql = sprintf("SELECT ".
 			"ct.id as %s, ".
@@ -1123,7 +1123,6 @@ class View_CommunityPortal extends C4_AbstractView implements IAbstractView_Quic
 
 	function renderCriteriaParam($param) {
 		$field = $param->field;
-		$translate = DevblocksPlatform::getTranslationService();
 		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
@@ -1263,7 +1262,6 @@ class Context_CommunityTool extends Extension_DevblocksContext implements IDevbl
 	
 	function getMeta($context_id) {
 		$community_tool = DAO_CommunityTool::get($context_id);
-		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($community_tool->name);
@@ -1378,6 +1376,23 @@ class Context_CommunityTool extends Extension_DevblocksContext implements IDevbl
 		];
 	}
 	
+	function getKeyMeta() {
+		$keys = parent::getKeyMeta();
+		
+		$keys['params'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'JSON-encoded key/value object',
+			'type' => 'object',
+		];
+		
+		$keys['code']['notes'] = 'Randomized internal ID for the portal';
+		$keys['extension_id']['notes'] = "The [plugin](/docs/plugins/) extension";
+		$keys['uri']['notes'] = 'Human-friendly nickname for the portal. Must be unique.';
+		
+		return $keys;
+	}
+	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
@@ -1399,6 +1414,11 @@ class Context_CommunityTool extends Extension_DevblocksContext implements IDevbl
 		}
 		
 		return true;
+	}
+	
+	function lazyLoadGetKeys() {
+		$lazy_keys = parent::lazyLoadGetKeys();
+		return $lazy_keys;
 	}
 
 	function lazyLoadContextValues($token, $dictionary) {
@@ -1434,8 +1454,6 @@ class Context_CommunityTool extends Extension_DevblocksContext implements IDevbl
 	}
 	
 	function getChooserView($view_id=null) {
-		$active_worker = CerberusApplication::getActiveWorker();
-
 		if(empty($view_id))
 			$view_id = 'chooser_'.str_replace('.','_',$this->id).time().mt_rand(0,9999);
 	
