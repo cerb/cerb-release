@@ -1556,6 +1556,42 @@ abstract class C4_AbstractView {
 		return $this->_renderVirtualWorkers($param, 'Watcher', 'Watchers');
 	}
 	
+	protected function _renderVirtualWatchersCount($param) {
+		switch($param->operator) {
+			case DevblocksSearchCriteria::OPER_EQ:
+			case DevblocksSearchCriteria::OPER_NEQ:
+			case DevblocksSearchCriteria::OPER_GT:
+			case DevblocksSearchCriteria::OPER_GTE:
+			case DevblocksSearchCriteria::OPER_LT:
+			case DevblocksSearchCriteria::OPER_LTE:
+				echo sprintf("%s %s <b>%d</b>",
+					DevblocksPlatform::strEscapeHtml('Watcher count'),
+					$param->operator,
+					$param->value
+				);
+				break;
+				
+			case DevblocksSearchCriteria::OPER_IN:
+			case DevblocksSearchCriteria::OPER_NIN:
+				echo sprintf("%s %s <b>[%s]</b>",
+					DevblocksPlatform::strEscapeHtml('Watcher count'),
+					$param->operator,
+					implode(',', $param->value)
+				);
+				break;
+				
+			case DevblocksSearchCriteria::OPER_BETWEEN:
+			case DevblocksSearchCriteria::OPER_NOT_BETWEEN:
+				echo sprintf("%s %s <b>%d and %d</b>",
+					DevblocksPlatform::strEscapeHtml('Watcher count'),
+					$param->operator,
+					@$param->value[0] ?: 0,
+					@$param->value[1] ?: 0
+				);
+				break;
+		}
+	}
+	
 	protected function _renderVirtualWorkers($param, $label_singular='Worker', $label_plural='Workers') {
 		$workers = DAO_Worker::getAll();
 		$strings = [];
@@ -3813,19 +3849,26 @@ interface IAbstractView_Subtotals {
 };
 
 class CerbQuickSearchLexer {
-	private static function _recurse($token, $key, $node_callback, $after_children_callback=null) {
+	private static function _recurse($token, $keys, $node_callback, $after_children_callback=null) {
 		if(!is_object($token))
 			return;
 		
 		if(!is_callable($node_callback))
 			return;
 		
-		if(empty($key) || $token->type == $key)
+		if(empty($keys)) {
 			$node_callback($token);
-		
+		} else {
+			if(!is_array($keys))
+				$keys = [$keys];
+			
+			if(in_array($token->type, $keys))
+				$node_callback($token);
+		}
+
 		if(isset($token->children) && is_array($token->children))
 		foreach($token->children as $child)
-			self::_recurse($child, $key, $node_callback, $after_children_callback);
+			self::_recurse($child, $keys, $node_callback, $after_children_callback);
 		
 		if(is_callable($after_children_callback))
 			$after_children_callback($token);
@@ -4078,8 +4121,14 @@ class CerbQuickSearchLexer {
 		self::_recurse($tokens, 'T_ARRAY', function($token) {
 			$elements = [];
 			
-			self::_recurse($token, 'T_TEXT', function($token) use (&$elements) {
-				$elements = array_merge($elements, DevblocksPlatform::parseCsvString($token->value));
+			self::_recurse($token, ['T_TEXT','T_QUOTED_TEXT'], function($token) use (&$elements) {
+				// If quoted, preserve commas and everything
+				if($token->type == 'T_QUOTED_TEXT') {
+					$elements = array_merge($elements, [$token->value]);
+					
+				} else {
+					$elements = array_merge($elements, DevblocksPlatform::parseCsvString($token->value));
+				}
 			});
 			
 			$token->value = $elements;
