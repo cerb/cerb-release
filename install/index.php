@@ -291,6 +291,14 @@ switch($step) {
 			$fails++;
 		}
 		
+		// Extension: YAML
+		if(extension_loaded("yaml")) {
+			$results['ext_yaml'] = true;
+		} else {
+			$results['ext_yaml'] = false;
+			$fails++;
+		}
+		
 		$tpl->assign('fails', $fails);
 		$tpl->assign('results', $results);
 		$tpl->assign('template', 'steps/step_environment.tpl');
@@ -789,7 +797,7 @@ switch($step) {
 			$tpl->assign('timezone', $timezone);
 			
 			// Sanity/Error checking
-			if(!empty($worker_email) && !empty($worker_pass) && $worker_pass == $worker_pass2) {
+			if(!empty($worker_email) && !empty($worker_pass) && $worker_pass == $worker_pass2 && strlen($worker_pass) >= 8) {
 				$encrypt = DevblocksPlatform::services()->encryption();
 				
 				// Set the configuration details in the session

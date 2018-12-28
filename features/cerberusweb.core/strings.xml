@@ -204,9 +204,27 @@
 				<seg>{{actor}} logged {{target}} out to free up a license seat.</seg>
 			</tuv>
 		</tu>
-
+		
+		<!-- API -->
+		
+		<tu tuid="api.scope">
+			<tuv xml:lang="en_US">
+				<seg>scope</seg>
+			</tuv>
+		</tu>
+		<tu tuid="api.scopes">
+			<tuv xml:lang="en_US">
+				<seg>scopes</seg>
+			</tuv>
+		</tu>
+		
 		<!-- Common Strings -->
 		
+		<tu tuid="common.accept">
+			<tuv xml:lang="en_US">
+				<seg>accept</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.access_denied">
 			<tuv xml:lang="en_US">
 				<seg>Access denied.</seg>
@@ -335,6 +353,26 @@
 		<tu tuid="common.attributes">
 			<tuv xml:lang="en_US">
 				<seg>attributes</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.auth.2fa">
+			<tuv xml:lang="en_US">
+				<seg>two-factor authentication</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.auth.mfa">
+			<tuv xml:lang="en_US">
+				<seg>multi-factor authentication</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.authenticate">
+			<tuv xml:lang="en_US">
+				<seg>authenticate</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.authentication">
+			<tuv xml:lang="en_US">
+				<seg>authentication</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.author">
@@ -652,6 +690,16 @@
 				<seg>connected accounts</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.connected_service">
+			<tuv xml:lang="en_US">
+				<seg>connected service</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.connected_services">
+			<tuv xml:lang="en_US">
+				<seg>connected services</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.contact">
 			<tuv xml:lang="en_US">
 				<seg>contact</seg>
@@ -897,6 +945,11 @@
 				<seg>developers</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.disable">
+			<tuv xml:lang="en_US">
+				<seg>disable</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.disabled">
 			<tuv xml:lang="en_US">
 				<seg>Disabled</seg>
@@ -992,9 +1045,19 @@
 				<seg>email transports</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.enable">
+			<tuv xml:lang="en_US">
+				<seg>enable</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.enabled">
 			<tuv xml:lang="en_US">
 				<seg>Enabled</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.encrypt">
+			<tuv xml:lang="en_US">
+				<seg>encrypt</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.encrypted">
@@ -1415,6 +1478,11 @@
 				<seg>Managers</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.map">
+			<tuv xml:lang="en_US">
+				<seg>map</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.maximize">
 			<tuv xml:lang="en_US">
 				<seg>maximize</seg>
@@ -1518,6 +1586,11 @@
 		<tu tuid="common.never">
 			<tuv xml:lang="en_US">
 				<seg>Never</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.new">
+			<tuv xml:lang="en_US">
+				<seg>new</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.no">
@@ -1655,6 +1728,11 @@
 				<seg>layout</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.limit">
+			<tuv xml:lang="en_US">
+				<seg>limit</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.link">
 			<tuv xml:lang="en_US">
 				<seg>Link</seg>
@@ -1693,6 +1771,11 @@
 		<tu tuid="common.log">
 			<tuv xml:lang="en_US">
 				<seg>log</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.login">
+			<tuv xml:lang="en_US">
+				<seg>login</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.logo">
@@ -2058,6 +2141,11 @@
 		<tu tuid="common.reply">
 			<tuv xml:lang="en_US">
 				<seg>Reply</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.required">
+			<tuv xml:lang="en_US">
+				<seg>required</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.reset">
@@ -2591,6 +2679,11 @@
 				<seg>variables</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.verify">
+			<tuv xml:lang="en_US">
+				<seg>verify</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.visibility">
 			<tuv xml:lang="en_US">
 				<seg>visibility</seg>
@@ -2964,6 +3057,21 @@
 		<tu tuid='dao.mailbox.auth_disable_plain'>
 			<tuv xml:lang="en_US"><seg>Disable PLAIN Auth</seg></tuv>
 		</tu>
+		
+		<!-- OAuthApp -->
+		
+		<tu tuid='dao.oauth_app.client_id'>
+			<tuv xml:lang="en_US">
+			<seg>Client ID</seg></tuv>
+		</tu>
+		<tu tuid='dao.oauth_app.client_secret'>
+			<tuv xml:lang="en_US">
+			<seg>Client Secret</seg></tuv>
+		</tu>
+		<tu tuid='dao.oauth_app.callback_url'>
+			<tuv xml:lang="en_US">
+			<seg>Callback URL</seg></tuv>
+		</tu>
 
 		<!-- Snippets -->
 		
@@ -2985,7 +3093,21 @@
 				<seg>Is Disabled</seg>
 			</tuv>
 		</tu>
+		
+		<!-- Success -->
 
+		<tu tuid="success.imported">
+			<tuv xml:lang="en_US">
+				<seg>Imported!</seg>
+			</tuv>
+		</tu>
+		
+		<tu tuid="success.saved_changes">
+			<tuv xml:lang="en_US">
+				<seg>Your changes have been saved!</seg>
+			</tuv>
+		</tu>
+		
 		<!-- Errors -->
 		
 		<tu tuid="error.core.no_acl.admin">
@@ -4561,9 +4683,14 @@ For example: *receipt*</seg>
 				<seg>@Mention</seg>
 			</tuv>
 		</tu>
-		<tu tuid="worker.auth_extension_id">
+		<tu tuid="worker.is_mfa_required">
 			<tuv xml:lang="en_US">
-				<seg>Authentication</seg>
+				<seg>MFA Required</seg>
+			</tuv>
+		</tu>
+		<tu tuid="worker.is_password_disabled">
+			<tuv xml:lang="en_US">
+				<seg>Password Disabled</seg>
 			</tuv>
 		</tu>
 		<tu tuid="worker.is_superuser">

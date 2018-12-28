@@ -15,18 +15,14 @@
 |	http://cerb.ai	    http://webgroup.media
  ***********************************************************************/
 
-if(class_exists('Extension_PageSection')):
 class PageSection_InternalSkills extends Extension_PageSection {
 	function render() {}
 	
 	function showSkillsTabAction() {
 		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string');
 		@$context_id = DevblocksPlatform::importGPC($_REQUEST['context_id'],'integer');
-		@$point = DevblocksPlatform::importGPC($_REQUEST['point'],'string','');
 		
 		$tpl = DevblocksPlatform::services()->template();
-
-		$active_worker = CerberusApplication::getActiveWorker();
 
 		$tpl->assign('context', $context);
 		$tpl->assign('context_id', $context_id);
@@ -114,4 +110,3 @@ class PageSection_InternalSkills extends Extension_PageSection {
 	
 	
 }
-endif;

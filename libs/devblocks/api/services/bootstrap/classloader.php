@@ -118,6 +118,7 @@ class _DevblocksClassLoadManager {
 		$regex = new RegexIterator($iter, '/^.+\.php$/i', RecursiveRegexIterator::GET_MATCH);
 		
 		foreach($regex as $class_file => $o) {
+			assert(!is_null($o));
 			$class_name = substr($class_file, strlen($path), strlen($class_file)-strlen($path)-4);
 			$class_name = $ns_prefix . str_replace(DIRECTORY_SEPARATOR, '\\', $class_name);
 			$this->classMap[$class_name] = $class_file;
@@ -185,8 +186,14 @@ class _DevblocksClassLoadManager {
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/event/event_helper.php', array(
 			'DevblocksEventHelper',
 		));
+		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/http.php', array(
+			'_DevblocksHttpService',
+		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/gpg.php', array(
 			'_DevblocksGPGService',
+		));
+		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/mfa.php', array(
+			'_DevblocksMultiFactorAuthService',
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/nlp.php', array(
 			'_DevblocksNaturalLanguageManager',
@@ -198,6 +205,7 @@ class _DevblocksClassLoadManager {
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/oauth.php', array(
 			'_DevblocksOAuthService',
+			'_DevblocksOAuth1Client',
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/openid.php', array(
 			'_DevblocksOpenIDManager',
@@ -227,6 +235,9 @@ class _DevblocksClassLoadManager {
 			'DevblocksStorageEngineDisk',
 			'DevblocksStorageEngineS3',
 		));
+		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/string.php', [
+			'_DevblocksStringService',
+		]);
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/template_builder.php', array(
 			'_DevblocksTemplateBuilder',
 			'_DevblocksTwigExtensions',

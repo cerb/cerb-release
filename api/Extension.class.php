@@ -40,6 +40,28 @@
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
 
+abstract class Extension_CustomField extends DevblocksExtension {
+	use DevblocksExtensionGetterTrait;
+	
+	const POINT = 'cerb.custom_field';
+	
+	//abstract function hasMultipleValues();
+	abstract function getLabelsForValues($values);
+	abstract function getValueTableName();
+	abstract function getValueTableSql($context, array $context_ids);
+	abstract function populateQuickSearchMeta(array &$search_field_meta);
+	abstract function prepareCriteriaParam(Model_CustomField $field, $param, &$vals, &$implode_token);
+	abstract function renderEditable(Model_CustomField $field, $form_key, $form_value);
+	abstract function renderValue($value);
+	abstract function setFieldValue(Model_CustomField $field, $context, $context_id, $value);
+	abstract function unsetFieldValue(Model_CustomField $field, $context, $context_id, $value=null);
+	abstract function validationRegister(Model_CustomField $field, _DevblocksValidationService &$validation);
+	
+	function formatFieldValue($value) {
+		return $value;
+	}
+}
+
 abstract class Extension_AppPreBodyRenderer extends DevblocksExtension {
 	const POINT = 'cerberusweb.renderer.prebody';
 	
@@ -761,86 +783,6 @@ abstract class Extension_WorkspaceWidget extends DevblocksExtension {
 	}
 };
 
-abstract class Extension_LoginAuthenticator extends DevblocksExtension {
-	const POINT = 'cerberusweb.login';
-
-	/**
-	 * @internal
-	 */
-	static function getAll($as_instances=false) {
-		$extensions = DevblocksPlatform::getExtensions('cerberusweb.login', $as_instances);
-		
-		// [TODO] Alphabetize
-		
-		return $extensions;
-	}
-	
-	/**
-	 * @internal
-	 */
-	static function get($extension_id, $as_instance=false) {
-		$extensions = self::getAll(false);
-		
-		if(!isset($extensions[$extension_id]))
-			return NULL;
-		
-		$ext = $extensions[$extension_id];
-		
-		if($as_instance) {
-			return $ext->createInstance();
-			
-		} else {
-			return $ext;
-			
-		}
-	}
-	
-	/**
-	 * @internal
-	 */
-	static function getByUri($uri, $as_instance=false) {
-		$extensions = self::getAll(false);
-		
-		foreach($extensions as $manifest) { /* @var $manifest DevblocksExtensionManifest */
-			if($manifest->params['uri'] == $uri) {
-				return $as_instance ? $manifest->createInstance() : $manifest;
-			}
-		}
-
-		return NULL;
-	}
-	
-	/**
-	 * draws HTML form of controls needed for login information
-	 */
-	function render() {
-	}
-	
-	function renderWorkerPrefs($worker) {
-	}
-	
-	function saveWorkerPrefs($worker) {
-	}
-	
-	function resetCredentials($worker) {
-	}
-	
-	/**
-	 * pull auth info out of $_POST, check it, return user_id or false
-	 *
-	 * @return boolean whether login succeeded
-	 */
-	function authenticate() {
-		return false;
-	}
-	
-	/**
-	 * release any resources tied up by the authenticate process, if necessary
-	 */
-	function signoff() {
-	}
-};
-
 abstract class CerberusCronPageExtension extends DevblocksExtension {
 	const POINT = 'cerberusweb.cron';
 	
@@ -1000,45 +942,20 @@ abstract class Extension_CommunityPortal extends DevblocksExtension implements D
 	}
 };
 
-abstract class Extension_ServiceProvider extends DevblocksExtension {
-	const POINT = 'cerb.service.provider';
+abstract class Extension_ConnectedServiceProvider extends DevblocksExtension {
+	use DevblocksExtensionGetterTrait;
+	
+	const POINT = 'cerb.connected_service.provider';
 	
 	static $_registry = [];
 	
-	/**
-	 * @internal
-	 * 
-	 * @return DevblocksExtensionManifest[]|Extension_ServiceProvider[]
-	 */
-	static function getAll($as_instances=true) {
-		$exts = DevblocksPlatform::getExtensions(self::POINT, $as_instances);
-
-		// Sorting
-		if($as_instances)
-			DevblocksPlatform::sortObjects($exts, 'manifest->name');
-		else
-			DevblocksPlatform::sortObjects($exts, 'name');
-		
-		return $exts;
-	}
-
-	/**
-	 * @internal
-	 */
-	static function get($extension_id) {
-		if(isset(self::$_registry[$extension_id]))
-			return self::$_registry[$extension_id];
-		
-		if(null != ($extension = DevblocksPlatform::getExtension($extension_id, true))
-			&& $extension instanceof Extension_ServiceProvider) {
-
-			self::$_registry[$extension->id] = $extension;
-			return $extension;
-		}
-		
-		return null;
-	}
+	abstract function renderConfigForm(Model_ConnectedService $service);
+	abstract function saveConfigForm(Model_ConnectedService $service, array &$params, &$error=null);
 	
-	abstract function renderConfigForm(Model_ConnectedAccount $account);
-	abstract function saveConfigForm(Model_ConnectedAccount $account, array &$params);
+	abstract function renderAccountConfigForm(Model_ConnectedService $service, Model_ConnectedAccount $account);
+	abstract function saveAccountConfigForm(Model_ConnectedService $service, Model_ConnectedAccount $account, array &$params, &$error=null);
+	
+	abstract function authenticateHttpRequest(Model_ConnectedAccount $account, Psr\Http\Message\RequestInterface &$request, array &$options=[]) : bool;
+	
+	function ajaxAction() {}
 };

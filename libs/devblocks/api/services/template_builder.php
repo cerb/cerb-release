@@ -259,7 +259,7 @@ class _DevblocksTemplateBuilder {
 	}
 	
 	function addFilter($name, $filter) {
-		return $this->_twig->addFilter($name, $function);
+		return $this->_twig->addFilter($name, $filter);
 	}
 	
 	function addFunction($name, $function) {
@@ -497,8 +497,12 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		return isset($this->_dictionary[$name]);
 	}
 	
-	public function delegateUndefinedVariable($name) {
-		return $this->$name;
+	public function delegateUndefinedVariable($name, &$context) {
+		$this->$name;
+		
+		$context = array_merge($context, $this->_dictionary);
+		
+		return $this->get($name);
 	}
 	
 	public function getDictionary($with_prefix=null, $with_meta=true) {
@@ -565,6 +569,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 	
 	public function merge($token_prefix, $label_prefix, $src_labels, $src_values) {
 		$dst_labels =& $this->_dictionary['_labels'];
+		assert(is_array($dst_labels));
 		$dst_values =& $this->_dictionary;
 		
 		if(is_array($src_labels))
@@ -600,7 +605,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 				$dst_values[$token_prefix.$token] = $value;
 			}
 		}
-
+		
 		return true;
 	}
 	
@@ -950,6 +955,7 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 	
 	function function_regexp_match_all($pattern, $text, $group = 0) {
 		$group = intval($group);
+		$matches = [];
 		
 		@preg_match_all($pattern, $text, $matches, PREG_PATTERN_ORDER);
 		

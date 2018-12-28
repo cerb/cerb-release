@@ -100,14 +100,22 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				@$custom_field_id = intval(substr($search_key, 3));
 				@$custom_field = DAO_CustomField::get($custom_field_id);
 				
+				$field_key = 'field_value';
+				
+				$table = DAO_CustomFieldValue::getValueTableName($custom_field->id);
+				
+				if($table == 'custom_field_geovalue')
+					$field_key = 'ST_ASTEXT(field_value) AS field_value';
+				
 				return [
 					'key_query' => $key,
 					'key_select' => $search_key,
 					'label' => $custom_field->name,
 					'type' => $custom_field->type,
 					'type_options' => $custom_field->params,
-					'sql_select' => sprintf("(SELECT field_value FROM %s WHERE context=%s AND context_id=%s AND field_id=%d LIMIT 1)",
-						DAO_CustomFieldValue::getValueTableName($custom_field->id),
+					'sql_select' => sprintf("(SELECT %s FROM %s WHERE context=%s AND context_id=%s AND field_id=%d LIMIT 1)",
+						$field_key,
+						$table,
 						Cerb_ORMHelper::qstr($custom_field->context),
 						$primary_key,
 						$custom_field->id
@@ -232,6 +240,12 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 							$map[$id] = $dict->_label;
 						
 						return $map;
+						break;
+						
+					default:
+						if(null != ($field_ext = $custom_field->getTypeExtension())) {
+							return $field_ext->getLabelsForValues($values);
+						}
 						break;
 				}
 		}
@@ -394,7 +408,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			if(false == ($ext_attachments = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_ATTACHMENT)))
 				return;
 			
-			if(false == ($ext = Extension_DevblocksContext::get($context)))
+			if(false == (Extension_DevblocksContext::get($context)))
 				return;
 			
 			$view = $ext_attachments->getTempView();
@@ -846,7 +860,6 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 
 		$field_table = sprintf("cf_%d", $field_id);
 		$value_table = DAO_CustomFieldValue::getValueTableName($field_id);
-		$field_key = $param->field;
 		$cfield_key = null;
 		
 		$cfield_key = static::getCustomFieldContextWhereKey($field->context);
@@ -995,6 +1008,8 @@ class DevblocksSearchCriteria {
 	const OPER_NIN = 'not in';
 	const OPER_NIN_OR_NULL = 'not in or null';
 	const OPER_FULLTEXT = 'fulltext';
+	const OPER_GEO_POINT_EQ = 'geo eq';
+	const OPER_GEO_POINT_NEQ = 'geo neq';
 	const OPER_LIKE = 'like';
 	const OPER_NOT_LIKE = 'not like';
 	const OPER_GT = '>';
@@ -1017,6 +1032,7 @@ class DevblocksSearchCriteria {
 	const TYPE_DATE = 'date';
 	const TYPE_DECIMAL = 'decimal';
 	const TYPE_FULLTEXT = 'fulltext';
+	const TYPE_GEO_POINT = 'geo_point';
 	const TYPE_NUMBER = 'number';
 	const TYPE_NUMBER_MINUTES = 'number_minutes';
 	const TYPE_NUMBER_MS = 'number_ms';
@@ -1118,6 +1134,11 @@ class DevblocksSearchCriteria {
 				
 			case DevblocksSearchCriteria::TYPE_FULLTEXT:
 				if($param_key && false != ($param = DevblocksSearchCriteria::getFulltextParamFromTokens($param_key, $tokens)))
+					return $param;
+				break;
+				
+			case DevblocksSearchCriteria::TYPE_GEO_POINT:
+				if($param_key && false != ($param = DevblocksSearchCriteria::getGeoPointParamFromTokens($param_key, $tokens, $search_field)))
 					return $param;
 				break;
 				
@@ -1249,6 +1270,7 @@ class DevblocksSearchCriteria {
 				case 'T_QUOTED_TEXT':
 					$oper = $not ? DevblocksSearchCriteria::OPER_NEQ : DevblocksSearchCriteria::OPER_EQ;
 					$value = $token->value;
+					$matches = [];
 					
 					if(preg_match('#(.*?)\.{3}(.*)#', $value, $matches) || preg_match('#(.*?)\s+to\s+(.*)#', $value, $matches)) {
 						$from = intval(DevblocksPlatform::parseBytesString($matches[1]));
@@ -1300,6 +1322,33 @@ class DevblocksSearchCriteria {
 		);
 	}
 	
+	public static function getGeoPointParamFromTokens($field_key, $tokens) {
+		$oper = DevblocksSearchCriteria::OPER_GEO_POINT_EQ;
+		$value = null;
+		$not = false;
+		
+		if(is_array($tokens))
+		foreach($tokens as $token) {
+			switch($token->type) {
+				case 'T_NOT':
+					$not = true;
+					break;
+				
+				case 'T_TEXT':
+				case 'T_QUOTED_TEXT':
+					$oper = $not ? DevblocksSearchCriteria::OPER_GEO_POINT_NEQ : DevblocksSearchCriteria::OPER_GEO_POINT_EQ;
+					$value = DevblocksPlatform::parseGeoPointString($token->value);
+					break;
+			}
+		}
+		
+		return new DevblocksSearchCriteria(
+			$field_key,
+			$oper,
+			$value
+		);
+	}
+	
 	public static function getNumberParamFromTokens($field_key, $tokens) {
 		$oper = DevblocksSearchCriteria::OPER_EQ;
 		$value = null;
@@ -1321,6 +1370,7 @@ class DevblocksSearchCriteria {
 				case 'T_QUOTED_TEXT':
 					$oper = $not ? DevblocksSearchCriteria::OPER_NEQ : DevblocksSearchCriteria::OPER_EQ;
 					$value = $token->value;
+					$matches = [];
 					
 					if(preg_match('#(\d+)\.{3}(\d+)#', $value, $matches) || preg_match('#(\d+)\s+to\s+(\d+)#', $value, $matches)) {
 						$from = intval($matches[1]);
@@ -1438,7 +1488,7 @@ class DevblocksSearchCriteria {
 				}
 				
 				foreach($workers as $worker_id => $worker) {
-					if(isset($workers_ids[$worker_id]))
+					if(isset($worker_ids[$worker_id]))
 						continue;
 					
 					if(false !== stristr($worker->getName(), $term)) {
@@ -1472,7 +1522,7 @@ class DevblocksSearchCriteria {
 	public static function getVirtualContextParamFromTokens($field_key, $tokens, $prefix, $search_field_key) {
 		// Is this a nested subquery?
 		if(DevblocksPlatform::strStartsWith($field_key, $prefix.'.')) {
-			@list($null, $alias) = explode('.', $field_key);
+			@list(, $alias) = explode('.', $field_key);
 			
 			$query = CerbQuickSearchLexer::getTokensAsQuery($tokens);
 			
@@ -1517,7 +1567,7 @@ class DevblocksSearchCriteria {
 	public static function getContextLinksParamFromTokens($field_key, $tokens) {
 		// Is this a nested subquery?
 		if(substr($field_key,0,6) == 'links.') {
-			@list($null, $alias) = explode('.', $field_key);
+			@list(, $alias) = explode('.', $field_key);
 			
 			$query = CerbQuickSearchLexer::getTokensAsQuery($tokens);
 			
@@ -1601,7 +1651,7 @@ class DevblocksSearchCriteria {
 				}
 				
 				foreach($workers as $worker_id => $worker) {
-					if(isset($workers_ids[$worker_id]))
+					if(isset($worker_ids[$worker_id]))
 						continue;
 					
 					if(false !== stristr($worker->getName(), $term)) {
@@ -2078,6 +2128,19 @@ class DevblocksSearchCriteria {
 				);
 				break;
 				
+			case DevblocksSearchCriteria::OPER_GEO_POINT_EQ:
+			case DevblocksSearchCriteria::OPER_GEO_POINT_NEQ:
+				if(!is_array($this->value))
+					return 0;
+				
+				$where = sprintf("%s %s POINT(%f,%f)",
+					$db_field_name,
+					$this->operator == DevblocksSearchCriteria::OPER_GEO_POINT_NEQ ? '!=' : '=',
+					$this->value['longitude'],
+					$this->value['latitude']
+				);
+				break;
+			
 			default:
 				break;
 		}
@@ -2291,7 +2354,7 @@ class DevblocksPluginManifest {
 		
 		// Check PHP extensions
 		if(isset($this->manifest_cache['requires']['php_extensions']))
-		foreach($this->manifest_cache['requires']['php_extensions'] as $php_extension => $data) {
+		foreach(array_keys($this->manifest_cache['requires']['php_extensions']) as $php_extension) {
 			if(!extension_loaded($php_extension))
 				$this->_requirements_errors[] = sprintf("The '%s' PHP extension is required", $php_extension);
 		}
@@ -2513,7 +2576,7 @@ class DevblocksPatch {
 		if(empty($this->filename) || !file_exists($this->filename))
 			return FALSE;
 
-		if(false === ($result = require_once($this->filename)))
+		if(false === (require_once($this->filename)))
 			return FALSE;
 		
 		DAO_Platform::setPatchRan($this->plugin_id, $this->revision);

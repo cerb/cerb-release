@@ -247,6 +247,11 @@ abstract class DevblocksORMHelper {
 						->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_WORKER, true))
 					;
 					break;
+				default:
+					if(false != ($field_ext = Extension_CustomField::get($custom_field->type))) {
+						$field_ext->validationRegister($custom_field, $validation);
+					}
+					break;
 			}
 		}
 		
@@ -543,30 +548,46 @@ abstract class DevblocksORMHelper {
 		if(!is_array($ids))
 			$ids = [$ids];
 		
-		if(!isset($fields['_links']))
-			return;
+		// Custom fieldsets
 		
-		$links_json = $fields['_links'];
-		unset($fields['_links']);
+		if(isset($fields['_fieldsets'])) {
+			$fieldsets_json = $fields['_fieldsets'];
+			unset($fields['_fieldsets']);
+			
+			if(false == (@$fieldset_ids = json_decode($fieldsets_json)))
+				$fieldset_ids = [];
+			
+			if(is_array($ids))
+			foreach($ids as $id) {
+				DAO_CustomFieldset::addToContext($fieldset_ids, $context, $id);
+			}
+		}
 		
-		if(false == (@$links = json_decode($links_json)))
-			return;
+		// Links
 		
-		if(is_array($links))
-		foreach($links as $link) {
-			$link_context = $link_id = null;
+		if(isset($fields['_links'])) {
+			$links_json = $fields['_links'];
+			unset($fields['_links']);
 			
-			if(!is_string($link))
-				continue;
+			if(false == (@$links = json_decode($links_json)))
+				$links = [];
 			
-			@list($link_context, $link_id) = explode(':', $link, 2);
-			
-			if(false == ($link_context_ext = Extension_DevblocksContext::getByAlias($link_context, false)))
-				continue;
-			
-			if(is_array($ids)) {
-				foreach($ids as $id)
-					DAO_ContextLink::setLink($link_context_ext->id, $link_id, $context, $id);
+			if(is_array($links))
+			foreach($links as $link) {
+				$link_context = $link_id = null;
+				
+				if(!is_string($link))
+					continue;
+				
+				@list($link_context, $link_id) = explode(':', $link, 2);
+				
+				if(false == ($link_context_ext = Extension_DevblocksContext::getByAlias($link_context, false)))
+					continue;
+				
+				if(is_array($ids)) {
+					foreach($ids as $id)
+						DAO_ContextLink::setLink($link_context_ext->id, $link_id, $context, $id);
+				}
 			}
 		}
 	}

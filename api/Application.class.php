@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2018121401);
-define("APP_VERSION", '9.0.10');
+define("APP_BUILD", 2018122701);
+define("APP_VERSION", '9.1.0');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -51,6 +51,8 @@ $path = APP_PATH . '/api/app/';
 
 DevblocksPlatform::registerClasses($path . 'Mail.php', array(
 	'CerberusMail',
+	'Cerb_SwiftPlugin_GPGSigner',
+	'Cerb_SwiftPlugin_TransportExceptionLogger',
 ));
 
 DevblocksPlatform::registerClasses($path . 'Parser.php', array(
@@ -74,6 +76,7 @@ DevblocksPlatform::registerClasses($path . 'Utils.php', array(
  */
 class CerberusApplication extends DevblocksApplication {
 	private static $_active_worker = null;
+	private static $_login_state = null;
 
 	/**
 	 * @return CerberusVisit
@@ -103,7 +106,7 @@ class CerberusApplication extends DevblocksApplication {
 			: null
 			;
 	}
-
+	
 	static function getBotsByAtMentionsText($text) {
 		$bots = [];
 
@@ -457,6 +460,12 @@ class CerberusApplication extends DevblocksApplication {
 		if(extension_loaded("openssl")) {
 		} else {
 			$errors[] = "The 'openssl' PHP extension is required.  Please enable it.";
+		}
+		
+		// Extension: YAML
+		if(extension_loaded("yaml")) {
+		} else {
+			$errors[] = "The 'yaml' PHP extension is required.  Please enable it.";
 		}
 
 		return $errors;
@@ -976,7 +985,6 @@ class CerberusContexts {
 	const CONTEXT_APPLICATION = 'cerberusweb.contexts.app';
 	const CONTEXT_ACTIVITY_LOG = 'cerberusweb.contexts.activity_log';
 	const CONTEXT_ADDRESS = 'cerberusweb.contexts.address';
-	const CONTEXT_ASSET = 'cerberusweb.contexts.asset';
 	const CONTEXT_ATTACHMENT = 'cerberusweb.contexts.attachment';
 	const CONTEXT_BEHAVIOR = 'cerberusweb.contexts.behavior';
 	const CONTEXT_BEHAVIOR_SCHEDULED = 'cerberusweb.contexts.behavior.scheduled';
@@ -992,6 +1000,7 @@ class CerberusContexts {
 	const CONTEXT_CLASSIFIER_EXAMPLE = 'cerberusweb.contexts.classifier.example';
 	const CONTEXT_COMMENT = 'cerberusweb.contexts.comment';
 	const CONTEXT_CONNECTED_ACCOUNT = 'cerberusweb.contexts.connected_account';
+	const CONTEXT_CONNECTED_SERVICE = 'cerberusweb.contexts.connected_service';
 	const CONTEXT_CONTACT = 'cerberusweb.contexts.contact';
 	const CONTEXT_CONTEXT_AVATAR = 'cerberusweb.contexts.context.avatar';
 	const CONTEXT_CURRENCY = 'cerberusweb.contexts.currency';
@@ -2636,6 +2645,7 @@ class CerberusLicense {
 			'8.2.0' => gmmktime(0,0,0,10,30,2017),
 			'8.3.0' => gmmktime(0,0,0,2,26,2018),
 			'9.0.0' => gmmktime(0,0,0,8,6,2018),
+			'9.1.0' => gmmktime(0,0,0,12,15,2018),
 		);
 	}
 
@@ -2676,6 +2686,9 @@ class CerberusSettings {
 	const HTML_NO_STRIP_MICROSOFT = 'html_no_strip_microsoft';
 	const MAIL_DEFAULT_FROM_ID = 'mail_default_from_id';
 	const MAIL_AUTOMATED_TEMPLATES = 'mail_automated_templates';
+	const AUTH_MFA_ALLOW_REMEMBER = 'auth_mfa_allow_remember';
+	const AUTH_MFA_REMEMBER_DAYS = 'auth_mfa_remember_days';
+	const AUTH_SSO_SERVICE_IDS = 'auth_sso_service_ids';
 };
 
 class CerberusSettingsDefaults {
@@ -2700,10 +2713,12 @@ class CerberusSettingsDefaults {
 	const AVATAR_DEFAULT_STYLE_WORKER = 'monograms';
 	const HTML_NO_STRIP_MICROSOFT = 0;
 	const MAIL_DEFAULT_FROM_ID = 0;
-	const MAIL_AUTOMATED_TEMPLATES = "{\"worker_invite\":{\"send_from_id\":\"0\",\"send_as\":\"Cerb\",\"subject\":\"Welcome to Cerb!\",\"body\":\"Welcome, {{worker_first_name}}!\\r\\n\\r\\nYour team has invited you to create a new Cerb account at:\\r\\n{{url}}\\r\\n\"},\"worker_recover\":{\"send_from_id\":\"0\",\"send_as\":\"Cerb\",\"subject\":\"Your account recovery confirmation code\",\"body\":\"Hi, {{worker_first_name}}.\\r\\n\\r\\nWe recently received a request to reset your account's login information.\\r\\n\\r\\nHere's your account reset confirmation code: {{code}}\\r\\n\\r\\nIP: {{ip}}\\r\\n\\r\\nIf you didn't initiate this request, please forward this message to a system administrator.\"}}";
+	const MAIL_AUTOMATED_TEMPLATES = "{\"worker_invite\":{\"send_from_id\":\"0\",\"send_as\":\"Cerb\",\"subject\":\"Welcome to Cerb!\",\"body\":\"Welcome, {{worker_first_name}}!\\r\\n\\r\\nYour team has invited you to create a Cerb login at:\\r\\n{{url}}\\r\\n\"},\"worker_recover\":{\"send_from_id\":\"0\",\"send_as\":\"Cerb\",\"subject\":\"Your account recovery confirmation code\",\"body\":\"Hi, {{worker_first_name}}.\\r\\n\\r\\nWe recently received a request to reset your account's login information.\\r\\n\\r\\nHere's your account reset confirmation code: {{code}}\\r\\n\\r\\nIP: {{ip}}\\r\\n\\r\\nIf you didn't initiate this request, please forward this message to a system administrator.\"}}";
+	const AUTH_MFA_ALLOW_REMEMBER = 0;
+	const AUTH_MFA_REMEMBER_DAYS = 0;
+	const AUTH_SSO_SERVICE_IDS = "";
 };
 
-// [TODO] Implement our own session handler w/o PHP 'session'
 class Cerb_DevblocksSessionHandler implements IDevblocksHandler_Session {
 	static $_data = null;
 
@@ -2940,8 +2955,281 @@ class CerberusVisit extends DevblocksVisit {
 			$this->imposter_id = $worker->id;
 		}
 	}
+};
 
-
+class CerbLoginWorkerAuthState {
+	private static $_instance = null;
+	
+	private $email = null;
+	private $is_consent_given = false;
+	private $is_consent_required = false;
+	private $is_mfa_authenticated = false;
+	private $is_mfa_required = false;
+	private $is_oauth = false;
+	private $is_password_authenticated = false;
+	private $is_sso_authenticated = false;
+	private $params = [];
+	private $redirect_uris = [];
+	private $time_created_at = 0;
+	private $time_consented_at = 0;
+	private $time_mfa_challenged_at = 0;
+	private $was_consent_asked = false;
+	private $worker_id = 0;
+	
+	private $worker = null;
+	
+	static function getInstance() {
+		if(!is_null(self::$_instance))
+			return self::$_instance;
+		
+		@$session_state =& $_SESSION['login.state'];
+		
+		if(
+			!$session_state 
+			|| $session_state instanceof __PHP_Incomplete_Class
+			|| $session_state->time_created_at + 1200 < time() // expire after 20 minutes
+		) {
+			$session_state = new CerbLoginWorkerAuthState();
+		}
+		
+		self::$_instance = $session_state;
+		return self::$_instance;
+	}
+	
+	private function __construct() {
+		$this->time_created_at = time();
+		
+		// If we know the email from a cookie, use it
+		if(array_key_exists('cerb_login_email', $_COOKIE))
+			$this->email = $_COOKIE['cerb_login_email'];
+	}
+	
+	function __sleep() {
+		return [
+			'email',
+			'is_consent_given',
+			'is_consent_required',
+			'is_mfa_authenticated',
+			'is_mfa_required',
+			'is_password_authenticated',
+			'is_sso_authenticated',
+			'params',
+			'redirect_uris',
+			'time_created_at',
+			'time_consented_at',
+			'time_mfa_challenged_at',
+			'was_consent_asked',
+			'worker_id',
+		];
+	}
+	
+	function __wakeup() {
+		if($this->worker_id)
+			$this->setWorker(DAO_Worker::get($this->worker_id));
+	}
+	
+	function destroy() {
+		self::$_instance = null;
+		unset($_SESSION['login.state']);
+	}
+	
+	function clearAuthState() {
+		return $this
+			->setWorker(null)
+			->setParams([])
+			->setIsConsentGiven(false)
+			->setIsMfaAuthenticated(false)
+			->setIsMfaRequired(false)
+			->setIsPasswordAuthenticated(false)
+			->setIsSSOAuthenticated(false)
+			->setTimeConsentedAt(0)
+			->setTimeMfaChallengedAt(0)
+			->setWasConsentAsked(false)
+			;
+	}
+	
+	function getEmail() {
+		return $this->email;
+	}
+	
+	/**
+	 * 
+	 * @return boolean
+	 */
+	function isAuthenticated(array $options=[]) {
+		if(!$this->getWorker())
+			return false;
+		
+		if(!(array_key_exists('ignore_mfa', $options) && $options['ignore_mfa']))
+		if($this->isMfaRequired() && !$this->isMfaAuthenticated())
+			return false;
+		
+		if($this->isSSOAuthenticated())
+			return true;
+		
+		if(!$this->isPasswordAuthenticated())
+			return false;
+		
+		return true;
+	}
+	
+	function isConsentGiven() {
+		return $this->is_consent_given;
+	}
+	
+	function isConsentRequired() {
+		return $this->is_consent_required;
+	}
+	
+	function isMfaAuthenticated() {
+		return $this->is_mfa_authenticated;
+	}
+	
+	function isMfaRequired() {
+		return $this->is_mfa_required;
+	}
+	
+	function isPasswordAuthenticated() {
+		return $this->worker_id && $this->is_password_authenticated;
+	}
+	
+	function isSSOAuthenticated() {
+		return $this->is_sso_authenticated;
+	}
+	
+	function getParam($key, $default=null) {
+		if(array_key_exists($key, $this->params))
+			return $this->params[$key];
+		
+		return $default;
+	}
+	
+	function popRedirectUri() {
+		$uri = array_pop($this->redirect_uris);
+		return $uri;
+	}
+	
+	function pushRedirectUri($uri) {
+		$this->redirect_uris[] = $uri;
+		return $this;
+	}
+	
+	function getWorker() {
+		return $this->worker;
+	}
+	
+	function getWorkerId() {
+		return $this->worker_id;
+	}
+	
+	function setEmail($email) {
+		$url_writer = DevblocksPlatform::services()->url();
+		
+		$this->email = $email;
+		
+		// Set a cookie
+		setcookie(
+			'cerb_login_email',
+			$email,
+			time()+30*86400,
+			$url_writer->write('c=login',false,false),
+			null,
+			$url_writer->isSSL(),
+			true
+		);
+		
+		return $this;
+	}
+	
+	function setIsConsentGiven($bool) {
+		$this->is_consent_given = boolval($bool);
+		return $this;
+	}
+	
+	function setIsConsentRequired(array $params) {
+		$this->is_consent_required = $params ?: false;
+		return $this;
+	}
+	
+	function setIsPasswordAuthenticated($bool) {
+		$this->is_password_authenticated = boolval($bool);
+		return $this;
+	}
+	
+	function setIsMfaAuthenticated($bool) {
+		$this->is_mfa_authenticated = boolval($bool);
+		return $this;
+	}
+	
+	function setIsMfaRequired($bool) {
+		$this->is_mfa_required = boolval($bool);
+		return $this;
+	}
+	
+	function setIsSSOAuthenticated($bool) {
+		$this->is_sso_authenticated = boolval($bool);
+		return $this;
+	}
+	
+	function setParams(array $params) {
+		$this->params = $params;
+		return $this;
+	}
+	
+	function setParam($key, $value) {
+		$this->params[$key] = $value;
+		return $this;
+	}
+	
+	function setParamIncr($key, $n, $min=PHP_INT_MIN, $max=PHP_INT_MAX) {
+		@$value = intval($this->params[$key]);
+		$this->params[$key] = DevblocksPlatform::intClamp($value + intval($n), $min, $max);
+		return $this;
+	}
+	
+	function setParamDecr($key, $n, $min=PHP_INT_MIN, $max=PHP_INT_MAX) {
+		@$value = intval($this->params[$key]);
+		$this->params[$key] = DevblocksPlatform::intClamp($value - intval($n), $min, $max);
+		return $this;
+	}
+	
+	function setTimeConsentedAt($time) {
+		$this->time_consented_at = intval($time);
+		return $this;
+	}
+	
+	function setTimeMfaChallengedAt($time) {
+		$this->time_mfa_challenged_at = intval($time);
+		return $this;
+	}
+	
+	function setWasConsentAsked($bool) {
+		$this->was_consent_asked = boolval($bool);
+		return $this;
+	}
+	
+	function setWorker($worker) {
+		if(!($worker instanceof Model_Worker)) {
+			$this->worker_id = 0;
+			$this->worker = null;
+			
+		} else {
+			$this->worker_id = $worker->id;
+			$this->worker = $worker;
+		}
+		
+		return $this;
+	}
+	
+	function unsetParam($key) {
+		unset($this->params[$key]);
+		return $this;
+	}
+	
+	function wasConsentAsked() {
+		return $this->was_consent_asked;
+	}
+	
 };
 
 class Cerb_ORMHelper extends DevblocksORMHelper {

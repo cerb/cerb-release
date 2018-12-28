@@ -112,9 +112,30 @@ class Page_Profiles extends CerberusPageExtension {
 		$tpl->assign('context', $context);
 		
 		$profile_tabs_available = DAO_ProfileTab::getByContext($context);
-		$tpl->assign('profile_tabs', $profile_tabs_available);
-		
 		$profile_tabs_enabled = DevblocksPlatform::getPluginSetting('cerberusweb.core', 'profile:tabs:' . $context, [], true);
+		
+		// Sort enabled tabs first by dragged rank, disabled lexicographically
+		usort($profile_tabs_available, function($a, $b) use ($profile_tabs_enabled) {
+			/* @var $a Model_ProfileTab */
+			/* @var $b Model_ProfileTab */
+			
+			if(false === @$a_pos = array_search($a->id, $profile_tabs_enabled))
+				$a_pos = PHP_INT_MAX;
+			
+			if(false === (@$b_pos = array_search($b->id, $profile_tabs_enabled)))
+				$b_pos = PHP_INT_MAX;
+			
+			if($a_pos == $b_pos) {
+				if($a_pos == PHP_INT_MAX)
+					return strcmp($a->name, $b->name);
+				
+				return 0;
+			}
+			
+			return $a_pos < $b_pos ? -1 : 1;
+		});
+		
+		$tpl->assign('profile_tabs_available', $profile_tabs_available);
 		$tpl->assign('profile_tabs_enabled', $profile_tabs_enabled);
 		
 		$tpl->display('devblocks:cerberusweb.core::internal/profiles/config_tabs.tpl');
@@ -276,15 +297,13 @@ class Page_Profiles extends CerberusPageExtension {
 			'context_id' => 0,
 		);
 		
-		foreach($models as $idx => $model) {
+		foreach($models as $model) {
 			if($model instanceof Model_Comment) {
 				$context = CerberusContexts::CONTEXT_COMMENT;
-				$context_id = $model->id;
 				$object = array('context' => $context, 'context_id' => $model->id);
 				$json['objects'][] = $object;
 			} elseif($model instanceof Model_Message) {
 				$context = CerberusContexts::CONTEXT_MESSAGE;
-				$context_id = $model->id;
 				$object = array('context' => $context, 'context_id' => $model->id);
 				$json['objects'][] = $object;
 			}
@@ -391,7 +410,7 @@ class ProfileTab_Dashboard extends Extension_ProfileTab {
 			$tpl = DevblocksPlatform::services()->template();
 			$tpl->assign('widget', $widget);
 			
-			if(false == ($tab = $widget->getProfileTab()))
+			if(false == ($widget->getProfileTab()))
 				return;
 			
 			$tpl->assign('context', $context);
@@ -520,11 +539,9 @@ class ProfileTab_PortalDeploy extends Extension_ProfileTab {
 		
 		// Pure PHP reverse proxy
 		
-		@$portal_id = DevblocksPlatform::importGPC($_REQUEST['portal_id'],'integer',0);
-		
 		// Install
 		$url_writer = DevblocksPlatform::services()->url();
-		$url = $url_writer->writeNoProxy('c=portal&a='.$portal->code,true);
+		$url = $url_writer->writeNoProxy('c=portal&a='.$portal->code, true);
 		$url_parts = parse_url($url);
 		
 		$host = $url_parts['host'];
@@ -565,7 +582,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 
 	function showTab(Model_ProfileTab $model, $context, $context_id) {
 		$tpl = DevblocksPlatform::services()->template();
-		$url_writer = DevblocksPlatform::services()->url();
 		
 		if($context != CerberusContexts::CONTEXT_WORKER)
 			return;
@@ -690,17 +706,25 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 				
 			case 'security':
 				// Secret questions
+				
 				$secret_questions_json = DAO_WorkerPref::get($worker->id, 'login.recover.secret_questions', null);
+				
 				if(false !== ($secret_questions = json_decode($secret_questions_json, true)) && is_array($secret_questions)) {
 					$tpl->assign('secret_questions', $secret_questions);
 				}
 				
-				// Load the worker's auth extension
-				if(null != ($ext = Extension_LoginAuthenticator::get($worker->auth_extension_id, true))) {
-					/* @var $ext Extension_LoginAuthenticator */
-					$tpl->assign('auth_extension', $ext);
+				// MFA
+				if(!$worker->is_mfa_required) {
+					$is_mfa_enabled = !is_null(DAO_WorkerPref::get($worker_id, 'mfa.totp.seed', null));
+					$tpl->assign('is_mfa_enabled', $is_mfa_enabled);
+					
+					if(!$is_mfa_enabled) {
+						$seed = DevblocksPlatform::services()->mfa()->generateMultiFactorOtpSeed(24);
+						$tpl->assign('seed', $seed);
+					}
 				}
 				
+				// Template
 				$tpl->display('devblocks:cerberusweb.core::internal/profiles/tabs/worker/settings/tabs/security.tpl');
 				break;
 				
@@ -776,6 +800,8 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 					if(in_array($gender, array('M','F','')))
 						$worker_fields[DAO_Worker::GENDER] = $gender;
 					
+					$error = null;
+					
 					// Validate
 					if(!DAO_Worker::validate($worker_fields, $error, $worker->id))
 						throw new Exception_DevblocksAjaxValidationError($error);
@@ -801,19 +827,20 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 				case 'pages':
 					@$page_ids = DevblocksPlatform::importGPC($_REQUEST['pages'],'array:integer',[]);
 					
-					$pages = DAO_WorkspacePage::getIds($page_ids);
-					
-					if(!Context_WorkspacePage::isReadableByActor($pages, $worker))
-						throw new Exception_DevblocksAjaxValidationError(
-							sprintf("%s can't view a selected workspace page.",
-								$worker->getName()
-							)
-						);
+					if(false != ($pages = DAO_WorkspacePage::getIds($page_ids))) {
+						if(!Context_WorkspacePage::isReadableByActor($pages, $worker))
+							throw new Exception_DevblocksAjaxValidationError(
+								sprintf("%s can't view a selected workspace page.",
+									$worker->getName()
+								)
+							);
+					}
 					
 					DAO_WorkerPref::setAsJson($worker->id, 'menu_json', $page_ids);
 					
 					echo json_encode([
 						'status' => true,
+						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
 					break;
@@ -834,6 +861,7 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 					
 					echo json_encode([
 						'status' => true,
+						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
 					break;
@@ -868,6 +896,7 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 					
 					echo json_encode([
 						'status' => true,
+						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
 					break;
@@ -905,6 +934,7 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 					
 					echo json_encode([
 						'status' => true,
+						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
 					break;
@@ -915,12 +945,14 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 					
 					echo json_encode([
 						'status' => true,
+						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
 					break;
 					
 				case 'security':
 					// Secret questions
+					
 					@$q = DevblocksPlatform::importGPC($_REQUEST['sq_q'], 'array', array('','',''));
 					@$h = DevblocksPlatform::importGPC($_REQUEST['sq_h'], 'array', array('','',''));
 					@$a = DevblocksPlatform::importGPC($_REQUEST['sq_a'], 'array', array('','',''));
@@ -933,13 +965,58 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 					
 					DAO_WorkerPref::set($worker->id, 'login.recover.secret_questions', json_encode($secret_questions));
 					
-					if(null != ($ext = Extension_LoginAuthenticator::get($worker->auth_extension_id, true))) {
-						/* @var $ext Extension_LoginAuthenticator */
-						$ext->saveWorkerPrefs($worker);
+					// MFA
+					
+					if(!$worker->is_mfa_required) {
+						@$mfa_params = DevblocksPlatform::importGPC($_REQUEST['mfa_params'], 'array', []);
+						@$state = DevblocksPlatform::importGPC($mfa_params['state'], 'integer', 0);
+						@$seed = DevblocksPlatform::importGPC($mfa_params['seed'], 'string', '');
+						@$otp = DevblocksPlatform::importGPC($mfa_params['otp'], 'string', '');
+						
+						try {
+							$is_mfa_enabled = !is_null(DAO_WorkerPref::get($worker_id, 'mfa.totp.seed', null));
+							
+							// If disabling an enabled MFA
+							if(!$state && $is_mfa_enabled) {
+								DAO_WorkerPref::delete($worker_id, 'mfa.totp.seed');
+								
+							// Or enabling a disabled MFA
+							} elseif ($state && !$is_mfa_enabled) {
+								if(!($active_worker->id == $worker_id || $active_worker->is_superuser))
+									throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translateCapitalized('common.access_denied'));
+								
+								if($is_mfa_enabled)
+									throw new Exception_DevblocksAjaxValidationError("Two-factor authentication is already enabled for this account.");
+									
+								if(!$seed)
+									throw new Exception_DevblocksAjaxValidationError("The TOTP seed is invalid.");
+								
+								if(!$otp || strlen($otp) != 6 || !is_numeric($otp))
+									throw new Exception_DevblocksAjaxValidationError("The given security code is invalid. It must be six digits.");
+								
+								$server_otp = DevblocksPlatform::services()->mfa()->getMultiFactorOtpFromSeed($seed);
+								
+								if(0 != strcmp($server_otp, $otp))
+									throw new Exception_DevblocksAjaxValidationError("The given security code is invalid. Please try again.");
+								
+								DAO_WorkerPref::set($worker_id, 'mfa.totp.seed', $seed);
+								
+							} else {
+								// Leave the same settings intact
+							}
+							
+						} catch (Exception_DevblocksAjaxValidationError $e) {
+							echo json_encode([
+								'status' => false,
+								'error' => $e->getMessage(),
+							]);
+							return;
+						}
 					}
 					
 					echo json_encode([
 						'status' => true,
+						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
 					break;
@@ -953,6 +1030,7 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 					
 					echo json_encode([
 						'status' => true,
+						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
 					break;
@@ -1235,7 +1313,7 @@ class ProfileWidget_TicketSpamAnalysis extends Extension_ProfileWidget {
 		$words = DAO_Bayes::lookupWordIds($words);
 
 		// Calculate word probabilities
-		foreach($words as $idx => $word) { /* @var $word Model_BayesWord */
+		foreach($words as $word) { /* @var $word Model_BayesWord */
 			$word->probability = CerberusBayes::calculateWordProbability($word);
 		}
 		$tpl->assign('words', $words);
@@ -2384,6 +2462,8 @@ class ProfileWidget_ChartPie extends Extension_ProfileWidget {
 		if(!$query)
 			return;
 		
+		$error = null;
+		
 		if(false === ($results = $data->executeQuery($query, $error))) {
 			echo DevblocksPlatform::strEscapeHtml($error);
 			return;
@@ -2473,6 +2553,8 @@ class ProfileWidget_ChartScatterplot extends Extension_ProfileWidget {
 		if(!$query)
 			return;
 		
+		$error = null;
+		
 		if(false === ($results = $data->executeQuery($query, $error))) {
 			echo DevblocksPlatform::strEscapeHtml($error);
 			return;
@@ -2557,6 +2639,8 @@ class ProfileWidget_ChartTable extends Extension_ProfileWidget {
 		
 		if(!$query)
 			return;
+		
+		$error = null;
 		
 		if(false === ($results = $data->executeQuery($query, $error))) {
 			echo DevblocksPlatform::strEscapeHtml($error);
@@ -2737,6 +2821,69 @@ class ProfileWidget_ChartTimeSeries extends Extension_ProfileWidget {
 	}
 }
 
+class ProfileWidget_MapGeoPoints extends Extension_ProfileWidget {
+	function render(Model_ProfileWidget $model, $context, $context_id, $refresh_options=[]) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$data = DevblocksPlatform::services()->data();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		@$projection = DevblocksPlatform::importGPC($model->extension_params['projection'], 'string', 'world');
+		@$data_query = DevblocksPlatform::importGPC($model->extension_params['data_query'], 'string', null);
+		
+		$dict = DevblocksDictionaryDelegate::instance([
+			'current_worker__context' => CerberusContexts::CONTEXT_WORKER,
+			'current_worker_id' => $active_worker->id,
+			'record__context' => $context,
+			'record_id' => $context_id,
+			'widget__context' => CerberusContexts::CONTEXT_PROFILE_WIDGET,
+			'widget_id' => $model->id,
+		]);
+		
+		$query = $tpl_builder->build($data_query, $dict);
+		
+		if(!$query)
+			return;
+		
+		$error = null;
+		
+		if(false === ($results = $data->executeQuery($query, $error))) {
+			echo DevblocksPlatform::strEscapeHtml($error);
+			return;
+		}
+		
+		if(empty($results)) {
+			return;
+		}
+		
+		if(0 != strcasecmp('geojson', @$results['_']['format'])) {
+			echo DevblocksPlatform::strEscapeHtml("The data should be in 'geojson' format.");
+			return;
+		}
+		
+		$points = $results['data'];
+		
+		$tpl->assign('points', $points);
+		$tpl->assign('widget', $model);
+		
+		switch($projection) {
+			case 'usa':
+				$tpl->display('devblocks:cerberusweb.core::internal/widgets/map/geopoints/render_usa.tpl');
+				break;
+				
+			default:
+				$tpl->display('devblocks:cerberusweb.core::internal/widgets/map/geopoints/render_world.tpl');
+				break;
+		}
+	}
+	
+	function renderConfig(Model_ProfileWidget $model) {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl->assign('widget', $model);
+		$tpl->display('devblocks:cerberusweb.core::internal/profiles/widgets/map/geopoints/config.tpl');
+	}
+};
+
 class ProfileWidget_Visualization extends Extension_ProfileWidget {
 	const ID = 'cerb.profile.tab.widget.visualization';
 
@@ -2774,6 +2921,8 @@ class ProfileWidget_Visualization extends Extension_ProfileWidget {
 				$model->id,
 				$cache_by_worker ? sprintf(":%d", $active_worker->id) : ''
 			);
+			
+			$error = null;
 			
 			if(!$cache_ttl || false == ($results = $cache->load($cache_key))) {
 				if(false === ($results = $data_service->executeQuery($query, $error))) {

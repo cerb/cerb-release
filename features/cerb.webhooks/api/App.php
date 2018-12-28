@@ -70,7 +70,7 @@ class WebhookListenerEngine_BotBehavior extends Extension_WebhookListenerEngine 
 		$visible_va_ids = array();
 
 		if(is_array($behaviors));
-		foreach($behaviors as $behavior_id => $behavior) {
+		foreach($behaviors as $behavior) {
 			$visible_va_ids[$behavior->bot_id] = true;
 		}
 		
@@ -148,7 +148,6 @@ class Controller_Webhooks implements DevblocksHttpRequestHandler {
 	
 	function handleRequest(DevblocksHttpRequest $request) {
 		$stack = $request->path;
-		$db = DevblocksPlatform::services()->database();
 		
 		// [TODO] Restrict by IP?
 		
@@ -168,34 +167,6 @@ class Controller_Webhooks implements DevblocksHttpRequestHandler {
 	}
 	
 	function writeResponse(DevblocksHttpResponse $response) {
-	}
-};
-
-class Webhooks_SetupPageSection extends Extension_PageSection {
-	const ID = 'webhooks.setup.section';
-	
-	function render() {
-		$settings = DevblocksPlatform::services()->pluginSettings();
-		
-		$tpl = DevblocksPlatform::services()->template();
-	
-		$defaults = C4_AbstractViewModel::loadFromClass('View_WebhookListener');
-		$defaults->id = 'setup_webhook_listeners';
-		
-		$view = C4_AbstractViewLoader::getView($defaults->id, $defaults);
-		$tpl->assign('view', $view);
-		
-		$tpl->display('devblocks:cerb.webhooks::setup/page.tpl');
-	}
-	
-};
-
-class Webhooks_SetupPluginsMenuItem extends Extension_PageMenuItem {
-	const ID = 'webhooks.setup.menu.plugins';
-	
-	function render() {
-		$tpl = DevblocksPlatform::services()->template();
-		$tpl->display('devblocks:cerb.webhooks::setup/menu_item.tpl');
 	}
 };
 
@@ -219,8 +190,6 @@ class Portal_Webhook extends Extension_CommunityPortal {
 	 */
 	public function handleRequest(DevblocksHttpRequest $request) {
 		$path = $request->path;
-		
-		$config = $this->getConfig();
 		
 		@$a = DevblocksPlatform::importGPC($_REQUEST['a'],'string');
 		
@@ -248,7 +217,6 @@ class Portal_Webhook extends Extension_CommunityPortal {
 		$path = $response->path;
 		//$stack = array_shift($path);
 		
-		$portal_code = ChPortalHelper::getCode();
 		$config = $this->getConfig();
 		
 		@$webhook_behavior_id = $config[self::PARAM_WEBHOOK_BEHAVIOR_ID];

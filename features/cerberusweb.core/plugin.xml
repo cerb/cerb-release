@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>9.0.10</version>
+	<version>9.1.0</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -68,6 +68,7 @@
 		<patch version="8.4.0" revision="1282" file="patches/8.x/8.4.0.php" />
 		
 		<patch version="9.0.0" revision="1313" file="patches/9.x/9.0.0.php" />
+		<patch version="9.1.0" revision="1324" file="patches/9.x/9.1.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -81,17 +82,28 @@
 			<class name="EventListener_Triggers" />
 		</file>
 		
-		<file path="api/plugin.classes.php">
-			<class name="Cerb_SwiftPlugin_GPGSigner" />
-			<class name="Cerb_SwiftPlugin_TransportExceptionLogger" />
-			<class name="ChPageController" />
-			<class name="ChTaskSource_Org" />
-			<class name="ChTaskSource_Ticket" />
-			<class name="CerbMailTransport_Null" />
-			<class name="CerbMailTransport_Smtp" />
-			<class name="IServiceProvider_HttpRequestSigner" />
+		<file path="api/service_providers/cerb.php">
+			<class name="WgmCerb_API" />
+		</file>
+		
+		<file path="api/oauth2/oauth2_server.php">
+			<class name="Cerb_OAuth2AccessTokenEntity" />
+			<class name="Cerb_OAuth2AccessTokenRepository" />
+			<class name="Cerb_OAuth2AuthCodeEntity" />
+			<class name="Cerb_OAuth2AuthCodeRepository" />
+			<class name="Cerb_OAuth2ClientEntity" />
+			<class name="Cerb_OAuth2ClientRespository" />
+			<class name="Cerb_OAuth2Provider" />
+			<class name="Cerb_OAuth2RefreshTokenEntity" />
+			<class name="Cerb_OAuth2RefreshTokenRepository" />
+			<class name="Cerb_OAuth2ScopeEntity" />
+			<class name="Cerb_OAuth2ScopeRepository" />
+			<class name="Cerb_OAuth2UserEntity" />
+			<class name="Cerb_OAuth2UserRepository" />
+		</file>
+		
+		<file path="api/service_providers/oauth.php">
 			<class name="IServiceProvider_OAuth" />
-			<class name="IServiceProvider_OAuthRefresh" />
 		</file>
 		
 		<file path="api/dao/abstract_custom_record.php">
@@ -300,6 +312,14 @@
 			<class name="View_ConnectedAccount" />
 		</file>
 		
+		<file path="api/dao/connected_service.php">
+			<class name="Context_ConnectedService" />
+			<class name="DAO_ConnectedService" />
+			<class name="Model_ConnectedService" />
+			<class name="SearchFields_ConnectedService" />
+			<class name="View_ConnectedService" />
+		</file>
+		
 		<file path="api/dao/context_link.php">
 			<class name="DAO_ContextLink" />
 			<class name="Model_ContextLink" />
@@ -465,6 +485,18 @@
 		
 		<file path="api/dao/message_headers.php">
 			<class name="DAO_MessageHeaders" />
+		</file>
+		
+		<file path="api/dao/oauth_app.php">
+			<class name="Context_OAuthApp" />
+			<class name="DAO_OAuthApp" />
+			<class name="Model_OAuthApp" />
+			<class name="SearchFields_OAuthApp" />
+			<class name="View_OAuthApp" />
+		</file>
+		
+		<file path="api/dao/oauth_token.php">
+			<class name="DAO_OAuthToken" />
 		</file>
 		
 		<file path="api/dao/plugin_library.php">
@@ -1140,6 +1172,19 @@
 	<!-- Extensions -->
 
 	<extensions>
+	
+		<!-- Custom Field Types -->
+		
+		<extension point = "cerb.custom_field">
+			<id>cerb.custom_field.geo.point</id>
+			<name>Latitude/Longitude</name>
+			<class>
+				<file>api/customfield.classes.php</file>
+				<name>CustomField_GeoPoint</name>
+			</class>
+			<params>
+			</params>
+		</extension>
 
 		<!-- Contexts -->
 		
@@ -1377,9 +1422,51 @@
 					<value>
 						<data key="cards" />
 						<data key="custom_fields" />
-						<data key="records" />
 						<data key="links" />
+						<data key="records" />
 						<data key="search" />
+						<data key="va_variable" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="update" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.connected_service</id>
+			<name>Connected Service</name>
+			<class>
+				<file>api/dao/connected_service.php</file>
+				<name>Context_ConnectedService</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="connected service" value="singular" />
+						<data key="connected services" value="plural" />
+						<data key="service" value="singular short" />
+						<data key="services" value="plural short" />
+					</value>
+				</param>
+				<param key="alias" value="connected_service" />
+				<param key="dao_class" value="DAO_ConnectedService" />
+				<param key="view_class" value="View_ConnectedService" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="records" />
+						<data key="search" />
+						<data key="va_variable" />
 						<data key="workspace" />
 					</value>
 				</param>
@@ -2503,7 +2590,46 @@
 						<data key="delete" />
 						<data key="export" />
 						<data key="update" />
-						<data key="update.bulk" />-->
+						<data key="update.bulk" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.oauth.app</id>
+			<name>OAuth App</name>
+			<class>
+				<file>api/dao/oauth_app.php</file>
+				<name>Context_OAuthApp</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="OAuth app" value="singular" />
+						<data key="OAuth apps" value="plural" />
+					</value>
+				</param>
+				<param key="alias" value="oauth_app" />
+				<param key="dao_class" value="DAO_OAuthApp" />
+				<param key="view_class" value="View_OAuthApp" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="records" />
+						<data key="search" />
+						<data key="va_variable" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -4137,20 +4263,163 @@
 			</params>
 		</extension>
 
-		<!-- Connected Services -->
+		<!-- Connected Service Providers -->
 		
-		<extension point="cerb.service.provider">
-			<id>core.service.provider.cerb</id>
-			<name>Cerb</name>
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.aws</id>
+			<name>Amazon Web Services</name>
 			<class>
-				<file>api/plugin.classes.php</file>
-				<name>ServiceProvider_Cerb</name>
+				<file>api/service_providers/aws.php</file>
+				<name>ServiceProvider_Aws</name>
 			</class>
 			<params>
-				<param key="contexts">
+				<param key="options">
 					<value>
-						<data key="cerberusweb.contexts.app" />
-						<data key="cerberusweb.contexts.worker" />
+						<data key="accounts" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.cerb.api.legacy</id>
+			<name>Cerb API (Legacy Signatures)</name>
+			<class>
+				<file>api/service_providers/cerb.php</file>
+				<name>ServiceProvider_CerbApiLegacy</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="accounts" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.connected_service.provider">
+			<id>wgm.facebook.pages.service.provider</id>
+			<name>Facebook Pages</name>
+			<class>
+				<file>api/service_providers/facebook.php</file>
+				<name>ServiceProvider_FacebookPages</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="accounts" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.http.basic</id>
+			<name>HTTP Basic Authentication</name>
+			<class>
+				<file>api/service_providers/http.php</file>
+				<name>ServiceProvider_HttpBasic</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="accounts" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.ldap</id>
+			<name>LDAP</name>
+			<class>
+				<file>api/service_providers/ldap.php</file>
+				<name>ServiceProvider_Ldap</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="sso" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.oauth1</id>
+			<name>OAuth1 Provider</name>
+			<class>
+				<file>api/service_providers/oauth.php</file>
+				<name>ServiceProvider_OAuth1</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="accounts" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.oauth2</id>
+			<name>OAuth2 Provider</name>
+			<class>
+				<file>api/service_providers/oauth.php</file>
+				<name>ServiceProvider_OAuth2</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="accounts" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.oidc</id>
+			<name>OpenID Connect Identity Provider</name>
+			<class>
+				<file>api/service_providers/oidc.php</file>
+				<name>ServiceProvider_OpenIdConnect</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="sso" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.saml.idp</id>
+			<name>SAML Identity Provider</name>
+			<class>
+				<file>api/service_providers/saml.php</file>
+				<name>ServiceProvider_SAML</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="sso" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.token.bearer</id>
+			<name>Token Bearer</name>
+			<class>
+				<file>api/service_providers/token.php</file>
+				<name>ServiceProvider_TokenBearer</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="accounts" />
 					</value>
 				</param>
 			</params>
@@ -4162,8 +4431,8 @@
 			<id>core.va.action.classifier_prediction</id>
 			<name>Classifier Prediction</name>
 			<class>
-				<file>api/plugin.classes.php</file>
-				<name>VaAction_ClassifierPrediction</name>
+				<file>api/bots/actions/classifier.php</file>
+				<name>BotAction_ClassifierPrediction</name>
 			</class>
 			<params>
 				<param key="label" value="Execute classifier prediction" />
@@ -4179,7 +4448,7 @@
 			<id>core.bot.action.data_query</id>
 			<name>Data Query</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bots/actions/data_queries.php</file>
 				<name>BotAction_DataQuery</name>
 			</class>
 			<params>
@@ -4196,8 +4465,8 @@
 			<id>core.va.action.http_request</id>
 			<name>HTTP Request</name>
 			<class>
-				<file>api/plugin.classes.php</file>
-				<name>VaAction_HttpRequest</name>
+				<file>api/bots/actions/http.php</file>
+				<name>BotAction_HttpRequest</name>
 			</class>
 			<params>
 				<param key="label" value="Execute HTTP request" />
@@ -4213,7 +4482,7 @@
 			<id>core.bot.action.email_parser</id>
 			<name>Email Parser</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bots/actions/email.php</file>
 				<name>BotAction_EmailParser</name>
 			</class>
 			<params>
@@ -4230,7 +4499,7 @@
 			<id>core.bot.action.calculate_time_elapsed</id>
 			<name>Get time elapsed using calendar availability</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bots/actions/calendar.php</file>
 				<name>BotAction_CalculateTimeElapsed</name>
 			</class>
 			<params>
@@ -4247,7 +4516,7 @@
 			<id>core.bot.action.interaction_proactive.schedule</id>
 			<name>Schedule Proactive Interaction</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bot/actions/interactions.php</file>
 				<name>BotAction_ScheduleInteractionProactive</name>
 			</class>
 			<params>
@@ -4264,8 +4533,8 @@
 			<id>core.va.action.create_attachment</id>
 			<name>Create Attachment</name>
 			<class>
-				<file>api/plugin.classes.php</file>
-				<name>VaAction_CreateAttachment</name>
+				<file>api/bots/actions/create.php</file>
+				<name>BotAction_CreateAttachment</name>
 			</class>
 			<params>
 				<param key="label" value="Create attachment" />
@@ -4281,7 +4550,7 @@
 			<id>core.bot.action.create_reminder</id>
 			<name>Create Reminder</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bots/actions/create.php</file>
 				<name>BotAction_CreateReminder</name>
 			</class>
 			<params>
@@ -4295,27 +4564,10 @@
 		</extension>
 		
 		<extension point="devblocks.event.action">
-			<id>core.bot.action.record.create</id>
-			<name>Record Create</name>
-			<class>
-				<file>api/plugin.classes.php</file>
-				<name>BotAction_RecordCreate</name>
-			</class>
-			<params>
-				<param key="label" value="Record create" />
-				<param key="events">
-					<value>
-						<data key="*" />
-					</value>
-				</param>
-			</params>
-		</extension>
-		
-		<extension point="devblocks.event.action">
 			<id>core.bot.action.package.import</id>
 			<name>Package Import</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bots/actions/packages.php</file>
 				<name>BotAction_PackageImport</name>
 			</class>
 			<params>
@@ -4329,10 +4581,27 @@
 		</extension>
 		
 		<extension point="devblocks.event.action">
+			<id>core.bot.action.record.create</id>
+			<name>Record Create</name>
+			<class>
+				<file>api/bots/actions/records.php</file>
+				<name>BotAction_RecordCreate</name>
+			</class>
+			<params>
+				<param key="label" value="Record create" />
+				<param key="events">
+					<value>
+						<data key="*" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event.action">
 			<id>core.bot.action.record.update</id>
 			<name>Record Update</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bots/actions/records.php</file>
 				<name>BotAction_RecordUpdate</name>
 			</class>
 			<params>
@@ -4349,7 +4618,7 @@
 			<id>core.bot.action.record.upsert</id>
 			<name>Record Upsert</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bots/actions/records.php</file>
 				<name>BotAction_RecordUpsert</name>
 			</class>
 			<params>
@@ -4366,7 +4635,7 @@
 			<id>core.bot.action.record.delete</id>
 			<name>Record Delete</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bots/actions/records.php</file>
 				<name>BotAction_RecordDelete</name>
 			</class>
 			<params>
@@ -4383,7 +4652,7 @@
 			<id>core.bot.action.record.retrieve</id>
 			<name>Record Retrieve</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bots/actions/records.php</file>
 				<name>BotAction_RecordRetrieve</name>
 			</class>
 			<params>
@@ -4400,11 +4669,28 @@
 			<id>core.bot.action.record.search</id>
 			<name>Record Search</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/bots/actions/records.php</file>
 				<name>BotAction_RecordSearch</name>
 			</class>
 			<params>
 				<param key="label" value="Record search" />
+				<param key="events">
+					<value>
+						<data key="*" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event.action">
+			<id>wgm.aws.bot.action.get_presigned_url</id>
+			<name>Service AWS Get Pre-signed URL</name>
+			<class>
+				<file>api/service_providers/aws.php</file>
+				<name>BotAction_AwsGetPresignedUrl</name>
+			</class>
+			<params>
+				<param key="label" value="Service AWS Get Pre-signed URL" />
 				<param key="events">
 					<value>
 						<data key="*" />
@@ -4607,8 +4893,8 @@
 			<id>core.controller.page</id>
 			<name>Cerb Controller</name>
 			<class>
-				<file>api/plugin.classes.php</file>
-				<name>ChPageController</name>
+				<file>api/controllers/default.php</file>
+				<name>Controller_Default</name>
 			</class>
 			<params>
 			</params>
@@ -4623,6 +4909,18 @@
 			</class>
 			<params>
 				<param key="uri" value="resource" />
+			</params>
+		</extension>
+		
+		<extension point="devblocks.controller">
+			<id>controller.sso</id>
+			<name>SSO Controller</name>
+			<class>
+				<file>api/controllers/sso.php</file>
+				<name>Controller_SSO</name>
+			</class>
+			<params>
+				<param key="uri" value="sso"/>
 			</params>
 		</extension>
 
@@ -4645,7 +4943,7 @@
 			<id>core.mail.transport.null</id>
 			<name>Null</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/mail/transports/null.php</file>
 				<name>CerbMailTransport_Null</name>
 			</class>
 			<params>
@@ -4656,7 +4954,7 @@
 			<id>core.mail.transport.smtp</id>
 			<name>SMTP</name>
 			<class>
-				<file>api/plugin.classes.php</file>
+				<file>api/mail/transports/smtp.php</file>
 				<name>CerbMailTransport_Smtp</name>
 			</class>
 			<params>
@@ -4885,7 +5183,7 @@
 			<name>Signin Page</name>
 			<class>
 				<file>api/uri/login.php</file>
-				<name>ChSignInPage</name>
+				<name>Page_Login</name>
 			</class>
 			<params>
 				<param key="uri" value="login" />
@@ -4907,6 +5205,19 @@
 		</extension>
 		
 			<!-- Setup Page Sections -->
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.setup.auth</id>
+				<name>Authentication Section</name>
+				<class>
+					<file>api/uri/config/auth.php</file>
+					<name>PageSection_SetupAuth</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.configuration" />
+					<param key="uri" value="auth" />
+				</params>
+			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.setup.avatars</id>
@@ -4957,19 +5268,6 @@
 				<params>
 					<param key="page_id" value="core.page.configuration" />
 					<param key="uri" value="records" />
-				</params>
-			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.connected_accounts</id>
-				<name>Connected Accounts Section</name>
-				<class>
-					<file>api/uri/config/connected_accounts.php</file>
-					<name>PageSection_SetupConnectedAccounts</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="connected_accounts" />
 				</params>
 			</extension>
 			
@@ -5457,6 +5755,19 @@
 			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.connected_service</id>
+				<name>Connected Service Section</name>
+				<class>
+					<file>api/uri/profiles/connected_service.php</file>
+					<name>PageSection_ProfilesConnectedService</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="connected_service" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.profiles.contact</id>
 				<name>Contact Section</name>
 				<class>
@@ -5637,7 +5948,20 @@
 					<param key="uri" value="mail_transport" />
 				</params>
 			</extension>
-
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.oauth_app</id>
+				<name>OAuth App Section</name>
+				<class>
+					<file>api/uri/profiles/oauth_app.php</file>
+					<name>PageSection_ProfilesOAuthApp</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="oauth_app" />
+				</params>
+			</extension>
+			
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.profiles.organization</id>
 				<name>Organization Section</name>
@@ -6044,6 +6368,17 @@
 		</extension>
 		
 		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.map.geopoints</id>
+			<name>Map: Geo Points</name>
+			<class>
+				<file>api/uri/profiles.php</file>
+				<name>ProfileWidget_MapGeoPoints</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
 			<id>cerb.profile.tab.widget.fields</id>
 			<name>Record Fields</name>
 			<class>
@@ -6217,6 +6552,17 @@
 			<class>
 				<file>api/uri/internal/dashboards.php</file>
 				<name>WorkspaceWidget_ChartCategories</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.ui.workspace.widget">
+			<id>cerb.workspace.widget.map.geopoints</id>
+			<name>Map: Geo Points</name>
+			<class>
+				<file>api/uri/internal/dashboards.php</file>
+				<name>WorkspaceWidget_MapGeoPoints</name>
 			</class>
 			<params>
 			</params>
@@ -6506,27 +6852,13 @@
 			</params>
 		</extension>
 		
-		<!--  Login Extensions -->
-
-		<extension point="cerberusweb.login">
-			<id>login.password</id>
-			<name>Password</name>
-			<class>
-				<file>api/login.classes.php</file>
-				<name>DefaultLoginModule</name>
-			</class>
-			<params>
-				<param key="uri" value="password" />
-			</params>
-		</extension>
-
 		<!-- Cron Extensions -->
 		
 		<extension point="cerberusweb.cron">
 			<id>cron.mailbox</id>
 			<name>Mailbox Checker and Email Downloader</name>
 			<class>
-				<file>api/cron.classes.php</file>
+				<file>api/crons/mail.php</file>
 				<name>MailboxCron</name>
 			</class>
 			<params />
@@ -6536,7 +6868,7 @@
 			<id>cron.parser</id>
 			<name>Inbound Email Message Processor</name>
 			<class>
-				<file>api/cron.classes.php</file>
+				<file>api/crons/mail.php</file>
 				<name>ParseCron</name>
 			</class>
 			<params />
@@ -6546,7 +6878,7 @@
 			<id>cron.maint</id>
 			<name>Maintenance</name>
 			<class>
-				<file>api/cron.classes.php</file>
+				<file>api/crons/maint.php</file>
 				<name>MaintCron</name>
 			</class>
 			<params />
@@ -6556,7 +6888,7 @@
 			<id>cron.heartbeat</id>
 			<name>Heartbeat</name>
 			<class>
-				<file>api/cron.classes.php</file>
+				<file>api/crons/heartbeat.php</file>
 				<name>HeartbeatCron</name>
 			</class>
 			<params />
@@ -6566,7 +6898,7 @@
 			<id>cron.storage</id>
 			<name>Storage Manager</name>
 			<class>
-				<file>api/cron.classes.php</file>
+				<file>api/crons/storage.php</file>
 				<name>StorageCron</name>
 			</class>
 			<params />
@@ -6576,7 +6908,7 @@
 			<id>cron.search</id>
 			<name>Search Indexer</name>
 			<class>
-				<file>api/cron.classes.php</file>
+				<file>api/crons/search.php</file>
 				<name>SearchCron</name>
 			</class>
 			<params />
@@ -6586,7 +6918,7 @@
 			<id>cron.reminders</id>
 			<name>Reminders</name>
 			<class>
-				<file>api/cron.classes.php</file>
+				<file>api/crons/reminders.php</file>
 				<name>Cron_Reminders</name>
 			</class>
 			<params />
@@ -6596,7 +6928,7 @@
 			<id>cron.mail_queue</id>
 			<name>Mail Queue Processor</name>
 			<class>
-				<file>api/cron.classes.php</file>
+				<file>api/crons/mail.php</file>
 				<name>MailQueueCron</name>
 			</class>
 			<params />
@@ -6606,7 +6938,7 @@
 			<id>cron.bot.scheduled_behavior</id>
 			<name>Bot Scheduled Behavior</name>
 			<class>
-				<file>api/cron.classes.php</file>
+				<file>api/crons/bots.php</file>
 				<name>Cron_BotScheduledBehavior</name>
 			</class>
 			<params />

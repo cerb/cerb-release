@@ -5,6 +5,7 @@
 				<a href="javascript:;" class="menu">{'common.configure'|devblocks_translate|capitalize} <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
 				<ul class="cerb-popupmenu cerb-float">
 					<li><b>System</b></li>
+					<li><a href="{devblocks_url}c=config&a=auth{/devblocks_url}">{'common.authentication'|devblocks_translate|capitalize}</a></li>
 					<li><a href="{devblocks_url}c=config&a=branding{/devblocks_url}">Branding</a></li>
 					{if !$smarty.const.DEVBLOCKS_CACHE_ENGINE_PREVENT_CHANGE}<li><a href="{devblocks_url}c=config&a=cache{/devblocks_url}">Cache</a></li>{/if}
 					<li><a href="{devblocks_url}c=config&a=import_package{/devblocks_url}">Import Package</a></li>
@@ -69,20 +70,6 @@
 					<li><a href="{devblocks_url}c=config&a=mail_outgoing{/devblocks_url}">{'common.mail.outgoing'|devblocks_translate|capitalize}</a></li>
 					
 					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.mail')}
-					{if !empty($exts)}<li><hr></li>{/if}
-					{foreach from=$exts item=menu_item}
-						{if method_exists($menu_item,'render')}<li>{$menu_item->render()}</li>{/if}
-					{/foreach}
-				</ul>
-			</div>
-		</li>
-		<li>
-			<div>
-				<a href="javascript:;" class="menu">{'common.services'|devblocks_translate|capitalize} <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
-				<ul class="cerb-popupmenu cerb-float">
-					<li><a href="{devblocks_url}c=config&a=connected_accounts{/devblocks_url}">{'common.connected_accounts'|devblocks_translate|capitalize}</a></li>
-				
-					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.services')}
 					{if !empty($exts)}<li><hr></li>{/if}
 					{foreach from=$exts item=menu_item}
 						{if method_exists($menu_item,'render')}<li>{$menu_item->render()}</li>{/if}

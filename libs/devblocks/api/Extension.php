@@ -3,6 +3,66 @@ abstract class DevblocksApplication {
 
 }
 
+trait DevblocksExtensionGetterTrait {
+	static $_registry = [];
+	
+	/**
+	 * @internal
+	 */
+	public static function getAll($as_instances=true, $with_options=null) {
+		$extensions = DevblocksPlatform::getExtensions(self::POINT, $as_instances);
+		
+		if($as_instances)
+			DevblocksPlatform::sortObjects($extensions, 'manifest->name');
+		else
+			DevblocksPlatform::sortObjects($extensions, 'name');
+		
+		if(!empty($with_options)) {
+			if(!is_array($with_options))
+				$with_options = array($with_options);
+
+			foreach($extensions as $k => $controller) {
+				@$options = $controller->params['options'][0];
+
+				if(!is_array($options) || empty($options)) {
+					unset($extensions[$k]);
+					continue;
+				}
+
+				if(count(array_intersect(array_keys($options), $with_options)) != count($with_options))
+					unset($extensions[$k]);
+			}
+		}
+		
+		return $extensions;
+	}
+
+	/**
+	 * @param string $extension_id
+	 * @internal
+	 */
+	public static function get($extension_id, $as_instance=true) {
+		if($as_instance && isset(self::$_registry[$extension_id]))
+			return self::$_registry[$extension_id];
+		
+		$extensions = self::getAll(false);
+		
+		if(!isset($extensions[$extension_id]))
+			return null;
+		
+		$manifest = $extensions[$extension_id]; /* @var $manifest DevblocksExtensionManifest */
+
+		if($as_instance) {
+			self::$_registry[$extension_id] = $manifest->createInstance();
+			return self::$_registry[$extension_id];
+		} else {
+			return $extensions[$extension_id];
+		}
+		
+		return null;
+	}
+}
+
 /**
  * The superclass of instanced extensions.
  *
@@ -650,7 +710,20 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	abstract function getRandom();
 	abstract function getMeta($context_id);
 	abstract function getContext($object, &$token_labels, &$token_values, $prefix=null);
-	abstract function getKeyToDaoFieldMap();
+	
+	function getKeyToDaoFieldMap() {
+		$map = [];
+		
+		if($this->hasOption('custom_fields')) {
+			$map['fieldsets'] = '_fieldsets';
+		}
+		
+		if($this->hasOption('links')) {
+			$map['links'] = '_links';
+		}
+		
+		return $map;
+	}
 	
 	function getKeyMeta() {
 		$field_map = $this->getKeyToDaoFieldMap();
@@ -741,6 +814,11 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 			$keys['updated_at']['notes'] = "The date/time when this record was last modified";
 		}
 		
+		if(array_key_exists('fieldsets', $keys)) {
+			$keys['links']['type'] = 'fieldsets';
+			$keys['links']['notes'] = 'An array or comma-separated list of [custom fieldset](/docs/records/types/custom_fieldset/) IDs';
+		}
+		
 		if(array_key_exists('links', $keys)) {
 			$keys['links']['type'] = 'links';
 			$keys['links']['notes'] = 'An array of record `type:id` tuples to link to';
@@ -788,6 +866,16 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 			
 			$out_fields[$map[$key]] = $value;
 		}
+		
+		// Links
+		
+		if(!$this->_getDaoLinksForContext($context, $data, $out_fields, $error))
+			return false;
+		
+		// Custom fieldsets
+		
+		if(!$this->_getDaoCustomFieldsetsForContext($context, $data, $out_fields, $error))
+			return false;
 		
 		return true;
 	}
@@ -1273,6 +1361,44 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	/**
 	 * @internal
 	 */
+	protected function _getDaoCustomFieldsetsForContext($context, array &$data, &$out_fields, &$error=null) {
+		$error = null;
+		
+		if(!array_key_exists('fieldsets', $data))
+			return true;
+		
+		@$value = $data['fieldsets'];
+		
+		if($this->hasOption('custom_fields')) {
+			if(false == ($this->_getDaoFieldsets($value, $out_fields, $error)))
+				return false;
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * @internal
+	 */
+	protected function _getDaoLinksForContext($context, array &$data, &$out_fields, &$error=null) {
+		$error = null;
+		
+		if(!array_key_exists('links', $data))
+			return true;
+		
+		@$value = $data['links'];
+		
+		if($this->hasOption('links')) {
+			if(false == ($this->_getDaoFieldsLinks($value, $out_fields, $error)))
+				return false;
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * @internal
+	 */
 	protected function _getDaoCustomFieldsFromKeysAndValues($context, array &$data, &$out_custom_fields, &$error=null) {
 		$error = null;
 		$custom_fields = null;
@@ -1294,6 +1420,37 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 				$out_custom_fields[$custom_field_id] = $value;
 			}
 		}
+		
+		return true;
+	}
+	
+	/**
+	 * @internal
+	 */
+	protected function _getDaoFieldsets($value, &$out_fields, &$error) {
+		$fieldset_ids = [];
+		
+		if(!is_string($value) && !is_array($value)) {
+			$error = 'must be an array or comma-separated list of fieldset IDs.';
+			return false;
+		}
+		
+		if(is_array($value)) {
+			$fieldset_ids = $value;
+		} else if(is_string($value)) {
+			$fieldset_ids = DevblocksPlatform::parseCsvString($value);
+		}
+		
+		$custom_fieldsets = DAO_CustomFieldset::getIds($fieldset_ids);
+		
+		$fieldset_ids = array_keys($custom_fieldsets);
+		
+		if(false == ($json = json_encode($fieldset_ids))) {
+			$error = 'could not be JSON encoded.';
+			return false;
+		}
+		
+		$out_fields['_fieldsets'] = $json;
 		
 		return true;
 	}
@@ -1333,6 +1490,8 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		}
 		
 		$out_fields['_links'] = $json;
+		
+		return true;
 	}
 	
 	/**
@@ -1443,6 +1602,14 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 						$dict = new DevblocksDictionaryDelegate($token_values);
 						$dict->$token;
 						$token_values = $dict->getDictionary();
+					}
+					break;
+					
+				default:
+					if(false != ($field_ext = $fields[$cf_id]->getTypeExtension())) {
+						$value = $field_ext->getValue($field_values[$cf_id]);
+						$token_values['custom'][$cf_id] = $value;
+						$token_values['custom_' . $cf_id] = $value;
 					}
 					break;
 			}
@@ -1773,6 +1940,23 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 	}
 
 	abstract function setEvent(Model_DevblocksEvent $event_model=null, Model_TriggerEvent $trigger=null);
+	
+	/**
+	 *
+	 * @param Model_TriggerEvent $trigger
+	 * @return Model_DevblocksEvent
+	 */
+	function generateSampleEventModel(Model_TriggerEvent $trigger) {
+		$actions = null;
+		
+		return new Model_DevblocksEvent(
+			static::ID,
+			[
+				'key' => 'value',
+				'actions' => &$actions,
+			]
+		);
+	}
 
 	/**
 	 * @internal

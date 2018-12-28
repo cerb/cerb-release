@@ -86,6 +86,14 @@ class _DevblocksServices {
 	
 	/**
 	 * 
+	 * @return _DevblocksHttpService
+	 */
+	function http() {
+		return _DevblocksHttpService::getInstance();
+	}
+	
+	/**
+	 * 
 	 * @return _DevblocksGPGService
 	 */
 	function gpg() {
@@ -110,14 +118,17 @@ class _DevblocksServices {
 	}
 	
 	/**
-	 * 
-	 * @param string $consumer_key
-	 * @param string $consumer_secret
-	 * @param string $signature_method
+	 * @return _DevblocksMultiFactorAuthService
+	 */
+	function mfa() {
+		return _DevblocksMultiFactorAuthService::getInstance();
+	}
+	
+	/**
 	 * @return _DevblocksOAuthService
 	 */
-	function oauth($consumer_key, $consumer_secret, $signature_method='HMAC-SHA1') {
-		return new _DevblocksOAuthService($consumer_key, $consumer_secret, $signature_method);
+	function oauth() {
+		return _DevblocksOAuthService::getInstance();
 	}
 	
 	/**
@@ -170,6 +181,14 @@ class _DevblocksServices {
 	 */
 	function session() {
 		return _DevblocksSessionManager::getInstance();
+	}
+	
+	/**
+	 * 
+	 * @return _DevblocksStringService
+	 */
+	function string() {
+		return _DevblocksStringService::getInstance();
 	}
 	
 	/**
@@ -272,7 +291,9 @@ class DevblocksPlatform extends DevblocksEngine {
 		// Unzip (Devblocks ZipArchive or pclzip)
 		if(extension_loaded('zip')) {
 			$zip = new ZipArchive();
-			$result = $zip->open($zip_filename);
+			
+			if(true !== $zip->open($zip_filename))
+				return false;
 			
 			// Read the plugin.xml file
 			for($i=0;$i<$zip->numFiles;$i++) {
@@ -298,7 +319,7 @@ class DevblocksPlatform extends DevblocksEngine {
 			$xml = simplexml_load_string($manifest_data);
 			$plugin_id = (string) $xml->id;
 
-			$list = $zip->extract(PCLZIP_OPT_PATH, $plugin_path, PCLZIP_OPT_REPLACE_NEWER);
+			$zip->extract(PCLZIP_OPT_PATH, $plugin_path, PCLZIP_OPT_REPLACE_NEWER);
 		}
 		
 		if(empty($plugin_id))
@@ -477,6 +498,8 @@ class DevblocksPlatform extends DevblocksEngine {
 	 * @return array
 	 */
 	static function dateLerpArray(array $array, $step, $format=null) {
+		// [TODO] Unit test
+		
 		if(!$format) {
 			$formats = [
 				'day' => '%Y-%m-%d',
@@ -571,6 +594,10 @@ class DevblocksPlatform extends DevblocksEngine {
 		
 		return $colors;
 	}
+	
+	/*
+	 * @deprecated
+	 */
 	static function curlInit($url=null) {
 		$ch = curl_init($url);
 		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
@@ -579,6 +606,9 @@ class DevblocksPlatform extends DevblocksEngine {
 		return $ch;
 	}
 	
+	/*
+	 * @deprecated
+	 */
 	static function curlExec($ch, $follow=false, $return=true) {
 		// Proxy
 		if(defined('DEVBLOCKS_HTTP_PROXY') && DEVBLOCKS_HTTP_PROXY) {
@@ -637,6 +667,8 @@ class DevblocksPlatform extends DevblocksEngine {
 			return intval($string);
 			
 		} else {
+			$matches = [];
+			
 			if(!preg_match('#(\d+)(.*)#', $string, $matches))
 				return false;
 			
@@ -735,6 +767,8 @@ class DevblocksPlatform extends DevblocksEngine {
 	 * @test DevblocksPlatformTest
 	 */
 	static function parseAtMentionString($string) {
+		$matches = [];
+		
 		//$string = "@Hildy Do you have time for this today?  If not, ask @Jeff, or @Darren.";
 		preg_match_all('#(\@[A-Za-z0-9_\-]+)([^A-Za-z0-9_\-]|$)#', $string, $matches);
 		
@@ -743,6 +777,71 @@ class DevblocksPlatform extends DevblocksEngine {
 		}
 		
 		return false;
+	}
+	
+	/**
+	 * 
+	 * @param string $string
+	 * @return array|false
+	 */
+	static function parseGeoPointString($string, &$error=null) {
+		$error = null;
+		$is_latlong = true;
+		
+		if(!is_string($string)) {
+			$error = 'Must be a string.';
+			return false;
+		}
+		
+		// Parse out POINT() wrapper
+		if(DevblocksPlatform::strStartsWith($string, 'POINT(')) {
+			$is_latlong = false;
+			$string = trim(substr($string,5),'()');
+		}
+		
+		$replacements = [
+			' N' => '' ,
+			' S' => '' ,
+			' W' => '' ,
+			' E' => '' ,
+			'"' => '' ,
+			', ' => ',' ,
+			' ' => ',' ,
+		];
+		
+		// Handle formatting
+		$string = str_replace(array_keys($replacements), array_values($replacements), $string);
+		
+		if(false == (@$coords = DevblocksPlatform::parseCsvString($string))) {
+			$error = 'Must be a set of (latitude,longitude) coordinates separated with a comma.';
+			return false;
+		}
+		
+		if(2 != count($coords)) {
+			$error = 'Must be a set of (latitude,longitude) coordinates separated with a comma.';
+			return false;
+		}
+		
+		if($is_latlong) {
+			@list($latitude, $longitude) = $coords;
+		} else {
+			@list($longitude, $latitude) = $coords;
+		}
+		
+		if(!is_numeric($latitude) || $latitude < -90 || $latitude > 90) {
+			$error = 'Latitude must be -90 to 90.';
+			return false;
+		}
+		
+		if(!is_numeric($longitude) || $longitude < -180 || $longitude > 180) {
+			$error = 'Longitude must be -180 to 180.';
+			return false;
+		}
+		
+		return [
+			'latitude' => floatval($latitude),
+			'longitude' => floatval($longitude),
+		];
 	}
 	
 	/**
@@ -931,6 +1030,28 @@ class DevblocksPlatform extends DevblocksEngine {
 				return $suffix; // true
 		
 		return false;
+	}
+	
+	static function strTrimStart($string, $prefixes) {
+		if(!is_array($prefixes))
+			$prefixes = [$prefixes];
+		
+		while ($prefix = DevblocksPlatform::strStartsWith($string, $prefixes)) {
+			$string = substr($string, strlen($prefix));
+		}
+		
+		return $string;
+	}
+	
+	static function strTrimEnd($string, array $suffixes = []) {
+		if(!is_array($suffixes))
+			$suffixes = [$suffixes];
+		
+		while ($suffix = DevblocksPlatform::strEndsWith($string, $suffixes)) {
+			$string = substr($string, 0, -strlen($suffix));
+		}
+		
+		return $string;
 	}
 	
 	static function strIsListItem($string) {
@@ -1122,7 +1243,6 @@ class DevblocksPlatform extends DevblocksEngine {
 		if(0 == strlen($string))
 			return '';
 		
-		$len = strlen($string);
 		$out = '';
 			
 		$string = (is_null($from_encoding))
@@ -1135,7 +1255,7 @@ class DevblocksPlatform extends DevblocksEngine {
 			
 			$unpack = unpack("N*", $part);
 			
-			foreach($unpack as $k => $v) {
+			foreach($unpack as $v) {
 				$out .= self::_strUnidecodeLookup($v);
 			}
 			
@@ -1205,7 +1325,7 @@ class DevblocksPlatform extends DevblocksEngine {
 		$pads = 0;
 		
 		// Iterate each letter of base32
-		foreach(str_split(DevblocksPlatform::strUpper($str), 1) as $idx => $letter) {
+		foreach(str_split(DevblocksPlatform::strUpper($str), 1) as $letter) {
 			// If padding, skip
 			if($letter == '=') {
 				$pads++;
@@ -1217,7 +1337,7 @@ class DevblocksPlatform extends DevblocksEngine {
 		}
 	
 		// Split the new binary string into 8-bit octets
-		foreach(str_split($binary, 8) as $idx => $byte) {
+		foreach(str_split($binary, 8) as $byte) {
 			// Skip empty octets
 			if($byte == '00000000') {
 				$output .= "\0";
@@ -1299,7 +1419,7 @@ class DevblocksPlatform extends DevblocksEngine {
 			
 			$dom->loadHTML(sprintf('<?xml version="1.0" encoding="%s">', LANG_CHARSET_CODE) . $str);
 			
-			$errors = libxml_get_errors();
+			libxml_get_errors();
 			libxml_clear_errors();
 			
 			$xpath = new DOMXPath($dom);
@@ -1417,7 +1537,7 @@ class DevblocksPlatform extends DevblocksEngine {
 		
 		$dom->loadHTML(sprintf('<?xml version="1.0" encoding="%s">', LANG_CHARSET_CODE) . $str);
 		
-		$errors = libxml_get_errors();
+		libxml_get_errors();
 		libxml_clear_errors();
 		
 		$xpath = new DOMXPath($dom);
@@ -1723,7 +1843,7 @@ class DevblocksPlatform extends DevblocksEngine {
 			$feed = array(
 				'title' => (string) $xml->title,
 				'url' => $url,
-				'items' => array(),
+				'items' => [],
 			);
 			
 			if(!count($xml))
@@ -1741,6 +1861,7 @@ class DevblocksPlatform extends DevblocksEngine {
 					$date = (string) $entry->updated;
 
 				$date_timestamp = strtotime($date);
+				$matches = [];
 					
 				// Link as the <id> element
 				if(preg_match("/^(.*)\:\/\/(.*$)/i", $id, $matches)) {
@@ -2079,7 +2200,7 @@ class DevblocksPlatform extends DevblocksEngine {
 	 */
 	static function parseCsvString($string, $keep_blanks=false, $typecast=null, $limit=null) {
 		if(0 == strlen($string))
-			return array();
+			return [];
 		
 		if(!$keep_blanks)
 			$string = rtrim($string, ', ');
@@ -2091,7 +2212,7 @@ class DevblocksPlatform extends DevblocksEngine {
 		}
 
 		if(!is_array($tokens))
-			return array();
+			return [];
 		
 		foreach($tokens as $k => $v) {
 			if(!$keep_blanks && 0==strlen($tokens[$k])) {
@@ -2253,7 +2374,9 @@ class DevblocksPlatform extends DevblocksEngine {
 		if(!is_array($keys) || empty($keys))
 			return $ptr;
 		
-		foreach($keys as $idx => $k) {
+		foreach($keys as $k) {
+			$matches = [];
+			
 			if(preg_match('/(.*)\[(\d+)\]/', $k, $matches)) {
 				$array_keys[] = $matches[1];
 				$array_keys[] = $matches[2];
@@ -2314,7 +2437,7 @@ class DevblocksPlatform extends DevblocksEngine {
 			// Clear all locale caches
 			$langs = DAO_Translation::getDefinedLangCodes();
 			if(is_array($langs) && !empty($langs))
-			foreach($langs as $lang_code => $lang_name) {
+			foreach(array_keys($langs) as $lang_code) {
 				$cache->remove(self::CACHE_TAG_TRANSLATIONS . '_' . $lang_code);
 			}
 		}
@@ -2382,7 +2505,7 @@ class DevblocksPlatform extends DevblocksEngine {
 	 * @return boolean
 	 */
 	static function isDatabaseEmpty() {
-		if(false == ($db = DevblocksPlatform::services()->database()))
+		if(false == (DevblocksPlatform::services()->database()))
 			return true;
 		
 		$tables = self::getDatabaseTables();
@@ -2975,14 +3098,6 @@ class DevblocksPlatform extends DevblocksEngine {
 		return $value;
 	}
 	
-	/**
-	 * @deprecated
-	 * @return _DevblocksOAuthService
-	 */
-	static function getOAuthService($consumer_key, $consumer_secret, $signature_method='HMAC-SHA1') {
-		return new _DevblocksOAuthService($consumer_key, $consumer_secret, $signature_method);
-	}
-	
 	static private function _deepCloneArray(&$array) {
 		if(is_array($array))
 		foreach($array as &$element) {
@@ -3437,7 +3552,7 @@ class DevblocksPlatform extends DevblocksEngine {
 			mb_regex_encoding(LANG_CHARSET_CODE);
 		
 		// [JAS] [MDF]: Automatically determine the relative webpath to Devblocks files
-		@$proxyhost = $_SERVER['HTTP_DEVBLOCKSPROXYHOST'];
+		//@$proxyhost = $_SERVER['HTTP_DEVBLOCKSPROXYHOST'];
 		@$proxybase = $_SERVER['HTTP_DEVBLOCKSPROXYBASE'];
 	
 		// App path (always backend)

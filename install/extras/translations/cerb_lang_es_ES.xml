@@ -1853,11 +1853,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="dao.jira_project.is_sync">
-			<tuv xml:lang="es_ES">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="dao.jira_project.jira_id">
 			<tuv xml:lang="es_ES">
 				<seg/>
@@ -4739,11 +4734,6 @@ Por ejemplo: *recibo*</seg>
 			</tuv>
 		</tu>
 		<tu tuid="worker.at_mention_name">
-			<tuv xml:lang="es_ES">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="worker.auth_extension_id">
 			<tuv xml:lang="es_ES">
 				<seg/>
 			</tuv>

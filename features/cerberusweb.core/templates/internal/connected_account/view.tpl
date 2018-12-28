@@ -56,6 +56,13 @@
 		{/foreach}
 	</tr>
 	</thead>
+	
+	{* Bulk lazy load services *}
+	{$object_services = []}
+	{if in_array(SearchFields_ConnectedAccount::SERVICE_ID, $view->view_columns)}
+		{$service_ids = DevblocksPlatform::extractArrayValues($results, 'c_service_id')}
+		{$object_services = DAO_ConnectedService::getIds($service_ids)}
+	{/if}
 
 	{* Column Data *}
 	{foreach from=$data item=result key=idx name=results}
@@ -82,11 +89,11 @@
 						{$result.$column|devblocks_prettytime}&nbsp;
 					{/if}
 				</td>
-			{elseif $column=="c_extension_id"}
+			{elseif $column=="c_service_id"}
 				<td data-column="{$column}">
-					{$provider_mft = $provider_mfts.{$result.$column}}
-					{if $provider_mft}
-						{$provider_mft->name}
+					{$service = $object_services[$result.$column]}
+					{if $service}
+						<a href="javascript:;" class="cerb-peek-trigger no-underline" data-context="{CerberusContexts::CONTEXT_CONNECTED_SERVICE}" data-context-id="{$service->id}">{$service->name}</a>
 					{/if}
 				</td>
 			{elseif $column=="*_owner"}

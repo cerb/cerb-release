@@ -634,7 +634,8 @@ class EventListener_Triggers extends DevblocksEventListenerExtension {
 
 		// Keep track of the runners to return at the end
 		
-		$runners = array();
+		$runners = [];
+		$triggers = [];
 		
 		// Load all VAs
 		
@@ -855,7 +856,7 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 					if(@$event_ext->manifest->params['macro_context'] != $from_context)
 						continue;
 					
-					$runners = call_user_func([$event_ext->manifest->class, 'trigger'], $behavior->id, $from_context_id, @$behavior_params[$behavior->id] ?: []);
+					call_user_func([$event_ext->manifest->class, 'trigger'], $behavior->id, $from_context_id, @$behavior_params[$behavior->id] ?: []);
 				}
 			}
 		}
@@ -978,6 +979,14 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 		if(null != ($deletes = $db->Affected_Rows()))
 			$logger->info(sprintf("Purged %d %s custom field clobs.", $deletes, $context));
 		
+		$db->ExecuteMaster(sprintf("DELETE FROM custom_field_geovalue WHERE context = %s AND context_id NOT IN (SELECT %s FROM %s)",
+			$db->qstr($context),
+			$db->escape($context_index),
+			$db->escape($context_table)
+		));
+		if(null != ($deletes = $db->Affected_Rows()))
+			$logger->info(sprintf("Purged %d %s custom field geo points.", $deletes, $context));
+		
 		// ===========================================================================
 		// Notifications
 		
@@ -1025,6 +1034,7 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 		DAO_CustomField::maint();
 		DAO_ExplorerSet::maint();
 		DAO_Group::maint();
+		DAO_OAuthToken::maint();
 		DAO_Task::maint();
 		DAO_Ticket::maint();
 		DAO_Message::maint();
@@ -1050,7 +1060,7 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 	
 	private function _handleCronHeartbeatReopenTickets() {
 		// Re-open any conversations past their reopen date
-		list($results, $null) = DAO_Ticket::search(
+		list($results,) = DAO_Ticket::search(
 			array(),
 			array(
 				SearchFields_Ticket::TICKET_STATUS_ID => new DevblocksSearchCriteria(SearchFields_Ticket::TICKET_STATUS_ID,'in',array(Model_Ticket::STATUS_WAITING, Model_Ticket::STATUS_CLOSED)),
@@ -1085,7 +1095,7 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 	
 	private function _handleCronHeartbeatReopenTasks() {
 		// Re-open any conversations past their reopen date
-		list($results, $null) = DAO_Task::search(
+		list($results,) = DAO_Task::search(
 			array(),
 			array(
 				SearchFields_Task::STATUS_ID => new DevblocksSearchCriteria(SearchFields_Task::STATUS_ID,'in',array(1,2)),

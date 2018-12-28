@@ -48,6 +48,15 @@ class _DevblocksValidationField {
 	
 	/**
 	 * 
+	 * @return _DevblocksValidationTypeGeoPoint
+	 */
+	function geopoint() {
+		$this->_type = new _DevblocksValidationTypeGeoPoint('geopoint');
+		return $this->_type;
+	}
+	
+	/**
+	 * 
 	 * @return _DevblocksValidationTypeNumber
 	 */
 	function id() {
@@ -441,6 +450,17 @@ class _DevblocksValidators {
 			return true;
 		};
 	}
+	
+	function yaml() {
+		return function($value, &$error=null) {
+			if(false === @yaml_parse($value, -1)) {
+				$error = "is not valid YAML.";
+				return false;
+			}
+			
+			return true;
+		};
+	}
 }
 
 class _DevblocksValidationType {
@@ -484,6 +504,7 @@ class _DevblocksValidationType {
 	function setUnique($dao_class) {
 		$this->_data['unique'] = true;
 		$this->_data['dao_class'] = $dao_class;
+		$this->setNotEmpty(true);
 		return $this;
 	}
 	
@@ -549,6 +570,13 @@ class _DevblocksValidationTypeFloat extends _DevblocksValidationType {
 	}
 }
 
+class _DevblocksValidationTypeGeoPoint extends _DevblocksValidationType {
+	function __construct($type_name='geopoint') {
+		parent::__construct($type_name);
+		return $this;
+	}
+}
+
 class _DevblocksValidationTypeIdArray extends _DevblocksValidationType {
 	function __construct($type_name='idArray') {
 		parent::__construct($type_name);
@@ -587,9 +615,16 @@ class _DevblocksValidationTypeNumber extends _DevblocksValidationType {
 	}
 }
 
-class _DevblocksValidationTypeString extends _DevblocksValidationType {
-	function __construct($type_name='string') {
-		parent::__construct($type_name);
+trait _DevblocksValidationStringTrait {
+	function setMinLength($length) {
+		if(is_string($length)) {
+			$length = DevblocksPlatform::strBitsToInt($length);
+		}
+		
+		if(!is_numeric($length))
+			return false;
+		
+		$this->_data['length_min'] = $length;
 		return $this;
 	}
 	
@@ -601,7 +636,7 @@ class _DevblocksValidationTypeString extends _DevblocksValidationType {
 		if(!is_numeric($length))
 			return false;
 		
-		$this->_data['length'] = $length;
+		$this->_data['length_max'] = $length;
 		return $this;
 	}
 	
@@ -611,23 +646,20 @@ class _DevblocksValidationTypeString extends _DevblocksValidationType {
 	}
 }
 
-class _DevblocksValidationTypeStringOrArray extends _DevblocksValidationType {
-	function __construct($type_name='stringOrArray') {
+class _DevblocksValidationTypeString extends _DevblocksValidationType {
+	use _DevblocksValidationStringTrait;
+	
+	function __construct($type_name='string') {
 		parent::__construct($type_name);
 		return $this;
 	}
+}
+
+class _DevblocksValidationTypeStringOrArray extends _DevblocksValidationType {
+	use _DevblocksValidationStringTrait;
 	
-	function setMaxLength($length) {
-		if(is_string($length)) {
-			$length = DevblocksPlatform::strBitsToInt($length);
-		}
-		
-		$this->_data['length'] = intval($length);
-		return $this;
-	}
-	
-	function setPossibleValues(array $possible_values) {
-		$this->_data['possible_values'] = $possible_values;
+	function __construct($type_name='stringOrArray') {
+		parent::__construct($type_name);
 		return $this;
 	}
 }
@@ -713,17 +745,22 @@ class _DevblocksValidationService {
 		if(isset($data['unique']) && $data['unique']) {
 			@$dao_class = $data['dao_class'];
 			
-			if(empty($dao_class))
-				throw new Exception_DevblocksValidationError("'%s' has an invalid unique constraint.", $field_label);
-			
-			if(isset($scope['id'])) {
-				$results = $dao_class::getWhere(sprintf("%s = %s AND id != %d", $dao_class::escape($field_name), $dao_class::qstr($value), $scope['id']), null, null, 1);
+			if(array_key_exists('not_empty', $data) && !$data['not_empty'] && 0 == strlen($value)) {
+				// May be empty
+				
 			} else {
-				$results = $dao_class::getWhere(sprintf("%s = %s", $dao_class::escape($field_name), $dao_class::qstr($value)), null, null, 1);
-			}
-			
-			if(!empty($results)) {
-				throw new Exception_DevblocksValidationError(sprintf("A record already exists with this '%s' (%s). It must be unique.", $field_label, $value));
+				if(empty($dao_class))
+					throw new Exception_DevblocksValidationError("'%s' has an invalid unique constraint.", $field_label);
+				
+				if(isset($scope['id'])) {
+					$results = $dao_class::getWhere(sprintf("%s = %s AND id != %d", $dao_class::escape($field_name), $dao_class::qstr($value), $scope['id']), null, null, 1);
+				} else {
+					$results = $dao_class::getWhere(sprintf("%s = %s", $dao_class::escape($field_name), $dao_class::qstr($value)), null, null, 1);
+				}
+				
+				if(!empty($results)) {
+					throw new Exception_DevblocksValidationError(sprintf("A record already exists with this '%s' (%s). It must be unique.", $field_label, $value));
+				}
 			}
 		}
 		
@@ -733,6 +770,19 @@ class _DevblocksValidationService {
 					throw new Exception_DevblocksValidationError(sprintf("'%s' is not a valid context (%s).", $field_label, $value));
 				}
 				// [TODO] Filter to specific contexts for certain fields
+				break;
+				
+			case '_DevblocksValidationTypeGeoPoint':
+				if(!is_string($value)) {
+					throw new Exception_DevblocksValidationError(sprintf("'%s' must be text.", $field_label));
+				}
+				
+				$error = null;
+				$coords = DevblocksPlatform::parseGeoPointString($value, $error);
+				
+				if(false === $coords)
+					throw new Exception_DevblocksValidationError(sprintf("'%s': %s", $field_label, $error));
+				
 				break;
 				
 			case '_DevblocksValidationTypeId':
@@ -773,8 +823,12 @@ class _DevblocksValidationService {
 				}
 				
 				if($data) {
-					if(isset($data['length']) && strlen($value) > $data['length']) {
-						throw new Exception_DevblocksValidationError(sprintf("'%s' must be no longer than %d characters.", $field_label, $data['length']));
+					if(isset($data['length_min']) && strlen($value) < $data['length_min']) {
+						throw new Exception_DevblocksValidationError(sprintf("'%s' must be longer than %d characters.", $field_label, $data['length_min']));
+					}
+					
+					if(isset($data['length_max']) && strlen($value) > $data['length_max']) {
+						throw new Exception_DevblocksValidationError(sprintf("'%s' must be no longer than %d characters.", $field_label, $data['length_max']));
 					}
 					
 					if(isset($data['possible_values']) && !in_array($value, $data['possible_values'])) {
@@ -796,8 +850,12 @@ class _DevblocksValidationService {
 				
 				if($data) {
 					foreach($values as $v) {
-						if(isset($data['length']) && strlen($v) > $data['length']) {
-							throw new Exception_DevblocksValidationError(sprintf("'%s' must be no longer than %d characters.", $field_label, $data['length']));
+						if(isset($data['length_min']) && strlen($v) < $data['length_min']) {
+							throw new Exception_DevblocksValidationError(sprintf("'%s' must be longer than %d characters.", $field_label, $data['length_min']));
+						}
+						
+						if(isset($data['length_max']) && strlen($v) > $data['length_max']) {
+							throw new Exception_DevblocksValidationError(sprintf("'%s' must be no longer than %d characters.", $field_label, $data['length_max']));
 						}
 						
 						if(isset($data['possible_values']) && !in_array($v, $data['possible_values'])) {
@@ -806,6 +864,30 @@ class _DevblocksValidationService {
 					}
 				}
 				break;
+		}
+		
+		return true;
+	}
+	
+	function validateAll(array &$values, &$error=null) {
+		$fields = $this->getFields();
+		
+		if(is_array($values))
+		foreach($values as $field_key => &$value) {
+			if(!array_key_exists($field_key, $fields)) {
+				$error = sprintf("'%s' is not a valid field.", $field_key);
+				return false;
+			}
+		
+			$field = $fields[$field_key];
+			
+			try {
+				$this->validate($field, $value);
+				
+			} catch (Exception_DevblocksValidationError $e) {
+				$error = $e->getMessage();
+				return false;
+			}
 		}
 		
 		return true;

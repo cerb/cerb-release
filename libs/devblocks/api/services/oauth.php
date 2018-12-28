@@ -1,5 +1,79 @@
 <?php
 class _DevblocksOAuthService {
+	private static $_instance = null;
+	
+	static function getInstance() {
+		if(is_null(self::$_instance))
+			self::$_instance = new _DevblocksOAuthService();
+		
+		return self::$_instance;
+	}
+	
+	private function __construct() {}
+	
+	function getOAuth1Client($consumer_key=null, $consumer_secret=null, $signature_method='HMAC-SHA1') {
+		return new _DevblocksOAuth1Client($consumer_key, $consumer_secret, $signature_method);
+	}
+	
+	function getServerPrivateKeyPath() {
+		return APP_STORAGE_PATH . '/keys/oauth2-server.key';
+	}
+	
+	function getServerPrivateKey() {
+		$key_file = $this->getServerPrivateKeyPath();
+		
+		if(!file_exists($key_file))
+			$this->_generateAndSaveKeys();
+		
+		return new \League\OAuth2\Server\CryptKey($key_file);
+	}
+	
+	function getServerPublicKeyPath() {
+		return APP_STORAGE_PATH . '/keys/oauth2-server.pub';
+	}
+	
+	function getServerPublicKey() {
+		$key_file = $this->getServerPublicKeyPath();
+		
+		if(!file_exists($key_file))
+			$this->_generateAndSaveKeys();
+		
+		return new \League\OAuth2\Server\CryptKey($key_file);
+	}
+	
+	private function _generateAndSaveKeys($key_options = ['digest_alg' => 'sha512', 'private_key_bits' => 4096, 'private_key_type' => OPENSSL_KEYTYPE_RSA]) {
+		$key_path = APP_STORAGE_PATH . '/keys/';
+		$key_pair = $this->_generateKeyPair($key_options);
+		
+		if(!file_exists($key_path))
+			mkdir($key_path, 0770);
+		
+		$public_key_file = $key_path . 'oauth2-server.pub';
+		$private_key_file = $key_path . 'oauth2-server.key';
+		
+		file_put_contents($private_key_file, $key_pair['private']);
+		file_put_contents($public_key_file, $key_pair['public']);
+		chmod($private_key_file, 0660);
+		chmod($public_key_file, 0660);
+	}
+	
+	private function _generateKeyPair($key_options = ['digest_alg' => 'sha512', 'private_key_bits' => 4096, 'private_key_type' => OPENSSL_KEYTYPE_RSA]) {
+		$res = openssl_pkey_new($key_options);
+		
+		$key_private = null;
+		
+		openssl_pkey_export($res, $key_private);
+		
+		$key_public = openssl_pkey_get_details($res)['key'];
+		
+		return [
+			'private' => $key_private,
+			'public' => $key_public,
+		];
+	}
+}
+
+class _DevblocksOAuth1Client {
 	private $_consumer_key = null;
 	private $_consumer_secret = null;
 	private $_token = null;
@@ -63,6 +137,7 @@ class _DevblocksOAuthService {
 		
 		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
 			'Authorization: ' . $auth_header,
+			'Content-Length: ' . 0, // This shouldn't be required, but some IdPs are looking for it
 			'User-Agent: Cerb ' . APP_VERSION,
 		));
 		
@@ -97,13 +172,6 @@ class _DevblocksOAuthService {
 		
 		$url_parts = parse_url($refresh_token_url);
 		
-		$base_url = sprintf('%s://%s%s%s',
-			$url_parts['scheme'],
-			$url_parts['host'],
-			(isset($url_parts['port']) && !in_array(intval($url_parts['port']),array(0,80,443))) ? sprintf(':%d', $url_parts['port']) : '',
-			$url_parts['path']
-		);
-		
 		$query = [];
 		
 		if(isset($url_parts['query']))
@@ -119,9 +187,6 @@ class _DevblocksOAuthService {
 			'User-Agent: Cerb ' . APP_VERSION,
 		);
 		
-		if(!empty($accept))
-			$http_headers[] = 'Accept: ' . $accept;
-		
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $http_headers);
 		curl_setopt($ch, CURLOPT_POST, true);
 		curl_setopt($ch, CURLOPT_POSTFIELDS, urldecode(http_build_query($params)));
@@ -136,7 +201,7 @@ class _DevblocksOAuthService {
 		$content_type = $this->_response_info['content_type'];
 		
 		if(false !== strpos($content_type, ';'))
-			@list($content_type, $content_type_opts) = explode(';', $content_type);
+			@list($content_type,) = explode(';', $content_type);
 		
 		$results = array();
 		
@@ -239,7 +304,7 @@ class _DevblocksOAuthService {
 		$content_type = $this->_response_info['content_type'];
 		
 		if(false !== strpos($content_type, ';'))
-			@list($content_type, $content_type_opts) = explode(';', $content_type);
+			@list($content_type,) = explode(';', $content_type);
 		
 		$results = array();
 		
@@ -296,7 +361,7 @@ class _DevblocksOAuthService {
 		$content_type = $this->_response_info['content_type'];
 		
 		if(false !== strpos($content_type, ';'))
-			@list($content_type, $content_type_opts) = explode(';', $content_type);
+			@list($content_type,) = explode(';', $content_type);
 		
 		$results = array();
 		
@@ -335,11 +400,10 @@ class _DevblocksOAuthService {
 		if(!is_array($headers))
 			return false;
 		
-		foreach($headers as $header) {
-			list($k, $v) = explode(':', $header, 2);
-			
+		foreach($headers as $k => $v) {
 			if(0 == strcasecmp($k, 'Content-Type')) {
-				@list($content_type, $encoding) = explode(';', $v);
+				$v = implode('; ', $v);
+				@list($content_type,) = explode(';', $v);
 				return trim(DevblocksPlatform::strLower($content_type));
 			}
 		}
@@ -348,14 +412,15 @@ class _DevblocksOAuthService {
 	}
 	
 	// Redundant with executeRequest()
-	public function authenticateHttpRequest(&$ch, &$verb, &$url, &$body, &$headers) {
+	public function authenticateHttpRequest(Psr\Http\Message\RequestInterface &$request, &$options = []) : bool {
 		if(!$this->_consumer_key || !$this->_consumer_secret || !$this->_token)
 			return false;
-
-		$payload = null;
-		$postdata = $body;
-
-		if(!is_array($postdata)) {
+		
+		$method = DevblocksPlatform::strUpper($request->getMethod());
+		$headers = $request->getHeaders();
+		$body = $request->getBody()->getContents();
+		
+		if(!is_array($body)) {
 			switch($this->_getContentTypeFromHeaders($headers)) {
 				// Decode pre-encoded form params for signing
 				case 'application/x-www-form-urlencoded':
@@ -364,36 +429,33 @@ class _DevblocksOAuthService {
 				
 				// Otherwise, keep the plaintext as a payload
 				default:
-					$payload = $postdata;
-					$postdata = array();
+					$postdata = [];
 					break;
 			}
 		}
 		
-		$method = DevblocksPlatform::strUpper($verb);
-		
-		$oauth_headers = array(
+		$oauth_headers = [
 			'oauth_consumer_key' => $this->_consumer_key,
 			'oauth_nonce' => sha1(uniqid(null, true)),
 			'oauth_signature_method' => $this->_signature_method,
 			'oauth_timestamp' => time(),
 			'oauth_token' => $this->_token,
 			'oauth_version' => '1.0',
-		);
+		];
 		
-		$url_parts = parse_url($url);
+		$port = $request->getUri()->getPort();
 		
 		$base_url = sprintf('%s://%s%s%s',
-			$url_parts['scheme'],
-			$url_parts['host'],
-			(isset($url_parts['port']) && !in_array(intval($url_parts['port']),array(0,80,443))) ? sprintf(':%d', $url_parts['port']) : '',
-			$url_parts['path']
+			$request->getUri()->getScheme(),
+			$request->getUri()->getHost(),
+			($port && !in_array(intval($port),array(0,80,443))) ? sprintf(':%d', $port) : '',
+			$request->getUri()->getPath()
 		);
 		
 		$query = [];
 		
-		if(isset($url_parts['query']))
-			$query = DevblocksPlatform::strParseQueryString($url_parts['query']);
+		if($request->getUri()->getQuery())
+			$query = DevblocksPlatform::strParseQueryString($request->getUri()->getQuery());
 		
 		$oauth_headers = array_map('rawurlencode', $oauth_headers);
 		$query = array_map('rawurlencode', $query);
@@ -423,7 +485,10 @@ class _DevblocksOAuthService {
 			return $k . '="' . rawurlencode($v) . '"'; 
 		}, $oauth_headers, array_keys($oauth_headers))));
 		
-		$headers[] = 'Authorization: ' . $auth_header;
+		$request = $request
+			->withHeader('Authorization', $auth_header)
+			;
+		
 		return true;
 	}
 	
@@ -435,7 +500,7 @@ class _DevblocksOAuthService {
 		
 		if(!is_array($postdata)) {
 			$payload = $postdata;
-			$postdata = array();
+			$postdata = [];
 		}
 		
 		$method = DevblocksPlatform::strUpper($method);

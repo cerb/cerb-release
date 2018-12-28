@@ -641,6 +641,77 @@ class DevblocksPlatformTest extends PHPUnit_Framework_TestCase {
 		
 	}
 	
+	public function testParseGeoPointString() {
+		$error = null;
+		
+		// Invalid string
+		$str = "arbitrary text";
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals(false, $actual);
+		
+		// Not floats
+		$str = "a,b";
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals(false, $actual);
+		
+		// Too many commas
+		$str = "1,2,3";
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals(false, $actual);
+		
+		// Invalid latitude
+		$str = "95.12, 79.92";
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals(false, $actual);
+		
+		// Invalid longitude
+		$str = "1.23,185.92";
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals(false, $actual);
+		
+		// Valid
+		$str = "37.733795,-122.446747";
+		$expected = ['latitude' => 37.733795, 'longitude' => -122.446747];
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals($expected, $actual);
+		
+		// Valid w/ spaces
+		$str = "37.733795 -122.446747";
+		$expected = ['latitude' => 37.733795, 'longitude' => -122.446747];
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals($expected, $actual);
+		
+		// Valid w/ spaces and commas
+		$str = "37.733795, -122.446747";
+		$expected = ['latitude' => 37.733795, 'longitude' => -122.446747];
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals($expected, $actual);
+		
+		// N/W syntax (with quotes)
+		$str = '37.733795" N, -122.446747" W';
+		$expected = ['latitude' => 37.733795, 'longitude' => -122.446747];
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals($expected, $actual);
+		
+		// N/W syntax (without quotes)
+		$str = '37.733795 N, -122.446747 W';
+		$expected = ['latitude' => 37.733795, 'longitude' => -122.446747];
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals($expected, $actual);
+		
+		// S/E syntax
+		$str = '33.868" S, 151.21" E';
+		$expected = ['latitude' => 33.868, 'longitude' => 151.21];
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals($expected, $actual);
+		
+		// Valid POINT(long,lat) with spaces
+		$str = "POINT(-122.446747 37.733795)";
+		$expected = ['latitude' => 37.733795, 'longitude' => -122.446747];
+		$actual = DevblocksPlatform::parseGeoPointString($str, $error);
+		$this->assertEquals($expected, $actual);
+	}
+	
 	public function testParseHttpHeaderAttributes() {
 		// Lowercase attribute names
 		$expected = ['charset' => 'utf-8'];
@@ -986,6 +1057,62 @@ class DevblocksPlatformTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($expected, $actual);
 	}
 	
+	public function testStrStartsWith() {
+		// Single prefix
+		$string = '1234567890';
+		$expected = '1';
+		$actual = DevblocksPlatform::strStartsWith($string, '1');
+		$this->assertEquals($expected, $actual);
+		
+		// Array of prefixes
+		$string = 'CDEFGH';
+		$expected = 'C';
+		$actual = DevblocksPlatform::strStartsWith($string, ['A','B','C']);
+		$this->assertEquals($expected, $actual);
+		
+		// Not found
+		$string = 'ABCDEFG';
+		$expected = false;
+		$actual = DevblocksPlatform::strEndsWith($string, ['X','Y','Z']);
+		$this->assertEquals($expected, $actual);
+	}
+	
+	public function testStrEndsWith() {
+		// Single suffix
+		$string = '1234567890';
+		$expected = '0';
+		$actual = DevblocksPlatform::strEndsWith($string, '0');
+		$this->assertEquals($expected, $actual);
+		
+		// Array of suffixes
+		$string = 'TUVWXYZ';
+		$expected = 'Z';
+		$actual = DevblocksPlatform::strEndsWith($string, ['A','M','Z']);
+		$this->assertEquals($expected, $actual);
+		
+		// Not found
+		$string = 'TUVWXYZ';
+		$expected = false;
+		$actual = DevblocksPlatform::strEndsWith($string, ['A','B','C']);
+		$this->assertEquals($expected, $actual);
+	}
+	
+	public function testStrTrimStart() {
+		// Array of prefixes
+		$string = 'ABCDEFG';
+		$expected = 'DEFG';
+		$actual = DevblocksPlatform::strTrimStart($string, ['A','B','C']);
+		$this->assertEquals($expected, $actual);
+	}
+	
+	public function testStrTrimEnd() {
+		// Array of suffixes
+		$string = 'TUVWXYZ';
+		$expected = 'TUVW';
+		$actual = DevblocksPlatform::strTrimEnd($string, ['X','Y','Z']);
+		$this->assertEquals($expected, $actual);
+	}
+	
 	public function testStrBase32Encode() {
 		$expected = 'I5UXMZJANVSSAJBRGAYDAMBAN5TCAQKBKBGCA43UN5RWWLBAOBWGKYLTMUQQ====';
 		$actual = DevblocksPlatform::strBase32Encode('Give me $10000 of AAPL stock, please!');
@@ -996,6 +1123,22 @@ class DevblocksPlatformTest extends PHPUnit_Framework_TestCase {
 		$expected = 'Give me $10000 of AAPL stock, please!';
 		$actual = DevblocksPlatform::strBase32Decode('I5UXMZJANVSSAJBRGAYDAMBAN5TCAQKBKBGCA43UN5RWWLBAOBWGKYLTMUQQ====', true);
 		$this->assertEquals($expected, $actual);
+	}
+	
+	public function testStrBase64UrlEncode() {
+		$string = '';
+		for($i=0;$i<255;$i++) { $string .= chr($i); }
+		$expected = 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn-AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq-wsbKztLW2t7i5uru8vb6_wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t_g4eLj5OXm5-jp6uvs7e7v8PHy8_T19vf4-fr7_P3-';
+		$actual = DevblocksPlatform::services()->string()->base64UrlEncode($string);
+		$this->assertSame($expected, $actual);
+	}
+	
+	public function testStrBase64UrlDecode() {
+		$string = 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn-AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq-wsbKztLW2t7i5uru8vb6_wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t_g4eLj5OXm5-jp6uvs7e7v8PHy8_T19vf4-fr7_P3-';
+		$expected = '';
+		for($i=0;$i<255;$i++) { $expected .= chr($i); }
+		$actual = DevblocksPlatform::services()->string()->base64UrlDecode($string);
+		$this->assertSame($expected, $actual);
 	}
 	
 	public function testStrBitsToInt() {

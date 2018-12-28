@@ -70,6 +70,123 @@ function DevblocksClass() {
 		}
 	}
 	
+	this.saveAjaxTabForm = function($frm) {
+		genericAjaxPost($frm, '', null, function(json) {
+			Devblocks.clearAlerts();
+			
+			if(json && typeof json == 'object') {
+				if(json.error) {
+					Devblocks.createAlertError(json.error);
+					
+				} else {
+					$frm.fadeTo('fast', 0.2);
+					
+					if (json.message) {
+						Devblocks.createAlert(json.message, 'note');
+					}
+					
+					var funcReloadTab = function() {
+						// Fade in the form (if the tab isn't Ajax)
+						$frm.fadeTo('fast', 1.0);
+						
+						// Reload the tab
+						var $tabs = $frm.closest('.ui-tabs');
+						var tabId = $tabs.tabs("option", "active");
+						$tabs.tabs("load", tabId);
+					};
+					
+					setTimeout(funcReloadTab, 750);
+				}
+			}
+		});
+	}
+	
+	this.saveAjaxForm = function($frm, options) {
+		genericAjaxPost($frm, '', null, function(json) {
+			Devblocks.handleAjaxFormResponse($frm, json, options);
+		});
+	}
+	
+	this.handleAjaxFormResponse = function($frm, json, options) {
+		Devblocks.clearAlerts();
+		
+		if(typeof options != 'object')
+			options = {};
+		
+		if(json && typeof json == 'object') {
+			if(json.error) {
+				Devblocks.createAlertError(json.error);
+				
+			} else {
+				$frm.fadeTo('fast', 0.2);
+				
+				if(json.message) {
+					Devblocks.createAlert(json.message, 'note');
+				}
+				
+				if(typeof options.success == 'function') {
+					options.success(json);
+				}
+				
+				var funcShowForm = function() {
+					$frm.fadeTo('fast', 1.0);
+				};
+				
+				setTimeout(funcShowForm, 750);
+			}
+		}
+	}
+	
+	this.clearAlerts = function() {
+		var $alerts = $('#cerb-alerts');
+		$alerts.find('.cerb-alert').remove();
+	}
+	
+	this.createAlertError = function(message) {
+		return this.createAlert(message, 'error', 0);
+	}
+	
+	this.createAlert = function(message, style, duration) {
+		if(undefined == message)
+			return;
+		
+		if(undefined == duration)
+			duration = 2500;
+		
+		var $alerts = $('#cerb-alerts');
+		
+		var $alert = $('<div/>')
+			.addClass('cerb-alert')
+			.text(message)
+			.hide()
+			.appendTo($alerts)
+			;
+		
+		var $close = $('<span class="cerb-alert-close"><span class="glyphicons glyphicons-remove"></span></span>')
+			.on('click', function(e) {
+				var $alert = $(this).closest('.cerb-alert');
+				
+				$alert.effect('slide',{ direction:'up', mode:'hide' }, 500, function() {
+					$alert.remove();
+				});
+			})
+			.appendTo($alert)
+			;
+		
+		if(style != undefined)
+			$alert
+				.addClass('cerb-alert-' + style)
+				;
+		
+		$alert.effect('slide',{ direction:'up', mode:'show' }, 250);
+		
+		if(parseInt(duration) > 0) {
+			$alert.delay(duration).effect('slide',{ direction:'up', mode:'hide' }, 500, function() {
+				$alert.remove();
+			});
+		}
+	}
+	
 	this.showError = function(target, message, animate) {
 		$html = $('<div class="ui-widget"/>')
 			.append(
@@ -185,7 +302,6 @@ function DevblocksClass() {
 		var $button = $(e.target);
 		var $popup = genericAjaxPopupFind($button);
 		var $frm = $popup.find('form').first();
-		var $status = $popup.find('div.status');
 		var options = e.data;
 		var is_delete = (options && options.mode == 'delete');
 		var is_continue = (options && options.mode == 'continue');
@@ -201,8 +317,7 @@ function DevblocksClass() {
 			return false;
 		
 		// Clear the status div
-		if($status instanceof jQuery)
-			$status.html('').hide();
+		Devblocks.clearAlerts();
 		
 		// Are we deleting the record?
 		if(is_delete) {
@@ -238,7 +353,7 @@ function DevblocksClass() {
 					genericAjaxGet('view'+e.view_id, 'c=internal&a=viewRefresh&id=' + e.view_id);
 				
 				if(is_continue) {
-					Devblocks.showSuccess($status, "Saved!");
+					Devblocks.createAlert('Saved!', 'note');
 					
 				} else {
 					genericAjaxPopupClose($popup, event);
@@ -246,8 +361,8 @@ function DevblocksClass() {
 				
 			} else {
 				// Output errors
-				if(e.error && ($status instanceof jQuery))
-					Devblocks.showError($status, e.error);
+				if(e.error)
+					Devblocks.createAlertError(e.error);
 				
 				// Highlight the failing field
 				if(e.field)

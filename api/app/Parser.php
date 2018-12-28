@@ -122,16 +122,16 @@ class CerberusParserModel {
 		// Is valid sender?
 		if(null == $this->_sender_address_model) {
 			$logger->error("From address could not be created.");
-			return FALSE;
+			return false;
 		}
 		
 		// Is banned?
 		if($this->_sender_address_model->is_banned) {
 			$logger->warn("Ignoring ticket from banned address: " . $this->_sender_address_model->email);
-			return NULL;
+			return null;
 		}
 		
-		return TRUE;
+		return true;
 	}
 	
 	/**
@@ -281,11 +281,9 @@ class CerberusParserModel {
 					continue;
 				
 				// Only consider the watcher auth header to be a reply if it validates
-				$hits = [];
-				
 				if($senderWorker instanceof Model_Worker
-						&& @preg_match('#\<([a-f0-9]+)\@cerb\d{0,1}\>#', $ref, $hits)
-						&& false != ($relay_message_id = $this->isValidAuthHeader($ref, $senderWorker))) {
+					&& @preg_match('#\<(.*?)\@cerb\d{0,1}\>#', $ref)
+					&& false != ($relay_message_id = $this->isValidAuthHeader($ref, $senderWorker))) {
 					
 					if(null != ($ticket = DAO_Ticket::getTicketByMessageId($relay_message_id))) {
 						$this->_is_new = false;
@@ -408,7 +406,7 @@ class CerberusParserModel {
 		
 		// Try matching references
 		foreach(array_keys($target_message_ids) as $ref) {
-			if($ref && @preg_match('#\<[a-f0-9]+\@cerb\d{0,1}\>#', $ref)) {
+			if($ref && @preg_match('#\<(.*?)\@cerb\d{0,1}\>#', $ref)) {
 				return $ref;
 			}
 		}
@@ -420,23 +418,7 @@ class CerberusParserModel {
 		if(empty($worker) || !($worker instanceof Model_Worker))
 			return false;
 		
-		$hits = [];
-		
-		// See if we can trust the given message_id
-		if(@preg_match('#\<([a-f0-9]+)\@cerb\d{0,1}\>#', $auth_header, $hits)) {
-			@$hash = $hits[1];
-			@$signed = substr($hash, 4, 40);
-			@$message_id = hexdec(substr($hash, 44));
-			
-			$signed_compare = sha1($message_id . $worker->id . APP_DB_PASS);
-			
-			$is_authenticated = ($signed_compare == $signed);
-			
-			if($is_authenticated)
-				return $message_id;
-		}
-		
-		return false;
+		return CerberusMail::relayVerify($auth_header, $worker->id);
 	}
 	
 	// Getters/Setters
@@ -1113,7 +1095,7 @@ class CerberusParser {
 		// Reject?
 		if(isset($pre_actions['reject'])) {
 			$logger->warn('Rejecting based on bot filtering.');
-			return NULL;
+			return null;
 		}
 		
 		if(isset($pre_actions['headers_dirty'])) {
@@ -1256,6 +1238,8 @@ class CerberusParser {
 					$state = '';
 					$comments = [];
 					$comment_ptr = null;
+					assert(is_null($comment_ptr)); // for validation
+					
 					$matches = [];
 					
 					if(is_array($lines))
@@ -1431,7 +1415,7 @@ class CerberusParser {
 			// Bounce if we can't set the group id
 			if(null == $model->getGroupId()) {
 				$logger->error("[Parser] Can't determine a default group to deliver to.");
-				return FALSE;
+				return false;
 			}
 
 		} // endif ($model->getIsNew())

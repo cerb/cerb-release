@@ -188,7 +188,7 @@ class ChDebugController extends DevblocksControllerExtension  {
 				);
 				@$tables = $db->metaTablesDetailed();
 				
-				foreach($tables as $table => $info) {
+				foreach($tables as $info) {
 					$status['database']['data_bytes'] += $info['Data_length'];
 					$status['database']['index_bytes'] += $info['Index_length'];
 					$status['database']['data_slack_bytes'] += $info['Data_free'];
@@ -243,6 +243,7 @@ class ChDebugController extends DevblocksControllerExtension  {
 					"[PHP:Extension] SPL: %s\n".
 					"[PHP:Extension] ctype: %s\n".
 					"[PHP:Extension] JSON: %s\n".
+					"[PHP:Extension] YAML: %s\n".
 					"[PHP:Extension] tidy: %s\n".
 					"[PHP:Extension] XCache: %s\n".
 					"[PHP:Extension] XDebug: %s\n".
@@ -283,6 +284,7 @@ class ChDebugController extends DevblocksControllerExtension  {
 					(extension_loaded("spl") ? 'YES' : 'NO'),
 					(extension_loaded("ctype") ? 'YES' : 'NO'),
 					(extension_loaded("json") ? 'YES' : 'NO'),
+					(extension_loaded("yaml") ? 'YES' : 'NO'),
 					(extension_loaded("tidy") ? 'YES' : 'NO'),
 					(extension_loaded("xcache") ? 'YES' : 'NO'),
 					(extension_loaded("xdebug") ? 'YES' : 'NO'),
@@ -353,8 +355,6 @@ class ChDebugController extends DevblocksControllerExtension  {
 				break;
 				
 			case 'export_bots':
-				$event_mfts = DevblocksPlatform::getExtensions('devblocks.event', false);
-
 				header("Content-type: application/json");
 				
 				$output = [

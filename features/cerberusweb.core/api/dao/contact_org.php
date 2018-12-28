@@ -1347,7 +1347,6 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 	
 	function renderCriteriaParam($param) {
 		$field = $param->field;
-		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
 			default:
@@ -1605,7 +1604,7 @@ class Context_Org extends Extension_DevblocksContext implements IDevblocksContex
 			$list[] = $empty;
 		}
 		
-		list($results, $null) = DAO_ContactOrg::search(
+		list($results,) = DAO_ContactOrg::search(
 			array(),
 			array(
 				new DevblocksSearchCriteria(SearchFields_ContactOrg::NAME,DevblocksSearchCriteria::OPER_LIKE,$term.'%'),

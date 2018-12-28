@@ -1,4 +1,6 @@
 <?php
+use GuzzleHttp\Psr7\ServerRequest;
+
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
@@ -50,7 +52,7 @@ class Plugin_RestAPI {
 			if(isset($array['results'])) {
 				$filtered_results = array();
 
-				foreach($array['results'] as $k => $v) {
+				foreach($array['results'] as $v) {
 					$filtered_results[] = $v;
 				}
 
@@ -105,15 +107,11 @@ class Ch_RestFrontController implements DevblocksHttpRequestHandler {
 
 		return $controllers;
 	}
-
-	function handleRequest(DevblocksHttpRequest $request) {
-		$stack = $request->path;
-		$db = DevblocksPlatform::services()->database();
-
-		// **** BEGIN AUTH
+	
+	private function _getAuthorizedWorkerByLegacySignature(DevblocksHttpRequest $request, &$error=null) {
 		@$verb = $_SERVER['REQUEST_METHOD'];
 		@$header_date = $_SERVER['HTTP_X_DATE'];
-
+		
 		// If the custom X-Date: header isn't provided, fall back to Date:
 		if(empty($header_date))
 			@$header_date = $_SERVER['HTTP_DATE'];
@@ -123,7 +121,6 @@ class Ch_RestFrontController implements DevblocksHttpRequestHandler {
 		// Try new header first
 		if(isset($_SERVER['HTTP_CERB_AUTH'])) {
 			$header_signature = $_SERVER['HTTP_CERB_AUTH'];
-
 		// Fallback to older header
 		} elseif(isset($_SERVER['HTTP_CERB5_AUTH'])) {
 			$header_signature = $_SERVER['HTTP_CERB5_AUTH'];
@@ -162,6 +159,7 @@ class Ch_RestFrontController implements DevblocksHttpRequestHandler {
 		}
 
 		// REST extensions
+		$stack = $request->path;
 		@array_shift($stack); // rest
 
 		// Check this API key's path restrictions
@@ -185,9 +183,134 @@ class Ch_RestFrontController implements DevblocksHttpRequestHandler {
 		if(!$permitted) {
 			Plugin_RestAPI::render(array('__status'=>'error', 'message'=>"Access denied! (You are not authorized to make this request)"));
 		}
+		
+		return $worker;
+	}
+	
+	private function _getAuthorizedWorkerByOAuth2Token(DevblocksHttpRequest $request, &$error=null) {
+		$accessTokenRepository = new Cerb_OAuth2AccessTokenRepository();
+		
+		$publicKey = DevblocksPlatform::services()->oauth()->getServerPublicKey();
+		
+		// Setup the authorization server
+		$server = new \League\OAuth2\Server\ResourceServer(
+			$accessTokenRepository,
+			$publicKey
+		);
+		
+		$http_request = ServerRequest::fromGlobals();
+		
+		try {
+			new \League\OAuth2\Server\Middleware\ResourceServerMiddleware($server);
+			$http_request = $server->validateAuthenticatedRequest($http_request);
+			
+			// Verify the client ID
+			
+			$oauth_client_id = $http_request->getAttribute('oauth_client_id');
+			
+			if(false == ($oauth_app = DAO_OAuthApp::getByClientId($oauth_client_id)))
+				throw new Exception_Devblocks("Invalid OAuth2 client.");
+			
+			// Set scopes
+			$oauth_scopes = $oauth_app->getScopes($http_request->getAttribute('oauth_scopes'));
+			
+			$stack = $request->path;
+			@array_shift($stack); // rest
+			$requested_path = DevblocksPlatform::strTrimEnd(implode('/', $stack), ['.json', '.xml']);
+			
+			if(!$this->_isHttpRequestAuthorizedForOAuth2Scopes($http_request->getMethod(), $requested_path, $oauth_scopes)) {
+				$error = 'Your token does not have permission to use this endpoint.';
+				return false;
+			}
+			
+			// Success
+			
+			$worker_id = $http_request->getAttribute('oauth_user_id');
+			
+			if(false != ($worker = DAO_Worker::get($worker_id)))
+				return $worker;
+			
+		} catch (\League\OAuth2\Server\Exception\OAuthServerException $e) {
+			$error = $e->getMessage();
+			
+		} catch (Exception $e) {
+			error_log($e->getMessage());
+		}
+		
+		return null;
+	}
+	
+	private function _isHttpRequestAuthorizedForOAuth2Scopes($requested_method, $requested_path, array $oauth_scopes) {
+		$requested_method = DevblocksPlatform::strUpper($requested_method);
+		
+		foreach($oauth_scopes as $oauth_scope) {
+			foreach($oauth_scope['endpoints'] as $data) {
+				$methods = ['DELETE', 'GET', 'PATCH', 'POST','PUT'];
+				
+				$endpoint_pattern = null;
+				$endpoint_methods = [];
+				
+				if(is_array($data)) {
+					$endpoint_pattern = key($data);
+					$endpoint_methods = current($data);
+					
+					if(!is_array($endpoint_methods))
+						$endpoint_methods = [$endpoint_methods];
+					
+					$endpoint_methods = array_intersect($methods, $endpoint_methods);
+					
+				} elseif (is_string($data)) {
+					$endpoint_pattern = $data;
+					$endpoint_methods = $methods;
+					
+				} else {
+					continue;
+				}
+				
+				if(!in_array($requested_method, $endpoint_methods))
+					continue;
+				
+				$endpoint_pattern = DevblocksPlatform::strToRegExp($endpoint_pattern);
+				
+				if(preg_match($endpoint_pattern, $requested_path)) {
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	private function _getAuthorizedWorker(DevblocksHttpRequest $request, &$error=null) {
+		@$header_auth = $_SERVER['HTTP_AUTHORIZATION'];
+		@$header_signature = $_SERVER['HTTP_CERB_AUTH'] ?: $_SERVER['HTTP_CERB5_AUTH'];
+		
+		// Check for OAuth2
+		if($header_auth)
+			return $this->_getAuthorizedWorkerByOAuth2Token($request, $error);
+		
+		// Check for legacy signatures
+		if($header_signature)
+			return $this->_getAuthorizedWorkerByLegacySignature($request, $error);
+		
+		return null;
+	}
 
+	function handleRequest(DevblocksHttpRequest $request) {
+		@$verb = $_SERVER['REQUEST_METHOD'];
+		$error = null;
+		
+		if(false == ($worker = $this->_getAuthorizedWorker($request, $error))) {
+			if(empty($error))
+				$error = 'Unauthorized request';
+			
+			Plugin_RestAPI::render(array('__status'=>'error', 'message' => $error));
+		}
+		
 		// Controller
 
+		$stack = $request->path;
+		@array_shift($stack); // rest
 		@$controller_uri = array_shift($stack); // e.g. tickets
 
 		$controllers = $this->_getRestControllers();
@@ -209,7 +332,7 @@ class Ch_RestFrontController implements DevblocksHttpRequestHandler {
 			// Set worker time format
 			$default_time_format = DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::TIME_FORMAT, CerberusSettingsDefaults::TIME_FORMAT);
 			DevblocksPlatform::setDateTimeFormat(!empty($worker->time_format) ? $worker->time_format : $default_time_format);
-
+			
 			// Handle the request
 			$controller->setPayload($this->_payload);
 			array_unshift($stack, $verb);
@@ -251,7 +374,7 @@ class Ch_RestFrontController implements DevblocksHttpRequestHandler {
 		
 		$results = [];
 		
-		foreach($args as $k => $values)
+		foreach($args as $values)
 			foreach($values as $value)
 				$results[] = $value;
 		
@@ -375,7 +498,7 @@ abstract class Extension_RestController extends DevblocksExtension {
 	 * 
 	 * @param array $array
 	 */
-	protected function success($array=array()) {
+	protected function success($array=[]) {
 		if(!is_array($array))
 			return false;
 
@@ -387,7 +510,7 @@ abstract class Extension_RestController extends DevblocksExtension {
 		// Do we need to lazy load some fields to be helpful?
 		if(is_array($expand) && !empty($expand)) {
 			if(isset($array['results'])) {
-				foreach($array['results'] as $k => $v) {
+				foreach(array_leys($array['results']) as $k) {
 					if(!isset($array['results'][$k]['_context']))
 						continue;
 
@@ -418,7 +541,7 @@ abstract class Extension_RestController extends DevblocksExtension {
 
 				$scrubs = array('_loaded', '__labels', '__types');
 
-				foreach($result as $k => $v) {
+				foreach(array_keys($result) as $k) {
 					foreach($scrubs as $scrub)
 						if(substr($k, -strlen($scrub)) == $scrub)
 							unset($result[$k]);
@@ -447,7 +570,7 @@ abstract class Extension_RestController extends DevblocksExtension {
 				array_push($scrubs, '_labels', '_types');
 			}
 
-			foreach($array as $k => $v) {
+			foreach(array_keys($array) as $k) {
 				foreach($scrubs as $scrub)
 					if(substr($k, -strlen($scrub)) == $scrub)
 						unset($array[$k]);
@@ -501,6 +624,7 @@ abstract class Extension_RestController extends DevblocksExtension {
 		switch(DevblocksPlatform::strUpper($verb)) {
 			case 'PATCH':
 			case 'PUT':
+				$_vars = [];
 				parse_str($this->getPayload(), $_vars);
 				$_POST = array_merge_recursive($_POST, $_vars);
 				$_REQUEST = array_merge_recursive($_REQUEST, $_vars);
@@ -554,7 +678,7 @@ abstract class Extension_RestController extends DevblocksExtension {
 				$fields = DAO_CustomField::getByContext($context);
 
 				if(is_array($fields))
-				foreach($fields as $field_id => $fieldData) {
+				foreach(array_keys($fields) as $field_id) {
 					if($field_id === intval($parts[1])) {
 						$field = 'cf_'.$field_id;
 						unset($filters[$key]);
@@ -684,7 +808,7 @@ abstract class Extension_RestController extends DevblocksExtension {
 		$fields = array();
 
 		if(is_array($scope_array))
-		foreach($scope_array as $k => $v) {
+		foreach(array_keys($scope_array) as $k) {
 			$parts = explode("_",$k,2);
 			if(2==count($parts) && 'custom'==$parts[0] && is_numeric($parts[1])) {
 				$fields[intval($parts[1])] = DevblocksPlatform::importGPC($scope_array[$k]);

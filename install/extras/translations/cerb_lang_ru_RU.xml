@@ -1848,11 +1848,6 @@
 				<seg/>
 			</tuv>
 		</tu>
-		<tu tuid="dao.jira_project.is_sync">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
 		<tu tuid="dao.jira_project.jira_id">
 			<tuv xml:lang="ru_RU">
 				<seg/>
@@ -4733,11 +4728,6 @@ login &lt;ftp&#13;
 			</tuv>
 		</tu>
 		<tu tuid="worker.at_mention_name">
-			<tuv xml:lang="ru_RU">
-				<seg/>
-			</tuv>
-		</tu>
-		<tu tuid="worker.auth_extension_id">
 			<tuv xml:lang="ru_RU">
 				<seg/>
 			</tuv>
