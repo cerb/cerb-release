@@ -201,11 +201,16 @@ class CerberusParserModel {
 		// Remove tabs, returns, and linefeeds
 		$subject = str_replace(array("\t","\n","\r")," ",$subject);
 		
+		// Remove 4-byte Emoji?
+		if(DevblocksPlatform::services()->string()->has4ByteChars($subject)) {
+			$subject = DevblocksPlatform::services()->string()->strip4ByteChars($subject);
+		}
+		
 		// The subject can still end up empty after QP decode
 		if(0 == strlen(trim($subject)))
 			$subject = "(no subject)";
-			
-		$this->_subject = $subject;
+		
+		$this->setSubject($subject);
 	}
 	
 	/**
@@ -566,8 +571,10 @@ class CerberusParserModel {
 			// Update our model with the results of the routing rules
 			if(is_array($routing_rules))
 			foreach($routing_rules as $rule) {
-				if(false != ($move_group_id = $rule->actions['move']['group_id']))
-					$group_id = $move_group_id;
+				if(array_key_exists('move', $rule->actions)) {
+					if(false != ($move_group_id = $rule->actions['move']['group_id']))
+						$group_id = $move_group_id;
+				}
 			}
 		}
 		

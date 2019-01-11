@@ -4,7 +4,7 @@
 	<name>Knowledgebase</name>
 	<description>Create and categorize articles to share knowledge between workers or your community.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>9.1.1</version>
+	<version>9.1.2</version>
 	<link>http://wiki.cerbweb.com/Features:Knowledgebase</link>
 	<image>plugin.png</image>
 	
@@ -190,7 +190,7 @@
 		
 		<extension point="devblocks.event">
 			<id>event.macro.kb_article</id>
-			<name>Custom behavior on knowledgebase article</name>
+			<name>Record custom behavior on knowledgebase article</name>
 			<class>
 				<file>api/events/macro/kbarticle_macro.php</file>
 				<name>Event_KbArticleMacro</name>

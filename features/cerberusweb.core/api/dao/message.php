@@ -2513,7 +2513,7 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 		
 		$keys['headers'] = [
 			'is_immutable' => false,
-			'is_required' => false,
+			'is_required' => true,
 			'notes' => 'Message headers',
 			'type' => 'string',
 		];
@@ -2522,6 +2522,13 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 			'is_immutable' => false,
 			'is_required' => false,
 			'notes' => 'The [email address](/docs/records/types/address/) of the sender; alternative to `sender_id`',
+			'type' => 'string',
+		];
+		
+		$keys['worker'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'The [worker](/docs/records/types/worker/) who sent the message (if any); alternative to `worker_id`',
 			'type' => 'string',
 		];
 		
@@ -2563,6 +2570,19 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 				}
 				
 				$out_fields[DAO_Message::ADDRESS_ID] = $address->id;
+				break;
+				
+			case 'worker':
+				if(
+					false == ($workers = DAO_Worker::getByString($value, true)) 
+					|| !is_array($workers) 
+					|| 1 != count($workers)) 
+				{
+					$error = sprintf("Failed to lookup worker: %s", $value);
+					return false;
+				}
+				
+				$out_fields[DAO_Message::WORKER_ID] = key($workers);
 				break;
 		}
 		
