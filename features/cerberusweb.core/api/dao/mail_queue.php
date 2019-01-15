@@ -127,6 +127,10 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 	
 	static function update($ids, $fields) {
 		$context = CerberusContexts::CONTEXT_DRAFT;
+		
+		if(!array_key_exists(self::UPDATED, $fields))
+			$fields[self::UPDATED] = time();
+		
 		self::_updateAbstract($context, $ids, $fields);
 		
 		parent::_update($ids, 'mail_queue', $fields);
@@ -179,7 +183,6 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 		$update->markInProgress();
 		
 		$change_fields = [];
-		$custom_fields = [];
 		$deleted = false;
 
 		if(is_array($do))
@@ -372,7 +375,7 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_MailQueue::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_MailQueue', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_MailQueue', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"mail_queue.id as %s, ".
@@ -806,8 +809,6 @@ class Model_MailQueue {
 			$properties['link_forward_files'] = true;
 		}
 		
-		// [TODO] Custom fields
-		
 		// Context links
 		@$context_links = $this->params['context_links'];
 		if(!empty($context_links) && is_array($context_links))
@@ -815,7 +816,7 @@ class Model_MailQueue {
 			if(!is_array($context_pair) || 2 != count($context_pair))
 				continue;
 			
-			DAO_ContextLink::setLink($context_pair[0], $context_pair[1], CerberusContexts::CONTEXT_TICKET, $ticket_id);
+			DAO_ContextLink::setLink($context_pair[0], $context_pair[1], CerberusContexts::CONTEXT_TICKET, $this->ticket_id);
 		}
 
 		// Send message
@@ -1069,8 +1070,6 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
 		
-		$translate = DevblocksPlatform::getTranslationService();
-		
 		switch($key) {
 			case SearchFields_MailQueue::VIRTUAL_WORKER_SEARCH:
 				echo sprintf("%s matches <b>%s</b>",
@@ -1283,7 +1282,6 @@ class Context_Draft extends Extension_DevblocksContext implements IDevblocksCont
 			$prefix = 'Draft:';
 		
 		$translate = DevblocksPlatform::getTranslationService();
-		$fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_DRAFT);
 
 		// Polymorph
 		if(is_numeric($object)) {
@@ -1370,6 +1368,13 @@ class Context_Draft extends Extension_DevblocksContext implements IDevblocksCont
 	function getKeyMeta() {
 		$keys = parent::getKeyMeta();
 		
+		$keys['params'] = [
+			'is_immutable' => false,
+			'is_required' => false,
+			'notes' => 'JSON-encoded key/value object',
+			'type' => 'object',
+		];
+		
 		$keys['content']['notes'] = "The body content of the draft message";
 		$keys['subject']['notes'] = "The subject line of the draft message";
 		$keys['to']['notes'] = "The `To:` line of the draft message";
@@ -1383,6 +1388,20 @@ class Context_Draft extends Extension_DevblocksContext implements IDevblocksCont
 		switch(DevblocksPlatform::strLower($key)) {
 			case 'links':
 				$this->_getDaoFieldsLinks($value, $out_fields, $error);
+				break;
+				
+			case 'params':
+				if(!is_array($value)) {
+					$error = 'must be an object.';
+					return false;
+				}
+				
+				if(false == ($json = json_encode($value))) {
+					$error = 'could not be JSON encoded.';
+					return false;
+				}
+				
+				$out_fields[DAO_MailQueue::PARAMS_JSON] = $json;
 				break;
 		}
 		
