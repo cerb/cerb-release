@@ -550,16 +550,16 @@
         },
         {
             "name": "onelogin/php-saml",
-            "version": "v3.0.0",
+            "version": "v3.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/onelogin/php-saml.git",
-                "reference": "920c2240e48c9a74aad4129720f48fbf3d5fee47"
+                "reference": "15016f9d633614c62fe6bb1d4ec86079b3e13a63"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/onelogin/php-saml/zipball/920c2240e48c9a74aad4129720f48fbf3d5fee47",
-                "reference": "920c2240e48c9a74aad4129720f48fbf3d5fee47",
+                "url": "https://api.github.com/repos/onelogin/php-saml/zipball/15016f9d633614c62fe6bb1d4ec86079b3e13a63",
+                "reference": "15016f9d633614c62fe6bb1d4ec86079b3e13a63",
                 "shasum": ""
             },
             "require": {
@@ -596,7 +596,7 @@
                 "onelogin",
                 "saml"
             ],
-            "time": "2018-10-02T16:02:37+00:00"
+            "time": "2019-01-28T13:04:13+00:00"
         },
         {
             "name": "paragonie/random_compat",
@@ -645,16 +645,16 @@
         },
         {
             "name": "phpseclib/phpseclib",
-            "version": "2.0.13",
+            "version": "2.0.14",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpseclib/phpseclib.git",
-                "reference": "42603ce3f42a27f7e14e54feab95db7b680ad473"
+                "reference": "8ebfcadbf30524aeb75b2c446bc2519d5b321478"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/42603ce3f42a27f7e14e54feab95db7b680ad473",
-                "reference": "42603ce3f42a27f7e14e54feab95db7b680ad473",
+                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/8ebfcadbf30524aeb75b2c446bc2519d5b321478",
+                "reference": "8ebfcadbf30524aeb75b2c446bc2519d5b321478",
                 "shasum": ""
             },
             "require": {
@@ -733,7 +733,7 @@
                 "x.509",
                 "x509"
             ],
-            "time": "2018-12-16T17:45:25+00:00"
+            "time": "2019-01-27T19:37:29+00:00"
         },
         {
             "name": "psr/http-message",
@@ -974,16 +974,16 @@
     "packages-dev": [
         {
             "name": "giggsey/libphonenumber-for-php",
-            "version": "8.10.2",
+            "version": "8.10.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/giggsey/libphonenumber-for-php.git",
-                "reference": "a71f260c2efce10ded8af030a20fa13edfb0e9be"
+                "reference": "3cda94a4a442c24259fb0893618422a56cb8a898"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/giggsey/libphonenumber-for-php/zipball/a71f260c2efce10ded8af030a20fa13edfb0e9be",
-                "reference": "a71f260c2efce10ded8af030a20fa13edfb0e9be",
+                "url": "https://api.github.com/repos/giggsey/libphonenumber-for-php/zipball/3cda94a4a442c24259fb0893618422a56cb8a898",
+                "reference": "3cda94a4a442c24259fb0893618422a56cb8a898",
                 "shasum": ""
             },
             "require": {
@@ -1038,7 +1038,7 @@
                 "phonenumber",
                 "validation"
             ],
-            "time": "2018-12-06T10:42:08+00:00"
+            "time": "2019-01-24T15:41:24+00:00"
         },
         {
             "name": "giggsey/locale",
@@ -1091,23 +1091,23 @@
         },
         {
             "name": "sebastian/diff",
-            "version": "3.0.1",
+            "version": "3.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/diff.git",
-                "reference": "366541b989927187c4ca70490a35615d3fef2dce"
+                "reference": "720fcc7e9b5cf384ea68d9d930d480907a0c1a29"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/diff/zipball/366541b989927187c4ca70490a35615d3fef2dce",
-                "reference": "366541b989927187c4ca70490a35615d3fef2dce",
+                "url": "https://api.github.com/repos/sebastianbergmann/diff/zipball/720fcc7e9b5cf384ea68d9d930d480907a0c1a29",
+                "reference": "720fcc7e9b5cf384ea68d9d930d480907a0c1a29",
                 "shasum": ""
             },
             "require": {
                 "php": "^7.1"
             },
             "require-dev": {
-                "phpunit/phpunit": "^7.0",
+                "phpunit/phpunit": "^7.5 || ^8.0",
                 "symfony/process": "^2 || ^3.3 || ^4"
             },
             "type": "library",
@@ -1143,7 +1143,7 @@
                 "unidiff",
                 "unified diff"
             ],
-            "time": "2018-06-10T07:54:39+00:00"
+            "time": "2019-02-04T06:01:07+00:00"
         }
     ],
     "aliases": [],

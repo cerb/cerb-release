@@ -561,17 +561,17 @@
     },
     {
         "name": "onelogin/php-saml",
-        "version": "v3.0.0",
-        "version_normalized": "3.0.0.0",
+        "version": "v3.1.0",
+        "version_normalized": "3.1.0.0",
         "source": {
             "type": "git",
             "url": "https://github.com/onelogin/php-saml.git",
-            "reference": "920c2240e48c9a74aad4129720f48fbf3d5fee47"
+            "reference": "15016f9d633614c62fe6bb1d4ec86079b3e13a63"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/onelogin/php-saml/zipball/920c2240e48c9a74aad4129720f48fbf3d5fee47",
-            "reference": "920c2240e48c9a74aad4129720f48fbf3d5fee47",
+            "url": "https://api.github.com/repos/onelogin/php-saml/zipball/15016f9d633614c62fe6bb1d4ec86079b3e13a63",
+            "reference": "15016f9d633614c62fe6bb1d4ec86079b3e13a63",
             "shasum": ""
         },
         "require": {
@@ -591,7 +591,7 @@
             "ext-gettext": "Install gettext and php5-gettext libs to handle translations",
             "ext-openssl": "Install openssl lib in order to handle with x509 certs (require to support sign and encryption)"
         },
-        "time": "2018-10-02T16:02:37+00:00",
+        "time": "2019-01-28T13:04:13+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
@@ -660,17 +660,17 @@
     },
     {
         "name": "phpseclib/phpseclib",
-        "version": "2.0.13",
-        "version_normalized": "2.0.13.0",
+        "version": "2.0.14",
+        "version_normalized": "2.0.14.0",
         "source": {
             "type": "git",
             "url": "https://github.com/phpseclib/phpseclib.git",
-            "reference": "42603ce3f42a27f7e14e54feab95db7b680ad473"
+            "reference": "8ebfcadbf30524aeb75b2c446bc2519d5b321478"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/42603ce3f42a27f7e14e54feab95db7b680ad473",
-            "reference": "42603ce3f42a27f7e14e54feab95db7b680ad473",
+            "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/8ebfcadbf30524aeb75b2c446bc2519d5b321478",
+            "reference": "8ebfcadbf30524aeb75b2c446bc2519d5b321478",
             "shasum": ""
         },
         "require": {
@@ -688,7 +688,7 @@
             "ext-mcrypt": "Install the Mcrypt extension in order to speed up a few other cryptographic operations.",
             "ext-openssl": "Install the OpenSSL extension in order to speed up a wide variety of cryptographic operations."
         },
-        "time": "2018-12-16T17:45:25+00:00",
+        "time": "2019-01-27T19:37:29+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
