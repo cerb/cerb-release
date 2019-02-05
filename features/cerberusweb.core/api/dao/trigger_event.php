@@ -176,18 +176,18 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 			if(
 				!isset($node['type'])
 				|| !isset($node['title'])
-				|| !in_array($node['type'], array('action','loop','outcome','subroutine','switch'))
+				|| !in_array($node['type'], ['action','loop','outcome','subroutine','switch'])
 			)
 				return false;
 			
-			$fields = array(
+			$fields = [
 				DAO_DecisionNode::NODE_TYPE => $node['type'],
 				DAO_DecisionNode::TITLE => $node['title'],
 				DAO_DecisionNode::PARENT_ID => $parent_id,
 				DAO_DecisionNode::TRIGGER_ID => $behavior_id,
 				DAO_DecisionNode::POS => $pos++,
 				DAO_DecisionNode::PARAMS_JSON => isset($node['params']) ? json_encode($node['params']) : '',
-			);
+			];
 			
 			$node_id = DAO_DecisionNode::create($fields);
 			
@@ -2393,12 +2393,12 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 			if(!($model instanceof Model_TriggerEvent) || false == ($event = $model->getEvent()))
 				return;
 			
-			if(false == ($va = $model->getBot()))
-				return;
+			if(false == ($bot = $model->getBot()))
+				$bot = new Model_Bot();
 			
 			$tpl->assign('behavior', $model);
 			$tpl->assign('event', $event->manifest);
-			$tpl->assign('va', $va);
+			$tpl->assign('va', $bot);
 			
 			$properties = $context_ext->getCardProperties();
 			$tpl->assign('properties', $properties);

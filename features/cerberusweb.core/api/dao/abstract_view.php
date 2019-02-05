@@ -4340,7 +4340,16 @@ class CerbQuickSearchLexer {
 					break;
 					
 				case 'T_ARRAY':
-					$string .= '[' . implode(',', $token->value) . ']';
+					$values = array_map(function($value) {
+						if(is_numeric($value)) {
+							return $value;
+							
+						} else { // Quote strings
+							return '"' . $value . '"';
+						}
+					}, $token->value);
+					
+					$string .= '[' . implode(',', $values) . ']';
 					break;
 					
 				case 'T_QUOTED_TEXT':
@@ -4461,6 +4470,7 @@ class CerbQuickSearchLexer {
 				case 'T_QUOTED_TEXT':
 				case 'T_TEXT':
 					$v = $token->value;
+					$matches = [];
 					
 					if(preg_match('#^([\!\=\>\<]+)(.*)#', $v, $matches)) {
 						$oper_hint = trim($matches[1]);
