@@ -166,11 +166,18 @@ abstract class DevblocksORMHelper {
 					break;
 				case Model_CustomField::TYPE_DROPDOWN:
 					$options = $custom_field->params['options'];
+					
+					if(!is_array($options))
+						$options = [];
+					
+					if(!in_array('', $options))
+						$options[] = '';
+					
 					$validation
 						->addField($field_id, $custom_field_label)
 						->string()
 						->setMaxLength(255)
-						->setPossibleValues(is_array($options) ? $options : [])
+						->setPossibleValues($options)
 						;
 					break;
 				case Model_CustomField::TYPE_FILE:
@@ -206,10 +213,17 @@ abstract class DevblocksORMHelper {
 					break;
 				case Model_CustomField::TYPE_MULTI_CHECKBOX:
 					$options = $custom_field->params['options'];
+					
+					if(!is_array($options))
+						$options = [];
+					
+					if(!in_array('', $options))
+						$options[] = '';
+					
 					$validation
 						->addField($field_id, $custom_field_label)
 						->stringOrArray()
-						->setPossibleValues(is_array($options) ? $options : [])
+						->setPossibleValues($options)
 						;
 					break;
 				case Model_CustomField::TYPE_MULTI_LINE:
