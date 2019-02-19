@@ -66,6 +66,10 @@ class _DevblocksDataProviderWorklistSeries extends _DevblocksDataProvider {
 						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
 						$series_model['y'] = $value;
 						
+					} else if($series_field->key == 'y.metric') {
+						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
+						$series_model['y_metric'] = $value;
+						
 					} else if($series_field->key == 'query') {
 						$data_query = CerbQuickSearchLexer::getTokensAsQuery($series_field->tokens);
 						$data_query = substr($data_query, 1, -1);
@@ -176,6 +180,27 @@ class _DevblocksDataProviderWorklistSeries extends _DevblocksDataProvider {
 			$results = array_column($results, 'metric', 'value');
 			ksort($results);
 			
+			// Metric expression
+			if(array_key_exists('y_metric', $series)) {
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				
+				$metric_template = sprintf('{{%s}}',
+					$series['y_metric']
+				);
+				
+				$results = array_map(function($v) use ($tpl_builder, $metric_template) {
+					$out = $tpl_builder->build($metric_template, [
+						'y' => $v,
+					]);
+					
+					if(false === $out || !is_numeric($out)) {
+						return 0;
+					}
+					
+					return floatval($out);
+				}, $results);
+			}
+			
 			$chart_model['series'][$series_idx]['data'] = $results;
 		}
 		
@@ -224,7 +249,7 @@ class _DevblocksDataProviderWorklistSeries extends _DevblocksDataProvider {
 			];
 			
 			// Add the unique x values
-			$x_domain += array_keys($series['data']);
+			$x_domain = array_unique(array_merge($x_domain, array_keys($series['data'])));
 		}
 		
 		// Make sure timestamps are strings (for c3.js)
@@ -278,8 +303,8 @@ class _DevblocksDataProviderWorklistSeries extends _DevblocksDataProvider {
 		foreach($chart_model['series'] as $series) {
 			if(!isset($series['data']))
 				continue;
-				
-			$x_domain += array_keys($series['data']);
+			
+			$x_domain = array_unique(array_merge($x_domain, array_keys($series['data'])));
 		}
 		
 		// Make sure timestamps are strings (for c3.js)
