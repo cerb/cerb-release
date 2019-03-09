@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -88,6 +88,11 @@ class DAO_Attachment extends Cerb_ORMHelper {
 			->setMaxLength('32 bits')
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -148,8 +153,7 @@ class DAO_Attachment extends Cerb_ORMHelper {
 			if(false == ($link_context_ext = Extension_DevblocksContext::getByAlias($link_context, false)))
 				continue;
 			
-			foreach($ids as $id)
-				DAO_Attachment::addLinks($link_context_ext->id, $link_id, $ids);
+			DAO_Attachment::addLinks($link_context_ext->id, $link_id, $ids);
 		}
 	}
 	
@@ -403,8 +407,6 @@ class DAO_Attachment extends Cerb_ORMHelper {
 	 * @return boolean
 	 */
 	static function bulkUpdate(Model_ContextBulkUpdate $update) {
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-
 		$do = $update->actions;
 		$ids = $update->context_ids;
 
@@ -565,7 +567,7 @@ class DAO_Attachment extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_Attachment::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, array(), 'SearchFields_Attachment', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, array(), 'SearchFields_Attachment', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"a.id as %s, ".
@@ -1507,8 +1509,6 @@ class View_Attachment extends C4_AbstractView implements IAbstractView_Subtotals
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
 		
-		$translate = DevblocksPlatform::getTranslationService();
-		
 		switch($key) {
 			case SearchFields_Attachment::VIRTUAL_BUNDLE_SEARCH:
 				echo sprintf("%s matches <b>%s</b>",
@@ -1921,10 +1921,6 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 			
 			case 'content':
 				$out_fields['_content'] = $value;
-				break;
-				
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
 				break;
 		}
 		

@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -264,34 +264,7 @@ class DAO_ContextScheduledBehavior extends Cerb_ORMHelper {
 	 * @return Model_ContextScheduledBehavior[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return [];
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return [];
-
-		$db = DevblocksPlatform::services()->database();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = [];
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}
 	
 	/**
@@ -425,7 +398,7 @@ class DAO_ContextScheduledBehavior extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_ContextScheduledBehavior::getFields();
 
-		list($tables, $wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ContextScheduledBehavior', $sortBy);
+		list(, $wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ContextScheduledBehavior', $sortBy);
 
 		$select_sql = sprintf("SELECT ".
 			"context_scheduled_behavior.id as %s, ".
@@ -646,7 +619,8 @@ class SearchFields_ContextScheduledBehavior extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($field_target_context->db_column),
 						Cerb_ORMHelper::escape($field_target_context_id->db_table),
 						Cerb_ORMHelper::escape($field_target_context_id->db_column)
-					)
+					),
+					'get_value_as_filter_callback' => parent::getValueAsFilterCallback()->link('on'),
 				];
 				break;
 		}
@@ -803,7 +777,7 @@ class Model_ContextScheduledBehavior {
 				case 'date':
 					// If we've passed the end date
 					$on = intval(@$end['options']['on']);
-					if($end['options']['on'] <= time()) {
+					if($on <= time()) {
 						// Don't repeat
 						return null;
 					}
@@ -1391,7 +1365,7 @@ class Context_ContextScheduledBehavior extends Extension_DevblocksContext implem
 		
 		$keys['behavior_id']['notes'] = "The ID of the [behavior](/docs/records/types/behavior/) to be scheduled";
 		$keys['run_date']['notes'] = "The date/time to run the scheduled behavior";
-		$keys['target__context']['notes'] = "The [record type](/docs/records/#record-types) of the target record to run the behavior against";
+		$keys['target__context']['notes'] = "The [record type](/docs/records/types/) of the target record to run the behavior against";
 		$keys['target_id']['notes'] = "The ID of the target record";
 		
 		return $keys;
@@ -1399,10 +1373,6 @@ class Context_ContextScheduledBehavior extends Extension_DevblocksContext implem
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
-				
 			case 'variables':
 				if(!is_array($value)) {
 					$error = 'must be an object.';

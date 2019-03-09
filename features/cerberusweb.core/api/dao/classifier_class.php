@@ -51,6 +51,11 @@ class DAO_ClassifierClass extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -225,18 +230,7 @@ class DAO_ClassifierClass extends Cerb_ORMHelper {
 	 * @return Model_ClassifierClass[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = [$ids];
-		
-		if(empty($ids))
-			return [];
-		
-		$classifications = DAO_ClassifierClass::getAll();
-		
-		if(empty($classifications))
-			return [];
-		
-		return array_intersect_key($classifications, array_flip($ids));
+		return parent::getIds($ids);
 	}
 	
 	static function getByClassifierId($classifier_id) {
@@ -1101,9 +1095,6 @@ class Context_ClassifierClass extends Extension_DevblocksContext implements IDev
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;

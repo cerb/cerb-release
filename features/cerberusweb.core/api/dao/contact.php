@@ -43,7 +43,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 			->addField(self::DOB)
 			->string()
 			->addValidator(function($value, &$error) {
-				if($value && false == ($ts = strtotime($value . ' 00:00 GMT'))) {
+				if($value && false == (strtotime($value . ' 00:00 GMT'))) {
 					$error = sprintf("(%s) is not formatted properly (YYYY-MM-DD).",
 						$value
 					);
@@ -130,11 +130,15 @@ class DAO_Contact extends Cerb_ORMHelper {
 			->setMaxLength(64)
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
 			;
-			
 		return $validation->getFields();
 	}
 	
@@ -215,8 +219,6 @@ class DAO_Contact extends Cerb_ORMHelper {
 	 * @return boolean
 	 */
 	static function bulkUpdate(Model_ContextBulkUpdate $update) {
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-
 		$do = $update->actions;
 		$ids = $update->context_ids;
 
@@ -395,34 +397,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 	 * @return Model_Contact[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return array();
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return array();
-
-		$db = DevblocksPlatform::services()->database();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = array();
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}	
 	
 	/**
@@ -1040,12 +1015,10 @@ class Search_Contact extends Extension_DevblocksSearchSchema {
 	}
 	
 	public function index($stop_time=null) {
-		$logger = DevblocksPlatform::services()->log();
-		
 		if(false == ($engine = $this->getEngine()))
 			return false;
 		
-		$ns = self::getNamespace();
+		//$ns = self::getNamespace();
 		$id = $this->getParam('last_indexed_id', 0);
 		$ptr_time = $this->getParam('last_indexed_time', 0);
 		$ptr_id = $id;
@@ -1631,8 +1604,6 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
 		
-		$translate = DevblocksPlatform::getTranslationService();
-		
 		switch($key) {
 			case SearchFields_Contact::VIRTUAL_ALIAS:
 				echo sprintf("%s %s <b>%s</b>",
@@ -1871,8 +1842,6 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 	function getMeta($context_id) {
 		if(false == ($contact = DAO_Contact::get($context_id)))
 			return [];
-		
-		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($contact->getName());
@@ -2142,9 +2111,6 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 				$out_fields[DAO_Contact::PRIMARY_EMAIL_ID] = $address->id;
 				break;
 			
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;

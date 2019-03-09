@@ -44,6 +44,11 @@ class DAO_ProfileTab extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -232,32 +237,7 @@ class DAO_ProfileTab extends Cerb_ORMHelper {
 	 * @return Model_ProfileTab[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return [];
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return [];
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = [];
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}	
 	
 	/**
@@ -1055,7 +1035,7 @@ class Context_ProfileTab extends Extension_DevblocksContext implements IDevblock
 			'type' => 'object',
 		];
 		
-		$keys['context']['notes'] = "The [record type](/docs/records/#record-types) to add the profile tab to";
+		$keys['context']['notes'] = "The [record type](/docs/records/types/) to add the profile tab to";
 		$keys['extension_id']['notes'] = "[Profile Tab Type](/docs/plugins/extensions/points/cerb.profile.tab/)";
 		
 		return $keys;
@@ -1077,9 +1057,6 @@ class Context_ProfileTab extends Extension_DevblocksContext implements IDevblock
 				$out_fields[DAO_ProfileTab::EXTENSION_PARAMS_JSON] = $json;
 				break;
 			
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;
@@ -1234,6 +1211,21 @@ class Context_ProfileTab extends Extension_DevblocksContext implements IDevblock
 				$tab_manifests = Extension_ProfileTab::getByContext($model->context, false);
 			}
 			$tpl->assign('tab_manifests', $tab_manifests);
+			
+			// Library
+			
+			if(empty($context_id)) {
+				$package_points = ['profile_tab'];
+				
+				if($model->context) {
+					$profile_context_mft = $model->getContextExtension(false);
+					$context_aliases = Extension_DevblocksContext::getAliasesForContext($profile_context_mft);
+					$package_points[] = 'profile_tab:' . $context_aliases['uri'];
+				}
+				
+				$packages = DAO_PackageLibrary::getByPoint($package_points);
+				$tpl->assign('packages', $packages);
+			}
 			
 			// View
 			$tpl->assign('id', $context_id);

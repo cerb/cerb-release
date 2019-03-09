@@ -17,7 +17,7 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 		
 		// varchar(255)
 		$validation
-			->addField(self::EXTENSION_ID)
+			->addField(self::EXTENSION_ID, DevblocksPlatform::translateCapitalized('common.type'))
 			->string()
 			->setMaxLength(255)
 			->setRequired(true)
@@ -32,13 +32,13 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 			;
 		// int(10) unsigned
 		$validation
-			->addField(self::ID)
+			->addField(self::ID, DevblocksPlatform::translate('common.id'))
 			->id()
 			->setEditable(false)
 			;
 		// varchar(128)
 		$validation
-			->addField(self::NAME)
+			->addField(self::NAME, DevblocksPlatform::translateCapitalized('common.name'))
 			->string()
 			->setMaxLength(128)
 			->setRequired(true)
@@ -61,10 +61,15 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 			;
 		// int(10) unsigned
 		$validation
-			->addField(self::WORKSPACE_PAGE_ID)
+			->addField(self::WORKSPACE_PAGE_ID, DevblocksPlatform::translateCapitalized('common.workspace.page'))
 			->id()
 			->setRequired(true)
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_WORKSPACE_PAGE))
+			;
+		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
 			;
 		$validation
 			->addField('_links')
@@ -259,17 +264,7 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 	 * @return Model_WorkspaceTab[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return [];
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$results = self::getAll();
-		
-		return array_intersect_key($results, array_flip($ids));
+		return parent::getIds($ids);
 	}
 	
 	/**
@@ -1249,9 +1244,6 @@ class Context_WorkspaceTab extends Extension_DevblocksContext implements IDevblo
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		$dict_key = DevblocksPlatform::strLower($key);
 		switch($dict_key) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 			
 			case 'params':
 				if(!is_array($value)) {
@@ -1477,6 +1469,9 @@ class Context_WorkspaceTab extends Extension_DevblocksContext implements IDevblo
 			if(isset($model))
 				$tpl->assign('model', $model);
 			
+			if($context_id && !$model)
+				return;
+			
 			// Custom fields
 			$custom_fields = DAO_CustomField::getByContext($context, false);
 			$tpl->assign('custom_fields', $custom_fields);
@@ -1493,6 +1488,13 @@ class Context_WorkspaceTab extends Extension_DevblocksContext implements IDevblo
 			// [TODO] Translate first
 			DevblocksPlatform::sortObjects($tab_extensions, 'params->[label]');
 			$tpl->assign('tab_extensions', $tab_extensions);
+			
+			// Library
+			
+			if(empty($context_id)) {
+				$packages = DAO_PackageLibrary::getByPoint('workspace_tab');
+				$tpl->assign('packages', $packages);
+			}
 			
 			// View
 			$tpl->assign('id', $context_id);

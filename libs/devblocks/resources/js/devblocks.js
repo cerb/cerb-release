@@ -235,6 +235,10 @@ function DevblocksClass() {
 		return {
 			activate: function(event, ui) {
 				var tabsId = ui.newPanel.closest('.ui-tabs').attr('id');
+				
+				if(0 == tabsId.length)
+					return;
+				
 				var index = ui.newTab.index();
 				$this.setjQueryUiTabSelected(tabsId, index);
 			},
@@ -253,9 +257,19 @@ function DevblocksClass() {
 	
 	this.setjQueryUiTabSelected = function(tabsId, index) {
 		var selectedTabs = {};
+		var currentRevision = '1'; // Increment this to invalidate
 		
-		if(undefined != localStorage.selectedTabs)
+		if(undefined != localStorage.selectedTabs) {
 			selectedTabs = JSON.parse(localStorage.selectedTabs);
+			
+			var revision = selectedTabs['_revision'];
+			
+			if(undefined == revision || currentRevision != revision) {
+				selectedTabs = {'_revision': currentRevision};
+			}
+		} else {
+			selectedTabs = {'_revision': currentRevision };
+		}
 		
 		selectedTabs[tabsId] = index;
 		localStorage.selectedTabs = JSON.stringify(selectedTabs);
@@ -272,7 +286,7 @@ function DevblocksClass() {
 				if(undefined != localStorage.selectedTabs)
 					selectedTabs = JSON.parse(localStorage.selectedTabs);
 				
-				selectedTabs[tabsId] = $activeTab.index(); //$tabs.index($activeTab);
+				selectedTabs[tabsId] = $activeTab.index();
 				
 				try {
 					localStorage.selectedTabs = JSON.stringify(selectedTabs);
@@ -326,7 +340,19 @@ function DevblocksClass() {
 			$frm.find('input:hidden[name=do_delete]').val('0');
 		}
 		
+		// Show a spinner
+		var $spinner = $('<span class="cerb-ajax-spinner"/>')
+			.css('zoom', '0.5')
+			.css('margin-right', '5px')
+			;
+		$spinner.insertBefore($button);
+		
+		$button.prop('disabled', true).fadeTo('fast', 0.5);
+		
 		genericAjaxPost($frm, '', '', function(e) {
+			$button.prop('disabled', false).fadeTo('fast', 1.0);
+			$spinner.remove();
+			
 			if(!(typeof e == 'object'))
 				return;
 			
@@ -363,6 +389,10 @@ function DevblocksClass() {
 				// Output errors
 				if(e.error)
 					Devblocks.createAlertError(e.error);
+				
+				event = new jQuery.Event('peek_error');
+				event.error = e.error;
+				$popup.triggerHandler(event);
 				
 				// Highlight the failing field
 				if(e.field)

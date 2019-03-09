@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Cerberus Public License.
@@ -78,6 +78,11 @@ class DAO_Notification extends Cerb_ORMHelper {
 			->id()
 			->setRequired(true)
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_WORKER))
+			;
+		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
 			;
 		$validation
 			->addField('_links')
@@ -1372,7 +1377,7 @@ class Context_Notification extends Extension_DevblocksContext {
 		$keys['event_json']['type'] = "object";
 		$keys['event_json']['notes'] = "A key/value object of notification properties";
 		$keys['is_read']['notes'] = "Has this been read by the worker?";
-		$keys['target__context']['notes'] = "The [record type](/docs/records/#record-types) of the target record";
+		$keys['target__context']['notes'] = "The [record type](/docs/records/types/) of the target record";
 		$keys['target_id']['notes'] = "The ID of the target record";
 		$keys['worker_id']['notes'] = "The ID of the [worker](/docs/records/types/worker/) who received the notification";
 		
@@ -1384,9 +1389,6 @@ class Context_Notification extends Extension_DevblocksContext {
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		$dict_key = DevblocksPlatform::strLower($key);
 		switch($dict_key) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 				
 			case 'params':
 				if(!is_array($value)) {

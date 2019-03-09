@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -89,6 +89,11 @@ class DAO_Task extends Cerb_ORMHelper {
 		$validation
 			->addField(self::UPDATED_DATE)
 			->timestamp()
+			;
+		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
 			;
 		$validation
 			->addField('_links')
@@ -1545,7 +1550,9 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 	}
 	
 	function getKeyToDaoFieldMap() {
-		return [
+		$map = parent::getKeyToDaoFieldMap();
+		
+		$map = array_merge($map, [
 			'created' => DAO_Task::CREATED_AT,
 			'completed' => DAO_Task::COMPLETED_DATE,
 			'due' => DAO_Task::DUE_DATE,
@@ -1557,7 +1564,9 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 			'status_id' => DAO_Task::STATUS_ID,
 			'title' => DAO_Task::TITLE,
 			'updated' => DAO_Task::UPDATED_DATE,
-		];
+		]);
+		
+		return $map;
 	}
 	
 	function getKeyMeta() {
@@ -1583,10 +1592,6 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
-			
 			case 'owner':
 				break;
 				
@@ -1735,6 +1740,12 @@ class Context_Task extends Extension_DevblocksContext implements IDevblocksConte
 			
 			$types = Model_CustomField::getTypes();
 			$tpl->assign('types', $types);
+			
+			// Library
+			if(!$context_id) {
+				$packages = DAO_PackageLibrary::getByPoint('task');
+				$tpl->assign('packages', $packages);
+			}
 			
 			// View
 			$tpl->assign('id', $context_id);

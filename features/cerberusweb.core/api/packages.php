@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -114,11 +114,11 @@ class Cerb_Packages {
 				
 				@$value = $prompts[$key];
 				
-				if(0 == strlen($value))
-					throw new Exception_DevblocksValidationError(sprintf("'%s' (%s) is required.", $config_prompt['label'], $key));
-				
 				switch($config_prompt['type']) {
 					case 'chooser':
+						if(0 == strlen($value))
+							throw new Exception_DevblocksValidationError(sprintf("'%s' (%s) is required.", $config_prompt['label'], $key));
+						
 						$placeholders[$key] = $value;
 						
 						// If the key ends with '_id', allow lazy loading of all context placeholders
@@ -131,7 +131,22 @@ class Cerb_Packages {
 						
 						break;
 						
+					case 'picklist':
+						@$options = $config_prompt['params']['options'];
+						
+						if(!is_array($options) || !in_array($value, $options))
+							throw new Exception_DevblocksValidationError(sprintf("'%s' (%s) is required.", $config_prompt['label'], $key));
+						
+						if(@$config_prompt['params']['multiple']) {
+						} else {
+							$placeholders[$key] = $value;
+						}
+						break;
+						
 					case 'text':
+						if(0 == strlen($value))
+							throw new Exception_DevblocksValidationError(sprintf("'%s' (%s) is required.", $config_prompt['label'], $key));
+						
 						$placeholders[$key] = $value;
 						break;
 				}
@@ -160,6 +175,7 @@ class Cerb_Packages {
 			$event->disable();
 		
 		self::_packageCreateCustomRecords($json, $uids, $records_created, $placeholders);
+		self::_packageFilterExcluded($json, $uids, $records_created, $placeholders);
 		self::_packageValidate($json, $uids, $records_created, $placeholders);
 		self::_packageGenerateIds($json, $uids, $records_created, $placeholders);
 		self::_packageImport($json, $uids, $records_created);
@@ -190,8 +206,44 @@ class Cerb_Packages {
 			'records' => $custom_records,
 		];
 		
+		self::_packageFilterExcluded($custom_records_json, $uids, $records_created, $placeholders);
 		self::_packageValidate($custom_records_json, $uids, $records_created, $placeholders);
 		self::_packageGenerateIds($custom_records_json, $uids, $records_created, $placeholders);
+	}
+	
+	private static function _packageFilterExcluded(&$json, &$uids, &$records_created, &$placeholders) {
+		// Prepare the template builder
+		
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$lexer = array(
+			'tag_comment'   => array('{{#', '#}}'),
+			'tag_block'     => array('{{%', '%}}'),
+			'tag_variable'  => array('{{{', '}}}'),
+			'interpolation' => array('#{{', '}}'),
+		);
+		
+		foreach($json as $object_type => $objects) {
+			if($object_type == 'package')
+				continue;
+			
+			if(is_array($objects))
+			foreach($objects as $record_idx => $record) {
+				@$uid_record = $record['uid'];
+				
+				if(!array_key_exists('_exclude', $record))
+					continue;
+				
+				$exclude_template = $record['_exclude'];
+				unset($json[$object_type][$record_idx]['_exclude']);
+				
+				if(false === ($result = $tpl_builder->build($exclude_template, $placeholders, $lexer)))
+					throw new Exception_DevblocksValidationError(sprintf("Invalid _exclude template: record (%s) %s", $uid_record, implode(',', $tpl_builder->getErrors())));
+				
+				// If the template is true, remove this package record from processing
+				if($result)
+					unset($json[$object_type][$record_idx]);
+			}
+		}
 	}
 	
 	private static function _packageValidate(&$json, &$uids, &$records_created, &$placeholders) {
@@ -305,6 +357,16 @@ class Cerb_Packages {
 			$diff = array_diff_key(array_flip($keys_to_require), $behavior);
 			if(count($diff))
 				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: behavior is missing properties (%s)", implode(', ', array_keys($diff))));
+		}
+		
+		@$behavior_nodes = $json['behavior_nodes'];
+		
+		if(is_array($behavior_nodes))
+		foreach($behavior_nodes as $behavior_node) {
+			$keys_to_require = ['uid','behavior_id','parent_id','title'];
+			$diff = array_diff_key(array_flip($keys_to_require), $behavior_node);
+			if(count($diff))
+				throw new Exception_DevblocksValidationError(sprintf("Invalid JSON: behavior node is missing properties (%s)", implode(', ', array_keys($diff))));
 		}
 		
 		@$workspaces = $json['workspaces'];
@@ -470,6 +532,16 @@ class Cerb_Packages {
 	private static function _packageGenerateIds(&$json, &$uids, &$records_created, &$placeholders) {
 		@$records = $json['records'];
 		
+		// Prepare the template builder
+		
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$lexer = array(
+			'tag_comment'   => array('{{#', '#}}'),
+			'tag_block'     => array('{{%', '%}}'),
+			'tag_variable'  => array('{{{', '}}}'),
+			'interpolation' => array('#{{', '}}'),
+		);
+		
 		if(is_array($records))
 		foreach($records as $record) {
 			$uid_record = $record['uid'];
@@ -566,6 +638,11 @@ class Cerb_Packages {
 		if(is_array($behaviors))
 		foreach($behaviors as $behavior) {
 			$uid = $behavior['uid'];
+			$bot_id = $behavior['bot_id'];
+			
+			// If the bot_id is a placeholder
+			if(preg_match('#\{\{[\#\%\{]#', $bot_id))
+				$behavior['bot_id'] = $tpl_builder->build($bot_id, $placeholders, $lexer);
 			
 			$behavior_id = DAO_TriggerEvent::create([
 				DAO_TriggerEvent::TITLE => $behavior['title'],
@@ -751,16 +828,6 @@ class Cerb_Packages {
 				}
 			}
 		}
-		
-		// Prepare the template builder
-		
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-		$lexer = array(
-			'tag_comment'   => array('{{#', '#}}'),
-			'tag_block'     => array('{{%', '%}}'),
-			'tag_variable'  => array('{{{', '}}}'),
-			'interpolation' => array('#{{', '}}'),
-		);
 		
 		// Add UID placeholders
 		$placeholders['uid'] = $uids;
@@ -1073,6 +1140,46 @@ class Cerb_Packages {
 			$records_created[CerberusContexts::CONTEXT_BEHAVIOR][$uid] = [
 				'id' => $id,
 				'label' => $behavior['title'],
+			];
+		}
+		
+		@$behavior_nodes = $json['behavior_nodes'];
+		
+		if(is_array($behavior_nodes))
+		foreach($behavior_nodes as $behavior_node) {
+			$uid = $behavior_node['uid'];
+			
+			$error = null;
+
+			$behavior_id = @$behavior_node['behavior_id'];
+			$parent_id = @$behavior_node['parent_id'] ?: 0;
+			
+			unset($behavior_node['behavior_id']);
+			unset($behavior_node['parent_id']);
+			
+			$pos = 0;
+			
+			if($parent_id) {
+				// If we have a parent, count its children and append
+				$pos = count(DAO_DecisionNode::getByTriggerParent($behavior_id, $parent_id));
+				
+			} else {
+				// Otherwise, count the behavior's children and append
+				$pos = count(DAO_DecisionNode::getByTriggerParent($behavior_id));
+			}
+			
+			if(false == ($node = DAO_TriggerEvent::recursiveImportDecisionNodes([$behavior_node], $behavior_id, $parent_id, $pos)))
+				throw new Exception_DevblocksValidationError('Failed to import behavior nodes');
+			
+			if(!isset($records_created[CerberusContexts::CONTEXT_BEHAVIOR_NODE]))
+				$records_created[CerberusContexts::CONTEXT_BEHAVIOR_NODE] = [];
+			
+			$records_created[CerberusContexts::CONTEXT_BEHAVIOR_NODE][$uid] = [
+				'id' => $node['id'],
+				'label' => $behavior_node['title'],
+				'behavior_id' => $behavior_id,
+				'parent_id' => $parent_id,
+				'type' => $node['type'],
 			];
 		}
 		

@@ -49,6 +49,11 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -212,36 +217,7 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 	 * @return Model_EmailSignature[]
 	 */
 	static function getIds($ids) {
-		// [TODO] Use cache and intersection
-		
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return [];
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return [];
-
-		$db = DevblocksPlatform::services()->database();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = [];
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}	
 	
 	/**
@@ -311,7 +287,7 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_EmailSignature::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_EmailSignature', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_EmailSignature', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"email_signature.id as %s, ".
@@ -484,6 +460,7 @@ class SearchFields_EmailSignature extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($owner_id_field->db_table),
 						Cerb_ORMHelper::escape($owner_id_field->db_column)
 					),
+					'get_value_as_filter_callback' => parent::getValueAsFilterCallback()->link('owner'),
 				];
 		}
 		
@@ -796,7 +773,6 @@ class View_EmailSignature extends C4_AbstractView implements IAbstractView_Subto
 
 	function renderCriteriaParam($param) {
 		$field = $param->field;
-		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
 			case SearchFields_EmailSignature::IS_DEFAULT:
@@ -811,8 +787,6 @@ class View_EmailSignature extends C4_AbstractView implements IAbstractView_Subto
 
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
-		
-		$translate = DevblocksPlatform::getTranslationService();
 		
 		switch($key) {
 			case SearchFields_EmailSignature::VIRTUAL_CONTEXT_LINK:
@@ -948,7 +922,6 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 	
 	function getMeta($context_id) {
 		$email_signature = DAO_EmailSignature::get($context_id);
-		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($email_signature->name);
@@ -972,7 +945,6 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 	}
 	
 	function autocomplete($term, $query=null) {
-		$url_writer = DevblocksPlatform::services()->url();
 		$list = [];
 		
 		list($results,) = DAO_EmailSignature::search(
@@ -1099,9 +1071,6 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;

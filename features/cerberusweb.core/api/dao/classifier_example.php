@@ -38,6 +38,11 @@ class DAO_ClassifierExample extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -231,35 +236,8 @@ class DAO_ClassifierExample extends Cerb_ORMHelper {
 	 * @return Model_ClassifierExample[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return array();
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return array();
-
-		$db = DevblocksPlatform::services()->database();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = array();
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
-	}	
+		return parent::getIds($ids);
+	}
 	
 	/**
 	 * @param resource $rs
@@ -335,7 +313,7 @@ class DAO_ClassifierExample extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_ClassifierExample::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ClassifierExample', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ClassifierExample', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"classifier_example.id as %s, ".
@@ -855,8 +833,6 @@ class View_ClassifierExample extends C4_AbstractView implements IAbstractView_Su
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
 		
-		$translate = DevblocksPlatform::getTranslationService();
-		
 		switch($key) {
 			case SearchFields_ClassifierExample::VIRTUAL_CLASSIFIER_CLASS_SEARCH:
 				echo sprintf("Classification matches <b>%s</b>", DevblocksPlatform::strEscapeHtml($param->value));
@@ -983,7 +959,6 @@ class Context_ClassifierExample extends Extension_DevblocksContext implements ID
 	
 	function getMeta($context_id) {
 		$classifier_example = DAO_ClassifierExample::get($context_id);
-		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($classifier_example->expression);
@@ -1134,9 +1109,6 @@ class Context_ClassifierExample extends Extension_DevblocksContext implements ID
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;

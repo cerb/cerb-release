@@ -567,6 +567,7 @@ class SearchFields_CustomFieldset extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($owner_id_field->db_table),
 						Cerb_ORMHelper::escape($owner_id_field->db_column)
 					),
+					'get_value_as_filter_callback' => parent::getValueAsFilterCallback()->link('owner'),
 				];
 		}
 		
@@ -1123,16 +1124,13 @@ class Context_CustomFieldset extends Extension_DevblocksContext implements IDevb
 	function getKeyMeta() {
 		$keys = parent::getKeyMeta();
 		
-		$keys['context']['notes'] = "The [record type](/docs/records/#record-types) of the fieldset";
+		$keys['context']['notes'] = "The [record type](/docs/records/types/) of the fieldset";
 		
 		return $keys;
 	}
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;

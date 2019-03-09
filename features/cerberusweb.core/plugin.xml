@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>9.1.5</version>
+	<version>9.2.0</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -69,6 +69,7 @@
 		
 		<patch version="9.0.0" revision="1313" file="patches/9.x/9.0.0.php" />
 		<patch version="9.1.0" revision="1326" file="patches/9.x/9.1.0.php" />
+		<patch version="9.2.0" revision="1330" file="patches/9.x/9.2.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -499,6 +500,14 @@
 			<class name="DAO_OAuthToken" />
 		</file>
 		
+		<file path="api/dao/package_library.php">
+			<class name="Context_PackageLibrary" />
+			<class name="DAO_PackageLibrary" />
+			<class name="Model_PackageLibrary" />
+			<class name="SearchFields_PackageLibrary" />
+			<class name="View_PackageLibrary" />
+		</file>
+		
 		<file path="api/dao/plugin_library.php">
 			<class name="DAO_PluginLibrary" />
 			<class name="Model_PluginLibrary" />
@@ -877,6 +886,10 @@
 		
 		<file path="api/events/ui/ui_before_reply_by_worker.php">
 			<class name="Event_MailBeforeUiReplyByWorker" />
+		</file>
+		
+		<file path="api/events/ui/ui_card_editor_opened_by_worker.php">
+			<class name="Event_UiCardEditorOpenedByWorker" />
 		</file>
 		
 		<file path="api/events/ui/ui_during_reply_by_worker.php">
@@ -1304,6 +1317,49 @@
 						<data key="merge" />
 						<data key="update" />
 						<data key="update.bulk" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.package.library</id>
+			<name>Package</name>
+			<class>
+				<file>api/dao/package_library.php</file>
+				<name>Context_PackageLibrary</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="package" value="singular" />
+						<data key="packages" value="plural" />
+					</value>
+				</param>
+				<param key="alias" value="package" />
+				<param key="dao_class" value="DAO_PackageLibrary" />
+				<param key="view_class" value="View_PackageLibrary" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<!--<data key="custom_fields" />-->
+						<data key="links" />
+						<data key="records" />
+						<data key="search" />
+						<!--<data key="snippets" />-->
+						<data key="va_variable" />
+						<!--<data key="watchers" />-->
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<!--<data key="export" />-->
+						<!--<data key="import" />-->
+						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -3185,6 +3241,7 @@
 				<param key="view_class" value="View_WorkerRole" />
 				<param key="options">
 					<value>
+						<data key="avatars" />
 						<data key="cards" />
 						<data key="custom_fields" />
 						<data key="links" />
@@ -3541,6 +3598,7 @@
 				<param key="contexts">
 					<value>
 						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.role" />
 					</value>
 				</param>
 			</params>
@@ -3621,6 +3679,7 @@
 				<param key="contexts">
 					<value>
 						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.role" />
 					</value>
 				</param>
 			</params>
@@ -3653,6 +3712,7 @@
 				<param key="contexts">
 					<value>
 						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.role" />
 					</value>
 				</param>
 			</params>
@@ -3685,6 +3745,7 @@
 				<param key="contexts">
 					<value>
 						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.role" />
 					</value>
 				</param>
 			</params>
@@ -3717,6 +3778,7 @@
 				<param key="contexts">
 					<value>
 						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.role" />
 					</value>
 				</param>
 			</params>
@@ -3733,6 +3795,7 @@
 				<param key="contexts">
 					<value>
 						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.role" />
 					</value>
 				</param>
 			</params>
@@ -3792,6 +3855,7 @@
 				<param key="contexts">
 					<value>
 						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.role" />
 						<data key="cerberusweb.contexts.worker" />
 					</value>
 				</param>
@@ -4188,6 +4252,22 @@
 		</extension>
 		
 		<extension point="devblocks.event">
+			<id>event.ui.card.editor.opened.worker</id>
+			<name>[UI] Record editor opened</name>
+			<class>
+				<file>api/events/ui/ui_card_editor_opened_by_worker.php</file>
+				<name>Event_UiCardEditorOpenedByWorker</name>
+			</class>
+			<params>
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.app" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event">
 			<id>event.ui.worklist.render.worker</id>
 			<name>[UI] Render record worklist</name>
 			<class>
@@ -4216,6 +4296,7 @@
 				<param key="contexts">
 					<value>
 						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.role" />
 					</value>
 				</param>
 			</params>
@@ -5298,15 +5379,28 @@
 			</extension>
 			
 			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.import_package</id>
-				<name>Import Package Section</name>
+				<id>core.page.setup.package.import</id>
+				<name>Package Import Section</name>
 				<class>
-					<file>api/uri/config/import_package.php</file>
-					<name>PageSection_SetupImportPackage</name>
+					<file>api/uri/config/package_import.php</file>
+					<name>PageSection_SetupPackageImport</name>
 				</class>
 				<params>
 					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="import_package" />
+					<param key="uri" value="package_import" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.setup.package.library</id>
+				<name>Package Library Section</name>
+				<class>
+					<file>api/uri/config/package_library.php</file>
+					<name>PageSection_SetupPackageLibrary</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.configuration" />
+					<param key="uri" value="package_library" />
 				</params>
 			</extension>
 			
@@ -5972,6 +6066,19 @@
 				<params>
 					<param key="page_id" value="core.page.profiles" />
 					<param key="uri" value="org" />
+				</params>
+			</extension>
+			
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.package_library</id>
+				<name>Package Section</name>
+				<class>
+					<file>api/uri/profiles/package_library.php</file>
+					<name>PageSection_ProfilesPackageLibrary</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="package" />
 				</params>
 			</extension>
 

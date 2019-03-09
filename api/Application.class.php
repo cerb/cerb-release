@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2019030401);
-define("APP_VERSION", '9.1.8');
+define("APP_BUILD", 2019030801);
+define("APP_VERSION", '9.2.0');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -227,7 +227,7 @@ class CerberusApplication extends DevblocksApplication {
 	static function getAtMentionsWorkerDictionaryJson($with_searches=true) {
 		$workers = DAO_Worker::getAllActive();
 		$list = [];
-
+		
 		if(false != ($active_worker = CerberusApplication::getActiveWorker())) {
 			$searches = DAO_ContextSavedSearch::getUsableByActor($active_worker, CerberusContexts::CONTEXT_WORKER);
 
@@ -245,16 +245,15 @@ class CerberusApplication extends DevblocksApplication {
 				);
 			}
 		}
-
+		
 		foreach($workers as $worker) {
 			if(empty($worker->at_mention_name))
 				continue;
-
+			
 			$list[DevblocksPlatform::strLower($worker->at_mention_name)] = array(
 				'id' => $worker->id,
 				'name' => DevblocksPlatform::strEscapeHtml($worker->getName()),
 				'email_id' => $worker->email_id,
-				//'email' => DevblocksPlatform::strEscapeHtml($worker->getEmailString()),
 				'title' => DevblocksPlatform::strEscapeHtml($worker->title),
 				'at_mention' => DevblocksPlatform::strEscapeHtml($worker->at_mention_name),
 				'_index' => DevblocksPlatform::strEscapeHtml($worker->getName() . ' ' . $worker->at_mention_name),
@@ -988,6 +987,7 @@ class CerberusContexts {
 	const CONTEXT_ADDRESS = 'cerberusweb.contexts.address';
 	const CONTEXT_ATTACHMENT = 'cerberusweb.contexts.attachment';
 	const CONTEXT_BEHAVIOR = 'cerberusweb.contexts.behavior';
+	const CONTEXT_BEHAVIOR_NODE = 'cerberusweb.contexts.behavior.node';
 	const CONTEXT_BEHAVIOR_SCHEDULED = 'cerberusweb.contexts.behavior.scheduled';
 	const CONTEXT_BOT = 'cerberusweb.contexts.bot';
 	const CONTEXT_BUCKET = 'cerberusweb.contexts.bucket';
@@ -1029,6 +1029,7 @@ class CerberusContexts {
 	const CONTEXT_NOTIFICATION= 'cerberusweb.contexts.notification';
 	const CONTEXT_OPPORTUNITY = 'cerberusweb.contexts.opportunity';
 	const CONTEXT_ORG = 'cerberusweb.contexts.org';
+	const CONTEXT_PACKAGE = 'cerberusweb.contexts.package.library';
 	const CONTEXT_PORTAL = 'cerberusweb.contexts.portal';
 	const CONTEXT_PROFILE_TAB = 'cerberusweb.contexts.profile.tab';
 	const CONTEXT_PROFILE_WIDGET = 'cerberusweb.contexts.profile.widget';
@@ -1361,7 +1362,14 @@ class CerberusContexts {
 			&& $actor->_context == CerberusContexts::CONTEXT_WORKER
 			&& $actor->id == $owner_context_id
 		) return true;
-
+		
+		// Workers can set roles when they're a role editor
+		if($owner_context == CerberusContexts::CONTEXT_ROLE && $actor->_context == CerberusContexts::CONTEXT_WORKER) {
+			$role_editors = DAO_WorkerRole::getEditableBy($actor->id);
+			if(array_key_exists($owner_context_id, $role_editors))
+				return true;
+		}
+		
 		return self::isWriteableByActor($owner_context, $owner_context_id, $actor);
 	}
 
@@ -1568,9 +1576,9 @@ class CerberusContexts {
 						break;
 					}
 
-					// Are we a member of the role?
+					// Can we read role content?
 					if($actor->_context == CerberusContexts::CONTEXT_WORKER) {
-						$roles = DAO_WorkerRole::getRolesByWorker($actor->id);
+						$roles = DAO_WorkerRole::getReadableBy($actor->id);
 						$is_readable = isset($roles[$dict->$owner_key_id]);
 						break;
 					}
@@ -1643,7 +1651,26 @@ class CerberusContexts {
 					$is_writeable = $allow_unassigned;
 					break;
 				
-				// Members can modify group-owned records
+				// Role owners can modify role-owned records
+				case CerberusContexts::CONTEXT_ROLE:
+					// Is the actor the same role?
+					if($actor->_context == CerberusContexts::CONTEXT_ROLE && $actor->id == $dict->$owner_key_id) {
+						$is_writeable = true;
+						break;
+					}
+					
+					// Are we an owner of the role?
+					if($actor->_context == CerberusContexts::CONTEXT_WORKER) {
+						$roles = DAO_WorkerRole::getEditableBy($actor->id);
+						
+						if(array_key_exists($dict->$owner_key_id, $roles)) {
+							$is_writeable = true;
+							break;
+						}
+					}
+					break;
+					
+				// Managers can modify group-owned records
 				case CerberusContexts::CONTEXT_GROUP:
 					// Is the actor the same group?
 					if($actor->_context == CerberusContexts::CONTEXT_GROUP && $actor->id == $dict->$owner_key_id) {
@@ -2511,9 +2538,6 @@ class Context_Application extends Extension_DevblocksContext implements IDevbloc
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;
@@ -2618,7 +2642,7 @@ class CerberusLicense {
 	}
 
 	public static function getReleases() {
-		/*																																																																																																																														*/return json_decode(base64_decode('eyI1LjAuMCI6MTI3MTg5NDQwMCwiNS4xLjAiOjEyODE4MzA0MDAsIjUuMi4wIjoxMjg4NTY5NjAwLCI1LjMuMCI6MTI5NTA0OTYwMCwiNS40LjAiOjEzMDM4NjI0MDAsIjUuNS4wIjoxMzEyNDE2MDAwLCI1LjYuMCI6MTMxNzY4NjQwMCwiNS43LjAiOjEzMjYwNjcyMDAsIjYuMC4wIjoxMzM4MTYzMjAwLCI2LjEuMCI6MTM0NjAyNTYwMCwiNi4yLjAiOjEzNTM4ODgwMDAsIjYuMy4wIjoxMzY0MTY5NjAwLCI2LjQuMCI6MTM3MDIxNzYwMCwiNi41LjAiOjEzNzkyODk2MDAsIjYuNi4wIjoxMzkxMTI2NDAwLCI2LjcuMCI6MTM5ODEyNDgwMCwiNi44LjAiOjE0MTA3MzkyMDAsIjYuOS4wIjoxNDIyMjMwNDAwLCI3LjAuMCI6MTQzMjU5ODQwMCwiNy4xLjAiOjE0NDg5MjgwMDAsIjcuMi4wIjoxNDYyMDYwODAwLCI3LjMuMCI6MTQ3MjY4ODAwMCwiOC4wLjAiOjE0OTU3NTY4MDAsIjguMS4wIjoxNTAzOTY0ODAwLCI4LjIuMCI6MTUwOTMyMTYwMCwiOC4zLjAiOjE1MTk2MDMyMDAsIjkuMC4wIjoxNTMzNTEzNjAwLCI5LjEuMCI6MTU0NDgzMjAwMH0='),true);/*
+		/*																																																																																																																														*/return json_decode(base64_decode('eyI1LjAuMCI6MTI3MTg5NDQwMCwiNS4xLjAiOjEyODE4MzA0MDAsIjUuMi4wIjoxMjg4NTY5NjAwLCI1LjMuMCI6MTI5NTA0OTYwMCwiNS40LjAiOjEzMDM4NjI0MDAsIjUuNS4wIjoxMzEyNDE2MDAwLCI1LjYuMCI6MTMxNzY4NjQwMCwiNS43LjAiOjEzMjYwNjcyMDAsIjYuMC4wIjoxMzM4MTYzMjAwLCI2LjEuMCI6MTM0NjAyNTYwMCwiNi4yLjAiOjEzNTM4ODgwMDAsIjYuMy4wIjoxMzY0MTY5NjAwLCI2LjQuMCI6MTM3MDIxNzYwMCwiNi41LjAiOjEzNzkyODk2MDAsIjYuNi4wIjoxMzkxMTI2NDAwLCI2LjcuMCI6MTM5ODEyNDgwMCwiNi44LjAiOjE0MTA3MzkyMDAsIjYuOS4wIjoxNDIyMjMwNDAwLCI3LjAuMCI6MTQzMjU5ODQwMCwiNy4xLjAiOjE0NDg5MjgwMDAsIjcuMi4wIjoxNDYyMDYwODAwLCI3LjMuMCI6MTQ3MjY4ODAwMCwiOC4wLjAiOjE0OTU3NTY4MDAsIjguMS4wIjoxNTAzOTY0ODAwLCI4LjIuMCI6MTUwOTMyMTYwMCwiOC4zLjAiOjE1MTk2MDMyMDAsIjkuMC4wIjoxNTMzNTEzNjAwLCI5LjEuMCI6MTU0NDgzMjAwMCwiOS4yLjAiOjE1NTEzMTIwMDB9'),true);/*
 		 * Major versions by release date (in GMT)
 		 */
 		return array(
@@ -2650,6 +2674,7 @@ class CerberusLicense {
 			'8.3.0' => gmmktime(0,0,0,2,26,2018),
 			'9.0.0' => gmmktime(0,0,0,8,6,2018),
 			'9.1.0' => gmmktime(0,0,0,12,15,2018),
+			'9.2.0' => gmmktime(0,0,0,2,28,2019),
 		);
 	}
 
@@ -3312,26 +3337,29 @@ class Cerb_ORMHelper extends DevblocksORMHelper {
 
 		if(empty($ids))
 			return [];
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return [];
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
+		
+		if(method_exists(get_called_class(), 'getAll')) {
+			$results = array_intersect_key(static::getAll(), array_flip($ids));
+			
+		} else {
+			if(!method_exists(get_called_class(), 'getWhere'))
+				return [];
+			
+			$ids = DevblocksPlatform::importVar($ids, 'array:integer');
+			
+			$results = static::getWhere(sprintf("id IN (%s)",
+				implode(',', $ids)
+			));
+		}
+		
 		$models = [];
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
+		
 		// Sort $models in the same order as $ids
 		foreach($ids as $id) {
-			if(isset($results[$id]))
+			if(array_key_exists($id, $results))
 				$models[$id] = $results[$id];
 		}
-
-		unset($results);
-
+		
 		return $models;
 	}
 

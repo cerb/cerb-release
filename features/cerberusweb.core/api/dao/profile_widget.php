@@ -62,6 +62,11 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 			->string()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -263,32 +268,7 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 	 * @return Model_ProfileWidget[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return [];
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return [];
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = [];
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}	
 	
 	/**
@@ -1196,9 +1176,6 @@ class Context_ProfileWidget extends Extension_DevblocksContext implements IDevbl
 				$out_fields[DAO_ProfileWidget::EXTENSION_PARAMS_JSON] = $json;
 				break;
 			
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;
@@ -1335,6 +1312,19 @@ class Context_ProfileWidget extends Extension_DevblocksContext implements IDevbl
 				
 				$widget_extensions = Extension_ProfileWidget::getByContext($profile_tab->context, false);
 				$tpl->assign('widget_extensions', $widget_extensions);
+				
+				// Library
+				
+				if(empty($context_id)) {
+					$profile_context_mft = $profile_tab->getContextExtension(false);
+					$context_aliases = Extension_DevblocksContext::getAliasesForContext($profile_context_mft);
+					$packages = DAO_PackageLibrary::getByPoint([
+						'profile_widget:' . $context_aliases['uri'],
+						'profile_widget',
+						
+					]);
+					$tpl->assign('packages', $packages);
+				}
 			}
 			
 			// Placeholder menu

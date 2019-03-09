@@ -72,6 +72,11 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -270,32 +275,7 @@ class DAO_ContextSavedSearch extends Cerb_ORMHelper {
 	 * @return Model_ContextSavedSearch[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return array();
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return array();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = array();
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}
 	
 	/**
@@ -1126,7 +1106,7 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 	function getKeyMeta() {
 		$keys = parent::getKeyMeta();
 		
-		$keys['context']['notes'] = "The [record type](/docs/records/#record-types) of this search query; e.g. `ticket`";
+		$keys['context']['notes'] = "The [record type](/docs/records/types/) of this search query; e.g. `ticket`";
 		$keys['query']['notes'] = "The [search query](/docs/search/); e.g. `status:o`";
 		$keys['tag']['notes'] = "A human-friendly nickname for this search (e.g. `open_tickets`)";
 		
@@ -1135,9 +1115,6 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;

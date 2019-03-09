@@ -45,6 +45,11 @@ class DAO_Calendar extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -556,6 +561,7 @@ class SearchFields_Calendar extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($owner_id_field->db_table),
 						Cerb_ORMHelper::escape($owner_id_field->db_column)
 					),
+					'get_value_as_filter_callback' => parent::getValueAsFilterCallback()->link('owner'),
 				];
 				break;
 		}
@@ -1503,10 +1509,6 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		$dict_key = DevblocksPlatform::strLower($key);
 		switch($dict_key) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
-			
 			case 'params':
 				if(!is_array($value)) {
 					$error = 'must be an object.';
@@ -1798,6 +1800,12 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 			
 			$datasource_extensions = Extension_CalendarDatasource::getAll(false);
 			$tpl->assign('datasource_extensions', $datasource_extensions);
+			
+			// Library
+			if(!$context_id) {
+				$packages = DAO_PackageLibrary::getByPoint('calendar');
+				$tpl->assign('packages', $packages);
+			}
 			
 			// View
 			$tpl->assign('id', $context_id);

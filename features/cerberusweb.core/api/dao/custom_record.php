@@ -62,6 +62,11 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 			})
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -243,32 +248,7 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 	 * @return Model_CustomRecord[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return array();
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return array();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = array();
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}
 	
 	static function getByUri($uri) {
@@ -1148,9 +1128,6 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;
@@ -1268,7 +1245,7 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 			if(empty($context_id)) {
 				$roles = DAO_WorkerRole::getAll();
 				$roles = array_filter($roles, function($role) { /* @var $role Model_WorkerRole */
-					return 'itemized' == @$role->params['what'];
+					return 'itemized' == $role->privs_mode;
 				});
 				$tpl->assign('roles', $roles);
 			}

@@ -581,10 +581,15 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		// Roles
 		
-		if(in_array(CerberusContexts::CONTEXT_ROLE, $contexts) && $active_worker->is_superuser) {
+		if(in_array(CerberusContexts::CONTEXT_ROLE, $contexts)) {
 			$roles_menu = new DevblocksMenuItemPlaceholder();
+			$role_ownerships = DAO_WorkerRole::getEditableBy($active_worker->id);
 			
+			// Include roles if the current worker is a role owner or an admin
 			foreach($roles as $role) {
+				if(!$active_worker->is_superuser && !array_key_exists($role->id, $role_ownerships))
+					continue;
+				
 				$item = new DevblocksMenuItemPlaceholder();
 				$item->label = $role->name;
 				$item->l = $item->label;
@@ -804,7 +809,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		if(array_key_exists('owner__context', $keys)) {
 			$aliases = Extension_DevblocksContext::getAliasesForContext($this->manifest);
-			$keys['owner__context']['notes'] = "The [record type](/docs/records/#record-types) of this " . $aliases['singular'] . "'s owner: `app`, `role`, `group`, or `worker`";
+			$keys['owner__context']['notes'] = "The [record type](/docs/records/types/) of this " . $aliases['singular'] . "'s owner: `app`, `role`, `group`, or `worker`";
 		}
 		if(array_key_exists('owner_id', $keys)) {
 			$aliases = Extension_DevblocksContext::getAliasesForContext($this->manifest);

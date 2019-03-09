@@ -1125,6 +1125,11 @@
 				<seg>everyone</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.everything">
+			<tuv xml:lang="en_US">
+				<seg>everything</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.everywhere">
 			<tuv xml:lang="en_US">
 				<seg>everywhere</seg>
@@ -1188,6 +1193,11 @@
 		<tu tuid="common.extension.id">
 			<tuv xml:lang="en_US">
 				<seg>Extension ID</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.extension.point">
+			<tuv xml:lang="en_US">
+				<seg>Extension Point</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.field">
@@ -1378,6 +1388,11 @@
 				<seg>inboxes</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.instructions">
+			<tuv xml:lang="en_US">
+				<seg>instructions</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.interaction">
 			<tuv xml:lang="en_US">
 				<seg>interaction</seg>
@@ -1516,6 +1531,11 @@
 		<tu tuid="common.members">
 			<tuv xml:lang="en_US">
 				<seg>Members</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.membership">
+			<tuv xml:lang="en_US">
+				<seg>membership</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.merge">
@@ -1698,6 +1718,11 @@
 				<seg>organizations</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.other">
+			<tuv xml:lang="en_US">
+				<seg>other</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.owner">
 			<tuv xml:lang="en_US">
 				<seg>owner</seg>
@@ -1706,6 +1731,11 @@
 		<tu tuid="common.owners">
 			<tuv xml:lang="en_US">
 				<seg>owners</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.ownership">
+			<tuv xml:lang="en_US">
+				<seg>ownership</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.label">
@@ -1741,6 +1771,11 @@
 		<tu tuid="common.layout">
 			<tuv xml:lang="en_US">
 				<seg>layout</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.library">
+			<tuv xml:lang="en_US">
+				<seg>library</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.limit">
@@ -1831,6 +1866,11 @@
 		<tu tuid="common.package">
 			<tuv xml:lang="en_US">
 				<seg>package</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.package.library">
+			<tuv xml:lang="en_US">
+				<seg>package library</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.packages">
@@ -1936,6 +1976,16 @@
 		<tu tuid="common.plural">
 			<tuv xml:lang="en_US">
 				<seg>plural</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.point.geo">
+			<tuv xml:lang="en_US">
+				<seg>point</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.points.geo">
+			<tuv xml:lang="en_US">
+				<seg>points</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.portal">
@@ -2061,6 +2111,16 @@
 		<tu tuid="common.queues">
 			<tuv xml:lang="en_US">
 				<seg>queues</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.reader">
+			<tuv xml:lang="en_US">
+				<seg>reader</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.readers">
+			<tuv xml:lang="en_US">
+				<seg>readers</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.recipient">
@@ -2599,6 +2659,11 @@
 				<seg>User Interface</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.uid">
+			<tuv xml:lang="en_US">
+				<seg>UID</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.unassign">
 			<tuv xml:lang="en_US">
 				<seg>Unassign</seg>
@@ -2697,6 +2762,11 @@
 		<tu tuid="common.verify">
 			<tuv xml:lang="en_US">
 				<seg>verify</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.version">
+			<tuv xml:lang="en_US">
+				<seg>version</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.visibility">
@@ -3024,7 +3094,7 @@
 			<tuv xml:lang="en_US">
 			<seg>Fingerprint</seg></tuv>
 		</tu>
-
+		
 		<!-- Plugin Library -->
 		
 		<tu tuid="dao.plugin_library.plugin_id">
@@ -3109,6 +3179,29 @@
 			</tuv>
 		</tu>
 		
+		<!-- WorkerRole -->
+		
+		<tu tuid="dao.worker_role.privs_mode">
+			<tuv xml:lang="en_US">
+				<seg>Privileges Mode</seg>
+			</tuv>
+		</tu>
+		<tu tuid="dao.worker_role.member_query_workers">
+			<tuv xml:lang="en_US">
+				<seg>Member Query</seg>
+			</tuv>
+		</tu>
+		<tu tuid="dao.worker_role.editor_query_workers">
+			<tuv xml:lang="en_US">
+				<seg>Editor Query</seg>
+			</tuv>
+		</tu>
+		<tu tuid="dao.worker_role.reader_query_workers">
+			<tuv xml:lang="en_US">
+				<seg>Reader Query</seg>
+			</tuv>
+		</tu>
+		
 		<!-- Success -->
 
 		<tu tuid="success.imported">
@@ -3143,6 +3236,16 @@
 		<tu tuid="error.core.no_acl.edit">
 			<tuv xml:lang="en_US">
 				<seg>You do not have permission to modify this record.</seg>
+			</tuv>
+		</tu>
+		<tu tuid="error.core.no_acl.export">
+			<tuv xml:lang="en_US">
+				<seg>You do not have permission to export this record.</seg>
+			</tuv>
+		</tu>
+		<tu tuid="error.core.no_acl.import">
+			<tuv xml:lang="en_US">
+				<seg>You do not have permission to import this record.</seg>
 			</tuv>
 		</tu>
 		<tu tuid="error.core.no_acl.owner">

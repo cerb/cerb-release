@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -26,7 +26,6 @@ abstract class AbstractEvent_Record extends Extension_DevblocksEvent {
 	 */
 	function generateSampleEventModel(Model_TriggerEvent $trigger, $context_id=null) {
 		@$context = $trigger->event_params['context'];
-		$change_fields = [];
 
 		$old_model = null;
 		$new_model = null;
@@ -174,7 +173,7 @@ abstract class AbstractEvent_Record extends Extension_DevblocksEvent {
 		);
 		
 		if(is_array($old_model) && !empty($old_model)) {
-			if(null == ($context_ext = Extension_DevblocksContext::get($context)))
+			if(null == (Extension_DevblocksContext::get($context)))
 				return;
 			
 			$event_model = new Model_DevblocksEvent(

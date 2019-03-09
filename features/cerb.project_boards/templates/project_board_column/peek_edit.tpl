@@ -1,4 +1,5 @@
 {$peek_context = Context_ProjectBoardColumn::ID}
+{$peek_context_id = $model->id}
 {$form_id = uniqid()}
 <form action="{devblocks_url}{/devblocks_url}" method="post" id="{$form_id}" onsubmit="return false;">
 <input type="hidden" name="c" value="profiles">
@@ -38,6 +39,32 @@
 	{include file="devblocks:cerberusweb.core::internal/custom_fields/bulk/form.tpl" bulk=false tbody=true}
 	{/if}
 </table>
+
+<h3 style="font-size:1.3em;">When cards are dropped into this column:</h3>
+
+{* If tasks are on the board *}
+{if in_array(CerberusContexts::CONTEXT_TASK, $board->params.contexts)}
+{$action_params = $model->params.actions}
+{$has_action_task_status = is_array($action_params) && array_key_exists('task_status', $action_params)}
+<fieldset class="peek black" style="position:relative;">
+	<legend>
+		<label>
+		<input type="checkbox" name="actions[]" value="task_status" {if $has_action_task_status}checked="checked"{/if}> 
+		Set task status
+		</label>
+	</legend>
+	
+	<div class="parameters" style="{if $has_action_task_status}display:block;{else}display:none;{/if}">
+		<div class="block" style="margin-left:10px;margin-bottom:0.5em;">
+			<select name="action_params[task_status][status_id]">
+				<option value="0" {if $action_params.task_status.status_id == 0}selected="selected"{/if}>{'status.open'|devblocks_translate|lower}</option>
+				<option value="2" {if $action_params.task_status.status_id == 2}selected="selected"{/if}>{'status.waiting.abbr'|devblocks_translate|lower}</option>
+				<option value="1" {if $action_params.task_status.status_id == 1}selected="selected"{/if}>{'status.completed'|devblocks_translate|lower}</option>
+			</select>
+		</div>
+	</div>
+</fieldset>
+{/if}
 
 <div class="behaviors">
 {foreach from=$behaviors item=behavior}
@@ -116,6 +143,20 @@ $(function() {
 			}
 		});
 		
+		// Handle built-in actions
+		$popup.find('input:checkbox[value=task_status]')
+			.on('change', function(e) {
+				var $this = $(this);
+				var $params = $this.closest('fieldset').find('div.parameters');
+				
+				if($this.is(':checked')) {
+					$params.fadeIn();
+				} else {
+					$params.hide();
+				}
+			})
+			;
+		
 		// Behavior chooser
 		$popup.find('.chooser-behavior')
 			.click(function() {
@@ -168,6 +209,9 @@ $(function() {
 				});
 			})
 		;
+		
+		// [UI] Editor behaviors
+		{include file="devblocks:cerberusweb.core::internal/peek/peek_editor_common.js.tpl" peek_context=$peek_context peek_context_id=$peek_context_id}
 	});
 });
 </script>

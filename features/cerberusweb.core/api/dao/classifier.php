@@ -55,6 +55,11 @@ class DAO_Classifier extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -233,35 +238,8 @@ class DAO_Classifier extends Cerb_ORMHelper {
 	 * @return Model_Classifier[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return array();
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return array();
-
-		$db = DevblocksPlatform::services()->database();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = array();
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
-	}	
+		return parent::getIds($ids);
+	}
 	
 	/**
 	 * @param resource $rs
@@ -346,7 +324,7 @@ class DAO_Classifier extends Cerb_ORMHelper {
 				break;
 		}
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_Classifier', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_Classifier', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"classifier.id as %s, ".
@@ -519,6 +497,7 @@ class SearchFields_Classifier extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($owner_id_field->db_table),
 						Cerb_ORMHelper::escape($owner_id_field->db_column)
 					),
+					'get_value_as_filter_callback' => parent::getValueAsFilterCallback()->link('owner'),
 				];
 				break;
 		}
@@ -847,7 +826,6 @@ class View_Classifier extends C4_AbstractView implements IAbstractView_Subtotals
 
 	function renderCriteriaParam($param) {
 		$field = $param->field;
-		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
 			default:
@@ -858,8 +836,6 @@ class View_Classifier extends C4_AbstractView implements IAbstractView_Subtotals
 
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
-		
-		$translate = DevblocksPlatform::getTranslationService();
 		
 		switch($key) {
 			case SearchFields_Classifier::VIRTUAL_CONTEXT_LINK:
@@ -1002,7 +978,6 @@ class Context_Classifier extends Extension_DevblocksContext implements IDevblock
 	
 	function getMeta($context_id) {
 		$classifier = DAO_Classifier::get($context_id);
-		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($classifier->name);
@@ -1027,8 +1002,7 @@ class Context_Classifier extends Extension_DevblocksContext implements IDevblock
 	}
 	
 	function autocomplete($term, $query=null) {
-		$url_writer = DevblocksPlatform::services()->url();
-		$list = array();
+		$list = [];
 		
 		list($results,) = DAO_Classifier::search(
 			array(),
@@ -1150,9 +1124,6 @@ class Context_Classifier extends Extension_DevblocksContext implements IDevblock
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;

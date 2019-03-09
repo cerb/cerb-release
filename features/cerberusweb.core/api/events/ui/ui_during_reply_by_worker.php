@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -73,8 +73,8 @@ class Event_MailDuringUiReplyByWorker extends AbstractEvent_Message {
 		 * Behavior
 		 */
 		
-		$merge_labels = array();
-		$merge_values = array();
+		$labels = $values = $merge_labels = $merge_values = [];
+		
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_BEHAVIOR, $trigger, $merge_labels, $merge_values, null, true);
 
 			// Merge
@@ -96,8 +96,7 @@ class Event_MailDuringUiReplyByWorker extends AbstractEvent_Message {
 		/**
 		 * Current worker
 		 */
-		$worker_labels = array();
-		$worker_values = array();
+		$worker_labels = $worker_values = [];
 		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $worker_id, $worker_labels, $worker_values, 'Current Worker:', true);
 				
 			// Merge
@@ -184,6 +183,7 @@ class Event_MailDuringUiReplyByWorker extends AbstractEvent_Message {
 				$out = sprintf(">>> Executing jQuery script:\n\n%s\n",
 					$script
 				);
+				return $out;
 				break;
 		}
 	}

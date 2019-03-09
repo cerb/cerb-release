@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -127,6 +127,11 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 			->string()
 			->setMaxLength(128)
 			->setRequired(true)
+			;
+		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
 			;
 		$validation
 			->addField('_links')
@@ -275,32 +280,7 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 	 * @return Model_Mailbox[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return [];
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return [];
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = [];
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}
 
 	/**
@@ -1328,9 +1308,6 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;

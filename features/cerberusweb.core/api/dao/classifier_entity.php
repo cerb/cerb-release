@@ -52,6 +52,11 @@ class DAO_ClassifierEntity extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -206,18 +211,7 @@ class DAO_ClassifierEntity extends Cerb_ORMHelper {
 	 * @return Model_ClassifierEntity[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = [$ids];
-		
-		if(empty($ids))
-			return [];
-		
-		$entities = DAO_ClassifierEntity::getAll();
-		
-		if(empty($entities))
-			return [];
-		
-		return array_intersect_key($entities, array_flip($ids));
+		return parent::getIds($ids);
 	}
 	
 	static function getByName($key) {
@@ -314,7 +308,7 @@ class DAO_ClassifierEntity extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_ClassifierEntity::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ClassifierEntity', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ClassifierEntity', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"classifier_entity.id as %s, ".
@@ -745,7 +739,6 @@ class View_ClassifierEntity extends C4_AbstractView implements IAbstractView_Sub
 
 	function renderCriteriaParam($param) {
 		$field = $param->field;
-		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
 			default:
@@ -756,8 +749,6 @@ class View_ClassifierEntity extends C4_AbstractView implements IAbstractView_Sub
 
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
-		
-		$translate = DevblocksPlatform::getTranslationService();
 		
 		switch($key) {
 			case SearchFields_ClassifierEntity::VIRTUAL_CONTEXT_LINK:
@@ -875,7 +866,6 @@ class Context_ClassifierEntity extends Extension_DevblocksContext implements IDe
 	
 	function getMeta($context_id) {
 		$classifier_entity = DAO_ClassifierEntity::get($context_id);
-		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($classifier_entity->name);
@@ -1003,10 +993,6 @@ class Context_ClassifierEntity extends Extension_DevblocksContext implements IDe
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
-				
 			case 'params':
 				if(!is_array($value)) {
 					$error = 'must be an object.';

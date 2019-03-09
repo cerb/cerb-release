@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -74,6 +74,11 @@ class DAO_WorkspacePage extends Cerb_ORMHelper {
 		$validation
 			->addField(self::UPDATED_AT)
 			->timestamp()
+			;
+		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
 			;
 		$validation
 			->addField('_links')
@@ -243,7 +248,7 @@ class DAO_WorkspacePage extends Cerb_ORMHelper {
 		}
 
 		$memberships = $worker->getMemberships();
-		$roles = $worker->getRoles();
+		$roles = DAO_WorkerRole::getReadableBy($worker->id);
 		
 		$pages = [];
 		$all_pages = self::getAll();
@@ -309,24 +314,7 @@ class DAO_WorkspacePage extends Cerb_ORMHelper {
 	 * @return Model_WorkspacePage[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return [];
-
-		$objects = self::getAll();
-		$results = [];
-		
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-		
-		// Preserve ID order
-		foreach($ids as $id) {
-			if(isset($objects[$id]))
-				$results[$id] = $objects[$id];
-		}
-		
-		return $results;
+		return parent::getIds($ids);
 	}
 
 	/**
@@ -565,6 +553,7 @@ class SearchFields_WorkspacePage extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($owner_id_field->db_table),
 						Cerb_ORMHelper::escape($owner_id_field->db_column)
 					),
+					'get_value_as_filter_callback' => parent::getValueAsFilterCallback()->link('owner'),
 				];
 		}
 		
@@ -676,6 +665,13 @@ class Model_WorkspacePage {
 	
 	function getUsers() {
 		return DAO_WorkspacePage::getUsers($this->id);
+	}
+	
+	function getOwnerMeta() {
+		if(false == ($page_owner_context_ext = Extension_DevblocksContext::get($this->owner_context)))
+			return null;
+		
+		return $page_owner_context_ext->getMeta($this->owner_context_id);
 	}
 };
 
@@ -1147,9 +1143,6 @@ class Context_WorkspacePage extends Extension_DevblocksContext implements IDevbl
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;
@@ -1272,7 +1265,7 @@ class Context_WorkspacePage extends Extension_DevblocksContext implements IDevbl
 		
 		if($active_worker && !$active_worker->is_superuser) {
 			$worker_group_ids = array_keys($active_worker->getMemberships());
-			$worker_role_ids = array_keys(DAO_WorkerRole::getRolesByWorker($active_worker->id));
+			$worker_role_ids = array_keys(DAO_WorkerRole::getReadableBy($active_worker->id));
 			
 			// Restrict owners
 			
@@ -1316,7 +1309,7 @@ class Context_WorkspacePage extends Extension_DevblocksContext implements IDevbl
 		
 		if($active_worker && !$active_worker->is_superuser) {
 			$worker_group_ids = array_keys($active_worker->getMemberships());
-			$worker_role_ids = array_keys(DAO_WorkerRole::getRolesByWorker($active_worker->id));
+			$worker_role_ids = array_keys(DAO_WorkerRole::getReadableBy($active_worker->id));
 			
 			// Restrict owners
 			
@@ -1374,6 +1367,12 @@ class Context_WorkspacePage extends Extension_DevblocksContext implements IDevbl
 			$page_extensions = array_merge($workspaces_extension, $page_extensions);
 			
 			$tpl->assign('page_extensions', $page_extensions);
+			
+			// Library
+			if(!$context_id) {
+				$packages = DAO_PackageLibrary::getByPoint('workspace_page');
+				$tpl->assign('packages', $packages);
+			}
 			
 			// View
 			$tpl->assign('id', $context_id);

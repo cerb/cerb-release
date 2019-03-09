@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -1668,8 +1668,10 @@ class WorkspaceWidget_ChartCategories extends Extension_WorkspaceWidget implemen
 				$height = 100 + (50 * @count($results['data'][0]));
 		}
 		
-		if($height)
-			$config_json['size'] = ['height' => $height];
+		$config_json['size'] = ['height' => $height ?: 320];
+		
+		if(false != ($chart_meta = @$results['_']))
+			$tpl->assign('chart_meta_json', json_encode($chart_meta));
 		
 		$tpl->assign('config_json', json_encode($config_json));
 		$tpl->assign('xaxis_format', $xaxis_format);
@@ -1833,8 +1835,10 @@ class WorkspaceWidget_ChartPie extends Extension_WorkspaceWidget implements ICer
 		
 		$config_json['legend']['show']  = @$options['show_legend'] ? true : false;
 		
-		if($height)
-			$config_json['size'] = ['height' => $height];
+		$config_json['size'] = ['height' => $height ?: 320];
+		
+		if(false != ($chart_meta = @$results['_']))
+			$tpl->assign('chart_meta_json', json_encode($chart_meta));
 		
 		$tpl->assign('config_json', json_encode($config_json));
 		$tpl->assign('widget', $widget);
@@ -2003,8 +2007,7 @@ class WorkspaceWidget_ChartScatterplot extends Extension_WorkspaceWidget impleme
 				$config_json['data']['xs'][mb_substr($result[0],0,-2)] = $result[0];
 		}
 		
-		if($height)
-			$config_json['size'] = ['height' => $height];
+		$config_json['size'] = ['height' => $height ?: 320];
 		
 		if($xaxis_label)
 			$config_json['axis']['x']['label'] = $xaxis_label;
@@ -2408,9 +2411,11 @@ class WorkspaceWidget_ChartTimeSeries extends Extension_WorkspaceWidget implemen
 		if($yaxis_label)
 			$config_json['axis']['y']['label'] = $yaxis_label;
 		
-		if($height)
-			$config_json['size'] = ['height' => $height];
+		$config_json['size'] = ['height' => $height ?: 320];
 		
+		if(false != ($chart_meta = @$results['_']))
+			$tpl->assign('chart_meta_json', json_encode($chart_meta));
+			
 		$tpl->assign('config_json', json_encode($config_json));
 		$tpl->assign('yaxis_format', $yaxis_format);
 		$tpl->assign('widget', $widget);

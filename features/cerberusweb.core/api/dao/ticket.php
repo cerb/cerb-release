@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Cerberus Public License.
@@ -166,7 +166,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			;
 		$validation
 			->addField(self::SUBJECT)
-			->string()
+			->string($validation::STRING_UTF8MB4)
 			->setMaxLength(255)
 			->setRequired(true)
 			;
@@ -2051,7 +2051,7 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 				$query = $search->getQueryFromParam($param);
 				$attribs = [];
 				
-				if(isset($options['prefetch_sql'])) {
+				if(array_key_exists('prefetch_sql', $options)) {
 					$attribs['id'] = array(
 						'sql' => $options['prefetch_sql'],
 					);
@@ -2328,6 +2328,10 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($search_field->db_table),
 						Cerb_ORMHelper::escape($search_field->db_column)
 					),
+					'get_value_as_filter_callback' => function($value) {
+						$statuses = [0 => 'o', 1 => 'w', 2 => 'c', 3 => 'd'];
+						return @$statuses[$value];
+					}
 				];
 				break;
 		}

@@ -54,67 +54,25 @@ class PageSection_ProfilesWorkerRole extends Extension_PageSection {
 				
 			} else {
 				@$name = DevblocksPlatform::importGPC($_REQUEST['name'], 'string', '');
-				@$who = DevblocksPlatform::importGPC($_REQUEST['who'],'string','');
-				@$what = DevblocksPlatform::importGPC($_REQUEST['what'],'string','');
+				@$member_query_worker = DevblocksPlatform::importGPC($_REQUEST['member_query_worker'], 'string', '');
+				@$editor_query_worker = DevblocksPlatform::importGPC($_REQUEST['editor_query_worker'], 'string', '');
+				@$reader_query_worker = DevblocksPlatform::importGPC($_REQUEST['reader_query_worker'], 'string', '');
+				
+				@$privs_mode = DevblocksPlatform::importGPC($_REQUEST['privs_mode'],'string','');
 				@$acl_privs = DevblocksPlatform::importGPC($_REQUEST['acl_privs'],'array', []);
 				
-				$params = [];
+				if(in_array($privs_mode, ['all','']))
+					$acl_privs = [];
 				
-				// Apply to
-				switch($who) {
-					case 'all':
-						$params['who'] = $who;
-						break;
-						
-					case 'groups':
-						$params['who'] = $who;
-						@$who_ids = DevblocksPlatform::importGPC($_REQUEST['group_ids'],'array', []);
-						$params['who_list'] = DevblocksPlatform::sanitizeArray($who_ids, 'integer');
-						break;
-						
-					case 'workers':
-						$params['who'] = $who;
-						@$who_ids = DevblocksPlatform::importGPC($_REQUEST['worker_ids'],'array', []);
-						$params['who_list'] = DevblocksPlatform::sanitizeArray($who_ids, 'integer');
-						break;
-						
-					default:
-						$who = null;
-						break;
-				}
+				$error = null;
 				
-				// Privs
-				switch($what) {
-					case 'all': // all
-						$params['what'] = $what;
-						$acl_privs = [];
-						break;
-						
-					case 'none': // none
-						$params['what'] = $what;
-						$acl_privs = [];
-						break;
-						
-					case 'itemized': // itemized
-						$params['what'] = $what;
-						break;
-						
-					default: // itemized
-						$what = null;
-						break;
-				}
-				
-				// Abort if incomplete or invalid
-				if(empty($who))
-					throw new Exception_DevblocksAjaxValidationError("The 'Apply to' field is required.", 'who');
-				
-				if(empty($what))
-					throw new Exception_DevblocksAjaxValidationError("The 'Privileges' field is required.", 'what');
-					
 				if(empty($id)) { // New
 					$fields = array(
 						DAO_WorkerRole::NAME => $name,
-						DAO_WorkerRole::PARAMS_JSON => json_encode($params),
+						DAO_WorkerRole::MEMBER_QUERY_WORKER => $member_query_worker,
+						DAO_WorkerRole::EDITOR_QUERY_WORKER => $editor_query_worker,
+						DAO_WorkerRole::READER_QUERY_WORKER => $reader_query_worker,
+						DAO_WorkerRole::PRIVS_MODE => $privs_mode,
 						DAO_WorkerRole::PRIVS_JSON => json_encode($acl_privs),
 						DAO_WorkerRole::UPDATED_AT => time(),
 					);
@@ -134,7 +92,10 @@ class PageSection_ProfilesWorkerRole extends Extension_PageSection {
 				} else { // Edit
 					$fields = array(
 						DAO_WorkerRole::NAME => $name,
-						DAO_WorkerRole::PARAMS_JSON => json_encode($params),
+						DAO_WorkerRole::MEMBER_QUERY_WORKER => $member_query_worker,
+						DAO_WorkerRole::EDITOR_QUERY_WORKER => $editor_query_worker,
+						DAO_WorkerRole::READER_QUERY_WORKER => $reader_query_worker,
+						DAO_WorkerRole::PRIVS_MODE => $privs_mode,
 						DAO_WorkerRole::PRIVS_JSON => json_encode($acl_privs),
 						DAO_WorkerRole::UPDATED_AT => time(),
 					);
@@ -154,9 +115,13 @@ class PageSection_ProfilesWorkerRole extends Extension_PageSection {
 				if(!DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_ROLE, $id, $field_ids, $error))
 					throw new Exception_DevblocksAjaxValidationError($error);
 				
+				// Avatar image
+				@$avatar_image = DevblocksPlatform::importGPC($_REQUEST['avatar_image'], 'string', '');
+				DAO_ContextAvatar::upsertWithImage(CerberusContexts::CONTEXT_ROLE, $id, $avatar_image);
+				
 				// Clear cache
+				DAO_WorkerRole::updateRosters($id);
 				DAO_WorkerRole::clearCache();
-				DAO_WorkerRole::clearWorkerCache();
 				
 				echo json_encode(array(
 					'status' => true,
@@ -181,7 +146,6 @@ class PageSection_ProfilesWorkerRole extends Extension_PageSection {
 				'error' => 'An error occurred.',
 			));
 			return;
-			
 		}
 	}
 	

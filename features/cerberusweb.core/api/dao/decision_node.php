@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -309,7 +309,7 @@ class DAO_DecisionNode extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_DecisionNode::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_DecisionNode', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_DecisionNode', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"decision_node.id as %s, ".
@@ -509,6 +509,10 @@ class Model_DecisionNode {
 	public $pos;
 	public $params_json;
 	public $params;
+	
+	function getNodes() {
+		return DAO_DecisionNode::getByTriggerParent($this->trigger_id, $this->id);
+	}
 };
 
 class View_DecisionNode extends C4_AbstractView {
@@ -577,7 +581,6 @@ class View_DecisionNode extends C4_AbstractView {
 
 	function renderCriteriaParam($param) {
 		$field = $param->field;
-		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
 			default:

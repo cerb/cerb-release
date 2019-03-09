@@ -147,8 +147,6 @@ class DAO_ContextAvatar extends Cerb_ORMHelper {
 			}
 		}
 		
-		$db = DevblocksPlatform::services()->database();
-		
 		if(false == ($avatar = DAO_ContextAvatar::getByContext($context, $context_id))) {
 			$fields = array(
 				DAO_ContextAvatar::CONTEXT => $context,
@@ -284,35 +282,8 @@ class DAO_ContextAvatar extends Cerb_ORMHelper {
 	 * @return Model_ContextAvatar[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return array();
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return array();
-
-		$db = DevblocksPlatform::services()->database();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = array();
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
-	}	
+		return parent::getIds($ids);
+	}
 	
 	/**
 	 * @param resource $rs
@@ -416,7 +387,7 @@ class DAO_ContextAvatar extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_ContextAvatar::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ContextAvatar', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ContextAvatar', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"context_avatar.id as %s, ".

@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -150,6 +150,11 @@ class DAO_Message extends Cerb_ORMHelper {
 			->string()
 			->setMaxLength(16777215)
 			->setRequired(true)
+			;
+		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
 			;
 		$validation
 			->addField('_links')
@@ -774,7 +779,6 @@ class SearchFields_Message extends DevblocksSearchFields {
 				
 			case 'group':
 			case 'ticket.group':
-				$key = $key;
 				$search_key = $key;
 				$group_field = $search_fields[SearchFields_Message::TICKET_GROUP_ID];
 				
@@ -789,11 +793,14 @@ class SearchFields_Message extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($group_field->db_table),
 						Cerb_ORMHelper::escape($group_field->db_column)
 					),
+					'get_value_as_filter_callback' => function($value, &$filter) {
+						$filter = 'ticket:(group:(id:%s))';
+						return $value;
+					}
 				];
 				break;
 				
 			case 'ticket.mask':
-				$key = $key;
 				$search_key = $key;
 				$mask_field = $search_fields[SearchFields_Message::TICKET_MASK];
 				
@@ -805,6 +812,10 @@ class SearchFields_Message extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($mask_field->db_table),
 						Cerb_ORMHelper::escape($mask_field->db_column)
 					),
+					'get_value_as_filter_callback' => function($value, &$filter) {
+						$filter = 'ticket:(mask:%s)';
+						return $value;
+					}
 				];
 				break;
 				
@@ -2575,9 +2586,6 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 				$out_fields[DAO_Message::_HEADERS] = $value;
 				break;
 				
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 				
 			case 'sender':
 				if(false == ($address = DAO_Address::lookupAddress($value, true))) {

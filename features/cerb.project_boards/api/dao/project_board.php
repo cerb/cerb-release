@@ -54,6 +54,11 @@ class DAO_ProjectBoard extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -180,7 +185,8 @@ class DAO_ProjectBoard extends Cerb_ORMHelper {
 
 	/**
 	 * @param integer $id
-	 * @return Model_ProjectBoard	 */
+	 * @return Model_ProjectBoard
+	 */
 	static function get($id) {
 		if(empty($id))
 			return null;
@@ -202,33 +208,8 @@ class DAO_ProjectBoard extends Cerb_ORMHelper {
 	 * @return Model_ProjectBoard[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return array();
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return array();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = array();
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
-	}	
+		return parent::getIds($ids);
+	}
 	
 	/**
 	 * @param resource $rs
@@ -1091,10 +1072,6 @@ class Context_ProjectBoard extends Extension_DevblocksContext implements IDevblo
 				$out_fields[DAO_ProjectBoard::COLUMNS_JSON] = $json;
 				break;
 				
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
-				
 			case 'params':
 				if(!is_array($value)) {
 					$error = 'must be an object.';
@@ -1232,6 +1209,12 @@ class Context_ProjectBoard extends Extension_DevblocksContext implements IDevblo
 			
 			$types = Model_CustomField::getTypes();
 			$tpl->assign('types', $types);
+			
+			// Library
+			if(!$context_id) {
+				$packages = DAO_PackageLibrary::getByPoint('project_board');
+				$tpl->assign('packages', $packages);
+			}
 			
 			// View
 			$tpl->assign('id', $context_id);

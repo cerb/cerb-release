@@ -78,6 +78,11 @@ class DAO_<?php echo $class_name; ?> extends Cerb_ORMHelper {
 			->setRequired(true)
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -228,32 +233,7 @@ class DAO_<?php echo $class_name; ?> extends Cerb_ORMHelper {
 	 * @return Model_<?php echo $class_name; ?>[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return [];
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return [];
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = [];
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}	
 	
 	/**
@@ -1099,9 +1079,6 @@ class Context_<?php echo $class_name;?> extends Extension_DevblocksContext imple
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;
@@ -1403,6 +1380,7 @@ $(function() {
 <b>templates/<?php echo $table_name; ?>/peek_edit.tpl</b><br>
 <textarea style="width:98%;height:200px;">
 {$peek_context = '<?php echo $ctx_ext_id; ?>'}
+{$peek_context_id = $model->id}
 {$form_id = uniqid()}
 <form action="{devblocks_url}{/devblocks_url}" method="post" id="{$form_id}" onsubmit="return false;">
 <input type="hidden" name="c" value="profiles">
@@ -1481,6 +1459,9 @@ $(function() {
 			searchKey: '_index',
 			limit: 10
 		});
+
+		// [UI] Editor behaviors
+		{include file="devblocks:cerberusweb.core::internal/peek/peek_editor_common.js.tpl" peek_context=$peek_context peek_context_id=$peek_context_id}
 	});
 });
 </script>

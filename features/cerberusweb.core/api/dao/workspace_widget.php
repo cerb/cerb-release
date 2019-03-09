@@ -2,7 +2,7 @@
 /************************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -88,6 +88,11 @@ class DAO_WorkspaceWidget extends Cerb_ORMHelper {
 			->addField(self::ZONE)
 			->string()
 			->setMaxLength(255)
+			;
+		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
 			;
 		$validation
 			->addField('_links')
@@ -288,32 +293,7 @@ class DAO_WorkspaceWidget extends Cerb_ORMHelper {
 	 * @return Model_WorkspaceWidget[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-		
-		if(empty($ids))
-			return [];
-		
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return [];
-		
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = [];
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}
 	
 	/**
@@ -1232,9 +1212,6 @@ class Context_WorkspaceWidget extends Extension_DevblocksContext implements IDev
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		$dict_key = DevblocksPlatform::strLower($key);
 		switch($dict_key) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 			
 			case 'params':
 				if(!is_array($value)) {
@@ -1413,6 +1390,13 @@ class Context_WorkspaceWidget extends Extension_DevblocksContext implements IDev
 			
 			$types = Model_CustomField::getTypes();
 			$tpl->assign('types', $types);
+			
+			// Library
+			
+			if(empty($context_id)) {
+				$packages = DAO_PackageLibrary::getByPoint('workspace_widget');
+				$tpl->assign('packages', $packages);
+			}
 			
 			// Placeholder menu
 			

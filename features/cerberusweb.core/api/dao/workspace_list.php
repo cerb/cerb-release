@@ -104,6 +104,11 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 			->uint(2)
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -263,32 +268,7 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 	 * @return Model_WorkspaceList[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return [];
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return [];
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = [];
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}
 	
 	static function getByTab($tab_id) {
@@ -1230,7 +1210,7 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 	function getKeyMeta() {
 		$keys = parent::getKeyMeta();
 		
-		$keys['context']['notes'] = "The [record type](/docs/records/#record-types) of the worklist";
+		$keys['context']['notes'] = "The [record type](/docs/records/types/) of the worklist";
 		$keys['params_required_query']['notes'] = "The [search query](/docs/search/) for required filters";
 		$keys['pos']['notes'] = "The order of the worklist on the workspace tab; `0` is first";
 		$keys['render_limit']['notes'] = "The number of records per page";
@@ -1272,9 +1252,6 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 				$out_fields[DAO_WorkspaceList::COLUMNS_JSON] = json_encode($value);
 				break;
 			
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 				
 			case 'options':
 				if(!is_array($value)) {

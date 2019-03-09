@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -150,7 +150,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		// varchar(255)
 		$validation
 			->addField(self::LOCATION)
-			->string()
+			->string($validation::STRING_UTF8MB4)
 			->setMaxLength(255)
 			;
 		// varchar(64)
@@ -182,7 +182,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		// varchar(255)
 		$validation
 			->addField(self::TITLE)
-			->string()
+			->string($validation::STRING_UTF8MB4)
 			->setMaxLength(255)
 			;
 		// int(10) unsigned
@@ -206,6 +206,11 @@ class DAO_Worker extends Cerb_ORMHelper {
 			->addField(self::_PASSWORD)
 			->string()
 			->setMinLength(8)
+			;
+		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
 			;
 		$validation
 			->addField('_links')
@@ -245,6 +250,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 	static function clearCache() {
 		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::CACHE_ALL);
+		DAO_WorkerRole::clearWorkerCache();
 	}
 	
 	/**
@@ -928,6 +934,9 @@ class DAO_Worker extends Cerb_ORMHelper {
 		$db->ExecuteMaster("DELETE FROM worker_to_group WHERE worker_id NOT IN (SELECT id FROM worker)");
 		$logger->info('[Maint] Purged ' . $db->Affected_Rows() . ' worker_to_group records.');
 		
+		$db->ExecuteMaster("DELETE FROM worker_to_role WHERE worker_id NOT IN (SELECT id FROM worker)");
+		$logger->info('[Maint] Purged ' . $db->Affected_Rows() . ' worker_to_role records.');
+		
 		// Search indexes
 		if(isset($tables['fulltext_worker'])) {
 			$db->ExecuteMaster("DELETE FROM fulltext_worker WHERE id NOT IN (SELECT id FROM worker)");
@@ -958,7 +967,8 @@ class DAO_Worker extends Cerb_ORMHelper {
 	}
 	
 	static function delete($id) {
-		if(empty($id)) return;
+		if(empty($id))
+			return;
 		
 		/* This event fires before the delete takes place in the db,
 		 * so we can denote what is actually changing against the db state
@@ -1005,6 +1015,10 @@ class DAO_Worker extends Cerb_ORMHelper {
 		if(false == ($db->ExecuteMaster($sql)))
 			return false;
 
+		$sql = sprintf("DELETE FROM worker_to_role WHERE worker_id = %d", $id);
+		if(false == ($db->ExecuteMaster($sql)))
+			return false;
+
 		$sql = sprintf("DELETE FROM worker_to_bucket WHERE worker_id = %d", $id);
 		if(false == ($db->ExecuteMaster($sql)))
 			return false;
@@ -1039,6 +1053,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		self::clearCache();
 		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(DAO_Group::CACHE_ROSTERS);
+		DAO_WorkerRole::clearWorkerCache($id);
 	}
 	
 	static function hasAuth($worker_id) {
@@ -1356,6 +1371,8 @@ class SearchFields_Worker extends DevblocksSearchFields {
 	const VIRTUAL_CALENDAR_AVAILABILITY = '*_calendar_availability';
 	const VIRTUAL_SESSION_ACTIVITY = '*_session_activity';
 	const VIRTUAL_ROLE_SEARCH = '*_role_search';
+	const VIRTUAL_ROLE_EDITOR_SEARCH = '*_role_editor_search';
+	const VIRTUAL_ROLE_READER_SEARCH = '*_role_reader_search';
 	
 	static private $_fields = null;
 	
@@ -1470,22 +1487,18 @@ class SearchFields_Worker extends DevblocksSearchFields {
 				break;
 			
 			case self::VIRTUAL_ROLE_SEARCH:
-				$worker_ids = [];
+				$sql = "SELECT worker_id FROM worker_to_role WHERE is_member = 1 AND role_id IN (%s)";
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_ROLE, $sql, 'w.id');
+				break;
 				
-				$db = DevblocksPlatform::services()->database();
+			case self::VIRTUAL_ROLE_EDITOR_SEARCH:
+				$sql = "SELECT worker_id FROM worker_to_role WHERE is_editable = 1 AND role_id IN (%s)";
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_ROLE, $sql, 'w.id');
+				break;
 				
-				$sql = self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_ROLE, "%s");
-				$role_ids = array_column($db->GetArraySlave($sql), 'id');
-				$roles = DAO_WorkerRole::getIds($role_ids);
-				
-				foreach($roles as $role) {
-					$worker_ids += $role->getWorkerIds();
-				}
-				
-				if(empty($worker_ids))
-					return 0;
-				
-				return sprintf('w.id IN (%s)', implode(',', $worker_ids));
+			case self::VIRTUAL_ROLE_READER_SEARCH:
+				$sql = "SELECT worker_id FROM worker_to_role WHERE is_readable = 1 AND role_id IN (%s)";
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_ROLE, $sql, 'w.id');
 				break;
 				
 			default:
@@ -1502,6 +1515,29 @@ class SearchFields_Worker extends DevblocksSearchFields {
 	
 	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
 		switch($key) {
+			case 'group':
+				$key_select = 'wtg_' . uniqid();
+				
+				return [
+					'key_query' => $key,
+					'key_select' => $key_select,
+					'label' => DevblocksPlatform::translateCapitalized('common.group'),
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'sql_select' => sprintf("`%s`.group_id",
+						Cerb_ORMHelper::escape($key_select)
+					),
+					'sql_join' => sprintf("INNER JOIN worker_to_group AS `%s` ON (`%s`.worker_id = %s)",
+						Cerb_ORMHelper::escape($key_select),
+						Cerb_ORMHelper::escape($key_select),
+						$primary_key
+					),
+					'get_value_as_filter_callback' => function($value, &$filter) {
+						$filter = 'group:(id:%s)';
+						return $value;
+					}
+				];
+				break;
+			
 			case 'lang':
 				$key = 'language';
 				break;
@@ -1511,6 +1547,12 @@ class SearchFields_Worker extends DevblocksSearchFields {
 	}
 	
 	static function getLabelsForKeyValues($key, $values) {
+		if(DevblocksPlatform::strStartsWith($key, 'wtg_')) {
+			$models = DAO_Group::getIds($values);
+			$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_GROUP);
+			return array_column(DevblocksPlatform::objectsToArrays($dicts), '_label', 'id');
+		}
+		
 		switch($key) {
 			case SearchFields_Worker::GENDER:
 				$label_map = [
@@ -1584,6 +1626,8 @@ class SearchFields_Worker extends DevblocksSearchFields {
 			self::VIRTUAL_CALENDAR_AVAILABILITY => new DevblocksSearchField(self::VIRTUAL_CALENDAR_AVAILABILITY, '*', 'calendar_availability', 'Calendar Availability', null),
 			self::VIRTUAL_SESSION_ACTIVITY => new DevblocksSearchField(self::VIRTUAL_SESSION_ACTIVITY, '*', 'session_activity', 'Last Activity', null),
 			self::VIRTUAL_ROLE_SEARCH => new DevblocksSearchField(self::VIRTUAL_ROLE_SEARCH, '*', 'role_search', null, null),
+			self::VIRTUAL_ROLE_EDITOR_SEARCH => new DevblocksSearchField(self::VIRTUAL_ROLE_SEARCH, '*', 'role_editor_search', null, null),
+			self::VIRTUAL_ROLE_READER_SEARCH => new DevblocksSearchField(self::VIRTUAL_ROLE_READER_SEARCH, '*', 'role_reader_search', null, null),
 		);
 
 		// Fulltext indexes
@@ -1810,7 +1854,7 @@ class Model_Worker {
 	}
 
 	function getRoles() {
-		return DAO_WorkerRole::getRolesByWorker($this->id);
+		return DAO_WorkerRole::getByMember($this->id);
 	}
 	
 	/**
@@ -2021,9 +2065,9 @@ class Model_Worker {
 	}
 	
 	function isRoleMember($role_id) {
-		$roles = $this->getRoles();
+		$roles = DAO_WorkerRole::getByMember($this->id);
 		
-		if(isset($roles[$role_id]))
+		if(array_key_exists($role_id, $roles))
 			return true;
 		
 		return false;
@@ -2094,6 +2138,8 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			SearchFields_Worker::VIRTUAL_GROUP_SEARCH,
 			SearchFields_Worker::VIRTUAL_GROUP_MANAGER_SEARCH,
 			SearchFields_Worker::VIRTUAL_ROLE_SEARCH,
+			SearchFields_Worker::VIRTUAL_ROLE_EDITOR_SEARCH,
+			SearchFields_Worker::VIRTUAL_ROLE_READER_SEARCH,
 			SearchFields_Worker::VIRTUAL_SESSION_ACTIVITY,
 			SearchFields_Worker::FULLTEXT_WORKER,
 		));
@@ -2441,6 +2487,22 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_ROLE, 'q' => ''],
 					]
 				),
+			'role.editor' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_Worker::VIRTUAL_ROLE_EDITOR_SEARCH),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_ROLE, 'q' => ''],
+					]
+				),
+			'role.reader' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_Worker::VIRTUAL_ROLE_READER_SEARCH),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_ROLE, 'q' => ''],
+					]
+				),
 			'lastActivity' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
@@ -2592,6 +2654,14 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			case 'role':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Worker::VIRTUAL_ROLE_SEARCH);
 				break;
+				
+			case 'role.editor':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Worker::VIRTUAL_ROLE_EDITOR_SEARCH);
+				break;
+			
+			case 'role.reader':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Worker::VIRTUAL_ROLE_READER_SEARCH);
+				break;
 			
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
@@ -2664,6 +2734,20 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			case SearchFields_Worker::VIRTUAL_ROLE_SEARCH:
 				echo sprintf("%s matches <b>%s</b>",
 					DevblocksPlatform::strEscapeHtml(DevblocksPlatform::translateCapitalized('common.role')),
+					DevblocksPlatform::strEscapeHtml($param->value)
+				);
+				break;
+				
+			case SearchFields_Worker::VIRTUAL_ROLE_EDITOR_SEARCH:
+				echo sprintf("%s matches <b>%s</b>",
+					DevblocksPlatform::strEscapeHtml('Role editor'),
+					DevblocksPlatform::strEscapeHtml($param->value)
+				);
+				break;
+				
+			case SearchFields_Worker::VIRTUAL_ROLE_READER_SEARCH:
+				echo sprintf("%s matches <b>%s</b>",
+					DevblocksPlatform::strEscapeHtml('Role reader'),
 					DevblocksPlatform::strEscapeHtml($param->value)
 				);
 				break;
@@ -3398,9 +3482,6 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 				$out_fields[DAO_Worker::_IMAGE] = $value;
 				break;
 				
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 				
 			case 'password':
 				$out_fields[DAO_Worker::_PASSWORD] = $value;

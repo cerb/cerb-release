@@ -53,6 +53,11 @@ class DAO_ConnectedAccount extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -299,33 +304,8 @@ class DAO_ConnectedAccount extends Cerb_ORMHelper {
 	 * @return Model_ConnectedAccount[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return array();
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return array();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = array();
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
-	}	
+		return parent::getIds($ids);
+	}
 	
 	/**
 	 * @param resource $rs
@@ -591,6 +571,7 @@ class SearchFields_ConnectedAccount extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($owner_id_field->db_table),
 						Cerb_ORMHelper::escape($owner_id_field->db_column)
 					),
+					'get_value_as_filter_callback' => parent::getValueAsFilterCallback()->link('owner'),
 				];
 		}
 		
@@ -1284,10 +1265,6 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
-				
 			case 'params':
 				$encrypt = DevblocksPlatform::services()->encryption();
 				
@@ -1359,7 +1336,7 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
 		$this->name = DevblocksPlatform::translateCapitalized('common.connected_accounts');
 		
-		$params_req = [];
+		$required_query = '';
 		
 		if($active_worker && !$active_worker->is_superuser) {
 			$worker_group_ids = array_keys($active_worker->getManagerships());
@@ -1367,15 +1344,12 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 			
 			// Restrict owners
 			
-			$params = $view->getParamsFromQuickSearch(sprintf('(owner.worker:(id:[%d]) OR owner.group:(id:[%s])',
+			$required_query .= sprintf('(owner.worker:(id:[%d]) OR owner.group:(id:[%s]) ',
 				$active_worker->id,
 				implode(',', $worker_group_ids)
-			));
-			
-			$params_req['_ownership'] = $params[0];
+			);
 		}
-		
-		$view->addParamsRequired($params_req, true);
+		$view->setParamsRequiredQuery($required_query);
 		
 		$view->renderSortBy = SearchFields_ConnectedAccount::NAME;
 		$view->renderSortAsc = true;
@@ -1396,7 +1370,7 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
 		$this->name = DevblocksPlatform::translateCapitalized('common.connected_accounts');
 		
-		$params_req = array();
+		$required_query = '';
 		
 		if($active_worker && !$active_worker->is_superuser) {
 			$worker_group_ids = array_keys($active_worker->getManagerships());
@@ -1404,21 +1378,22 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 			
 			// Restrict owners
 			
-			$params = $view->getParamsFromQuickSearch(sprintf('(owner.worker:(id:[%d]) OR owner.group:(id:[%s])',
+			$required_query .= sprintf('(owner.worker:(id:[%d]) OR owner.group:(id:[%s]) ',
 				$active_worker->id,
 				implode(',', $worker_group_ids)
-			));
-			
-			$params_req['_ownership'] = $params[0];
-		}
-		
-		if(!empty($context) && !empty($context_id)) {
-			$params_req = array(
-				new DevblocksSearchCriteria(SearchFields_ConnectedAccount::VIRTUAL_CONTEXT_LINK,'in',array($context.':'.$context_id)),
 			);
 		}
 		
-		$view->addParamsRequired($params_req, true);
+		if(!empty($context) && !empty($context_id)) {
+			$linked_context_mft = Extension_DevblocksContext::get($context, false);
+			
+			$required_query .= sprintf("links.%s:(id:%d) ",
+				$linked_context_mft->params['alias'],
+				$context_id
+			);
+		}
+		
+		$view->setParamsRequiredQuery($required_query);
 		
 		$view->renderTemplate = 'context';
 		return $view;

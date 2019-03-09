@@ -74,6 +74,11 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 			->timestamp()
 			;
 		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
+			;
+		$validation
 			->addField('_links')
 			->string()
 			->setMaxLength(65535)
@@ -246,34 +251,7 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 	 * @return Model_MailHtmlTemplate[]
 	 */
 	static function getIds($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-
-		if(empty($ids))
-			return [];
-
-		if(!method_exists(get_called_class(), 'getWhere'))
-			return [];
-
-		$db = DevblocksPlatform::services()->database();
-
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
-
-		$models = [];
-
-		$results = static::getWhere(sprintf("id IN (%s)",
-			implode(',', $ids)
-		));
-
-		// Sort $models in the same order as $ids
-		foreach($ids as $id) {
-			if(isset($results[$id]))
-				$models[$id] = $results[$id];
-		}
-
-		unset($results);
-
-		return $models;
+		return parent::getIds($ids);
 	}
 	
 	/**
@@ -346,7 +324,7 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_MailHtmlTemplate::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_MailHtmlTemplate', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_MailHtmlTemplate', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"mail_html_template.id as %s, ".
@@ -827,7 +805,6 @@ class View_MailHtmlTemplate extends C4_AbstractView implements IAbstractView_Sub
 
 	function renderCriteriaParam($param) {
 		$field = $param->field;
-		$values = !is_array($param->value) ? array($param->value) : $param->value;
 
 		switch($field) {
 			default:
@@ -838,8 +815,6 @@ class View_MailHtmlTemplate extends C4_AbstractView implements IAbstractView_Sub
 
 	function renderVirtualCriteria($param) {
 		$key = $param->field;
-		
-		$translate = DevblocksPlatform::getTranslationService();
 		
 		switch($key) {
 			case SearchFields_MailHtmlTemplate::VIRTUAL_CONTEXT_LINK:
@@ -962,7 +937,6 @@ class Context_MailHtmlTemplate extends Extension_DevblocksContext implements IDe
 	
 	function getMeta($context_id) {
 		$mail_html_template = DAO_MailHtmlTemplate::get($context_id);
-		$url_writer = DevblocksPlatform::services()->url();
 		
 		$url = $this->profileGetUrl($context_id);
 		$friendly = DevblocksPlatform::strToPermalink($mail_html_template->name);
@@ -986,7 +960,6 @@ class Context_MailHtmlTemplate extends Extension_DevblocksContext implements IDe
 	}
 	
 	function autocomplete($term, $query=null) {
-		$url_writer = DevblocksPlatform::services()->url();
 		$list = [];
 		
 		list($results,) = DAO_MailHtmlTemplate::search(
@@ -1109,9 +1082,6 @@ class Context_MailHtmlTemplate extends Extension_DevblocksContext implements IDe
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 		}
 		
 		return true;

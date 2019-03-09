@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -602,7 +602,7 @@ class SearchFields_Snippet extends DevblocksSearchFields {
 				return '0';
 			
 			$worker_group_ids = array_keys(DAO_Group::getByMembers($actor_id));
-			$worker_role_ids = array_keys(DAO_WorkerRole::getRolesByWorker($actor_id));
+			$worker_role_ids = array_keys(DAO_WorkerRole::getReadableBy($actor_id));
 			
 			$sql = sprintf(
 				"(".
@@ -645,6 +645,7 @@ class SearchFields_Snippet extends DevblocksSearchFields {
 						Cerb_ORMHelper::escape($owner_id_field->db_table),
 						Cerb_ORMHelper::escape($owner_id_field->db_column)
 					),
+					'get_value_as_filter_callback' => parent::getValueAsFilterCallback()->link('owner'),
 				];
 		}
 		
@@ -1576,7 +1577,7 @@ class Context_Snippet extends Extension_DevblocksContext implements IDevblocksCo
 		];
 		
 		$keys['content']['notes'] = "The [template](/docs/bots/scripting/) of the snippet";
-		$keys['context']['notes'] = "The [record type](/docs/records/#record-types) to add the profile tab to";
+		$keys['context']['notes'] = "The [record type](/docs/records/types/) to add the profile tab to";
 		$keys['title']['notes'] = "The name of the snippet";
 		$keys['total_uses']['notes'] = "The total number of times this snippet has been used by all workers";
 		
@@ -1586,9 +1587,6 @@ class Context_Snippet extends Extension_DevblocksContext implements IDevblocksCo
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		$dict_key = DevblocksPlatform::strLower($key);
 		switch($dict_key) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
 			
 			case 'placeholders':
 				if(!is_array($value)) {
@@ -1713,7 +1711,7 @@ class Context_Snippet extends Extension_DevblocksContext implements IDevblocksCo
 			// Owner
 			$owners_menu = Extension_DevblocksContext::getOwnerTree();
 			$tpl->assign('owners_menu', $owners_menu);
-
+			
 			// Contexts
 			$contexts = Extension_DevblocksContext::getAll(false);
 			$tpl->assign('contexts', $contexts);

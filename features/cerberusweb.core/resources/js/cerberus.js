@@ -686,8 +686,15 @@ var cAjaxCalls = function() {
 			var $editor_button = $(this);
 			var context = $editor_button.attr('data-context');
 			var context_id = $editor_button.attr('data-context-id');
+			var image_width = $editor_button.attr('data-image-width');
+			var image_height = $editor_button.attr('data-image-height');
 			
-			var popup_url = 'c=internal&a=chooserOpenAvatar&context=' + encodeURIComponent(context) + '&context_id=' + encodeURIComponent(context_id);
+			var popup_url = 'c=internal&a=chooserOpenAvatar&context=' 
+				+ encodeURIComponent(context) 
+				+ '&context_id=' + encodeURIComponent(context_id) 
+				+ '&image_width=' + encodeURIComponent(image_width) 
+				+ '&image_height=' + encodeURIComponent(image_height) 
+				;
 			
 			if($editor_button.attr('data-create-defaults'))
 				popup_url += '&defaults=' + encodeURIComponent($editor_button.attr('data-create-defaults'));
@@ -1077,8 +1084,10 @@ var ajax = new cAjaxCalls();
 				.css('color', 'rgb(100,100,100)')
 				.css('cursor', 'text')
 				.attr('readonly', 'readonly')
-				.attr('placeholder', '(click to edit)')
 			;
+			
+			if(null == $trigger.attr('placeholder'))
+				$trigger.attr('placeholder', '(click to edit)');
 			
 			// Context
 			

@@ -2,7 +2,7 @@
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2018, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.
@@ -86,6 +86,11 @@ class DAO_CommunityTool extends Cerb_ORMHelper {
 				
 				return true;
 			})
+			;
+		$validation
+			->addField('_fieldsets')
+			->string()
+			->setMaxLength(65535)
 			;
 		$validation
 			->addField('_links')
@@ -267,21 +272,8 @@ class DAO_CommunityTool extends Cerb_ORMHelper {
 	 * @param array $ids
 	 * @return Model_CommunityTool[]
 	 */
-	public static function getIds($ids=array()) {
-		if(!is_array($ids))
-			$ids = array($ids);
-		
-		$portals = self::getAll();
-		$ids = array_flip($ids);
-		
-		$portals = array_filter($portals, function($portal) use ($ids) {
-			if(isset($ids[$portal->id]))
-				return true;
-			
-			return false;
-		});
-		
-		return $portals;
+	static function getIds($ids) {
+		return parent::getIds($ids);
 	}
 	
 	/**
@@ -1395,10 +1387,6 @@ class Context_CommunityTool extends Extension_DevblocksContext implements IDevbl
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, &$error) {
 		switch(DevblocksPlatform::strLower($key)) {
-			case 'links':
-				$this->_getDaoFieldsLinks($value, $out_fields, $error);
-				break;
-				
 			case 'params':
 				if(!is_array($value)) {
 					$error = 'must be an object.';
