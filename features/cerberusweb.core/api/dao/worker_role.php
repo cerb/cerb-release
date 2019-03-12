@@ -164,6 +164,10 @@ class DAO_WorkerRole extends Cerb_ORMHelper {
 		return true;
 	}
 	
+	static function onUpdateByActor($actor, $fields, $id) {
+		DAO_WorkerRole::updateRosters($id);
+	}
+	
 	static function getByMember($worker_id) {
 		$role_data = DAO_WorkerRole::_getDataByWorker($worker_id);
 		
@@ -259,7 +263,7 @@ class DAO_WorkerRole extends Cerb_ORMHelper {
 		
 		$query_cache = array_fill_keys(
 			array_unique(array_merge(
-				array_column($role_arrays, 'member_query_worker'), 
+				array_column($role_arrays, 'member_query_worker'),
 				array_column($role_arrays, 'editor_query_worker'),
 				array_column($role_arrays, 'reader_query_worker')
 			)),
@@ -310,6 +314,7 @@ class DAO_WorkerRole extends Cerb_ORMHelper {
 				);
 			}
 			
+			if($insert_values)
 			$db->ExecuteMaster(sprintf("INSERT IGNORE INTO worker_to_role (role_id, worker_id, is_member, is_editable, is_readable) VALUES %s",
 				implode(',', $insert_values)
 			));
