@@ -24,9 +24,9 @@
 	
 	<div style="margin-bottom:5px;">
 		<label>
-			<input type="radio" name="package" value="tutorial" {if $package=="tutorial"}checked="checked"{/if}> <b>Tutorial</b>
+			<input type="radio" name="package" value="demo" {if $package=="demo"}checked="checked"{/if}> <b>Demo</b>
 			<div style="margin-left:25px;">
-				Cerb will be configured for evaluation, development, and testing.
+				Cerb will be configured for demonstration, development, and testing.
 			</div>
 		</label>
 	</div>
@@ -35,15 +35,6 @@
 <h3>Optional Packages</h3>
 
 <div style="margin:5px 0px 0px 5px;">
-	<div style="margin-bottom:5px;">
-		<label>
-			<input type="checkbox" name="optional_packages[]" value="autoreply_bot"> <b>Auto-Reply Bot</b>
-			<div style="margin-left:25px;">
-				Automatically send a confirmation receipt back to the sender for each new conversation.
-			</div>
-		</label>
-	</div>
-	
 	<div style="margin-bottom:5px;">
 		<label>
 			<input type="checkbox" name="optional_packages[]" value="chat_bot"> <b>Chat Bot</b>

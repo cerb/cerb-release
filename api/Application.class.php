@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2019031101);
-define("APP_VERSION", '9.2.0');
+define("APP_BUILD", 2019032201);
+define("APP_VERSION", '9.2.1');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -1428,8 +1428,11 @@ class CerberusContexts {
 			} else {
 				return false;
 			}
+			
+			if(false == ($context_ext = Extension_DevblocksContext::getByAlias($context, true)))
+				return false;
 
-			switch($context) {
+			switch($context_ext->id) {
 				case CerberusContexts::CONTEXT_APPLICATION:
 				case CerberusContexts::CONTEXT_ADDRESS:
 				case CerberusContexts::CONTEXT_CONTACT:
@@ -1438,7 +1441,7 @@ class CerberusContexts {
 				case CerberusContexts::CONTEXT_ROLE:
 				case CerberusContexts::CONTEXT_BOT:
 				case CerberusContexts::CONTEXT_WORKER:
-					$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels([$context_id => $context_id], $context);
+					$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels([$context_id => $context_id], $context_ext->id);
 
 					if(isset($dicts[$context_id])) {
 						return $dicts[$context_id];
@@ -1512,21 +1515,21 @@ class CerberusContexts {
 	}
 
 	public static function isReadableByActor($context, $models, $actor) {
-		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+		if(false == ($context_ext = Extension_DevblocksContext::getByAlias($context, true)))
 			return self::denyEverything($models);
-
+		
 		return $context_ext::isReadableByActor($models, $actor);
 	}
 
 	public static function isWriteableByActor($context, $models, $actor) {
-		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+		if(false == ($context_ext = Extension_DevblocksContext::getByAlias($context, true)))
 			return self::denyEverything($models);
 
 		return $context_ext::isWriteableByActor($models, $actor);
 	}
 	
 	public static function isDeleteableByActor($context, $models, $actor) {
-		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+		if(false == ($context_ext = Extension_DevblocksContext::getByAlias($context, true)))
 			return self::denyEverything($models);
 		
 		if(method_exists(get_class($context_ext), 'isDeleteableByActor')) {
@@ -3449,5 +3452,76 @@ class _CerbApplication_Packages {
 	function import($json_string, array $prompts=[], &$records_created=null) {
 		$json = Cerb_Packages::loadPackageFromJson($json_string);
 		return Cerb_Packages::importFromJson($json, $prompts, $records_created);
+	}
+	
+	function importToLibraryFromFiles(array $package_files, $package_basepath=null) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$storage = new DevblocksStorageEngineDisk();
+		$storage->setOptions([]);
+		
+		if(is_null($package_basepath))
+			$package_basepath = APP_PATH . '/features/cerberusweb.core/packages/library/';
+		
+		foreach($package_files as $package_file) {
+			$package_json = file_get_contents($package_basepath . $package_file);
+			
+			if(false === (@$package_data = json_decode($package_json, true)))
+				continue;
+			
+			if(false == (@$library_meta = $package_data['package']['library']))
+				continue;
+			
+			$db->ExecuteMaster(sprintf("INSERT INTO package_library (uri, name, description, instructions, point, updated_at, package_json) ".
+				"VALUES (%s, %s, %s, %s, %s, %d, %s) ".
+				"ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), name=VALUES(name), uri=VALUES(uri), description=VALUES(description), instructions=VALUES(instructions), point=VALUES(point), updated_at=VALUES(updated_at), package_json=VALUES(package_json)",
+				$db->qstr($library_meta['uri']),
+				$db->qstr($library_meta['name']),
+				$db->qstr($library_meta['description']),
+				$db->qstr(@$library_meta['instructions']),
+				$db->qstr($library_meta['point']),
+				time(),
+				$db->qstr($package_json)
+			));
+			
+			$package_id = $db->LastInsertId();
+			
+			// Package images
+			if($package_id && array_key_exists('image', $library_meta) && $library_meta['image']) {
+				$imagedata = $library_meta['image'];
+				
+				if(DevblocksPlatform::strStartsWith($imagedata,'data:image/png;base64,')) {
+					$content_type = 'image/png';
+					
+					// Decode it to binary
+					if(false !== ($imagedata = base64_decode(substr($imagedata, 22)))) {
+						$sql = sprintf("INSERT INTO context_avatar (context,context_id,content_type,is_approved,updated_at) ".
+							"VALUES (%s,%d,%s,%d,%d) ".
+							"ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), context=VALUES(context), context_id=VALUES(context_id), is_approved=VALUES(is_approved), updated_at=VALUES(updated_at)",
+							$db->qstr('cerberusweb.contexts.package.library'),
+							$package_id,
+							$db->qstr($content_type),
+							1,
+							time()
+						);
+						$db->ExecuteMaster($sql);
+						
+						$storage_id = $db->LastInsertId();
+						
+						// Put in storage
+						$storage_key = $storage->put('context_avatar', $storage_id, $imagedata);
+						
+						// Update record key
+						$sql = sprintf("UPDATE context_avatar SET storage_extension = %s, storage_key = %s, storage_size = %d WHERE id = %d",
+							$db->qstr('devblocks.storage.engine.disk'),
+							$db->qstr($storage_key),
+							strlen($imagedata),
+							$storage_id
+						);
+						$db->ExecuteMaster($sql);
+					}
+				}
+			}
+		}
 	}
 };
