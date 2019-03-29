@@ -1028,8 +1028,13 @@ class Cerb_Packages {
 			$uid = $bot['uid'];
 			$id = $uids[$uid];
 			
+			$owner_context = @$bot['owner']['context'] ?: CerberusContexts::CONTEXT_APPLICATION;
+			$owner_context_id = @$bot['owner']['id'] ?: 0;
+			
 			DAO_Bot::update($id, [
 				DAO_Bot::NAME => $bot['name'],
+				DAO_Bot::OWNER_CONTEXT => $owner_context,
+				DAO_Bot::OWNER_CONTEXT_ID => $owner_context_id,
 				DAO_Bot::IS_DISABLED => @$bot['is_disabled'] ? 1 : 0,
 				DAO_Bot::CREATED_AT => time(),
 				DAO_Bot::UPDATED_AT => time(),
@@ -1266,13 +1271,16 @@ class Cerb_Packages {
 			$uid = $saved_search['uid'];
 			$id = $uids[$uid];
 			
+			$owner_context = @$saved_search['owner__context'] ?: CerberusContexts::CONTEXT_APPLICATION;
+			$owner_context_id = @$saved_search['owner_id'] ?: 0;
+			
 			DAO_ContextSavedSearch::update($id, [
 				DAO_ContextSavedSearch::NAME => $saved_search['name'],
 				DAO_ContextSavedSearch::CONTEXT => $saved_search['context'],
 				DAO_ContextSavedSearch::TAG => $saved_search['tag'],
 				DAO_ContextSavedSearch::QUERY => $saved_search['query'],
-				DAO_ContextSavedSearch::OWNER_CONTEXT => CerberusContexts::CONTEXT_APPLICATION,
-				DAO_ContextSavedSearch::OWNER_CONTEXT_ID => 0,
+				DAO_ContextSavedSearch::OWNER_CONTEXT => $owner_context,
+				DAO_ContextSavedSearch::OWNER_CONTEXT_ID => $owner_context_id,
 			]);
 			
 			if(!isset($records_created[CerberusContexts::CONTEXT_SAVED_SEARCH]))
@@ -1291,12 +1299,15 @@ class Cerb_Packages {
 			$uid = $calendar['uid'];
 			$id = $uids[$uid];
 			
+			$owner_context = @$calendar['owner__context'] ?: CerberusContexts::CONTEXT_APPLICATION;
+			$owner_context_id = @$calendar['owner_id'] ?: 0;
+			
 			DAO_Calendar::update($id, [
 				DAO_Calendar::NAME => $calendar['name'],
 				DAO_Calendar::PARAMS_JSON => isset($calendar['params']) ? json_encode($calendar['params']) : '',
 				DAO_Calendar::UPDATED_AT => time(),
-				DAO_Calendar::OWNER_CONTEXT => CerberusContexts::CONTEXT_APPLICATION,
-				DAO_Calendar::OWNER_CONTEXT_ID => 0,
+				DAO_Calendar::OWNER_CONTEXT => $owner_context,
+				DAO_Calendar::OWNER_CONTEXT_ID => $owner_context_id,
 			]);
 			
 			if(!isset($records_created[CerberusContexts::CONTEXT_CALENDAR]))
@@ -1338,12 +1349,15 @@ class Cerb_Packages {
 			$id = $uids[$uid];
 			$classifier_id = $id;
 			
+			$owner_context = @$classifier['owner__context'] ?: CerberusContexts::CONTEXT_APPLICATION;
+			$owner_context_id = @$classifier['owner_id'] ?: 0;
+			
 			DAO_Classifier::update($id, [
 				DAO_Classifier::NAME => $classifier['name'],
 				DAO_Classifier::PARAMS_JSON => isset($classifier['params']) ? json_encode($classifier['params']) : '',
 				DAO_Classifier::UPDATED_AT => time(),
-				DAO_Classifier::OWNER_CONTEXT => CerberusContexts::CONTEXT_APPLICATION,
-				DAO_Classifier::OWNER_CONTEXT_ID => 0,
+				DAO_Classifier::OWNER_CONTEXT => $owner_context,
+				DAO_Classifier::OWNER_CONTEXT_ID => $owner_context_id,
 			]);
 			
 			if(!isset($records_created[CerberusContexts::CONTEXT_CLASSIFIER]))

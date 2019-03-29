@@ -10,8 +10,9 @@
 	{if is_array($menu) && !empty($menu)}
 	{foreach from=$menu item=workspace_page_id}
 		{$workspace_page = $workspace_pages.$workspace_page_id}
+		{$is_selected = $page->id=='core.page.pages' && isset($response_path[1]) && intval($response_path[1])==$workspace_page->id}
 		{if $workspace_page}
-		<li class="{if $page->id=='core.page.pages' && isset($response_path[1]) && intval($response_path[1])==$workspace_page->id}selected{/if} drag" page_id="{$workspace_page->id}">
+		<li class="{if $is_selected}selected{/if} drag" page_id="{$workspace_page->id}" style="position:relative;">
 			<a href="{devblocks_url}c=pages&page={$workspace_page->id}-{$workspace_page->name|devblocks_permalink}{/devblocks_url}">{$workspace_page->name|lower}</a>
 		</li>
 		{/if}
@@ -48,47 +49,54 @@
 <script type="text/javascript">
 $(function() {
 	var $menu = $('UL.navmenu');
-	var is_dragging_page = false;
 
+	{$user_agent = DevblocksPlatform::getClientUserAgent()}
+	
+	{if $user_agent && 0 != strcasecmp($user_agent.platform, 'Android')}
 	$menu.sortable({
 		items:'> li.drag',
 		distance: 20,
-		start:function(e) {
-			is_dragging_page = true;
-		},
 		stop:function(e) {
+			e.stopPropagation();
+			
 			$pages = $(this).find('li.drag[page_id]');
 			page_ids = $pages.map(function(e) {
 				return $(this).attr('page_id');
 			}).get().join(',');
 
-			genericAjaxGet('', 'c=pages&a=setPageOrder&pages=' + page_ids, function() { 
-				is_dragging_page = false;
-			});
+			genericAjaxGet('', 'c=pages&a=setPageOrder&pages=' + page_ids); 
 		}
 	});
+	
+	$menu
+		.find('> li.drag')
+		.hoverIntent({
+			sensitivity:10,
+			interval:750,
+			timeout:250,
+			over:function(e) {
+				$(this).css('cursor', 'move');
+				$(this).children().css('cursor', 'move');
+			},
+			out:function(e) {
+				$(this).css('cursor', 'pointer');
+				$(this).children().css('cursor', 'pointer');
+			}
+		})
+		;
+	{/if}
 
 	// Allow clicking anywhere in the menu item cell
 	$menu.find('> li').click(function(e) {
-		if(is_dragging_page)
-			return false;
-		
 		if(!$(e.target).is('li'))
 			return;
-
+		
 		$link = $(this).find('> a');
-
+		
 		if($link.length > 0)
 			window.location.href = $link.attr('href');
 	});
 
-	$menu.find('> li a').click(function(e) {
-		if(is_dragging_page)
-			return false;
-		
-		return true;
-	});
-	
 	var $search_button = $menu.find('> LI A.submenu');
 	var $search_menu = $search_button.next('ul.cerb-popupmenu');
 	var $show_all = $search_menu.find('a.cerb-show-all');
