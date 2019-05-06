@@ -1099,6 +1099,8 @@ class DevblocksPlatform extends DevblocksEngine {
 	 * @return int|false
 	 */
 	static function strBitsToInt($bits) {
+		$is_negative = false;
+		
 		// Handle int param
 		if(is_numeric($bits)) {
 			$bits = intval($bits);
@@ -1139,16 +1141,23 @@ class DevblocksPlatform extends DevblocksEngine {
 		
 		@$bits = intval($bits);
 		
-		// Handle negatives
-		if($bits < 1)
-			return 0;
+		if($bits < 0) {
+			$is_negative = true;
+			$bits = abs($bits);
+		}
 		
 		// 32-bit overflow?
 		$max_bits = (PHP_INT_SIZE * 8)-1; // PHP ints are always signed
 		if($bits > $max_bits)
 			$bits = $max_bits;
 		
-		return pow(2, $bits);
+		$int = pow(2, $bits);
+		
+		if($is_negative) {
+			$int *= -1;
+		}
+		
+		return $int;
 	}
 	
 	/**
@@ -2020,11 +2029,15 @@ class DevblocksPlatform extends DevblocksEngine {
 		// See: https://daringfireball.net/2010/07/improved_regex_for_matching_urls
 		$out = preg_replace_callback('@(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))@', function($matches) use ($as_html, &$replacements) {
 			$token = sprintf('{{{URL_%d}}}', count($replacements));
-			$url = $matches[0];
+			$url = $url_label = $matches[0];
+			
+			// If we don't have a protocol, default to http://
+			if(false === strpos($url, '://'))
+				$url = 'http://' . $url;
 			
 			$replacements[$token] = sprintf('<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
 				$as_html ? htmlentities($url, ENT_QUOTES, LANG_CHARSET_CODE) : $url,
-				$as_html ? htmlentities($url, ENT_QUOTES, LANG_CHARSET_CODE) : $url
+				$as_html ? htmlentities($url_label, ENT_QUOTES, LANG_CHARSET_CODE) : $url_label
 			);
 			
 			return $token;
