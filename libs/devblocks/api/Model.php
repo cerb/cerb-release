@@ -173,7 +173,33 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				if($table == 'custom_field_geovalue')
 					$field_key = 'ST_ASTEXT(field_value) AS field_value';
 				
-				if(in_array($custom_field->type, [Model_CustomField::TYPE_DATE])) {
+				if(false && in_array($custom_field->type, [Model_CustomField::TYPE_CURRENCY])) {
+					if(false == ($currency_id = @$custom_field->params['currency_id']))
+						return [];
+					
+					if(false == ($currency = DAO_Currency::get($currency_id)))
+						return [];
+					
+					return [
+						'key_query' => $key,
+						'key_select' => $search_key,
+						'label' => $custom_field->name,
+						'type' => $custom_field->type,
+						'type_options' => [
+							'code' => $currency->code,
+							'decimal_at' => $currency->decimal_at,
+							'symbol' => $currency->symbol,
+						],
+						'sql_select' => sprintf("(SELECT %s FROM %s WHERE context=%s AND context_id=%s AND field_id=%d LIMIT 1)",
+							$field_key,
+							Cerb_ORMHelper::escape($table),
+							Cerb_ORMHelper::qstr($custom_field->context),
+							$primary_key,
+							$custom_field->id
+						)
+					];
+					
+				} else if (in_array($custom_field->type, [Model_CustomField::TYPE_DATE])) {
 					$sql_select_field = sprintf("(SELECT %s FROM %s WHERE context=%s AND context_id=%s AND field_id=%d LIMIT 1)",
 						$field_key,
 						Cerb_ORMHelper::escape($table),
@@ -183,6 +209,24 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 					);
 					
 					switch($bin) {
+						case 'secs':
+						case 'seconds':
+						case 'ts':
+						case 'timestamp':
+						case 'unix':
+							return [
+								'key_query' => $key,
+								'key_select' => $search_key,
+								'label' => $search_field->db_label,
+								'type' => DevblocksSearchCriteria::TYPE_DATE,
+								'timestamp_step' => 'seconds',
+								'timestamp_format' => '%S',
+								'sql_select' => sprintf("%s)",
+									$sql_select_field
+								),
+							];
+							break;
+							
 						case 'week':
 						case 'week-mon':
 						case 'week-monday':
@@ -285,93 +329,133 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				}
 			}
 			
-			switch($bin) {
-				case 'week':
-				case 'week-mon':
-				case 'week-monday':
-					$ts_format = '%Y-%m-%d'; 
-					return [
-						'key_query' => $key,
-						'key_select' => $search_key,
-						'label' => $search_field->db_label,
-						'type' => DevblocksSearchCriteria::TYPE_TEXT,
-						'timestamp_step' => 'week',
-						'timestamp_format' => $ts_format,
-						'sql_select' => sprintf("DATE_FORMAT(SUBDATE(FROM_UNIXTIME(%s.%s), WEEKDAY(FROM_UNIXTIME(%s.%s))), %s)", // Monday
-							Cerb_ORMHelper::escape($search_field->db_table),
-							Cerb_ORMHelper::escape($search_field->db_column),
-							Cerb_ORMHelper::escape($search_field->db_table),
-							Cerb_ORMHelper::escape($search_field->db_column),
-							Cerb_ORMHelper::qstr($ts_format)
-						),
-					];
-					break;
+			if(false && in_array($search_field->type, [Model_CustomField::TYPE_DECIMAL, DevblocksSearchCriteria::TYPE_DECIMAL])) {
+			} else if(false && in_array($search_field->type, [Model_CustomField::TYPE_CURRENCY])) {
+				$meta = [
+					'key_query' => $key,
+					'key_select' => $search_key,
+					'label' => $search_field->db_label,
+					'sql_select' => sprintf("%s.%s",
+						Cerb_ORMHelper::escape($search_field->db_table),
+						Cerb_ORMHelper::escape($search_field->db_column)
+					),
+				];
+				
+				if(array_key_exists('type', $query_field))
+					$meta['type'] = $query_field['type'];
 					
-				case 'week-sun':
-				case 'week-sunday':
-					$ts_format = '%Y-%m-%d'; 
-					return [
-						'key_query' => $key,
-						'key_select' => $search_key,
-						'label' => $search_field->db_label,
-						'type' => DevblocksSearchCriteria::TYPE_TEXT,
-						'timestamp_step' => 'week',
-						'timestamp_format' => $ts_format,
-						'sql_select' => sprintf("DATE_FORMAT(SUBDATE(FROM_UNIXTIME(%s.%s), DAYOFWEEK(FROM_UNIXTIME(%s.%s))-1), %s)", // Sunday
-							Cerb_ORMHelper::escape($search_field->db_table),
-							Cerb_ORMHelper::escape($search_field->db_column),
-							Cerb_ORMHelper::escape($search_field->db_table),
-							Cerb_ORMHelper::escape($search_field->db_column),
-							Cerb_ORMHelper::qstr($ts_format)
-						),
-					];
-					break;
-					
-				case 'day':
-				case 'month':
-				case 'year':
-					$date_format = [
-						'day' => '%Y-%m-%d',
-						'month' => '%Y-%m',
-						'year' => '%Y',
-					];
-					
-					$ts_format = $date_format[$bin];
-					
-					return [
-						'key_query' => $key,
-						'key_select' => $search_key,
-						'label' => $search_field->db_label,
-						'type' => DevblocksSearchCriteria::TYPE_TEXT,
-						'timestamp_step' => $bin,
-						'timestamp_format' => $ts_format,
-						'sql_select' => sprintf("DATE_FORMAT(FROM_UNIXTIME(%s.%s), %s)",
-							Cerb_ORMHelper::escape($search_field->db_table),
-							Cerb_ORMHelper::escape($search_field->db_column),
-							Cerb_ORMHelper::qstr($ts_format)
-						),
-					];
-					break;
-					
-				default:
-					$meta = [
-						'key_query' => $key,
-						'key_select' => $search_key,
-						'label' => $search_field->db_label,
-						'sql_select' => sprintf("%s.%s",
-							Cerb_ORMHelper::escape($search_field->db_table),
-							Cerb_ORMHelper::escape($search_field->db_column)
-						),
-					];
-					
-					if(array_key_exists('type', $query_field))
-						$meta['type'] = $query_field['type'];
+				if(array_key_exists('type_options', $query_field))
+					$meta['type_options'] = $query_field['type_options'];
+				
+				return $meta;
+				
+			} else if(in_array($search_field->type, [Model_CustomField::TYPE_DATE, DevblocksSearchCriteria::TYPE_DATE])) {
+				switch($bin) {
+					case 'secs':
+					case 'seconds':
+					case 'ts':
+					case 'timestamp':
+					case 'unix':
+						return [
+							'key_query' => $key,
+							'key_select' => $search_key,
+							'label' => $search_field->db_label,
+							'type' => DevblocksSearchCriteria::TYPE_DATE,
+							'timestamp_step' => 'seconds',
+							'timestamp_format' => '%S',
+							'sql_select' => sprintf("%s.%s",
+								Cerb_ORMHelper::escape($search_field->db_table),
+								Cerb_ORMHelper::escape($search_field->db_column)
+							),
+						];
+						break;
 						
-					if(array_key_exists('type_options', $query_field))
-						$meta['type_options'] = $query_field['type_options'];
+					case 'week':
+					case 'week-mon':
+					case 'week-monday':
+						$ts_format = '%Y-%m-%d'; 
+						return [
+							'key_query' => $key,
+							'key_select' => $search_key,
+							'label' => $search_field->db_label,
+							'type' => DevblocksSearchCriteria::TYPE_TEXT,
+							'timestamp_step' => 'week',
+							'timestamp_format' => $ts_format,
+							'sql_select' => sprintf("DATE_FORMAT(SUBDATE(FROM_UNIXTIME(%s.%s), WEEKDAY(FROM_UNIXTIME(%s.%s))), %s)", // Monday
+								Cerb_ORMHelper::escape($search_field->db_table),
+								Cerb_ORMHelper::escape($search_field->db_column),
+								Cerb_ORMHelper::escape($search_field->db_table),
+								Cerb_ORMHelper::escape($search_field->db_column),
+								Cerb_ORMHelper::qstr($ts_format)
+							),
+						];
+						break;
+						
+					case 'week-sun':
+					case 'week-sunday':
+						$ts_format = '%Y-%m-%d'; 
+						return [
+							'key_query' => $key,
+							'key_select' => $search_key,
+							'label' => $search_field->db_label,
+							'type' => DevblocksSearchCriteria::TYPE_TEXT,
+							'timestamp_step' => 'week',
+							'timestamp_format' => $ts_format,
+							'sql_select' => sprintf("DATE_FORMAT(SUBDATE(FROM_UNIXTIME(%s.%s), DAYOFWEEK(FROM_UNIXTIME(%s.%s))-1), %s)", // Sunday
+								Cerb_ORMHelper::escape($search_field->db_table),
+								Cerb_ORMHelper::escape($search_field->db_column),
+								Cerb_ORMHelper::escape($search_field->db_table),
+								Cerb_ORMHelper::escape($search_field->db_column),
+								Cerb_ORMHelper::qstr($ts_format)
+							),
+						];
+						break;
+						
+					case 'day':
+					case 'month':
+					case 'year':
+						$date_format = [
+							'day' => '%Y-%m-%d',
+							'month' => '%Y-%m',
+							'year' => '%Y',
+						];
+						
+						$ts_format = $date_format[$bin];
+						
+						return [
+							'key_query' => $key,
+							'key_select' => $search_key,
+							'label' => $search_field->db_label,
+							'type' => DevblocksSearchCriteria::TYPE_TEXT,
+							'timestamp_step' => $bin,
+							'timestamp_format' => $ts_format,
+							'sql_select' => sprintf("DATE_FORMAT(FROM_UNIXTIME(%s.%s), %s)",
+								Cerb_ORMHelper::escape($search_field->db_table),
+								Cerb_ORMHelper::escape($search_field->db_column),
+								Cerb_ORMHelper::qstr($ts_format)
+							),
+						];
+						break;
+				}
+				
+			} else {
+				$meta = [
+					'key_query' => $key,
+					'key_select' => $search_key,
+					'label' => $search_field->db_label,
+					'sql_select' => sprintf("%s.%s",
+						Cerb_ORMHelper::escape($search_field->db_table),
+						Cerb_ORMHelper::escape($search_field->db_column)
+					),
+				];
+				
+				if(array_key_exists('type', $query_field))
+					$meta['type'] = $query_field['type'];
 					
-					return $meta;
-					break;
+				if(array_key_exists('type_options', $query_field))
+					$meta['type_options'] = $query_field['type_options'];
+				
+				return $meta;
 			}
 		}
 		
@@ -2380,29 +2464,29 @@ class DevblocksSearchField {
 };
 
 class DevblocksAclPrivilege {
-	var $id = '';
-	var $plugin_id = '';
-	var $label = '';
+	public $id = '';
+	public $plugin_id = '';
+	public $label = '';
 };
 
 class DevblocksEventPoint {
-	var $id = '';
-	var $plugin_id = '';
-	var $name = '';
-	var $param = array();
+	public $id = '';
+	public $plugin_id = '';
+	public $name = '';
+	public $param = array();
 };
 
 class DevblocksExtensionPoint {
-	var $id = '';
-	var $plugin_id = '';
-	var $extensions = array();
+	public $id = '';
+	public $plugin_id = '';
+	public $extensions = array();
 };
 
 class DevblocksTemplate {
-	var $set = '';
-	var $plugin_id = '';
-	var $path = '';
-	var $sort_key = '';
+	public $set = '';
+	public $plugin_id = '';
+	public $path = '';
+	public $sort_key = '';
 };
 
 /**
@@ -2410,23 +2494,23 @@ class DevblocksTemplate {
  * @ingroup plugin
  */
 class DevblocksPluginManifest {
-	var $id = '';
-	var $enabled = 0;
-	var $name = '';
-	var $description = '';
-	var $author = '';
-	var $version = 0;
-	var $link = '';
-	var $dir = '';
-	var $manifest_cache = array();
+	public $id = '';
+	public $enabled = 0;
+	public $name = '';
+	public $description = '';
+	public $author = '';
+	public $version = 0;
+	public $link = '';
+	public $dir = '';
+	public $manifest_cache = [];
 	
-	var $extension_points = array();
-	var $event_points = array();
-	var $acl_privs = array();
-	var $class_loader = array();
-	var $extensions = array();
+	public $extension_points = [];
+	public $event_points = [];
+	public $acl_privs = [];
+	public $class_loader = [];
+	public $extensions = [];
 	
-	var $_requirements_errors = array();
+	public $_requirements_errors = [];
 	
 	function setEnabled($bool) {
 		$this->enabled = ($bool) ? 1 : 0;
@@ -2607,13 +2691,13 @@ class DevblocksPluginManifest {
  * @ingroup plugin
  */
 class DevblocksExtensionManifest {
-	var $id = '';
-	var $plugin_id ='';
-	var $point = '';
-	var $name = '';
-	var $file = '';
-	var $class = '';
-	var $params = array();
+	public $id = '';
+	public $plugin_id ='';
+	public $point = '';
+	public $name = '';
+	public $file = '';
+	public $class = '';
+	public $params = array();
 
 	/**
 	 * Creates and loads a usable extension from a manifest record.  The object returned

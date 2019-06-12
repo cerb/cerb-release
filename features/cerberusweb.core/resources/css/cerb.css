@@ -1,3 +1,4 @@
+@charset "UTF-8";
 /*
  * cerb.css
  *
@@ -428,13 +429,6 @@ INPUT[type=text].input_url {
   padding: 2px 2px 2px 25px;
   background: url(input_icons/link.png?v=2015030101) no-repeat scroll 5px 50% #ffffff;
 }
-INPUT[type=text].cerb-input-quicksearch {
-  padding: 5px 0px 5px 25px;
-  border-radius: 10px;
-  border: 1px solid #c8c8c8;
-  outline: none;
-}
-
 INPUT[type=password] {
   padding: 2px 2px 2px 25px;
   background: url(input_icons/lock.png?v=2015030101) no-repeat scroll 5px 50% #ffffff;
@@ -669,6 +663,27 @@ DIV.dashboard-widget DIV.updated {
   text-align: left;
   color: #c8c8c8;
   display: none;
+}
+
+.cerb-data-sheet .cerb-data-sheet--fieldset > TBODY:nth-child(even) TD {
+  background-color: whitesmoke;
+}
+.cerb-data-sheet .cerb-data-sheet--fieldset .cerb-data-sheet--field-label {
+  font-weight: bold;
+}
+.cerb-data-sheet .cerb-data-sheet--fieldset .cerb-data-sheet--field-title {
+  font-weight: bold;
+}
+.cerb-data-sheet .cerb-data-sheet--fieldset .cerb-data-sheet--field TD {
+  padding: 2px 5px;
+}
+.cerb-data-sheet .cerb-data-sheet--fieldset .cerb-data-sheet--field TD:first-child {
+  width: 1%;
+  white-space: nowrap;
+}
+.cerb-data-sheet .cerb-data-sheet--fieldset .cerb-data-sheet--field TD:last-child {
+  word-break: break-word;
+  white-space: normal;
 }
 
 TABLE.worklist {
@@ -2079,6 +2094,99 @@ UL.ui-menu li.ui-state-focus {
   opacity: 0.8;
 }
 
+.cerb-form-builder H1,
+.cerb-form-builder H2,
+.cerb-form-builder H3,
+.cerb-form-builder H4,
+.cerb-form-builder H5,
+.cerb-form-builder H6 {
+  color: inherit;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: bold;
+  margin: 0.5em 0;
+  padding: 0;
+}
+.cerb-form-builder H1 {
+  font-size: 1.9em;
+}
+.cerb-form-builder H2 {
+  font-size: 1.75em;
+}
+.cerb-form-builder H3 {
+  font-size: 1.6em;
+}
+.cerb-form-builder H4 {
+  font-size: 1.45em;
+}
+.cerb-form-builder H5 {
+  font-size: 1.3em;
+}
+.cerb-form-builder H6 {
+  font-size: 1.15em;
+}
+.cerb-form-builder .cerb-button {
+  background: none;
+  background-color: #1283e1;
+  color: white;
+  height: unset;
+  font-size: 1.1em;
+  border-radius: 50px;
+  padding: 10px;
+}
+.cerb-form-builder .cerb-form-builder-continue::after {
+  content: "⟶";
+}
+.cerb-form-builder .cerb-form-builder-reset {
+  background-color: #e6e6e6;
+}
+.cerb-form-builder .cerb-form-builder-reset::after {
+  color: black;
+  content: "⟲";
+}
+.cerb-form-builder .cerb-form-builder-response-text P {
+  margin: 0;
+  padding: 0;
+}
+.cerb-form-builder .cerb-form-builder-prompt-text INPUT[type=text],
+.cerb-form-builder .cerb-form-builder-prompt-captcha INPUT[type=text],
+.cerb-form-builder .cerb-form-builder-prompt-text TEXTAREA {
+  width: 100%;
+  border: 1px solid gainsboro;
+}
+.cerb-form-builder .cerb-data-table {
+  width: 100%;
+}
+.cerb-form-builder .cerb-data-table tr td {
+  padding: 5px;
+}
+.cerb-form-builder .cerb-data-table th {
+  font-weight: bold;
+  font-size: 1.25em;
+  text-align: left;
+  padding: 5px;
+}
+.cerb-form-builder .cerb-data-table tbody:nth-child(even) tr td {
+  background-color: whitesmoke;
+}
+.cerb-form-builder .cerb-data-table tbody:hover td {
+  background-color: #ffffc8;
+}
+.cerb-form-builder .cerb-form-builder-error {
+  background-color: #fff0f0;
+  color: #c80000;
+  padding: 15px;
+}
+.cerb-form-builder .cerb-form-builder-error > H1 {
+  margin: 0;
+  color: #c80000;
+}
+.cerb-form-builder .cerb-form-builder-error > P {
+  margin: 0;
+  padding: 0;
+  color: inherit;
+}
+
 div.cerb-board div.cerb-board-columns {
   white-space: nowrap;
 }
@@ -2174,16 +2282,16 @@ div.cerb-board div.cerb-board-column div.cerb-board-card div.cerb-board-card-typ
   text-transform: uppercase;
 }
 
-TABLE.cerb-widget-data-table tr td {
-  padding: 5px;
-}
-TABLE.cerb-widget-data-table tr:nth-child(odd) th {
+TABLE.cerb-widget-data-table th {
   font-weight: bold;
   font-size: 1.25em;
   text-align: left;
+  padding: 0px 5px 5px 5px;
+}
+TABLE.cerb-widget-data-table td {
   padding: 5px;
 }
-TABLE.cerb-widget-data-table tr:nth-child(odd) td {
+TABLE.cerb-widget-data-table tbody:nth-child(even) td {
   background-color: whitesmoke;
 }
 

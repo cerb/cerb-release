@@ -30,7 +30,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	static function create($fields) {
 		$db = DevblocksPlatform::services()->database();
 		
-		$session_id = sha1(json_encode($fields) . time() . uniqid(null, true));
+		$session_id = sha1(json_encode($fields) . time() . random_bytes(32));
 		
 		$sql = sprintf("INSERT INTO bot_session (session_id) VALUES (%s)",
 			$db->qstr($session_id)
@@ -103,27 +103,9 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	}
 	
 	/**
-	 *
-	 * @param bool $nocache
-	 * @return Model_BotSession[]
-	 */
-	static function getAll($nocache=false) {
-		//$cache = DevblocksPlatform::services()->cache();
-		//if($nocache || null === ($objects = $cache->load(self::_CACHE_ALL))) {
-			$objects = self::getWhere(null, DAO_BotSession::UPDATED_AT, true, null, Cerb_ORMHelper::OPT_GET_MASTER_ONLY);
-			
-			//if(!is_array($objects))
-			//	return false;
-				
-			//$cache->save($objects, self::_CACHE_ALL);
-		//}
-		
-		return $objects;
-	}
-
-	/**
 	 * @param integer $id
-	 * @return Model_BotSession	 */
+	 * @return Model_BotSession	
+	 */
 	static function get($id) {
 		if(empty($id))
 			return null;
@@ -214,18 +196,6 @@ class DAO_BotSession extends Cerb_ORMHelper {
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM bot_session WHERE session_id IN (%s)", $ids_list));
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => 'cerberusweb.contexts.bot.session',
-					'context_ids' => $ids
-				)
-			)
-		);
-		
 		return true;
 	}
 	
@@ -243,7 +213,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_BotSession::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_BotSession', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_BotSession', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"bot_session.session_id as %s, ".

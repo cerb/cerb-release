@@ -112,6 +112,275 @@ var markitupHTMLDefaults = {
 	]
 }
 
+var cerbAutocompleteSuggestions = {
+	yamlDashboardFilters: {
+		'': [
+			'placeholder:',
+			'label:',
+			'type:',
+			'default:',
+			{
+				caption: '#chooser',
+				snippet: '---\nplaceholder: ${1:input_placeholder}\nlabel: ${2:Label}\ntype: chooser\ndefault: ~\nparams:\n  context: ${3:group}\n  single: ${4:false}\n'
+			},
+			{
+				caption: '#date_range',
+				snippet: '---\nplaceholder: ${1:input_placeholder}\nlabel: ${2:Label}\ntype: date_range\ndefault: ${3:first day of this month -12 months}\n'
+			},
+			{
+				caption: '#picklist',
+				snippet: '---\nplaceholder: ${1:input_placeholder}\nlabel: "${2:By:}"\ntype: picklist\ndefault: ${3:month}\nparams:\n  options:\n  - ${4:day}\n  - week\n  - month\n  - year\n'
+			},
+		],
+		'type:': [
+			'date_range',
+			'picklist',
+			'chooser'
+		]
+	},
+	yamlSheetSchema: {
+		'': [
+			{
+				caption: 'layout:',
+				snippet: 'layout:\n  style: ${1:table}\n  headings: ${2:true}\n  paging: ${3:true}\n  #title_column: _label\n',
+			},
+			{
+				caption: 'columns:',
+				snippet: 'columns:\n- ',
+			}
+		],
+		
+		// Layout
+		'layout:': [
+			{
+				caption: 'style:',
+				snippet: 'style: ${1:table}'
+			},
+			{
+				caption: 'headings:',
+				snippet: 'headings: ${1:true}'
+			},
+			{
+				caption: 'paging:',
+				snippet: 'paging: ${1:true}'
+			},
+			'title_column: '
+		],
+		'layout:style:': [
+			'table',
+			'fieldsets'
+		],
+		'layout:headings:': [
+			'true',
+			'false'
+		],
+		
+		// Column types
+		'columns:-:': [
+			{
+				caption: 'text:',
+				snippet: 'text:\n    key: ${1:_label}\n    label: ${2:Label}\n    params:\n      #value: literal text\n      #value_key: some_key\n      #value_template: "{{some_key}}"\n      #bold: true\n      #value_map: { 0: No, 1: Yes }\n- '
+			},
+			{
+				caption: 'card:',
+				snippet: 'card:\n    key: ${1:_label}\n    label: ${2:Label}\n    params:\n      #image: true\n      #bold: true\n      #underline: false\n- '
+			},
+			{
+				caption: 'date:',
+				snippet: 'date:\n    key: ${1:_label}\n    label: ${2:Label}\n    params:\n      #format: d-M-Y H:i:s T # See: https://php.net/date\n      #format: r\n      #value: 1577836800\n      #value_key: updated\n- '
+			},
+			{
+				caption: 'link:',
+				snippet: 'link:\n    key: ${1:_label}\n    label: ${2:Label}\n    params:\n      href: ${3:/some/path}\n      #href_key: some_key\n      #href_template: /some/path/{{placeholder}}\n      text: ${4:Link text}\n      #text_key: some_key\n- '
+			},
+			{
+				caption: 'search:',
+				snippet: 'search:\n    key: ${1:_label}\n    label: ${2:Label}\n    params:\n      context: ticket\n      #context_key: _context\n      query: status:o\n      #query_key: query\n      label: Label\n      #label: count\n- '
+			},
+			{
+				caption: 'search_button:',
+				snippet: 'search_button:\n    key: ${1:_label}\n    label: ${2:Label}\n    params:\n      context: ticket\n      #context_key: _context\n      query: status:o\n      #query_key: query      #query_template: status:o owner.id:{{id}}\n- '
+			},
+			{
+				caption: 'slider:',
+				snippet: 'slider:\n    key: ${1:_label}\n    label: ${2:Label}\n    params:\n      #value: 75\n      #value_key: some_key\n      #value_template: "{{some_key+50}}"\n      min: 0\n      max: 100\n- '
+			},
+			{
+				caption: 'time_elapsed:',
+				snippet: 'time_elapsed:\n    key: ${1:key}\n    label: ${2:Label}\n    params:\n      precision: ${3:2}\n- '
+			}
+		],
+		
+		// Text
+		'columns:-:text:': [
+			'key:',
+			'label:',
+			'params:'
+		],
+		'columns:-:text:params:': [
+			'value:',
+			'value_key:',
+			'value_template:',
+			'value_map:',
+			'bold:'
+		],
+		'columns:-:text:params:bold:': [
+			'true',
+			'false'
+		],
+		
+		// Cards
+		'columns:-:card:': [
+			'key:',
+			'label:',
+			'params:'
+		],
+		'columns:-:card:params:': [
+			'image:',
+			'bold:',
+			'underline:',
+			'context:',
+			'context_key:',
+			'context_template:',
+			'id:',
+			'id_key:',
+			'id_template:',
+			'label:',
+			'label_key:',
+			'label_template:'
+		],
+		'columns:-:card:params:image:': [
+			'true',
+			'false'
+		],
+		'columns:-:card:params:bold:': [
+			'true',
+			'false'
+		],
+		'columns:-:card:params:underline:': [
+			'true',
+			'false'
+		],
+		
+		// Dates
+		'columns:-:date:': [
+			'key:',
+			'label:',
+			'params:'
+		],
+		'columns:-:date:params:': [
+			'value:',
+			'format:',
+			'value_key:',
+			'value_template:',
+			'bold:'
+		],
+		'columns:-:date:params:bold:': [
+			'true',
+			'false'
+		],
+		'columns:-:date:params:format:': [
+			'r',
+			'Y-m-d H:i:s a'
+		],
+		
+		// Links
+		'columns:-:link:': [
+			'key:',
+			'label:',
+			'params:'
+		],
+		'columns:-:link:params:': [
+			'href:',
+			'href_key:',
+			'href_template:',
+			'text:',
+			'text_key:',
+			'text_template:',
+			'bold:'
+		],
+		'columns:-:link:params:bold:': [
+			'true',
+			'false'
+		],
+		
+		// Search
+		'columns:-:search:': [
+			'key:',
+			'label:',
+			'params:'
+		],
+		'columns:-:search:params:': [
+			'context:',
+			'context_key:',
+			'context_template:',
+			'query:',
+			'query_key:',
+			'query_template:',
+			'label:',
+			'label_key:',
+			'label_template:',
+			'bold:'
+		],
+		'columns:-:search:params:bold:': [
+			'true',
+			'false'
+		],
+		
+		// Search button
+		'columns:-:search_button:': [
+			'key:',
+			'label:',
+			'params:'
+		],
+		'columns:-:search_button:params:': [
+			'context:',
+			'context_key:',
+			'context_template:',
+			'query:',
+			'query_key:',
+			'query_template:'
+		],
+		
+		// Slider
+		'columns:-:slider:': [
+			'key:',
+			'label:',
+			'params:'
+		],
+		'columns:-:slider:params:': [
+			'value:',
+			'value_key:',
+			'value_template:',
+			'min:',
+			'max:'
+		],
+		
+		// Time elapsed
+		'columns:-:time_elapsed:': [
+			'key:',
+			'label:',
+			'params:'
+		],
+		'columns:-:time_elapsed:params:': [
+			'value:',
+			'value_key:',
+			'value_template:',
+			'precision:',
+			'bold:'
+		],
+		'columns:-:time_elapsed:params:bold:': [
+			'true',
+			'false'
+		]
+	},
+	getYamlFormInteractions: function(cb) {
+		genericAjaxGet('', 'c=ui&a=yamlSuggestionsFormInteractions', function(json) {
+			cb(json);
+		});
+	}
+};
+
 $.fn.cerbDateInputHelper = function(options) {
 	var options = (typeof options == 'object') ? options : {};
 	
@@ -753,7 +1022,7 @@ var ajax = new cAjaxCalls();
 	
 	$.fn.cerbCodeEditor = function(options) {
 		var langTools = ace.require("ace/ext/language_tools");
-	
+		
 		return this.each(function(iteration) {
 			var $this = $(this);
 			
@@ -761,7 +1030,19 @@ var ajax = new cAjaxCalls();
 				return;
 			
 			var mode = $this.attr('data-editor-mode');
-			var withTwigAutocompletion = $this.is('.placeholders');
+			var withTwigAutocompletion = $this.hasClass('placeholders');
+			
+			var aceOptions = {
+				showLineNumbers: true,
+				showPrintMargin: false,
+				wrap: true,
+				enableBasicAutocompletion: [],
+				enableSnippets: false,
+				tabSize: 2,
+				useSoftTabs: false,
+				minLines: 2,
+				maxLines: 20
+			};
 			
 			if(null == mode)
 				mode = 'ace/mode/twig';
@@ -775,12 +1056,14 @@ var ajax = new cAjaxCalls();
 			
 			var $editor = $('<pre/>')
 				.attr('id', editor_id)
-				.addClass('placeholders')
 				.css('margin', '0')
 				.css('position', 'relative')
 				.css('width', '100%')
 				.insertAfter($this)
-			;
+				;
+			
+			if(withTwigAutocompletion)
+				$editor.addClass('placeholders');
 			
 			var editor = ace.edit(editor_id);
 			editor.$blockScrolling = Infinity;
@@ -810,17 +1093,6 @@ var ajax = new cAjaxCalls();
 				$editor.trigger('cerb.update');
 			});
 			
-			editor.setOptions({
-				showLineNumbers: true,
-				wrap: true,
-				enableBasicAutocompletion: true,
-				enableSnippets: false,
-				enableLiveAutocompletion: true,
-				tabSize: 2,
-				useSoftTabs: false,
-				minLines: 2,
-				maxLines: 20
-			});	
 			
 			if(withTwigAutocompletion) {
 				var twig_snippets = [
@@ -886,6 +1158,7 @@ var ajax = new cAjaxCalls();
 					{ value: "nl2br", meta: "filter" },
 					{ value: "number_format(2, '.', ',')", meta: "filter" },
 					{ value: "parse_emails", meta: "filter" },
+					{ value: "permalink", meta: "filter" },
 					{ value: "quote", meta: "filter" },
 					{ value: "raw", meta: "filter" },
 					{ value: "regexp", meta: "filter" },
@@ -946,20 +1219,27 @@ var ajax = new cAjaxCalls();
 					{ value: "xml_path_ns(xml,prefix,ns)", meta: "function" },
 				];
 				
-				var autocompleter = {
+				var autocompleterTwig = {
 					insertMatch: function(editor, data) {
-						delete data.completer;
+						data.completer = null;
 						editor.completer.insertMatch(data);
 					},
 					getCompletions: function(editor, session, pos, prefix, callback) {
 						var token = session.getTokenAt(pos.row, pos.column);
 						
-						if(token == null) {
-							callback(null, twig_snippets.map(function(c) {
-								c.completer = autocompleter;
-								return c;
-							}));
+						if(null == token)
 							return;
+						
+						// This should only happen for the Twig editor (not embeds)
+						if('ace/mode/twig' == session.getMode().$id) {
+							if(token == null) {
+								callback(null, twig_snippets.map(function(c) {
+									c.score = 5000;
+									c.completer = autocompleterTwig;
+									return c;
+								}));
+								return;
+							}
 						}
 						
 						if(token.type == 'identifier' || (token.type == 'text' && token.start > 0)) {
@@ -967,7 +1247,8 @@ var ajax = new cAjaxCalls();
 							
 							if(prevToken && prevToken.type == 'meta.tag.twig') {
 								callback(null, twig_tags.map(function(c) {
-									c.completer = autocompleter;
+									c.score = 5000;
+									c.completer = autocompleterTwig;
 									return c;
 								}));
 								return;
@@ -975,7 +1256,8 @@ var ajax = new cAjaxCalls();
 							
 							if(prevToken && prevToken.type == 'keyword.operator.twig') {
 								callback(null, twig_functions.map(function(c) {
-									c.completer = autocompleter;
+									c.score = 5000;
+									c.completer = autocompleterTwig;
 									return c;
 								}));
 								return;
@@ -983,7 +1265,8 @@ var ajax = new cAjaxCalls();
 							
 							if(prevToken && prevToken.type == 'keyword.operator.other' && prevToken.value == '|') {
 								callback(null, twig_filters.map(function(c) {
-									c.completer = autocompleter;
+									c.score = 5000;
+									c.completer = autocompleterTwig;
 									return c;
 								}));
 								return;
@@ -993,7 +1276,8 @@ var ajax = new cAjaxCalls();
 						if(token.type == 'meta.tag.twig') {
 							var results = [].concat(twig_tags).concat(twig_functions);
 							callback(null, results.map(function(c) {
-								c.completer = autocompleter;
+								c.score = 5000;
+								c.completer = autocompleterTwig;
 								return c;
 							}));
 							return;
@@ -1001,15 +1285,17 @@ var ajax = new cAjaxCalls();
 						
 						if(token.type == 'keyword.operator.other' && token.value == '|') {
 							callback(null, twig_filters.map(function(c) {
-								c.completer = autocompleter;
+								c.score = 5000;
+								c.completer = autocompleterTwig;
 								return c;
 							}));
 							return;
 						}
 						
-						if(token.type == 'variable.other.readwrite.local.twig') {
+						if(token.type == 'variable.other.readwrite.local.twig' && token.value == '{{') {
 							callback(null, twig_functions.map(function(c) {
-								c.completer = autocompleter;
+								c.score = 5000;
+								c.completer = autocompleterTwig;
 								return c;
 							}));
 							return;
@@ -1019,8 +1305,856 @@ var ajax = new cAjaxCalls();
 					}
 				};
 				
-				langTools.addCompleter(autocompleter);
+				aceOptions.enableBasicAutocompletion.push(autocompleterTwig);
 			}
+			
+			if(mode == 'ace/mode/cerb_query') {
+				aceOptions.useSoftTabs = true;
+				
+			} else if(mode == 'ace/mode/yaml') {
+				aceOptions.useSoftTabs = true;
+			}
+			
+			editor.setOptions(aceOptions);
+		});
+	};
+	
+	$.fn.cerbCodeEditorAutocompleteYaml = function(autocomplete_options) {
+		var Autocomplete = require('ace/autocomplete').Autocomplete;
+		
+		var doCerbLiveAutocomplete = function(e) {
+			e.stopPropagation();
+			
+			if(!e.editor.completer) {
+				var Autocomplete = require('ace/autocomplete').Autocomplete;
+				e.editor.completer = new Autocomplete();
+			}
+			
+			if('insertstring' == e.command.name) {
+				if(!e.editor.completer.activated || e.editor.completer.isDynamic) {
+					if(1 == e.args.length) {
+						e.editor.completer.showPopup(e.editor);
+					}
+				}
+			}
+		};
+		
+		return this.each(function() {
+			var $editor = $(this)
+				.nextAll('pre.ace_editor')
+				;
+				
+			var editor = ace.edit($editor.attr('id'));
+			
+			if(!editor.completer) {
+				editor.completer = new Autocomplete();
+			}
+			
+			editor.completer.autocomplete_suggestions = {};
+			
+			if(autocomplete_options.autocomplete_suggestions)
+				editor.completer.autocomplete_suggestions = autocomplete_options.autocomplete_suggestions;
+			
+			var autocompleterYaml = {
+				formatData: function(scope_key) {
+					return editor.completer.autocomplete_suggestions[scope_key].map(function(data) {
+						if('object' == typeof data) {
+							if(!data.hasOwnProperty('score'))
+								data.score = 1000;
+							
+							return data;
+							
+						} else if('string' == typeof data) {
+							return {
+								caption: data,
+								snippet: data,
+								score: 1000
+							};
+						}
+					});
+				},
+				getCompletions: function(editor, session, pos, prefix, callback) {
+					var token_path = Devblocks.cerbCodeEditor.getYamlTokenPath(pos, editor);
+					var scope_key = token_path.join('');
+					
+					if(editor.completer.autocomplete_suggestions.hasOwnProperty(scope_key)) {
+						callback(null, autocompleterYaml.formatData(scope_key));
+						return;
+						
+					} else {
+						callback(false);
+						return;
+					}
+				}
+			};
+			
+			editor.setOption('enableBasicAutocompletion', []);
+			editor.completers.push(autocompleterYaml);
+			editor.commands.on('afterExec', doCerbLiveAutocomplete);
+		});
+	}
+	
+	$.fn.cerbCodeEditorAutocompleteSearchQueries = function(autocomplete_options) {
+		var Autocomplete = require('ace/autocomplete').Autocomplete;
+		
+		var doCerbLiveAutocomplete = function(e) {
+			e.stopPropagation();
+			
+			if(!e.editor.completer) {
+				var Autocomplete = require('ace/autocomplete').Autocomplete;
+				e.editor.completer = new Autocomplete();
+			}
+			
+			if('insertstring' == e.command.name) {
+				if(!e.editor.completer.activated || e.editor.completer.isDynamic) {
+					if(1 == e.args.length) {
+						e.editor.completer.showPopup(e.editor);
+					}
+				}
+			}
+		};
+		
+		return this.each(function() {
+			var $editor = $(this)
+				.nextAll('pre.ace_editor')
+				;
+				
+			var editor = ace.edit($editor.attr('id'));
+			
+			if(!editor.completer) {
+				editor.completer = new Autocomplete();
+			}
+			
+			editor.completer.exactMatch = true;
+			
+			editor.completer.autocomplete_suggestions = {
+				'_contexts': {}
+			};
+			
+			if(autocomplete_options && autocomplete_options.context)
+				editor.completer.autocomplete_suggestions._contexts[''] = autocomplete_options.context;
+			
+			$editor.on('cerb-code-editor-change-context', function(e, context) {
+				e.stopPropagation();
+				
+				var editor = ace.edit($(this).attr('id'));
+				
+				if(!editor.completer || !editor.completer.autocomplete_suggestions)
+					return;
+				
+				editor.completer.autocomplete_suggestions = {
+					'_contexts': {
+						'': context || ''
+					}
+				};
+			});
+			
+			var completer = {
+				identifierRegexps: [/[a-zA-Z_0-9\#\@\.\$\-\u00A2-\uFFFF]/],
+				formatData: function(scope_key) {
+					return editor.completer.autocomplete_suggestions[scope_key].map(function(data) {
+						if('object' == typeof data) {
+							if(!data.hasOwnProperty('score'))
+								data.score = 1000;
+							
+							data.completer = {
+								insertMatch: Devblocks.cerbCodeEditor.insertMatchAndAutocomplete
+							};
+							return data;
+							
+						} else if('string' == typeof data) {
+							return {
+								caption: data,
+								snippet: data,
+								score: 1000,
+								completer: {
+									insertMatch: Devblocks.cerbCodeEditor.insertMatchAndAutocomplete
+								}
+							};
+						}
+					});
+				},
+				returnCompletions: function(editor, session, pos, prefix, callback) {
+					var token = session.getTokenAt(pos.row, pos.column);
+					
+					// Don't give suggestions inside Twig elements or at the end of `)` sets
+					if(token) {
+						if(
+							('paren.rparen' == token.type)
+							|| 'variable.other.readwrite.local.twig' == token.type
+							|| ('keyword.operator.other' == token.type && token.value == '|')
+						){
+							callback(false);
+							return;
+						}
+					}
+					
+					var token_path = Devblocks.cerbCodeEditor.getQueryTokenPath(pos, editor);
+					var scope_key = token_path.scope.join('');
+					
+					autocomplete_suggestions = editor.completer.autocomplete_suggestions;
+					
+					editor.completer.isDynamic = false;
+					
+					// Do we need to lazy load?
+					if(autocomplete_suggestions.hasOwnProperty(scope_key)) {
+						if($.isArray(autocomplete_suggestions[scope_key])) {
+							var results = completer.formatData(scope_key);
+							callback(null, results);
+							
+						} else if('object' == typeof autocomplete_suggestions[scope_key] 
+							&& autocomplete_suggestions[scope_key].hasOwnProperty('_type')) {
+							
+							var key = autocomplete_suggestions[scope_key].hasOwnProperty('key') ? autocomplete_suggestions[scope_key].key : null;
+							var limit = autocomplete_suggestions[scope_key].hasOwnProperty('limit') ? autocomplete_suggestions[scope_key].limit : 0;
+							var min_length = autocomplete_suggestions[scope_key].hasOwnProperty('min_length') ? autocomplete_suggestions[scope_key].min_length : 0;
+							var query = autocomplete_suggestions[scope_key].query.replace('{{term}}', prefix);
+							
+							if(min_length && prefix.length < min_length) {
+								callback(null, []);
+								return;
+							}
+							
+							genericAjaxGet('', 'c=ui&a=dataQuery&q=' + encodeURIComponent(query), function(json) {
+								var results = [];
+								
+								if('object' != typeof json || !json.hasOwnProperty('data')) {
+									callback('error');
+									return;
+								}
+								
+								for(i in json.data) {
+									if(!json.data[i].hasOwnProperty(key) || 0 == json.data[i][key].length)
+										continue;
+									
+									var value = json.data[i][key];
+									
+									results.push({
+										value: -1 != value.indexOf(' ') ? ('"' + value + '"') : value
+									});
+								}
+								
+								// If we have the full set, persist it
+								if('' == prefix && limit && limit > json.data.length) {
+									autocomplete_suggestions[scope_key] = results;
+									
+								} else {
+									editor.completer.isDynamic = true;
+								}
+								
+								callback(null, results);
+							});
+						}
+						
+					} else {
+						// If pasting or existing value, work backwards
+						
+						(function() {
+							var expand = '';
+							var expand_prefix = '';
+							var expand_context = autocomplete_suggestions._contexts[''] || '';
+							
+							if(autocomplete_suggestions[scope_key]) {
+								editor.completer.showPopup(editor);
+								return;
+								
+							} else if(autocomplete_suggestions._contexts && autocomplete_suggestions._contexts.hasOwnProperty(scope_key)) {
+								expand_context = autocomplete_suggestions._contexts[scope_key];
+								expand_prefix = scope_key;
+								
+							} else {
+								var stack = [];
+								
+								for(key in token_path.scope) {
+									stack.push(token_path.scope[key]);
+									var stack_key = stack.join('');
+									
+									if(autocomplete_suggestions[stack_key]) {
+										expand_prefix += token_path.scope[key];
+										
+									} else if (autocomplete_suggestions._contexts && autocomplete_suggestions._contexts[stack_key]) {
+										expand_context = autocomplete_suggestions._contexts[stack_key];
+										expand_prefix += token_path.scope[key];
+										
+									} else {
+										expand += token_path.scope[key];
+									}
+								}
+							}
+							
+							if('' == expand_context) {
+								callback(null, []);
+								return;
+							}
+							
+							// [TODO] localStorage cache?
+							genericAjaxGet('', 'c=ui&a=querySuggestions&context=' + encodeURIComponent(expand_context) + '&expand=' + encodeURIComponent(expand), function(json) {
+								if('object' != typeof json) {
+									callback(null, []);
+									return;
+								}
+								
+								for(path_key in json) {
+									if(path_key == '_contexts') {
+										if(!autocomplete_suggestions['_contexts'])
+											autocomplete_suggestions['_contexts'] = {};
+										
+										for(context_key in json[path_key]) {
+											autocomplete_suggestions['_contexts'][expand_prefix + context_key] = json[path_key][context_key];
+										}
+										
+									} else {
+										autocomplete_suggestions[expand_prefix + path_key] = json[path_key];
+									}
+								}
+								
+								if(autocomplete_suggestions[scope_key]) {
+									editor.completer.showPopup(editor);
+									
+								} else {
+									callback(null, []);
+								}
+								return;
+							});
+						})();
+					}
+				},
+				getCompletions: function(editor, session, pos, prefix, callback) {
+					completer.returnCompletions(editor, session, pos, prefix, callback);
+				}
+			};
+		
+			editor.setOption('enableBasicAutocompletion', []);
+			editor.completers.push(completer);
+			editor.commands.on('afterExec', doCerbLiveAutocomplete);
+		});
+	};
+	
+	$.fn.cerbCodeEditorAutocompleteDataQueries = function() {
+		var Autocomplete = require('ace/autocomplete').Autocomplete;
+		
+		var autocomplete_scope = {
+			'type': '',
+			'of': ''
+		};
+		
+		var autocomplete_suggestions = [];
+		var autocomplete_contexts = [];
+		
+		var autocomplete_suggestions_types = {
+			'': [
+				'type:'
+			],
+			'type:': []
+		};
+		
+		var doCerbLiveAutocomplete = function(e) {
+			e.stopPropagation();
+			
+			if(!(
+				'insertstring' == e.command.name 
+				|| 'paste' == e.command.name 
+				|| 'Return' == e.command.name 
+				|| 'backspace' == e.command.name)) {
+				return;
+			}
+			
+			if(!e.editor.completer) {
+				e.editor.completer = new Autocomplete();
+			}
+			
+			var value = e.editor.session.getValue();
+			var pos = e.editor.getCursorPosition();
+			var current_field = Devblocks.cerbCodeEditor.getQueryTokenPath(pos, e.editor, 1);
+			var is_dirty = false;
+			
+			// If we're in the middle of typing a dynamic series alias, ignore it
+			if(1 == current_field.scope.length
+				&& 0 == current_field.nodes.length
+				&& -1 != ['series.','values.'].indexOf(current_field.scope[0].substr(0,7))
+				) {
+				return;
+			}
+			
+			if(0 == value.length) {
+				autocomplete_suggestions = {};
+				autocomplete_scope.type = '';
+				autocomplete_scope.of = '';
+				is_dirty = true;
+				
+			// If we pasted content, rediscover the scope
+			} else if('paste' == e.command.name) {
+				autocomplete_suggestions = {};
+				autocomplete_scope.type = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(e.editor, 'type:') || '';
+				autocomplete_scope.of = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(e.editor, 'of:') || '';
+				is_dirty = true;
+				
+			// If we're typing
+			} else if(current_field.hasOwnProperty('scope')) {
+				var current_field_name = current_field.scope.slice(-1)[0];
+				
+				if(current_field_name == 'type:' && current_field.nodes[0]) {
+					var token_path = Devblocks.cerbCodeEditor.getQueryTokenPath(pos, e.editor);
+					
+					if(1 == token_path.scope.length) {
+						var type = current_field.nodes[0].value;
+						
+						if(autocomplete_scope.type != type) {
+							autocomplete_scope.type = type;
+							autocomplete_scope.of = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(e.editor, 'of:') || '';
+							is_dirty = true;
+						}
+					}
+					
+				} else if(current_field_name == 'of:' && current_field.nodes[0]) {
+					var token_path = Devblocks.cerbCodeEditor.getQueryTokenPath(pos, e.editor);
+					
+					if(1 == token_path.scope.length) {
+						var of = current_field.nodes[0].value;
+						
+						if(autocomplete_scope.of != of) {
+							autocomplete_scope.of = of;
+							
+							// If it's not a known context, ignore
+							if(-1 != autocomplete_contexts.indexOf(of)) {
+								is_dirty = true;
+							}
+						}
+					
+					} else if(-1 != ['series.','values.'].indexOf(token_path.scope[0].substr(0,7))) {
+						var series_key = token_path.scope[0];
+						var series_of = token_path.nodes[0].value;
+						
+						if(autocomplete_scope[series_key + 'of:'] != series_of) {
+							autocomplete_scope[series_key + 'of:'] = series_of;
+							
+							for(key in autocomplete_suggestions._contexts) {
+								if(series_key == key.substr(0,series_key.length))
+									autocomplete_suggestions._contexts[key] = null;
+							}
+							
+							for(key in autocomplete_suggestions) {
+								if(series_key == key.substr(0,series_key.length))
+									autocomplete_suggestions[key] = null;
+							}
+							
+							if(-1 != autocomplete_contexts.indexOf(series_of)) {
+								autocomplete_scope[series_key + 'x:'] = {
+									'_type': 'series_of_field'
+								};
+								
+								autocomplete_scope[series_key + 'y:'] = {
+									'_type': 'series_of_field'
+								};
+								
+								autocomplete_scope[series_key + 'query:'] = {
+									'_type': 'series_of_query'
+								};
+								
+								autocomplete_scope[series_key + 'query.required:'] = {
+									'_type': 'series_of_query'
+								};
+							}
+						}
+					}
+				}
+			}
+			
+			if(is_dirty) {
+				var type = autocomplete_scope.type;
+				var of = autocomplete_scope.of;
+				
+				// If type: is invalid
+				if('' == type || -1 == autocomplete_suggestions_types['type:'].indexOf(type)) {
+					autocomplete_suggestions = autocomplete_suggestions_types;
+					
+				} else {
+					genericAjaxGet('', 'c=ui&a=dataQuerySuggestions&type=' + encodeURIComponent(type) + '&of=' + encodeURIComponent(of), function(json) {
+						if('object' == typeof json) {
+							autocomplete_suggestions = json;
+						} else {
+							autocomplete_suggestions = autocomplete_suggestions_types;
+						}
+					});
+				}
+			}
+			
+			if('Return' != e.command.name && (!e.editor.completer.activated || e.editor.completer.isDynamic)) {
+				if(e.args && 1 == e.args.length) {
+					e.editor.completer.showPopup(e.editor);
+				}
+			}
+		};
+		
+		return this.each(function() {
+			var $editor = $(this)
+				.nextAll('pre.ace_editor')
+				;
+				
+			var editor = ace.edit($editor.attr('id'));
+			
+			if(!editor.completer) {
+				editor.completer = new Autocomplete();
+			}
+			
+			editor.completer.exactMatch = true;
+			
+			var completer = {
+				identifierRegexps: [/[a-zA-Z_0-9\#\@\.\$\-\u00A2-\uFFFF]/],
+				formatData: function(scope_key) {
+					if(!autocomplete_suggestions.hasOwnProperty(scope_key) 
+						|| undefined == autocomplete_suggestions.hasOwnProperty(scope_key))
+						return [];
+					
+					return autocomplete_suggestions[scope_key].map(function(data) {
+						if('object' == typeof data) {
+							if(!data.hasOwnProperty('score'))
+								data.score = 1000;
+							
+							data.completer = {
+								insertMatch: Devblocks.cerbCodeEditor.insertMatchAndAutocomplete
+							};
+							return data;
+							
+						} else if('string' == typeof data) {
+							return {
+								caption: data,
+								snippet: data,
+								score: 1000,
+								completer: {
+									insertMatch: Devblocks.cerbCodeEditor.insertMatchAndAutocomplete
+								}
+							};
+						}
+					});
+				},
+				getCompletions: function(editor, session, pos, prefix, callback) {
+					var token = session.getTokenAt(pos);
+					
+					// Don't give suggestions inside Twig elements
+					if(token) {
+						if(
+							'variable.other.readwrite.local.twig' == token.type
+							|| ('keyword.operator.other' == token.type && token.value == '|')
+						){
+							callback(false);
+							return;
+						}
+					}
+					
+					var token_path = Devblocks.cerbCodeEditor.getQueryTokenPath(pos, editor);
+					var scope_key = token_path.scope.join('');
+					
+					if(autocomplete_suggestions[scope_key]) {
+						if($.isArray(autocomplete_suggestions[scope_key])) {
+							var results = completer.formatData(scope_key);
+							callback(null, results);
+							
+						} else if('object' == typeof autocomplete_suggestions[scope_key] 
+							&& autocomplete_suggestions[scope_key].hasOwnProperty('_type')) {
+							
+							if('autocomplete' == autocomplete_suggestions[scope_key]._type) {
+								var key = autocomplete_suggestions[scope_key].hasOwnProperty('key') ? autocomplete_suggestions[scope_key].key : null;
+								var limit = autocomplete_suggestions[scope_key].hasOwnProperty('limit') ? autocomplete_suggestions[scope_key].limit : 0;
+								var min_length = autocomplete_suggestions[scope_key].hasOwnProperty('min_length') ? autocomplete_suggestions[scope_key].min_length : 0;
+								var query = autocomplete_suggestions[scope_key].query.replace('{{term}}', prefix);
+								
+								if(min_length && prefix.length < min_length) {
+									callback(null, []);
+									return;
+								}
+								
+								genericAjaxGet('', 'c=ui&a=dataQuery&q=' + encodeURIComponent(query), function(json) {
+									var results = [];
+									
+									if('object' != typeof json || !json.hasOwnProperty('data')) {
+										callback(null, []);
+										return;
+									}
+									
+									for(var i in json.data) {
+										if(!json.data[i].hasOwnProperty(key) || 0 == json.data[i][key].length)
+											continue;
+										
+										var value = json.data[i][key];
+										
+										results.push({
+											value: -1 != value.indexOf(' ') ? ('"' + value + '"') : value
+										});
+									}
+									
+									// If we have the full set, persist it
+									if('' == prefix && limit && limit > json.data.length) {
+										autocomplete_suggestions[scope_key] = results;
+										
+									} else {
+										editor.completer.isDynamic = true;
+									}
+									
+									callback(null, results);
+									return;
+								});
+								
+							} else if('series_of_query' == autocomplete_suggestions[scope_key]._type) {
+								var of = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(editor, token_path.scope[0] + 'of:');
+								
+								if(!of) {
+									callback(null, []);
+									return;
+								}
+								
+								genericAjaxGet('', 'c=ui&a=querySuggestions&context=' + encodeURIComponent(of), function(json) {
+									if('object' != typeof json) {
+										callback(null, []);
+										return;
+									}
+									
+									var path_keys = Object.keys(json);
+									
+									for(var path_key_idx in path_keys) {
+										var path_key = path_keys[path_key_idx];
+										
+										if(path_key == '_contexts') {
+											if(!autocomplete_suggestions.hasOwnProperty('_contexts'))
+												autocomplete_suggestions['_contexts'] = {};
+											
+											var context_keys = Object.keys(json[path_key]);
+											
+											for(context_key_id in context_keys) {
+												var context_key = context_keys[context_key_id];
+												autocomplete_suggestions['_contexts'][scope_key + context_key] = json[path_key][context_key];
+											}
+											
+										} else {
+											autocomplete_suggestions[scope_key + path_key] = json[path_key];
+										}
+									}
+									
+									var results = completer.formatData(scope_key);
+									callback(null, results);
+									return;
+								});
+								
+							} else if('series_of_field' == autocomplete_suggestions[scope_key]._type) {
+								var of = autocomplete_scope[token_path.scope[0] + 'of:']
+									|| Devblocks.cerbCodeEditor.getQueryTokenValueByPath(editor, token_path.scope[0] + 'of:');
+								
+								if(!of) {
+									callback(null, []);
+									return;
+								}
+								
+								var of_types = autocomplete_suggestions[scope_key].of_types || '';
+								
+								genericAjaxGet('', 'c=ui&a=queryFieldSuggestions&of=' + encodeURIComponent(of) + '&types=' + encodeURIComponent(of_types), function(json) {
+									if(!$.isArray(json)) {
+										callback(null, []);
+										return;
+									}
+									
+									autocomplete_suggestions[scope_key] = json;
+									
+									var results = completer.formatData(scope_key);
+									callback(null, results);
+									return;
+								});
+							}
+						}
+						
+					} else {
+						if(
+							('series.' == token_path.scope[0].substr(0,7) && !autocomplete_suggestions[token_path.scope[0]] && autocomplete_suggestions['series.*:'])
+							|| ('values.' == token_path.scope[0].substr(0,7) && !autocomplete_suggestions[token_path.scope[0]] && autocomplete_suggestions['values.*:'])
+							) {
+							var series_key = token_path.scope[0];
+							var series_template_key = token_path.scope[0].substr(0,7) + '*:';
+							
+							for(var suggest_key in autocomplete_suggestions[series_template_key]) {
+								if(autocomplete_suggestions[series_template_key][suggest_key]) {
+									autocomplete_suggestions[series_key + suggest_key] = autocomplete_suggestions[series_template_key][suggest_key];
+								}
+							}
+							var series_of = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(editor, token_path.scope[0] + 'of:');
+							
+							if(series_of && token_path.scope[1] && 'query' == token_path.scope[1].substr(0,5)) {
+								if(!autocomplete_suggestions['_contexts'])
+									autocomplete_suggestions['_contexts'] = {};
+								
+								autocomplete_suggestions['_contexts'][token_path.scope.slice(0,2).join('')] = series_of;
+								
+								// Load the series context
+								
+								var expand_context = series_of;
+								var expand_prefix = token_path.scope.slice(0,2).join('');
+								var expand = token_path.scope.slice(2).join('');
+								
+								genericAjaxGet('', 'c=ui&a=querySuggestions&context=' + encodeURIComponent(expand_context) + '&expand=' + encodeURIComponent(expand), function(json) {
+									if('object' != typeof json) {
+										callback(null, []);
+										return;
+									}
+									
+									for(path_key in json) {
+										if(path_key == '_contexts') {
+											if(!autocomplete_suggestions['_contexts'])
+												autocomplete_suggestions['_contexts'] = {};
+											
+											for(context_key in json[path_key]) {
+												autocomplete_suggestions['_contexts'][expand_prefix + context_key] = json[path_key][context_key];
+											}
+											
+										} else {
+											autocomplete_suggestions[expand_prefix + path_key] = json[path_key];
+										}
+									}
+									
+									if(autocomplete_suggestions[scope_key]) {
+										editor.completer.showPopup(editor);
+										
+									} else {
+										callback(null, []);
+									}
+									return;
+								});
+								
+								editor.completer.showPopup(editor);
+								return;
+								
+							} else if(1 == token_path.scope.length) {
+								editor.completer.showPopup(editor);
+								return;
+							}
+						}
+						
+						(function() {
+							var expand = '';
+							var expand_prefix = '';
+							var expand_context = '';
+							
+							if(autocomplete_suggestions[scope_key]) {
+								editor.completer.showPopup(editor);
+								return;
+								
+							} else if(autocomplete_suggestions._contexts && autocomplete_suggestions._contexts.hasOwnProperty(scope_key)) {
+								expand_context = autocomplete_suggestions._contexts[scope_key];
+								expand_prefix = scope_key;
+								
+							} else {
+								var stack = [];
+								
+								for(key in token_path.scope) {
+									stack.push(token_path.scope[key]);
+									var stack_key = stack.join('');
+									
+									if(autocomplete_suggestions[stack_key]) {
+										expand_prefix += token_path.scope[key];
+										
+									} else if (autocomplete_suggestions._contexts && autocomplete_suggestions._contexts[stack_key]) {
+										expand_context = autocomplete_suggestions._contexts[stack_key];
+										expand_prefix += token_path.scope[key];
+										
+									} else {
+										expand += token_path.scope[key];
+									}
+								}
+							}
+							
+							genericAjaxGet('', 'c=ui&a=querySuggestions&context=' + encodeURIComponent(expand_context) + '&expand=' + encodeURIComponent(expand), function(json) {
+								if('object' != typeof json) {
+									callback(null, []);
+									return;
+								}
+								
+								for(path_key in json) {
+									if(path_key == '_contexts') {
+										if(!autocomplete_suggestions['_contexts'])
+											autocomplete_suggestions['_contexts'] = {};
+										
+										for(context_key in json[path_key]) {
+											autocomplete_suggestions['_contexts'][expand_prefix + context_key] = json[path_key][context_key];
+										}
+										
+									} else {
+										autocomplete_suggestions[expand_prefix + path_key] = json[path_key];
+									}
+								}
+								
+								if(autocomplete_suggestions[scope_key]) {
+									editor.completer.showPopup(editor);
+									
+								} else {
+									callback(null, []);
+								}
+								return;
+							});
+						})();
+					}
+				}
+			};
+			
+			(function() {
+				var cerbQuerySuggestionMeta = null;
+				
+				if(localStorage && localStorage.cerbQuerySuggestionMeta) {
+					try {
+						cerbQuerySuggestionMeta = JSON.parse(localStorage.cerbQuerySuggestionMeta);
+					} catch(ex) {
+						cerbQuerySuggestionMeta = null;
+					}
+				}
+				
+				// Only run this once everything is ready
+				var editor_callback = function() {
+					autocomplete_suggestions = autocomplete_suggestions_types;
+					
+					editor.setOption('enableBasicAutocompletion', []);
+					editor.commands.on('afterExec', doCerbLiveAutocomplete);
+					editor.completers.push(completer);
+					
+					editor.on('focus', function(e) {
+						var val = editor.getValue();
+						
+						if(0 == val.length) {
+							if(!editor.completer) {
+								editor.completer = new Autocomplete();
+							}
+							
+							editor.completer.showPopup(editor);
+						}
+					});
+					
+					// If we have default content, trigger a paste
+					if(editor.getValue().length > 0) {
+						setTimeout(function() {
+							editor.commands.exec('paste', editor, {text:''})
+						}, 200);
+					}
+				}
+				
+				// Do we have a cached copy of the schema meta?
+				if(cerbQuerySuggestionMeta
+					&& cerbQuerySuggestionMeta.schemaVersion
+					&& cerbQuerySuggestionMeta.schemaVersion == CerbSchemaRecordsVersion) {
+					
+					autocomplete_contexts = cerbQuerySuggestionMeta.recordTypes;
+					autocomplete_suggestions_types['type:'] = cerbQuerySuggestionMeta.dataQueryTypes;
+					editor_callback.call();
+					
+				} else {
+					genericAjaxGet('', 'c=ui&a=querySuggestionMeta', function(json) {
+						if('object' != typeof json)
+							return;
+						
+						autocomplete_contexts = json.recordTypes;
+						autocomplete_suggestions_types['type:'] = json.dataQueryTypes;
+						
+						if(localStorage)
+							localStorage.cerbQuerySuggestionMeta = JSON.stringify(json);
+						
+						editor_callback.call();
+					});
+				}
+			})();
 		});
 	};
 	

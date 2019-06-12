@@ -1580,8 +1580,39 @@ class DevblocksPlatformTest extends PHPUnit_Framework_TestCase {
 	}
 	
 	public function testStrToHyperlinks() {
+		// Bare links
 		$expected = '<a href="http://www.example.com" target="_blank" rel="noopener noreferrer">http://www.example.com</a>';
 		$actual = DevblocksPlatform::strToHyperlinks('http://www.example.com');
+		$this->assertEquals($expected, $actual);
+		
+		// No protocol
+		$expected = '<a href="http://www.example.com" target="_blank" rel="noopener noreferrer">www.example.com</a>';
+		$actual = DevblocksPlatform::strToHyperlinks('www.example.com');
+		$this->assertEquals($expected, $actual);
+		
+		// Test with angle brackets
+		$expected = '&lt;<a href="http://www.example.com" target="_blank" rel="noopener noreferrer">http://www.example.com</a>&gt;';
+		$actual = DevblocksPlatform::strToHyperlinks('<http://www.example.com>');
+		$this->assertEquals($expected, $actual);
+		
+		// Markdown formatted links (label and link match)
+		$expected = '|<a href="http://example.com/" target="_blank" rel="noopener noreferrer">http://example.com/</a>';
+		$actual = DevblocksPlatform::strToHyperlinks('|[http://example.com](http://example.com/)');
+		$this->assertEquals($expected, $actual);
+		
+		// Markdown formatted links with text labels
+		$expected = 'some text &lt;<a href="http://example.com/" target="_blank" rel="noopener noreferrer">http://example.com/</a>&gt;';
+		$actual = DevblocksPlatform::strToHyperlinks('[some text](http://example.com/)');
+		$this->assertEquals($expected, $actual);
+		
+		// Not a protocol
+		$expected = 'You can use the messages.first:(content) filter';
+		$actual = DevblocksPlatform::strToHyperlinks('You can use the messages.first:(content) filter');
+		$this->assertEquals($expected, $actual);
+		
+		// Not a protocol
+		$expected = 'You can use the worker.id:me filter';
+		$actual = DevblocksPlatform::strToHyperlinks('You can use the worker.id:me filter');
 		$this->assertEquals($expected, $actual);
 	}
 	
@@ -1626,4 +1657,17 @@ class DevblocksPlatformTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($expected, $actual);
 	}
 	
+	public function testUrlWriter() {
+		$url_writer = DevblocksPlatform::services()->url();
+		
+		$as_string_uri = $url_writer->write('c=controller&a=action');
+		$as_string_slashes = $url_writer->write('/controller/action');
+		$as_array = $url_writer->write(['controller','action']);
+		
+		// Test that string and array invocation are equivalent
+		$this->assertEquals($as_string_uri, $as_array);
+		
+		// Test that string and array invocation are equivalent
+		$this->assertEquals($as_string_uri, $as_string_slashes);
+	}
 }

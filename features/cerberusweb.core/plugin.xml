@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>9.2.3</version>
+	<version>9.3.0</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -70,6 +70,7 @@
 		<patch version="9.0.0" revision="1313" file="patches/9.x/9.0.0.php" />
 		<patch version="9.1.0" revision="1326" file="patches/9.x/9.1.0.php" />
 		<patch version="9.2.0" revision="1333" file="patches/9.x/9.2.0.php" />
+		<patch version="9.3.0" revision="1342" file="patches/9.x/9.3.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -85,6 +86,10 @@
 		
 		<file path="api/service_providers/cerb.php">
 			<class name="WgmCerb_API" />
+		</file>
+		
+		<file path="api/service_providers/oidc.php">
+			<class name="GenericOpenIDConnectProvider" />
 		</file>
 		
 		<file path="api/oauth2/oauth2_server.php">
@@ -248,13 +253,16 @@
 		
 		<file path="api/dao/community_portal.php">
 			<class name="Context_CommunityTool" />
-			<class name="DAO_CommunitySession" />
 			<class name="DAO_CommunityTool" />
 			<class name="DAO_CommunityToolProperty" />
-			<class name="Model_CommunitySession" />
 			<class name="Model_CommunityTool" />
 			<class name="SearchFields_CommunityTool" />
 			<class name="View_CommunityPortal" />
+		</file>
+		
+		<file path="api/dao/community_session.php">
+			<class name="DAO_CommunitySession" />
+			<class name="Model_CommunitySession" />
 		</file>
 		
 		<file path="api/dao/confirmation_code.php">
@@ -1407,50 +1415,6 @@
 						<data key="merge" />
 						<data key="update" />
 						<data key="update.bulk" />
-					</value>
-				</param>
-			</params>
-		</extension>
-		
-		<extension point="devblocks.context">
-			<id>cerberusweb.contexts.portal</id>
-			<name>Community Portal</name>
-			<class>
-				<file>api/dao/community_portal.php</file>
-				<name>Context_CommunityTool</name>
-			</class>
-			<params>
-				<param key="names">
-					<value>
-						<data key="community portal" value="singular" />
-						<data key="community portals" value="plural" />
-						<data key="portal" value="singular short" />
-						<data key="portals" value="plural short" />
-					</value>
-				</param>
-				<param key="alias" value="community_portal" />
-				<param key="dao_class" value="DAO_CommunityTool" />
-				<param key="view_class" value="View_CommunityTool" />
-				<param key="options">
-					<value>
-						<data key="cards" />
-						<data key="custom_fields" />
-						<data key="links" />
-						<data key="records" />
-						<data key="search" />
-						<data key="snippets" />
-						<data key="va_variable" />
-						<data key="workspace" />
-					</value>
-				</param>
-				<param key="acl">
-					<value>
-						<data key="comment" />
-						<data key="create" />
-						<data key="delete" />
-						<data key="export" />
-						<data key="import" />
-						<data key="update" />
 					</value>
 				</param>
 			</params>
@@ -3182,6 +3146,50 @@
 		</extension>
 		
 		<extension point="devblocks.context">
+			<id>cerberusweb.contexts.portal</id>
+			<name>Portal</name>
+			<class>
+				<file>api/dao/community_portal.php</file>
+				<name>Context_CommunityTool</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="portal" value="singular" />
+						<data key="portals" value="plural" />
+						<data key="community portal" value="singular" />
+						<data key="community portals" value="plural" />
+					</value>
+				</param>
+				<param key="alias" value="community_portal" />
+				<param key="dao_class" value="DAO_CommunityTool" />
+				<param key="view_class" value="View_CommunityTool" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="records" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="import" />
+						<data key="update" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.context">
 			<id>cerberusweb.contexts.reminder</id>
 			<name>Reminder</name>
 			<class>
@@ -3764,6 +3772,26 @@
 					<value>
 						<data key="cerberusweb.contexts.group" />
 					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="devblocks.event">
+			<id>event.form.interaction.worker</id>
+			<name>Form interaction</name>
+			<class>
+				<file>api/events/form_interaction/form_interaction_worker.php</file>
+				<name>Event_FormInteractionWorker</name>
+			</class>
+			<params>
+				<param key="contexts">
+					<value>
+						<data key="cerberusweb.contexts.app" />
+						<data key="cerberusweb.contexts.role" />
+					</value>
+				</param>
+				<param key="options">
+					<data key="resumable" />
 				</param>
 			</params>
 		</extension>
@@ -4835,19 +4863,6 @@
 				</params>
 			</extension>
 
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.internal.section.dashboards</id>
-				<name>Internal Section Dashboards</name>
-				<class>
-					<file>api/uri/internal/dashboards.php</file>
-					<name>PageSection_InternalDashboards</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.controller.internal" />
-					<param key="uri" value="dashboards" />
-				</params>
-			</extension>
-			
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.internal.section.skills</id>
 				<name>Internal Section Skills</name>
@@ -6384,7 +6399,7 @@
 			<id>cerb.profile.tab.widget.behavior.tree</id>
 			<name>Behavior Tree</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/behavior_tree.php</file>
 				<name>ProfileWidget_BehaviorTree</name>
 			</class>
 			<params>
@@ -6395,7 +6410,7 @@
 			<id>cerb.profile.tab.widget.calendar</id>
 			<name>Calendar</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/calendar.php</file>
 				<name>ProfileWidget_Calendar</name>
 			</class>
 			<params>
@@ -6406,7 +6421,7 @@
 			<id>cerb.profile.tab.widget.calendar.availability</id>
 			<name>Calendar Availability</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/calendar_availability.php</file>
 				<name>ProfileWidget_CalendarAvailability</name>
 			</class>
 			<params>
@@ -6417,7 +6432,7 @@
 			<id>cerb.profile.tab.widget.chart.categories</id>
 			<name>Chart: Categories</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/chart_categories.php</file>
 				<name>ProfileWidget_ChartCategories</name>
 			</class>
 			<params>
@@ -6428,7 +6443,7 @@
 			<id>cerb.profile.tab.widget.chart.pie</id>
 			<name>Chart: Pie</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/chart_pie.php</file>
 				<name>ProfileWidget_ChartPie</name>
 			</class>
 			<params>
@@ -6439,7 +6454,7 @@
 			<id>cerb.profile.tab.widget.chart.scatterplot</id>
 			<name>Chart: Scatterplot</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/chart_scatterplot.php</file>
 				<name>ProfileWidget_ChartScatterplot</name>
 			</class>
 			<params>
@@ -6450,7 +6465,7 @@
 			<id>cerb.profile.tab.widget.chart.table</id>
 			<name>Chart: Table</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/chart_table.php</file>
 				<name>ProfileWidget_ChartTable</name>
 			</class>
 			<params>
@@ -6461,7 +6476,7 @@
 			<id>cerb.profile.tab.widget.chart.time_series</id>
 			<name>Chart: Time Series</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/chart_time_series.php</file>
 				<name>ProfileWidget_ChartTimeSeries</name>
 			</class>
 			<params>
@@ -6472,7 +6487,7 @@
 			<id>cerb.profile.tab.widget.comments</id>
 			<name>Comments</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/comments.php</file>
 				<name>ProfileWidget_Comments</name>
 			</class>
 			<params>
@@ -6483,8 +6498,19 @@
 			<id>cerb.profile.tab.widget.bot</id>
 			<name>Custom</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/bot_behavior.php</file>
 				<name>ProfileWidget_BotBehavior</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.form_interaction</id>
+			<name>Form Interaction</name>
+			<class>
+				<file>api/profiles/widgets/form_interaction.php</file>
+				<name>ProfileWidget_FormInteraction</name>
 			</class>
 			<params>
 			</params>
@@ -6494,7 +6520,7 @@
 			<id>cerb.profile.tab.widget.html</id>
 			<name>HTML/Javascript</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/html_javascript.php</file>
 				<name>ProfileWidget_CustomHtml</name>
 			</class>
 			<params>
@@ -6505,7 +6531,7 @@
 			<id>cerb.profile.tab.widget.map.geopoints</id>
 			<name>Map: Geo Points</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/map_geo_points.php</file>
 				<name>ProfileWidget_MapGeoPoints</name>
 			</class>
 			<params>
@@ -6516,7 +6542,7 @@
 			<id>cerb.profile.tab.widget.fields</id>
 			<name>Record Fields</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/record_fields.php</file>
 				<name>ProfileWidget_Fields</name>
 			</class>
 			<params>
@@ -6527,7 +6553,7 @@
 			<id>cerb.profile.tab.widget.responsibilities</id>
 			<name>Responsibilities</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/responsibilities.php</file>
 				<name>ProfileWidget_Responsibilities</name>
 			</class>
 			<params>
@@ -6541,10 +6567,21 @@
 		</extension>
 		
 		<extension point="cerb.profile.tab.widget">
+			<id>cerb.profile.tab.widget.sheet</id>
+			<name>Sheet</name>
+			<class>
+				<file>api/profiles/widgets/sheet.php</file>
+				<name>ProfileWidget_Sheet</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerb.profile.tab.widget">
 			<id>cerb.profile.tab.widget.ticket.convo</id>
 			<name>Ticket Conversation</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/ticket/conversation.php</file>
 				<name>ProfileWidget_TicketConvo</name>
 			</class>
 			<params>
@@ -6560,7 +6597,7 @@
 			<id>cerb.profile.tab.widget.ticket.spam_analysis</id>
 			<name>Ticket Spam Analysis</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/ticket/spam_analysis.php</file>
 				<name>ProfileWidget_TicketSpamAnalysis</name>
 			</class>
 			<params>
@@ -6576,7 +6613,7 @@
 			<id>cerb.profile.tab.widget.visualization</id>
 			<name>Data Query Visualization</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/data_query_visualization.php</file>
 				<name>ProfileWidget_Visualization</name>
 			</class>
 			<params>
@@ -6587,7 +6624,7 @@
 			<id>cerb.profile.tab.widget.worklist</id>
 			<name>Worklist</name>
 			<class>
-				<file>api/uri/profiles.php</file>
+				<file>api/profiles/widgets/worklist.php</file>
 				<name>ProfileWidget_Worklist</name>
 			</class>
 			<params>
@@ -6614,7 +6651,7 @@
 			<id>core.workspace.tab.dashboard</id>
 			<name>Dashboard</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/tabs/dashboard.php</file>
 				<name>WorkspaceTab_Dashboards</name>
 			</class>
 			<params>
@@ -6626,7 +6663,7 @@
 			<id>core.workspace.tab.worklists</id>
 			<name>Worklists</name>
 			<class>
-				<file>api/uri/internal/workspaces.php</file>
+				<file>api/workspaces/tabs/worklists.php</file>
 				<name>WorkspaceTab_Worklists</name>
 			</class>
 			<params>
@@ -6640,7 +6677,7 @@
 			<id>core.workspace.widget.bot</id>
 			<name>Bot Custom Widget</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/bot_behavior.php</file>
 				<name>WorkspaceWidget_BotBehavior</name>
 			</class>
 			<params>
@@ -6651,7 +6688,7 @@
 			<id>cerb.workspace.widget.behavior.tree</id>
 			<name>Bot Behavior Tree</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/behavior_tree.php</file>
 				<name>WorkspaceWidget_BehaviorTree</name>
 			</class>
 			<params>
@@ -6662,7 +6699,7 @@
 			<id>core.workspace.widget.gauge</id>
 			<name>Gauge</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/gauge.php</file>
 				<name>WorkspaceWidget_Gauge</name>
 			</class>
 			<params>
@@ -6673,7 +6710,7 @@
 			<id>core.workspace.widget.calendar</id>
 			<name>Calendar</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/calendar.php</file>
 				<name>WorkspaceWidget_Calendar</name>
 			</class>
 			<params>
@@ -6684,7 +6721,7 @@
 			<id>cerb.workspace.widget.chart.categories</id>
 			<name>Chart: Categories</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/chart_categories.php</file>
 				<name>WorkspaceWidget_ChartCategories</name>
 			</class>
 			<params>
@@ -6695,7 +6732,7 @@
 			<id>cerb.workspace.widget.map.geopoints</id>
 			<name>Map: Geo Points</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/map_geo_points.php</file>
 				<name>WorkspaceWidget_MapGeoPoints</name>
 			</class>
 			<params>
@@ -6706,7 +6743,7 @@
 			<id>cerb.workspace.widget.chart.pie</id>
 			<name>Chart: Pie</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/chart_pie.php</file>
 				<name>WorkspaceWidget_ChartPie</name>
 			</class>
 			<params>
@@ -6717,7 +6754,7 @@
 			<id>cerb.workspace.widget.chart.scatterplot</id>
 			<name>Chart: Scatterplot</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/chart_scatterplot.php</file>
 				<name>WorkspaceWidget_ChartScatterplot</name>
 			</class>
 			<params>
@@ -6728,7 +6765,7 @@
 			<id>cerb.workspace.widget.chart.table</id>
 			<name>Chart: Table</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/chart_table.php</file>
 				<name>WorkspaceWidget_ChartTable</name>
 			</class>
 			<params>
@@ -6739,7 +6776,7 @@
 			<id>cerb.workspace.widget.chart.timeseries</id>
 			<name>Chart: Time Series</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/chart_time_series.php</file>
 				<name>WorkspaceWidget_ChartTimeSeries</name>
 			</class>
 			<params>
@@ -6750,7 +6787,7 @@
 			<id>core.workspace.widget.chart</id>
 			<name>(Deprecated) Line/Bar Chart</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/deprecated/chart.php</file>
 				<name>WorkspaceWidget_ChartLegacy</name>
 			</class>
 			<params>
@@ -6761,7 +6798,7 @@
 			<id>core.workspace.widget.clock</id>
 			<name>Clock</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/clock.php</file>
 				<name>WorkspaceWidget_Clock</name>
 			</class>
 			<params>
@@ -6772,7 +6809,7 @@
 			<id>core.workspace.widget.countdown</id>
 			<name>Countdown</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/countdown.php</file>
 				<name>WorkspaceWidget_Countdown</name>
 			</class>
 			<params>
@@ -6783,7 +6820,7 @@
 			<id>core.workspace.widget.counter</id>
 			<name>Counter</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/counter.php</file>
 				<name>WorkspaceWidget_Counter</name>
 			</class>
 			<params>
@@ -6794,7 +6831,7 @@
 			<id>core.workspace.widget.custom_html</id>
 			<name>(Deprecated) HTML/Javascript</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/deprecated/html_javascript.php</file>
 				<name>WorkspaceWidget_CustomHtml</name>
 			</class>
 			<params>
@@ -6805,18 +6842,29 @@
 			<id>core.workspace.widget.pie_chart</id>
 			<name>(Deprecated) Pie Chart</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/deprecated/pie.php</file>
 				<name>WorkspaceWidget_PieChart</name>
 			</class>
 			<params>
 			</params>
 		</extension>
-
+		
+		<extension point="cerberusweb.ui.workspace.widget">
+			<id>core.workspace.widget.form_interaction</id>
+			<name>Form Interaction</name>
+			<class>
+				<file>api/workspaces/widgets/form_interaction.php</file>
+				<name>WorkspaceWidget_FormInteraction</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
 		<extension point="cerberusweb.ui.workspace.widget">
 			<id>core.workspace.widget.record.fields</id>
 			<name>Record Fields</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/record_fields.php</file>
 				<name>WorkspaceWidget_RecordFields</name>
 			</class>
 			<params>
@@ -6827,8 +6875,19 @@
 			<id>core.workspace.widget.scatterplot</id>
 			<name>(Deprecated) Scatterplot</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/deprecated/scatterplot.php</file>
 				<name>WorkspaceWidget_Scatterplot</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+		
+		<extension point="cerberusweb.ui.workspace.widget">
+			<id>core.workspace.widget.sheet</id>
+			<name>Sheet</name>
+			<class>
+				<file>api/workspaces/widgets/sheet.php</file>
+				<name>WorkspaceWidget_Sheet</name>
 			</class>
 			<params>
 			</params>
@@ -6838,7 +6897,7 @@
 			<id>core.workspace.widget.subtotals</id>
 			<name>(Deprecated) Subtotals</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/deprecated/subtotals.php</file>
 				<name>WorkspaceWidget_Subtotals</name>
 			</class>
 			<params>
@@ -6849,7 +6908,7 @@
 			<id>core.workspace.widget.worklist</id>
 			<name>Worklist</name>
 			<class>
-				<file>api/uri/internal/dashboards.php</file>
+				<file>api/workspaces/widgets/worklist.php</file>
 				<name>WorkspaceWidget_Worklist</name>
 			</class>
 			<params>

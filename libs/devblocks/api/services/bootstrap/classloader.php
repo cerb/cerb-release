@@ -164,6 +164,9 @@ class _DevblocksClassLoadManager {
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/bayes_classifier.php', array(
 			'_DevblocksBayesClassifierService',
 		));
+		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/captcha.php', [
+			'_DevblocksCaptchaService',
+		]);
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/data.php', array(
 			'_DevblocksDataService',
 		));
@@ -229,6 +232,10 @@ class _DevblocksClassLoadManager {
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/settings.php', array(
 			'_DevblocksPluginSettingsManager',
 		));
+		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/sheet.php', [
+			'_DevblocksSheetService',
+			'_DevblocksSheetServiceTypes',
+		]);
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/storage.php', array(
 			'_DevblocksStorageManager',
 			'DevblocksStorageEngineDatabase',
@@ -254,8 +261,9 @@ class _DevblocksClassLoadManager {
 			'_DevblocksUrlManager',
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/validation.php', array(
-			'Exception_DevblocksValidationError',
 			'_DevblocksValidationService',
+			'DevblocksValidationField',
+			'Exception_DevblocksValidationError',
 		));
 		
 		return true;

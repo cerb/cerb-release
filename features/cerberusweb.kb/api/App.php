@@ -43,7 +43,7 @@
 class ChKbPage extends CerberusPageExtension {
 	function isVisible() {
 		// The current session must be a logged-in worker to use this page.
-		if(null == ($worker = CerberusApplication::getActiveWorker()))
+		if(null == (CerberusApplication::getActiveWorker()))
 			return false;
 		return true;
 	}
@@ -126,7 +126,7 @@ class ChKbPage extends CerberusPageExtension {
 };
 
 class WorkspaceWidget_KnowledgebaseBrowser extends Extension_WorkspaceWidget {
-	function render(Model_WorkspaceWidget $widget, $refresh_options=[]) {
+	function render(Model_WorkspaceWidget $widget) {
 		@$root_category_id = intval($widget->params['topic_id']);
 		
 		$this->_renderCategory($root_category_id, $widget);
@@ -156,7 +156,7 @@ class WorkspaceWidget_KnowledgebaseBrowser extends Extension_WorkspaceWidget {
 		@$topic_id = intval($params['topic_id']);
 		
 		// Make sure it's a valid topic
-		if(false == ($topic = DAO_KbCategory::get($topic_id)))
+		if(false == (DAO_KbCategory::get($topic_id)))
 			$params['topic_id'] = 0;
 		
 		DAO_WorkspaceWidget::update($widget->id, [
@@ -176,7 +176,6 @@ class WorkspaceWidget_KnowledgebaseBrowser extends Extension_WorkspaceWidget {
 	
 	private function _renderCategory($category_id=0, Model_WorkspaceWidget $widget) {
 		$tpl = DevblocksPlatform::services()->template();
-		$visit = CerberusApplication::getVisit();
 		$translate = DevblocksPlatform::getTranslationService();
 
 		$tpl->assign('widget', $widget);
@@ -255,7 +254,7 @@ class ChKbReplyToolbarButton extends Extension_ReplyToolbarItem {
 class ChKbAjaxController extends DevblocksControllerExtension {
 	function isVisible() {
 		// The current session must be a logged-in worker to use this page.
-		if(null == ($worker = CerberusApplication::getActiveWorker()))
+		if(null == (CerberusApplication::getActiveWorker()))
 			return false;
 		return true;
 	}
@@ -268,8 +267,9 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 			return;
 		
 		$path = $request->path;
-		$controller = array_shift($path); // timetracking
-
+		
+		array_shift($path); // Controller
+		
 		@$action = DevblocksPlatform::strAlphaNum(array_shift($path), '\_') . 'Action';
 
 		switch($action) {
@@ -288,7 +288,7 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 
 	function getArticleContentAction() {
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer',0);
-
+		
 		$tpl = DevblocksPlatform::services()->template();
 		
 		// [TODO] ACL
@@ -296,7 +296,7 @@ class ChKbAjaxController extends DevblocksControllerExtension {
 		
 		if(null == ($article = DAO_KbArticle::get($id)))
 			return;
-
+		
 		$tpl->assign('body', $article->getContent());
 		
 		$tpl->display('devblocks:cerberusweb.core::internal/html_editor/preview.tpl');
@@ -324,7 +324,7 @@ class ProfileWidget_KbArticle extends Extension_ProfileWidget {
 		parent::__construct($manifest);
 	}
 
-	function render(Model_ProfileWidget $model, $context, $context_id, $refresh_options=[]) {
+	function render(Model_ProfileWidget $model, $context, $context_id) {
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		

@@ -1834,6 +1834,7 @@ abstract class C4_AbstractView {
 			
 			$field = array(
 				'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+				'score' => 500,
 				'options' => [
 					'param_key' => $param_key
 				],
@@ -2257,257 +2258,284 @@ abstract class C4_AbstractView {
 		$this->renderPage = 0;
 	}
 	
-	// [TODO] Cache this?
-	function getQuickSearchMenu() {
-		$active_worker = CerberusApplication::getActiveWorker();
+	function getQueryAutocompleteSuggestions() {
+		$suggestions = [
+			'' => [],
+			'_contexts' => [],
+		];
 		
-		if(!$this instanceof IAbstractView_QuickSearch)
-			return;
+		$query_fields = $this->getQuickSearchFields();
 		
-		$menu = [];
-		
-		$view_context = $this->getContext();
-		
-		// Saved searches
-		
-		if(false != ($view_context = $this->getContext())) { 
-			$presets_menu = new DevblocksMenuItemPlaceholder();
-
-			// Load saved searches for this context type
-			$searches = DAO_ContextSavedSearch::getUsableByActor($active_worker, $view_context);
+		foreach($query_fields as $query_field_key => $query_field) {
+			$suggestion_key = $query_field_key . ':'; 
+			$suggestion = $suggestion_key;
 			
-			if(is_array($searches))
-			foreach($searches as $search) {
-				if(empty($search->query))
-					continue;
-				
-				$item = new DevblocksMenuItemPlaceholder();
-				$item->label = $search->name;
-				$item->l = $search->name;
-				$item->key = $search->query;
-				$presets_menu->children[$search->id] = $item;
+			// Type-specific suggestions
+			switch($query_field['type']) {
+				case 'bool':
+					$suggestions[$suggestion_key] = [
+						'yes',
+						'no',
+					];
+					break;
+					
+				case 'context':
+					$suggestion = [
+						'caption' => $suggestion_key,
+						'snippet' => $suggestion_key . '[${1}]',
+					];
+					break;
+					
+				case 'date':
+					$suggestions[$suggestion_key] = [
+						[
+							'caption' => '(date range)',
+							'snippet' => '"${1:-1 week} to ${2:now}"'
+						],
+					];
+					break;
+					
+				case 'decimal':
+					$suggestions[$suggestion_key] = [
+						[
+							'caption' => '(equals)',
+							'snippet' => '${1:3.14}'
+						],
+						[
+							'caption' => '(not)',
+							'snippet' => '!${1:3.14}'
+						],
+						[
+							'caption' => '(greater than)',
+							'snippet' => '>${1:3.14}'
+						],
+						[
+							'caption' => '(less than)',
+							'snippet' => '<${1:3.14}'
+						],
+						[
+							'caption' => '(in set)',
+							'snippet' => '[${1:3.14},${2:1.234}]'
+						],
+					];
+					break;
+					
+				case 'fulltext':
+					if (array_key_exists('examples', $query_field)) {
+						$suggestions[$suggestion_key] = [];
+						
+						foreach($query_field['examples'] as $example) {
+							$suggestions[$suggestion_key][] = $example . ' ';
+						}
+						
+					} else {
+						//var_dump($query_field);
+					}
+					break;
+					
+				case 'geo_point':
+					break;
+					
+				case 'number':
+					$suggestions[$suggestion_key] = [
+						[
+							'caption' => '(equals)',
+							'snippet' => '${1:1234}'
+						],
+						[
+							'caption' => '(not)',
+							'snippet' => '!${1:1234}'
+						],
+						[
+							'caption' => '(greater than)',
+							'snippet' => '>${1:1234}'
+						],
+						[
+							'caption' => '(less than)',
+							'snippet' => '<${1:1234}'
+						],
+						[
+							'caption' => '(between)',
+							'snippet' => '${1:1}...${2:100}'
+						],
+						[
+							'caption' => '(in set)',
+							'snippet' => '[${1:1},${2:2}]'
+						],
+					];
+					break;
+					
+				case 'number_seconds':
+					$suggestions[$suggestion_key] = [
+						[
+							'caption' => '(human readable time)',
+							'snippet' => '"${1:5 mins}"'
+						],
+					];
+					break;
+					
+				case 'text':
+					if(array_key_exists('suggester', $query_field)) {
+						$suggestions[$suggestion_key] = [
+							'_type' => 'autocomplete',
+							'query' => $query_field['suggester']['query'],
+							'key' => $query_field['suggester']['key'],
+							'limit' => @$query_field['suggester']['limit'] ?: 0,
+							'min_length' => @$query_field['suggester']['min_length'] ?: 0,
+						];
+						
+					} else if(array_key_exists('examples', $query_field)) {
+						$suggestions[$suggestion_key] = [];
+						
+						foreach($query_field['examples'] as $example) {
+							$suggestions[$suggestion_key][] = $example;
+						}
+					} else {
+						$suggestions[$suggestion_key] = [
+							[
+								'caption' => '(string)',
+								'snippet' => '"${1}"',
+							],
+						];
+					}
+					break;
+					
+				case 'virtual':
+					if('search' == @$query_field['examples'][0]['type']) {
+						$suggestion = [
+							'caption' => $suggestion_key,
+							'snippet' => $suggestion_key . '(${1})',
+						];
+						
+						$suggestions['_contexts'][$suggestion_key] = $query_field['examples'][0]['context'];
+						
+					} else if('chooser' == @$query_field['examples'][0]['type']) {
+						$suggestion = [
+							'caption' => $suggestion_key,
+							'snippet' => $suggestion_key . '[${1}]',
+						];
+						
+						$suggestions['_contexts'][$suggestion_key] = $query_field['examples'][0]['context'];
+						
+					} else if (array_key_exists('examples', $query_field)) {
+						$suggestions[$suggestion_key] = [];
+						
+						foreach($query_field['examples'] as $example) {
+							$suggestions[$suggestion_key][] = $example;
+						}
+					}
+					break;
+					
+				case 'worker':
+					break;
+					
+				default:
+					if (array_key_exists('examples', $query_field)) {
+						$suggestions[$suggestion_key] = [];
+						
+						foreach($query_field['examples'] as $example) {
+							$suggestions[$suggestion_key][] = $example;
+						}
+						
+					} else {
+						error_log(json_encode($query_field));
+					}
+					break;
 			}
 			
-			$menu['(saved searches)'] = $presets_menu;
-		}
-		
-		// Operators
-		
-		$oper_menu = new DevblocksMenuItemPlaceholder();
-		
-		$item = new DevblocksMenuItemPlaceholder();
-		$item->label = 'AND';
-		$item->l = 'AND';
-		$item->key = 'AND';
-		$oper_menu->children['AND'] = $item;
-		
-		$item = new DevblocksMenuItemPlaceholder();
-		$item->label = 'OR';
-		$item->l = 'OR';
-		$item->key = 'OR';
-		$oper_menu->children['OR'] = $item;
-		
-		$menu['(operators)'] = $oper_menu;
-		
-		// Placeholders
-		
-		$placeholders_menu = new DevblocksMenuItemPlaceholder();
-		$labels = $this->getPlaceholderLabels();
-		
-		if(!empty($labels)) {
-			$keys = array_map(function($key) {
-				return '{{' . $key . '}}';
-			}, array_keys($labels));
-
-			$values = array_column($labels, 'label');
-			
-			if(count($keys) == count($values)) {
-				$labels = array_combine($keys, $values);
-				$placeholders_menu->children = Extension_DevblocksContext::getPlaceholderTree($labels, ' ', '_');
-				$menu['(placeholders)'] = $placeholders_menu;
+			if(array_key_exists('score', $query_field)) {
+				if(is_array($suggestion)) {
+					$suggestion['score'] = $query_field['score'];
+					
+				} else if (is_string($suggestion)) {
+					$suggestion = [
+						'value' => $suggestion,
+						'score' => $query_field['score'],
+					];
+				}
 			}
+			
+			// Add to top-level suggestions
+			$suggestions[''][] = $suggestion;
 		}
 		
-		// Search fields
+		$suggestions[''][] = [
+			'caption' => 'limit:',
+			'snippet' => 'limit:${1:25}'
+		];
 		
-		$search_fields = $this->getQuickSearchFields();
-		$params = $this->getParamsAvailable();
+		$search_params = $this->getParamsAvailable();
 		
 		// Sort
 		
-		$sort_menu = new DevblocksMenuItemPlaceholder();
+		$suggestions[''][] = [
+			'caption' => 'sort:',
+			'snippet' => 'sort:[${1}]'
+		];
+		$suggestions['sort:'] = [];
 		
-		foreach($search_fields as $field_key => $field) {
+		foreach($query_fields as $field_key => $field) {
 			if(!$field['is_sortable'])
 				continue;
 			
-			if(false == ($param = @$params[$field['options']['param_key']]))
+			if(false == (@$search_params[$field['options']['param_key']]))
 				continue;
 			
-			$item = new DevblocksMenuItemPlaceholder();
-			$item->label = $field_key;
-			$item->l = $field_key;
-			$item->key = 'sort:'.$field_key;
-			
-			$item_asc = new DevblocksMenuItemPlaceholder();
-			$item_asc->label = 'ascending';
-			$item_asc->l = 'ascending';
-			$item_asc->key = 'sort:'.$field_key;
-			$item->children['ascending'] = $item_asc;
-			
-			$item_desc = new DevblocksMenuItemPlaceholder();
-			$item_desc->label = 'descending';
-			$item_desc->l = 'descending';
-			$item_desc->key = 'sort:-'.$field_key;
-			$item->children['descending'] = $item_desc;
-			
-			$sort_menu->children[$field_key] = $item;
+			$suggestions['sort:'][] = $field_key;
 		}
 		
-		$menu['(sort)'] = $sort_menu;
-		
-		// Subtotals
+		// Subtotal
 		
 		if($this instanceof IAbstractView_Subtotals) {
-			$subtotals_menu = new DevblocksMenuItemPlaceholder();
+			$suggestions[''][] = [
+				'caption' => 'subtotal:',
+				'snippet' => 'subtotal:[${1}]'
+			];
+			$suggestions['subtotal:'] = $this->getQueryAutocompleteFieldSuggestions();
+		}
+		
+		// Saved searches
+		
+		if(false != ($view_context = $this->getContext()) 
+			&& false != ($active_worker = CerberusApplication::getActiveWorker())
+		) {
+			$searches = DAO_ContextSavedSearch::getUsableByActor($active_worker, $view_context);
 			
-			$subtotal_fields = $this->getSubtotalFields();
-			
-			foreach($search_fields as $field_key => $field) {
-				if(false == ($param = @$params[$field['options']['param_key']]))
-					continue;
-				
-				if(!array_key_exists($param->token, $subtotal_fields))
-					continue;
-				
-				$item = new DevblocksMenuItemPlaceholder();
-				$item->label = $field_key;
-				$item->l = $field_key;
-				$item->key = 'subtotal:'.$field_key;
-				
-				$subtotals_menu->children[$field_key] = $item;
+			foreach($searches as $search) {
+				$suggestions[''][] = [
+					'caption' => '#' . $search->tag,
+					'snippet' => $search->query,
+					'suppress_autocomplete' => true,
+				];
 			}
-			
-			$menu['(subtotal)'] = $subtotals_menu;
 		}
 		
-		// Fields
+		return $suggestions;
+	}
+	
+	function getQueryAutocompleteFieldSuggestions($types=null) {
+		$suggestions = [];
 		
-		if(!empty($search_fields)) {
-			$labels = array_keys($search_fields);
-			$keys = array_map(function($field) {
-				return $field.':';
-			}, $labels);
+		if($this instanceof IAbstractView_Subtotals) {
+			$query_fields = $this->getQuickSearchFields();
+			$search_params = $this->getParamsAvailable();
 			
-			$tree = Extension_DevblocksContext::getPlaceholderTree(array_combine($keys, $labels), '.', '.');
-			
-			$recurseAddOptions = null;
-			$recurseAddOptions = function(DevblocksMenuItemPlaceholder &$node) use (&$recurseAddOptions, $search_fields) {
-				$key = substr($node->key, 0, -1);
+			foreach($query_fields as $field_key => $field) {
+				if(false == (@$search_params[$field['options']['param_key']]))
+					continue;
 				
-				foreach($node->children as $child)
-					$recurseAddOptions($child);
+				// Filter types
+				if($types && !in_array($field['type'], $types))
+					continue;
 				
-				if(!isset($search_fields[$key]))
-					return;
+				if('links.' == $field_key || DevblocksPlatform::strStartsWith($field_key, ['links.']))
+					continue;
 				
-				if(!isset($search_fields[$key]['examples'])) {
-					switch($search_fields[$key]['type']) {
-						case DevblocksSearchCriteria::TYPE_BOOL:
-							$search_fields[$key]['examples'] = [
-								'yes',
-								'no',
-							];
-							break;
-							
-						case DevblocksSearchCriteria::TYPE_DATE:
-							$search_fields[$key]['examples'] = [
-								'"-2 hours"',
-								sprintf('"%s-01-01 to %s"', date('Y'), date('Y-m-d')),
-								'"-1 month to now"',
-								'"big bang to -1 year"',
-							];
-							break;
-							
-						case DevblocksSearchCriteria::TYPE_NUMBER:
-							$search_fields[$key]['examples'] = [
-								'50',
-								'<10',
-								'>=25',
-								'1...100',
-								'!10',
-							];
-							break;
-					}
-				}
-				
-				if(isset($search_fields[$key]['examples'])) {
-					$examples_menu = new DevblocksMenuItemPlaceholder();
-					
-					foreach($search_fields[$key]['examples'] as $example) {
-						
-						// Literal example
-						if(is_string($example)) {
-							$item = new DevblocksMenuItemPlaceholder();
-							$item->label = $example;
-							$item->l = $example;
-							$item->key = $node->key . $example;
-							$examples_menu->children[$example] = $item;
-							
-						// Structured example
-						} else if(is_array($example)) {
-							switch($example['type']) {
-								case 'chooser':
-									$item = new DevblocksMenuItemPlaceholder();
-									$item->label = '(chooser)';
-									$item->l = '(chooser)';
-									$item->key = $node->key;
-									$item->type = $example['type'];
-									$item->params = $example;
-									$node->children[$example['label']] = $item;
-									break;
-								
-								case 'list':
-									$key_delimiter = @$example['key_delimiter'] ?: ' ';
-									$label_delimiter = @$example['label_delimiter'] ?: ' ';
-									
-									$values = array_combine(
-										array_map(function($k) use ($node) {
-											return $node->key . $k;
-										}, array_keys($example['values'])),
-										$example['values']
-									);
-									
-									$node->children = Extension_DevblocksContext::getPlaceholderTree($values, $label_delimiter, $key_delimiter);
-									break;
-									
-								case 'search':
-									$item = new DevblocksMenuItemPlaceholder();
-									$item->label = '(search)';
-									$item->l = '(search)';
-									$item->key = $node->key;
-									$item->type = $example['type'];
-									$item->params = $example;
-									$node->children[$example['label']] = $item;
-									break;
-							}
-						}
-					}
-					
-					if(!empty($examples_menu))
-						$node->children['(examples)'] = $examples_menu;
-				}
-			};
-
-			if(is_array($tree))
-			foreach($tree as $node)
-				$recurseAddOptions($node);
-			
-			foreach($tree as $k => $v)
-				$menu[$k] = $v;
+				$suggestions[] = $field_key;
+			}
 		}
 		
-		return $menu;
+		return $suggestions;
 	}
 	
 	function renderSubtotals() {

@@ -239,7 +239,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	 * @return Extension_DevblocksContext[]
 	 */
 	public static function getAll($as_instances=false, $with_options=null) {
-		$contexts = DevblocksPlatform::getExtensions('devblocks.context', $as_instances);
+		$contexts = DevblocksPlatform::getExtensions('devblocks.context', $as_instances, false);
 		
 		if(
 			class_exists('DAO_CustomRecord', true)
@@ -310,11 +310,6 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 				}
 			}
 			
-			if($as_instances)
-				DevblocksPlatform::sortObjects($contexts, 'manifest->name');
-			else
-				DevblocksPlatform::sortObjects($contexts, 'name');
-	
 			if(!empty($with_options)) {
 				if(!is_array($with_options))
 					$with_options = array($with_options);
@@ -332,8 +327,23 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 				}
 			}
 		}
-
+		
+		if($as_instances)
+			DevblocksPlatform::sortObjects($contexts, 'manifest->name');
+		else
+			DevblocksPlatform::sortObjects($contexts, 'name');
+		
 		return $contexts;
+	}
+	
+	public static function getUris() {
+		$uris = array_map(function($mft) {
+			return $mft->params['alias'];
+		}, Extension_DevblocksContext::getAll(false));
+		
+		asort($uris);
+		
+		return $uris;
 	}
 	
 	/**
@@ -3802,7 +3812,7 @@ class DevblocksHttpResponse extends DevblocksHttpIO {
 	/**
 	 * @param array $path
 	 */
-	function __construct($path, $query=[]) {
+	function __construct($path=[], $query=[]) {
 		parent::__construct($path, $query);
 	}
 };
@@ -3833,7 +3843,7 @@ class _DevblocksSortHelper {
 		foreach($props as $prop) {
 			$is_index = false;
 
-			if(DevblocksPlatform::strStartsWith($prop, '[')) {
+			if('[' == $prop[0]) {
 				$is_index = true;
 				$prop = trim($prop,'[]');
 			}

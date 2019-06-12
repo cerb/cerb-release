@@ -15,7 +15,10 @@ class _DevblocksDataProviderWorklistGeoPoints extends _DevblocksDataProvider {
 			if(!($field instanceof DevblocksSearchCriteria))
 				continue;
 			
-			if($field->key == 'format') {
+			if($field->key == 'type') {
+				// Do nothing
+				
+			} else if($field->key == 'format') {
 				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
 				$chart_model['format'] = $value;
 				
@@ -40,7 +43,10 @@ class _DevblocksDataProviderWorklistGeoPoints extends _DevblocksDataProvider {
 				$series_context = null;
 				
 				foreach($series_fields as $series_field) {
-					if($series_field->key == 'of') {
+					if(in_array($series_field->key, ['point'])) {
+						// Do nothing
+						
+					} else if($series_field->key == 'of') {
 						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
 						if(false == ($series_context = Extension_DevblocksContext::getByAlias($value, true)))
 							continue;
@@ -55,6 +61,15 @@ class _DevblocksDataProviderWorklistGeoPoints extends _DevblocksDataProvider {
 						$data_query = CerbQuickSearchLexer::getTokensAsQuery($series_field->tokens);
 						$data_query = substr($data_query, 1, -1);
 						$series_model['query'] = $data_query;
+						
+					} else if(in_array($series_field->key, ['query.require','query.required'])) {
+						$data_query = CerbQuickSearchLexer::getTokensAsQuery($series_field->tokens);
+						$data_query = substr($data_query, 1, -1);
+						$series_model['query_required'] = $data_query;
+						
+					} else {
+						$error = sprintf("The series parameter '%s' is unknown.", $series_field->key);
+						return false;
 					}
 				}
 				
@@ -91,6 +106,10 @@ class _DevblocksDataProviderWorklistGeoPoints extends _DevblocksDataProvider {
 				}
 				
 				$chart_model['series'][] = $series_model;
+				
+			} else {
+				$error = sprintf("The parameter '%s' is unknown.", $field->key);
+				return false;
 			}
 		}
 		
@@ -102,11 +121,13 @@ class _DevblocksDataProviderWorklistGeoPoints extends _DevblocksDataProvider {
 				continue;
 			
 			@$query = $series['query'];
+			@$query_required = $series['query_required'];
 			
 			$context_ext = Extension_DevblocksContext::get($series['context'], true);
 			$dao_class = $context_ext->getDaoClass();
 			$search_class = $context_ext->getSearchClass();
 			$view = $context_ext->getTempView();
+			$view->addParamsRequiredWithQuickSearch($query_required);
 			$view->addParamsWithQuickSearch($query);
 			
 			$query_parts = $dao_class::getSearchQueryComponents(

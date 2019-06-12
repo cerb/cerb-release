@@ -43,7 +43,7 @@ class Controller_Portal extends DevblocksControllerExtension {
 		$code = $tool->code;
 		$request->path[1] = $code;
 		
-		ChPortalHelper::setCode($code);
+		ChPortalHelper::setPortal($tool);
 		
 		// Resource proxy
 		if(current($stack) == 'resource') {
@@ -118,16 +118,27 @@ class Controller_Portal extends DevblocksControllerExtension {
 };
 
 class ChPortalHelper {
-	static private $_code = null;
+	static private $_portal = null;
 	static private $_session_id = null;
-	static private $_sessions_cache = array();
+	static private $_sessions_cache = [];
 	
-	public static function getCode() {
-		return self::$_code;
+	/**
+	 * 
+	 * @return Model_CommunityTool|NULL
+	 */
+	public static function getPortal() {
+		return self::$_portal;
 	}
 	
-	public static function setCode($code) {
-		self::$_code = $code;
+	public static function setPortal(Model_CommunityTool $portal) {
+		self::$_portal = $portal;
+	}
+	
+	public static function getCode() {
+		if(false == ($portal = self::getPortal()))
+			return null;
+		
+		return $portal->code;
 	}
 	
 	/**
@@ -137,15 +148,15 @@ class ChPortalHelper {
 		$session_id = self::$_session_id;
 		$url_writer = DevblocksPlatform::services()->url();
 		
-		if(empty(self::$_code))
+		if(false == ($portal = self::$_portal))
 			return false;
 		
 		if(empty($session_id)) {
-			$cookie_name = 'CerbPortal' . self::$_code;
+			$cookie_name = 'CerbPortal' . $portal->code;
 			@$session_id = DevblocksPlatform::importGPC($_COOKIE[$cookie_name],'string','');
 			
 			if(empty($session_id)) {
-				$session_id = sha1(DevblocksPlatform::getClientIp() . self::getCode() . uniqid());
+				$session_id = sha1(DevblocksPlatform::getClientIp() . $portal->code . random_bytes(32));
 				setcookie($cookie_name, $session_id, 0, '/', null, $url_writer->isSSL(), true);
 			}
 			
@@ -155,14 +166,16 @@ class ChPortalHelper {
 			self::$_session_id = $session_id;
 		}
 		
+		$cache_key = sha1($session_id.':'.$portal->id);
+		
 		// Did we cache the lookup?
-		if(!isset(self::$_sessions_cache[$session_id])) {
-			$session = DAO_CommunitySession::get($session_id);
+		if(!array_key_exists($cache_key, self::$_sessions_cache)) {
+			$session = DAO_CommunitySession::get($session_id, $portal->id);
 		
 			// Cache it
-			self::$_sessions_cache[$session_id] = $session;
+			self::$_sessions_cache[$cache_key] = $session;
 		}
-			
-		return self::$_sessions_cache[$session_id];
+		
+		return self::$_sessions_cache[$cache_key];
 	}
 };

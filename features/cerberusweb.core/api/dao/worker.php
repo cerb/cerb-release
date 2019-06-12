@@ -1913,7 +1913,37 @@ class Model_Worker {
 		
 		return @$genders[$this->gender];
 	}
-
+	
+	function getPagesMenu() {
+		$cache = DevblocksPlatform::services()->cache();
+		$cache_key = sprintf("worker:%d:pages_menu", $this->id);
+		
+		if(null === ($pages_menu = $cache->load($cache_key))) {
+			$menu = DAO_WorkerPref::getAsJson($this->id, 'menu_json','');
+			$menu_pages = DAO_WorkspacePage::getIds($menu);
+			
+			$pages_menu = [];
+			
+			foreach($menu_pages as $menu_page) {
+				$pages_menu[$menu_page->id] = [
+					'id' => $menu_page->id,
+					'name' => $menu_page->name,
+					'tabs' => $menu_page->getTabs($this),
+				];
+			}
+			
+			$cache->save($pages_menu, $cache_key, ['schema_workspaces'], 86400);
+		}
+		
+		return $pages_menu;
+	}
+	
+	function clearPagesMenuCache() {
+		$cache = DevblocksPlatform::services()->cache();
+		$cache_key = sprintf("worker:%d:pages_menu", $this->id);
+		$cache->remove($cache_key);
+	}
+	
 	/**
 	 * 
 	 * @return array
@@ -2365,9 +2395,10 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			'email' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'score' => 1500,
 					'options' => array('param_key' => SearchFields_Worker::VIRTUAL_EMAIL_SEARCH),
 					'examples' => [
-						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_ADDRESS, 'q' => ''],
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_ADDRESS, 'q' => ''],
 					]
 				),
 			'fieldset' =>
@@ -2381,12 +2412,24 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			'firstName' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'score' => 1501,
 					'options' => array('param_key' => SearchFields_Worker::FIRST_NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX),
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:workers by:firstName~25 query:(firstName:{{term}}*) format:dictionaries',
+						'key' => 'firstName',
+						'limit' => 25,
+					]
 				),
 			'gender' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_Worker::GENDER, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX),
+					'examples' => [
+						'male',
+						'female',
+						'unknown',
+					],
 				),
 			'group' => 
 				array(
@@ -2458,17 +2501,37 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			'lastName' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'score' => 1502,
 					'options' => array('param_key' => SearchFields_Worker::LAST_NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX),
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:workers by:lastName~25 query:(lastName:{{term}}*) format:dictionaries',
+						'key' => 'lastName',
+						'limit' => 25,
+					]
 				),
 			'location' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_Worker::LOCATION, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:workers by:location~25 query:(location:{{term}}*) format:dictionaries',
+						'key' => 'location',
+						'limit' => 25,
+					]
 				),
 			'mention' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'score' => 2000,
 					'options' => array('param_key' => SearchFields_Worker::AT_MENTION_NAME),
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:workers by:mention~25 query:(mention:{{term}}*) format:dictionaries',
+						'key' => 'mention',
+						'limit' => 25,
+					]
 				),
 			'mobile' => 
 				array(
@@ -2521,6 +2584,12 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_Worker::TITLE, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:workers by:title~25 query:(title:{{term}}*) format:dictionaries',
+						'key' => 'title',
+						'limit' => 25,
+					]
 				),
 			'updated' => 
 				array(
@@ -3238,7 +3307,7 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 	function getContext($worker, &$token_labels, &$token_values, $prefix=null) {
 		if(is_null($prefix))
 			$prefix = 'Worker:';
-			
+		
 		$translate = DevblocksPlatform::getTranslationService();
 		$url_writer = DevblocksPlatform::services()->url();
 		$fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_WORKER);

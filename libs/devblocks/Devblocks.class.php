@@ -38,6 +38,14 @@ class _DevblocksServices {
 	
 	/**
 	 * 
+	 * @return _DevblocksCaptchaService
+	 */
+	function captcha() {
+		return _DevblocksCaptchaService::getInstance();
+	}
+	
+	/**
+	 * 
 	 * @return _DevblocksClassLoadManager
 	 */
 	function classloader() {
@@ -181,6 +189,14 @@ class _DevblocksServices {
 	 */
 	function session() {
 		return _DevblocksSessionManager::getInstance();
+	}
+	
+	/**
+	 * 
+	 * @return _DevblocksSheetService
+	 */
+	function sheet() {
+		return _DevblocksSheetService::getInstance();
 	}
 	
 	/**
@@ -499,6 +515,9 @@ class DevblocksPlatform extends DevblocksEngine {
 	 */
 	static function dateLerpArray(array $array, $step, $format=null) {
 		// [TODO] Unit test
+		
+		if(empty($array))
+			return [];
 		
 		if(!$format) {
 			$formats = [
@@ -2026,8 +2045,29 @@ class DevblocksPlatform extends DevblocksEngine {
 		if($as_html)
 			$string = html_entity_decode($string, ENT_QUOTES, LANG_CHARSET_CODE);
 		
+		// Detect Markdown links
+		$out = preg_replace_callback('@\[(.*?)\]\((.*?)\)@', function($matches) use ($as_html, &$replacements) {
+			if(rtrim($matches[1],'/') == rtrim($matches[2],'/'))
+				return $matches[2];
+			
+			$url_label = $matches[1];
+			$url = $matches[2];
+			
+			return sprintf('%s <%s>',
+				$url_label,
+				$url
+			);
+		}, $string);
+		
 		// See: https://daringfireball.net/2010/07/improved_regex_for_matching_urls
-		$out = preg_replace_callback('@(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))@', function($matches) use ($as_html, &$replacements) {
+		// See: https://gist.github.com/gruber/249502#gistcomment-1328838
+		// Gruber2/cscott
+		$out = preg_replace_callback('/\b((?:[a-z][\w\-]+:(?:\/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}\/)(?:[^\s()<>]|\((?:[^\s()<>]|(?:\([^\s()<>]+\)))*\))+(?:\((?:[^\s()<>]|(?:\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))/i', function($matches) use ($as_html, &$replacements) {
+			// Ignore if it contains a : but not ://
+			if(false !== strpos($matches[1], ':') && false === strpos($matches[1], '://')) {
+				return $matches[1];
+			}
+			
 			$token = sprintf('{{{URL_%d}}}', count($replacements));
 			$url = $url_label = $matches[0];
 			
@@ -2041,10 +2081,11 @@ class DevblocksPlatform extends DevblocksEngine {
 			);
 			
 			return $token;
-		}, $string);
+		}, $out);
 		
-		if(is_null($out))
+		if(is_null($out)) {
 			$out = $string;
+		}
 		
 		if($as_html)
 			$out = htmlentities($out, ENT_QUOTES, LANG_CHARSET_CODE);
@@ -2601,7 +2642,7 @@ class DevblocksPlatform extends DevblocksEngine {
 	 * @param string $point
 	 * @return DevblocksExtensionManifest[]
 	 */
-	static function getExtensions($point, $as_instances=false) {
+	static function getExtensions($point, $as_instances=false, $sorted=true) {
 		$results = array();
 		$extensions = DevblocksPlatform::getExtensionRegistry();
 
@@ -2612,10 +2653,12 @@ class DevblocksPlatform extends DevblocksEngine {
 			}
 		}
 		
-		if($as_instances)
-			DevblocksPlatform::sortObjects($results, 'manifest->name');
-		else
-			DevblocksPlatform::sortObjects($results, 'name');
+		if($sorted) {
+			if($as_instances)
+				DevblocksPlatform::sortObjects($results, 'manifest->name');
+			else
+				DevblocksPlatform::sortObjects($results, 'name');
+		}
 		
 		return $results;
 	}
@@ -3012,6 +3055,7 @@ class DevblocksPlatform extends DevblocksEngine {
 		}
 		
 		DevblocksPlatform::clearCache(DevblocksPlatform::CACHE_PLUGINS);
+		DevblocksPlatform::services()->classloader()->destroy();
 		
 		return $plugins;
 	}
@@ -3092,10 +3136,10 @@ class DevblocksPlatform extends DevblocksEngine {
 		return _DevblocksEventManager::getInstance();
 	}
 	
-	static function setRegistryKey($key, $value, $as=DevblocksRegistryEntry::TYPE_STRING, $persist=false) {
+	static function setRegistryKey($key, $value, $as=DevblocksRegistryEntry::TYPE_STRING, $persist=false, $expires_at=0) {
 		$registry = DevblocksPlatform::services()->registry();
 		$registry->set($key, $value, $as);
-		$registry->persist($key, $persist);
+		$registry->persist($key, $persist, $expires_at);
 	}
 	
 	static function getRegistryKey($key, $as=DevblocksRegistryEntry::TYPE_STRING, $default=null) {

@@ -4226,28 +4226,9 @@ class ChInternalController extends DevblocksControllerExtension {
 		
 		$tpl->assign('event', $ext_event);
 		
-		// Format custom values
-		
-		if(is_array($trigger->variables))
-		foreach($trigger->variables as $var_key => $var) {
-			if(!empty($var['is_private']))
-				continue;
-			
-			if(!isset($custom_values[$var_key]))
-				continue;
-			
-			try {
-				$custom_values[$var_key] = $trigger->formatVariable($var, $custom_values[$var_key]);
-				
-			} catch(Exception $e) {
-				
-			}
-		}
-		
-		// Merge baseline values with user overrides
+		// Values
 		
 		$values = $ext_event->getValues();
-		$values = array_merge($values, $custom_values);
 		
 		// Get conditions
 		
@@ -4269,6 +4250,23 @@ class ChInternalController extends DevblocksControllerExtension {
 		// Dictionary
 		
 		$dict = new DevblocksDictionaryDelegate($values);
+		
+		// Format custom values
+		
+		if(is_array($trigger->variables))
+		foreach($trigger->variables as $var_key => $var) {
+			if(!empty($var['is_private']))
+				continue;
+			
+			if(!isset($custom_values[$var_key]))
+				continue;
+			
+			try {
+				$custom_value = $trigger->formatVariable($var, $custom_values[$var_key], $dict);
+				$dict->set($var_key, $custom_value);
+				
+			} catch(Exception $e) {}
+		}
 		
 		// [TODO] Update variables/values on assocated worklists
 		
@@ -4449,15 +4447,22 @@ class ChInternalController extends DevblocksControllerExtension {
 		
 		$variable_types = DAO_TriggerEvent::getVariableTypes();
 		$tpl->assign('variable_types', $variable_types);
-
+		
+		switch($type) {
+			case Model_CustomField::TYPE_LINK:
+				$context_mfts = Extension_DevblocksContext::getAll(false, ['va_variable']);
+				$tpl->assign('context_mfts', $context_mfts);
+				break;
+		}
+		
 		// New variable
-		$var = array(
+		$var = [
 			'key' => '',
 			'type' => $type,
 			'label' => 'New Variable',
 			'is_private' => 1,
-			'params' => array(),
-		);
+			'params' => [],
+		];
 		$tpl->assign('var', $var);
 		
 		$tpl->display('devblocks:cerberusweb.core::internal/decisions/editors/trigger_variable.tpl');
@@ -4767,12 +4772,16 @@ class ChInternalController extends DevblocksControllerExtension {
 	
 	function testDecisionEventSnippetsAction() {
 		@$prefix = DevblocksPlatform::importGPC($_REQUEST['prefix'],'string','');
+		@$response_format = DevblocksPlatform::importGPC($_REQUEST['format'],'string','');
 		@$trigger_id = DevblocksPlatform::importGPC($_REQUEST['trigger_id'],'integer',0);
-
+		
+		@$placeholders_yaml = DevblocksPlatform::importVar($_REQUEST[$prefix]['placeholder_simulator_yaml'], 'string', '');
+		$placeholders = DevblocksPlatform::services()->string()->yamlParse($placeholders_yaml, 0);
+		
 		$content = '';
 		
-		if(is_array($_REQUEST['field'])) {
-			@$fields = DevblocksPlatform::importGPC($_REQUEST['field'],'array',array());
+		if(array_key_exists('field', $_REQUEST) && is_array($_REQUEST['field'])) {
+			@$fields = DevblocksPlatform::importGPC($_REQUEST['field'],'array',[]);
 		
 			if(is_array($fields))
 			foreach($fields as $field) {
@@ -4788,11 +4797,16 @@ class ChInternalController extends DevblocksControllerExtension {
 		
 		if(null == ($trigger = DAO_TriggerEvent::get($trigger_id)))
 			return;
-			
+		
 		$event = $trigger->getEvent();
 		$event_model = $event->generateSampleEventModel($trigger);
 		$event->setEvent($event_model, $trigger);
 		$values = $event->getValues();
+		
+		if(is_array($placeholders))
+		foreach($placeholders as $placeholder_key => $placeholder_value) {
+			$values[$placeholder_key] = $placeholder_value;
+		}
 		
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		$tpl = DevblocksPlatform::services()->template();
@@ -4867,9 +4881,19 @@ class ChInternalController extends DevblocksControllerExtension {
 			}
 		}
 
-		$tpl->assign('success', $success);
-		$tpl->assign('output', $output);
-		$tpl->display('devblocks:cerberusweb.core::internal/renderers/test_results.tpl');
+		if('json' == $response_format) {
+			header('Content-Type: application/json; charset=utf-8');
+			
+			echo json_encode([
+				'status' => $success ? true : false,
+				'response' => $output
+			]);
+			
+		} else {
+			$tpl->assign('success', $success);
+			$tpl->assign('output', $output);
+			$tpl->display('devblocks:cerberusweb.core::internal/renderers/test_results.tpl');
+		}
 	}
 	
 	// Utils

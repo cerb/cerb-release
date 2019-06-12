@@ -291,6 +291,7 @@ class ChRest_Records extends Extension_RestController {
 	
 	private function _getContextRecord(DevblocksExtensionManifest $context, array $stack) {
 		@$id = intval(array_shift($stack));
+		@$show_meta = DevblocksPlatform::importVar($_REQUEST['show_meta'], 'boolean', false);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -313,17 +314,26 @@ class ChRest_Records extends Extension_RestController {
 			$context
 		);
 		
-		if(is_array($container) && isset($container['results']) && isset($container['results'][$id]))
-			$this->success($container['results'][$id]);
+		if(is_array($container) && isset($container['results']) && isset($container['results'][$id])) {
+			$container = $container['results'][$id];
+			
+			if($show_meta) {
+				$this->_includeContextMeta($context, $container);
+			}
+			
+			$this->success($container);
+		}
 
 		// Error
 		$this->error(self::ERRNO_NOT_FOUND, sprintf("Invalid record %s #%d", $context->id, $id));
 	}
 	
-	function search($filters=array(), $sortToken='id', $sortAsc=1, $page=1, $limit=10, $options=array(), DevblocksExtensionManifest $context) {
+	function search($filters=[], $sortToken='id', $sortAsc=1, $page=1, $limit=10, $options=[], DevblocksExtensionManifest $context) {
 		@$query = DevblocksPlatform::importVar($options['query'], 'string', null);
 		@$show_results = DevblocksPlatform::importVar($options['show_results'], 'boolean', true);
-		@$subtotals = DevblocksPlatform::importVar($options['subtotals'], 'array', array());
+		@$subtotals = DevblocksPlatform::importVar($options['subtotals'], 'array', []);
+		
+		$limit = DevblocksPlatform::intClamp($limit, 1, 500);
 		
 		$params = [];
 		
@@ -349,18 +359,14 @@ class ChRest_Records extends Extension_RestController {
 		if(!empty($subtotals))
 			$subtotal_data = $this->_handleSearchSubtotals($view, $subtotals);
 		
+		$objects = [];
+		
 		if($show_results) {
-			$objects = array();
-			
 			$models = CerberusContexts::getModels($context->id, array_keys($results));
+			$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, $context->id);
 			
-			unset($results);
-			
-			foreach($models as $id => $model) {
-				$labels = $values = [];
-				CerberusContexts::getContext($context->id, $model, $labels, $values, null, true);
-				$objects[$id] = $values;
-			}
+			foreach($dicts as $dict_id => $dict)
+				$objects[$dict_id] = $dict->getDictionary('', false);
 		}
 		
 		$container = [];
@@ -384,9 +390,32 @@ class ChRest_Records extends Extension_RestController {
 		if(!$context->hasOption('search')) {
 			$this->error(self::ERRNO_NOT_IMPLEMENTED);
 		}
-
+		
+		@$show_meta = DevblocksPlatform::importVar($_REQUEST['show_meta'], 'boolean', false);
+		
 		$container = $this->_handlePostSearch($context);
 		
+		if($show_meta) {
+			$this->_includeContextMeta($context, $container);
+		}
+		
 		$this->success($container);
+	}
+	
+	private function _includeContextMeta(DevblocksExtensionManifest $context, array &$container) {
+		$context_ext = $context->createInstance();
+		$token_labels = $token_values = [];
+		$context_ext->getContext(null, $token_labels, $token_values);
+		
+		$meta_dict = DevblocksDictionaryDelegate::instance($token_values);
+		$meta_dict->custom_;
+		
+		unset($token_labels);
+		unset($token_values);
+		
+		$container['_meta'] = [
+			'labels' => $meta_dict->_labels,
+			'types' => $meta_dict->_types,
+		];
 	}
 };

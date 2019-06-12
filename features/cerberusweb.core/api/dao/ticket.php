@@ -225,7 +225,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 
 		// If we found a hit on a ticket record, return the ID
 		if(!empty($ticket_id)) {
-			return $ticket_id;
+			return intval($ticket_id);
 			
 		// Check if this mask was previously forwarded elsewhere
 		} else {
@@ -235,7 +235,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			$ticket_id = $db->GetOneSlave($sql);
 			
 			if(!empty($ticket_id))
-				return $ticket_id;
+				return intval($ticket_id);
 		}
 
 		// No match
@@ -2326,6 +2326,7 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 				$search_field = $search_fields[$search_key];
 				
 				return [
+					'label' => DevblocksPlatform::translateCapitalized('common.status'),
 					'key_query' => $key,
 					'key_select' => $search_key,
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
@@ -3130,6 +3131,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			'bucket' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'group' => 1501,
 					'options' => array('param_key' => SearchFields_Ticket::VIRTUAL_BUCKET_SEARCH),
 					'examples' => [
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_BUCKET, 'q' => ''],
@@ -3137,7 +3139,10 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				),
 			'bucket.id' =>
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'type' => DevblocksSearchCriteria::TYPE_CONTEXT,
+					'type_options' => [
+						'context' => CerberusContexts::CONTEXT_BUCKET,
+					],
 					'options' => array('param_key' => SearchFields_Ticket::TICKET_BUCKET_ID),
 					'examples' => [
 						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_BUCKET, 'q' => ''],
@@ -3159,11 +3164,13 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			'created' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
+					'score' => 1400,
 					'options' => array('param_key' => SearchFields_Ticket::TICKET_CREATED_DATE),
 				),
 			'group' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'score' => 1502,
 					'options' => array('param_key' => SearchFields_Ticket::VIRTUAL_GROUP_SEARCH),
 					'examples' => [
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_GROUP, 'q' => ''],
@@ -3190,7 +3197,10 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				),
 			'id' =>
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'type' => DevblocksSearchCriteria::TYPE_CONTEXT,
+					'type_options' => [
+						'context' => CerberusContexts::CONTEXT_TICKET,
+					],
 					'options' => array('param_key' => SearchFields_Ticket::TICKET_ID),
 					'examples' => [
 						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_TICKET, 'q' => ''],
@@ -3209,6 +3219,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			'mask' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'score' => 1500,
 					'options' => array('param_key' => SearchFields_Ticket::TICKET_MASK, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX),
 					'examples' => array(
 						'ABC',
@@ -3255,6 +3266,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			'org' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'score' => 1500,
 					'options' => array('param_key' => SearchFields_Ticket::VIRTUAL_ORG_SEARCH),
 					'examples' => [
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_ORG, 'q' => ''],
@@ -3274,6 +3286,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			'owner' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'score' => 1500,
 					'options' => array('param_key' => SearchFields_Ticket::VIRTUAL_OWNER_SEARCH),
 					'examples' => [
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
@@ -3289,11 +3302,11 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				),
 			'participant' =>
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Ticket::REQUESTER_ADDRESS),
 					'examples' => [
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_ADDRESS, 'q' => ''],
-					]
+					],
 				),
 			'participant.id' =>
 				array(
@@ -3341,6 +3354,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			'status' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'score' => 1505,
 					'options' => array('param_key' => SearchFields_Ticket::VIRTUAL_STATUS),
 					'examples' => array(
 						'open',
@@ -3359,6 +3373,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			'updated' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
+					'score' => 1400,
 					'options' => array('param_key' => SearchFields_Ticket::TICKET_UPDATED_DATE),
 				),
 			'watchers' =>

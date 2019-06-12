@@ -425,6 +425,7 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 			Model_CustomField::TYPE_NUMBER => 'Number',
 			'contexts' => 'List:(Mixed Records)',
 			Model_CustomField::TYPE_DROPDOWN => 'Picklist',
+			Model_CustomField::TYPE_LINK => 'Record ID',
 			Model_CustomField::TYPE_SINGLE_LINE => 'Text',
 			Model_CustomField::TYPE_WORKER => 'Worker',
 			Model_CustomField::TYPE_CHECKBOX => 'Yes/No',
@@ -947,13 +948,26 @@ class Model_TriggerEvent {
 				
 			case Model_CustomField::TYPE_CURRENCY:
 			case Model_CustomField::TYPE_DECIMAL:
-			case Model_CustomField::TYPE_LINK:
 			case Model_CustomField::TYPE_NUMBER:
 				settype($value, 'integer');
 				break;
 				
+			case Model_CustomField::TYPE_LINK:
+				@$context = DevblocksPlatform::importVar($var['params']['context'], 'string', null);
+				
+				settype($value, 'integer');
+				
+				if($context && DevblocksPlatform::strEndsWith($var['key'], '_id')) {
+					$ctx_key = mb_substr($var['key'], 0, -3) . '__context';
+					
+					if($dict instanceof DevblocksDictionaryDelegate)
+						$dict->set($ctx_key, $context);
+				}
+				
+				break;
+				
 			case Model_CustomField::TYPE_WORKER:
-				if($dict && is_string($value) && DevblocksPlatform::strStartsWith($value, 'var_')) {
+				if($dict instanceof DevblocksDictionaryDelegate && is_string($value) && DevblocksPlatform::strStartsWith($value, 'var_')) {
 					$value = $dict->$value;
 					
 					if(is_array($value))
@@ -1704,8 +1718,6 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 		$event_extensions = DevblocksPlatform::getExtensions('devblocks.event', false);
 		DevblocksPlatform::sortObjects($event_extensions, 'name');
 		
-		$events = array_column(DevblocksPlatform::objectsToArrays($event_extensions), 'name', 'id');
-		
 		$fields = array(
 			'text' => 
 				array(
@@ -1737,8 +1749,11 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_TriggerEvent::EVENT_POINT),
-					'examples' => [
-						['type' => 'list', 'values' => $events],
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:behaviors by:event~25 query:(event:*{{term}}*) format:dictionaries',
+						'key' => 'event',
+						'limit' => 25,
 					]
 				),
 			'fieldset' =>
@@ -1771,6 +1786,12 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_TriggerEvent::TITLE, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:behavior by:name~25 query:(name:*{{term}}*) format:dictionaries',
+						'key' => 'name',
+						'limit' => 25,
+					]
 				),
 			'updated' => 
 				array(
@@ -2206,9 +2227,14 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 			
 			$token_values['bot_id'] = $trigger_event->bot_id;
 			
+			// Friendly names
+			
 			if(null != ($event = $trigger_event->getEvent())) {
 				$token_values['event_point_name'] = $event->manifest->name;
 			}
+			
+			// Variables
+			$token_values['variables'] = $trigger_event->variables;
 			
 			// Custom fields
 			$token_values = $this->_importModelCustomFieldsAsValues($trigger_event, $token_values);
@@ -2431,6 +2457,9 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 			
 			$variables_menu = Extension_DevblocksContext::getPlaceholderTree($variable_types, ':', '');
 			$tpl->assign('variables_menu', $variables_menu);
+			
+			$context_mfts = Extension_DevblocksContext::getAll(false, ['va_variable']);
+			$tpl->assign('context_mfts', $context_mfts);
 			
 			// Library
 			if(!$context_id) {

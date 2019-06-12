@@ -20,6 +20,7 @@
 		<patch version="2.3.0" revision="322" file="patches/2.3.0.php" />
 		<patch version="2.3.3" revision="324" file="patches/2.3.3.php" />
 		<patch version="2.3.4" revision="330" file="patches/2.3.4.php" />
+		<patch version="2.4.0" revision="335" file="patches/2.4.0.php" />
 	</patches>
 	
 	<!-- Exported Classes -->
@@ -62,6 +63,9 @@
 		</file>
 		<file path="api/services/data/worklist_metrics.php">
 			<class name="_DevblocksDataProviderWorklistMetrics" />
+		</file>
+		<file path="api/services/data/worklist_records.php">
+			<class name="_DevblocksDataProviderWorklistRecords" />
 		</file>
 		<file path="api/services/data/worklist_series.php">
 			<class name="_DevblocksDataProviderWorklistSeries" />

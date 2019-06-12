@@ -502,6 +502,7 @@ class DAO_CustomFieldset extends Cerb_ORMHelper {
 		// Invalidate cache on changes
 		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::CACHE_ALL);
+		$cache->removeByTags(['schema_records']);
 	}
 
 };
@@ -812,6 +813,12 @@ class View_CustomFieldset extends C4_AbstractView implements IAbstractView_Subto
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_CustomFieldset::NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:custom_fieldset by:name~25 query:(name:{{term}}*) format:dictionaries',
+						'key' => 'name',
+						'limit' => 25,
+					]
 				),
 			'updated' => 
 				array(

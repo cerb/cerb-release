@@ -15,7 +15,10 @@ class _DevblocksDataProviderWorklistMetrics extends _DevblocksDataProvider {
 			
 			$oper = $value = null;
 			
-			if($field->key == 'format') {
+			if($field->key == 'type') {
+				// Do nothing
+				
+			} else if($field->key == 'format') {
 				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
 				$chart_model['format'] = DevblocksPlatform::strLower($value);
 				
@@ -70,6 +73,15 @@ class _DevblocksDataProviderWorklistMetrics extends _DevblocksDataProvider {
 						$data_query = CerbQuickSearchLexer::getTokensAsQuery($series_field->tokens);
 						$data_query = substr($data_query, 1, -1);
 						$series_model['query'] = $data_query;
+						
+					} else if(in_array($series_field->key, ['query.require', 'query.required'])) {
+						$data_query = CerbQuickSearchLexer::getTokensAsQuery($series_field->tokens);
+						$data_query = substr($data_query, 1, -1);
+						$series_model['query_required'] = $data_query;
+						
+					} else {
+						$error = sprintf("The series parameter '%s' is unknown.", $series_field->key);
+						return false;
 					}
 				}
 				
@@ -136,6 +148,10 @@ class _DevblocksDataProviderWorklistMetrics extends _DevblocksDataProvider {
 					
 					$chart_model['values'][] = $series;
 				}
+				
+			} else {
+				$error = sprintf("The parameter '%s' is unknown.", $field->key);
+				return false;
 			}
 		}
 		
@@ -149,7 +165,8 @@ class _DevblocksDataProviderWorklistMetrics extends _DevblocksDataProvider {
 			$context_ext = Extension_DevblocksContext::get($series['context'], true);
 			$dao_class = $context_ext->getDaoClass();
 			$view = $context_ext->getTempView();
-			$view->addParamsWithQuickSearch($series['query']);
+			$view->addParamsRequiredWithQuickSearch(@$series['query_required']);
+			$view->addParamsWithQuickSearch(@$series['query']);
 			
 			$query_parts = $dao_class::getSearchQueryComponents([], $view->getParams());
 			
@@ -197,6 +214,7 @@ class _DevblocksDataProviderWorklistMetrics extends _DevblocksDataProvider {
 			
 			$value = $db->GetOneSlave($sql);
 			
+			if(array_key_exists('field', $series))
 			switch($series['field']['type']) {
 				case Model_CustomField::TYPE_CURRENCY:
 					@$currency_id = $series['field']['type_options']['currency_id'];

@@ -34,4 +34,16 @@ class _DevblocksStringService {
 			return strlen($match[0]) >= 4 ? null : $match[0];
 		}, $string);
 	}
+	
+	function yamlParse($yaml_string, $pos=-1, &$error=null) {
+		if(false === ($docs = @yaml_parse($yaml_string, $pos))) {
+			$error = error_get_last()['message'];
+			return false;
+		}
+		
+		if(!is_array($docs) || array_key_exists(0, $docs) && !$docs[0])
+			return [];
+		
+		return $docs;
+	}
 }

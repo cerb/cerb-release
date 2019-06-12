@@ -16,7 +16,10 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 			if(!($field instanceof DevblocksSearchCriteria))
 				continue;
 			
-			if($field->key == 'function') {
+			if($field->key == 'type') {
+				// Do nothing
+				
+			} else if($field->key == 'function') {
 				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
 				$chart_model['function'] = DevblocksPlatform::strLower($value);
 				
@@ -42,6 +45,10 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 				CerbQuickSearchLexer::getOperArrayFromTokens($field->tokens, $oper, $value);
 				$chart_model['by'] = $value;
 				
+			} else if($field->key == 'expand') {
+				CerbQuickSearchLexer::getOperArrayFromTokens($field->tokens, $oper, $value);
+				$chart_model['expand'] = $value;
+				
 			} else if(DevblocksPlatform::strStartsWith($field->key, 'group.')) {
 				CerbQuickSearchLexer::getOperArrayFromTokens($field->tokens, $oper, $value);
 				$chart_model['group'] = $value;
@@ -63,6 +70,15 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 				$data_query = CerbQuickSearchLexer::getTokensAsQuery($field->tokens);
 				$data_query = substr($data_query, 1, -1);
 				$chart_model['query'] = $data_query;
+				
+			} else if(in_array($field->key, ['query.require','query.required'])) {
+				$data_query = CerbQuickSearchLexer::getTokensAsQuery($field->tokens);
+				$data_query = substr($data_query, 1, -1);
+				$chart_model['query_required'] = $data_query;
+				
+			} else {
+				$error = sprintf("The parameter '%s' is unknown.", $field->key);
+				return false;
 			}
 		}
 		
@@ -84,6 +100,7 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 		$search_class = $subtotals_context->getSearchClass();
 		$view = $subtotals_context->getTempView();
 		
+		$view->addParamsRequiredWithQuickSearch(@$chart_model['query_required']);
 		$view->addParamsWithQuickSearch(@$chart_model['query']);
 		
 		$query_fields = $view->getQuickSearchFields();
@@ -102,7 +119,7 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 			if(!is_array($group_by))
 				$group_by = [$group_by];
 				
-			foreach($subtotal_by as $idx => $by) {
+			foreach($subtotal_by as $by) {
 				// Handle limits and orders
 				@list($by, $limit) = explode('~', $by, 2);
 				
@@ -262,19 +279,35 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 			$key_select = $by['key_select'];
 			$values = array_column($rows, $key_select);
 			
-			// [TODO] Field type
 			switch($by['type']) {
 				case Model_CustomField::TYPE_CURRENCY:
+					@$currency_id = $by['type_options']['currency_id'];
+					
+					if(!$currency_id || false == ($currency = DAO_Currency::get($currency_id)))
+						break;
+					
+					foreach($values as $row_idx => $value) {
+						$value = $currency->format($value, false, '.', '');
+						$values[$row_idx] = $value;
+						$rows[$row_idx][$key_select] = $value;
+					}
 					break;
 					
 				case Model_CustomField::TYPE_DECIMAL:
+					@$decimal_at = $by['type_options']['decimal_at'];
+					
+					foreach($values as $row_idx => $value) {
+						$value = DevblocksPlatform::strFormatDecimal($value, $decimal_at, '.', '');
+						$values[$row_idx] = $value;
+						$rows[$row_idx][$key_select] = $value;
+					}
 					break;
 			}
 			
 			if(false !== ($by_labels = $search_class::getLabelsForKeyValues($key_select, $values)))
 				$labels[$key_select] = $by_labels;
 			
-			foreach($values as $idx => $value) {
+			foreach($values as $value) {
 				@$filter = $by['key_query'] . ':%s';
 				
 				switch($by['type']) {
@@ -373,7 +406,7 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 			
 			foreach(array_slice(array_keys($row),1) as $k) {
 				$label = (array_key_exists($k, $labels) && array_key_exists($row[$k], $labels[$k])) ? $labels[$k][$row[$k]] : $row[$k];
-				$query[] = $queries[$k][$row[$k]];
+				$query[] = array_key_exists($row[$k], $queries[$k]) ? $queries[$k][$row[$k]] : '';
 				
 				$data = [
 					'name' => $label,
@@ -447,6 +480,10 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 				return $this->_formatDataAsCategories($response, $chart_model);
 				break;
 				
+			case 'dictionaries':
+				return $this->_formatDataAsDictionaries($response, $chart_model);
+				break;
+				
 			case 'pie':
 				return $this->_formatDataAsPie($response, $chart_model);
 				break;
@@ -501,7 +538,6 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 			];
 			
 			$parents = array_column($response['children'], 'name');
-			$output[0] = array_merge($output[0], $parents);
 			
 			foreach($response['children'] as $parent) {
 				$series_meta[$parent['name']] = [
@@ -523,6 +559,8 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 					];
 				}
 			}
+			
+			$output[0] = array_merge($output[0], array_keys($series_meta));
 			
 			foreach($xvalues as $child_name => $parents) {
 				$values = array_values($parents);
@@ -557,6 +595,192 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 				'xaxis_key' => 'label',
 			],
 			'series' => $series_meta,
+		]];
+	}
+	
+	function _formatDataAsDictionaries($response, array $chart_model=[]) {
+		if(!isset($response['children']))
+			return [];
+		
+		$rows = [];
+		
+		$output = [
+			'columns' => [],
+			'rows' => &$rows,
+		];
+		
+		foreach($chart_model['by'] as $by) {
+			$label = null;
+			@$type = $by['type'] ?: DevblocksSearchCriteria::TYPE_TEXT;
+			
+			switch($type) {
+				case DevblocksSearchCriteria::TYPE_CONTEXT:
+					$type_options = [];
+					
+					if(array_key_exists('type_options', $by)) {
+						if(array_key_exists('context', $by['type_options']))
+							$type_options['context'] = $by['type_options']['context'];
+						
+						if(array_key_exists('context_key', $by['type_options']))
+							$type_options['context_key'] = $by['type_options']['context_key'];
+					
+						@$type_options['context_id_key'] = $by['type_options']['context_id_key'] ?: $by['key_query'];
+						
+					} else {
+						@$type_options['context_key'] = $by['key_query'] . '__context';
+						@$type_options['context_id_key'] = $by['key_query'];
+					}
+					
+					$output['columns'][$by['key_query'] . '_label'] = [
+						'label' => $label . DevblocksPlatform::strTitleCase(@$by['label'] ?: $by['key_query']),
+						'type' => $type,
+						'type_options' => $type_options,
+					];
+					break;
+					
+				case DevblocksSearchCriteria::TYPE_WORKER:
+					$output['columns'][$by['key_query'] . '_label'] = [
+						'label' => $label . DevblocksPlatform::strTitleCase(@$by['label'] ?: $by['key_query']),
+						'type' => $type,
+						'type_options' => [
+							'context_id_key' => $by['key_query'],
+						]
+					];
+					break;
+				
+				default:
+					$output['columns'][$by['key_query']] = [
+						'label' => $label . DevblocksPlatform::strTitleCase(@$by['label'] ?: $by['key_query']),
+						'type' => $type,
+					];
+					break;
+			}
+		}
+		
+		// If we're counting, add a 'Count' column to the end
+		if(in_array($chart_model['function'],['','count'])) {
+			$output['columns']['count'] = [
+				'label' => DevblocksPlatform::translateCapitalized('common.count'),
+				'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+			];
+		}
+		
+		$rows = [];
+		$recurse = null;
+		
+		// Build a table recursively from the tree
+		$recurse = function($node, $depth=0, $parents=[]) use (&$recurse, $chart_model, &$rows) {
+			if(array_key_exists('name', $node))
+				$parents[] = &$node;
+			
+			// If this is a leaf
+			if(!array_key_exists('children', $node)) {
+				$row = [];
+				
+				foreach($chart_model['by'] as $column_index => $column) {
+					$key_prefix = str_replace('.', '_', $column['key_query']);
+					@$type = $column['type'] ?: DevblocksSearchCriteria::TYPE_TEXT;
+					
+					if($column_index == $depth) {
+						$value = $node['hits'];
+						
+						if(!array_key_exists($column_index, $parents)) {
+							$row[$key_prefix] = $value;
+							$row[$key_prefix . '_' . 'func'] = $chart_model['function'];
+							$rows[] = $row;
+							return;
+						}
+						
+					} else {
+						if(array_key_exists($column_index, $parents))
+							$value = $parents[$column_index]['name'];
+					}
+					
+					switch($type) {
+						case DevblocksSearchCriteria::TYPE_CONTEXT:
+							$name = $node['name'];
+							$value = intval($node['value']);
+							
+							if(DevblocksPlatform::strEndsWith($key_prefix, '_id')) {
+								$key_prefix = substr($key_prefix, 0, -3) . '_';
+							} else if($key_prefix == 'id') {
+								$key_prefix = '';
+							}
+							
+							if(!array_key_exists('type_options', $column)) {
+								if(false !== (strpos($value,':'))) {
+									@list($context, $context_id) = explode(':', $value, 2);
+									$row[$key_prefix . '_context'] = $context;
+									$row[$key_prefix . 'id'] = $context_id;
+									$row[$key_prefix . '_label'] = $name;
+								}
+							} else {
+								$row[$key_prefix . 'id'] = $value;
+								$row[$key_prefix . '_context'] = $column['type_options']['context'];
+								$row[$key_prefix . '_label'] = $name;
+							}
+							
+							break;
+							
+						case DevblocksSearchCriteria::TYPE_WORKER:
+							$name = $node['name'];
+							$value = intval($node['value']);
+							
+							if(DevblocksPlatform::strEndsWith($key_prefix, '_id')) {
+								$key_prefix = substr($key_prefix, 0, -3) . '_';
+							} else if($key_prefix == 'id') {
+								$key_prefix = '';
+							}
+							
+							$row[$key_prefix . '_context'] = CerberusContexts::CONTEXT_WORKER;
+							$row[$key_prefix . '_label'] = $name;
+							$row[$key_prefix . 'id'] = $value;
+							break;
+							
+						default:
+							if(array_key_exists($column_index, $parents)) {
+								$name = $node['name'];
+								$value = $node['value'];
+								
+								$row[$key_prefix] = $value;
+								$row[$key_prefix . '_label'] = $name;
+								
+							} else {
+								$row[$key_prefix] = $value;
+							}
+							
+							break;
+					}
+				}
+				
+				if(in_array($chart_model['function'], ['','count'])) {
+					$row['count'] = $node['hits'];
+					
+					if(array_key_exists('query', $node)) {
+						$row['count_query_context'] = $chart_model['context'];
+						$row['count_query'] = $node['query'];
+					}
+				}
+				
+				$rows[] = DevblocksDictionaryDelegate::instance($row);
+				return;
+			}
+			
+			foreach($node['children'] as $child) {
+				$recurse($child, $depth+1, $parents);
+			}
+		};
+		
+		$recurse($response, 0);
+		
+		if(array_key_exists('expand', $chart_model))
+		foreach($chart_model['expand'] as $expand_token)
+			DevblocksDictionaryDelegate::bulkLazyLoad($output['rows'], $expand_token, true);
+		
+		return ['data' => $output['rows'], '_' => [
+			'type' => 'worklist.subtotals',
+			'context' => @$chart_model['context'],
+			'format' => 'dictionaries',
 		]];
 	}
 	

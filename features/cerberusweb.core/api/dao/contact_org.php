@@ -112,7 +112,7 @@ class DAO_ContactOrg extends Cerb_ORMHelper {
 			time()
 		);
 		
-		if(false == ($rs = $db->ExecuteMaster($sql)))
+		if(false == ($db->ExecuteMaster($sql)))
 			return false;
 		
 		$id = $db->LastInsertId();
@@ -186,8 +186,6 @@ class DAO_ContactOrg extends Cerb_ORMHelper {
 	 * @return boolean
 	 */
 	static function bulkUpdate(Model_ContextBulkUpdate $update) {
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-
 		$do = $update->actions;
 		$ids = $update->context_ids;
 
@@ -464,7 +462,7 @@ class DAO_ContactOrg extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_ContactOrg::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ContactOrg', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_ContactOrg', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"c.id as %s, ".
@@ -843,12 +841,9 @@ class Search_Org extends Extension_DevblocksSearchSchema {
 	}
 	
 	public function index($stop_time=null) {
-		$logger = DevblocksPlatform::services()->log();
-		
 		if(false == ($engine = $this->getEngine()))
 			return false;
 		
-		$ns = self::getNamespace();
 		$id = $this->getParam('last_indexed_id', 0);
 		$ptr_time = $this->getParam('last_indexed_time', 0);
 		$ptr_id = $id;
@@ -1140,7 +1135,12 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 			'country' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
-					'options' => array('param_key' => SearchFields_ContactOrg::COUNTRY, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+					'options' => array('param_key' => SearchFields_ContactOrg::COUNTRY, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX),
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:orgs by:country~50 query:(country:!"" country:{{term}}*) format:dictionaries',
+						'key' => 'country',
+					]
 				),
 			'created' => 
 				array(
@@ -1182,7 +1182,13 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 			'name' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'score' => 2000,
 					'options' => array('param_key' => SearchFields_ContactOrg::NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:orgs by:name~25 query:(name:{{term}}*) format:dictionaries',
+						'key' => 'name',
+					]
 				),
 			'phone' => 
 				array(
@@ -1197,7 +1203,12 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 			'state' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
-					'options' => array('param_key' => SearchFields_ContactOrg::PROVINCE, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+					'options' => array('param_key' => SearchFields_ContactOrg::PROVINCE, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX),
+					'suggester' => [
+						'type' => 'autocomplete',
+						'query' => 'type:worklist.subtotals of:orgs by:state~25 query:(state:{{term}}*) format:dictionaries',
+						'key' => 'state',
+					]
 				),
 			'street' => 
 				array(
@@ -1599,7 +1610,7 @@ class Context_Org extends Extension_DevblocksContext implements IDevblocksContex
 	
 	function autocomplete($term, $query=null) {
 		$url_writer = DevblocksPlatform::services()->url();
-		$list = array();
+		$list = [];
 		
 		if(stristr('none',$term) || stristr('empty',$term) || stristr('no organization',$term)) {
 			$empty = new stdClass();

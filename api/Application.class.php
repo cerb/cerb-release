@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2019050601);
-define("APP_VERSION", '9.2.3');
+define("APP_BUILD", 2019061101);
+define("APP_VERSION", '9.3.0');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -981,6 +981,7 @@ class CerberusContexts {
 	private static $_default_actor_context_id = null;
 
 	private static $_stack = [];
+	private static $_stack_max_empty_depth = 0;
 
 	const CONTEXT_APPLICATION = 'cerberusweb.contexts.app';
 	const CONTEXT_ACTIVITY_LOG = 'cerberusweb.contexts.activity_log';
@@ -1079,77 +1080,105 @@ class CerberusContexts {
 	public static function popStack() {
 		return array_pop(self::$_stack);
 	}
+	
+	public static function setStackMaxEmptyDepth($n) {
+		$n = DevblocksPlatform::intClamp($n, 0, 15);
+		
+		$was = self::$_stack_max_empty_depth;
+		
+		self::$_stack_max_empty_depth = $n;
+		
+		return $was;
+	}
+	
+	public static function getStackMaxEmptyDepth() {
+		return self::$_stack_max_empty_depth;
+	}
 
 	public static function getContext($context, $context_object, &$labels, &$values, $prefix=null, $nested=false, $skip_labels=false) {
 		// Push the stack
 		self::$_stack[] = $context;
-
-		switch($context) {
-			default:
-				// Migrated
-
-				if(false != ($ctx = Extension_DevblocksContext::get($context))) {
-					// If blank, check the cache for a prebuilt context object
-					if(is_null($context_object)) {
-						$cache = DevblocksPlatform::services()->cache();
-
-						$stack = CerberusContexts::getStack();
-						array_pop($stack);
-
-						// Hash with the parent we're loading from
-						$hash = md5(json_encode(array($context, end($stack), $prefix)));
-						$cache_key = sprintf("cerb:ctx:%s", $hash);
-						$cache_local = true;
-
-						// Cache hit
-						if(null !== ($data = $cache->load($cache_key, false, $cache_local))) {
-							$loaded_labels = $data['labels'];
-							$loaded_values = $data['values'];
-							unset($data);
-
-						// Cache miss
-						} else {
-							$loaded_labels = [];
-							$loaded_values = [];
-							$ctx->getContext(null, $loaded_labels, $loaded_values, $prefix);
-							$cache->save(array('labels' => $loaded_labels, 'values' => $loaded_values), $cache_key, [], 0, $cache_local);
-						}
-
-						$labels = $loaded_labels;
-						$values = $loaded_values;
-
+		
+		if(false != ($ctx = Extension_DevblocksContext::get($context, true))) {
+			// If blank, check the cache for a prebuilt context object
+			if(is_null($context_object)) {
+				$stack_max_empty_depth = CerberusContexts::getStackMaxEmptyDepth();
+				
+				if($stack_max_empty_depth && count(self::$_stack) > $stack_max_empty_depth) {
+					$labels = [];
+					$values = ['_context' => $context];
+					
+				} else {
+					$cache = DevblocksPlatform::services()->cache();
+					
+					$stack = CerberusContexts::getStack();
+					array_pop($stack);
+					
+					$parent = end($stack);
+					
+					$hash_parent = [
+						CerberusContexts::CONTEXT_ADDRESS => [CerberusContexts::CONTEXT_CONTACT, CerberusContexts::CONTEXT_ORG, CerberusContexts::CONTEXT_MAIL_TRANSPORT, CerberusContexts::CONTEXT_WORKER],
+						CerberusContexts::CONTEXT_CONTACT => [CerberusContexts::CONTEXT_ADDRESS, CerberusContexts::CONTEXT_ORG],
+						CerberusContexts::CONTEXT_MESSAGE => [CerberusContexts::CONTEXT_TICKET],
+						CerberusContexts::CONTEXT_ORG => [CerberusContexts::CONTEXT_ADDRESS],
+					];
+					
+					if(!array_key_exists($context, $hash_parent) || !in_array($parent, $hash_parent[$context]))
+						$parent = null;
+					
+					// Hash with the parent we're loading from
+					$hash = sha1($context.':'.$parent.':'.json_encode($prefix));
+					$cache_key = sprintf("cerb:ctx:%s", $hash);
+					$cache_local = true;
+					
+					$labels = $values = [];
+	
+					// Cache hit
+					if(null !== ($data = $cache->load($cache_key, false, $cache_local))) {
+						$labels = $data['labels'];
+						$values = $data['values'];
+						unset($data);
+						
+					// Cache miss
 					} else {
-
-						// If instance caching is enabled
-						if(self::$_is_caching_loads) {
-							$hash_context_id = $context_object;
-
-							// Hash uniformly (if we have a model, hash as its ID, so an ID only request uses cache)
-							if(is_object($context_object) && isset($context_object->id)) {
-								$hash_context_id = $context_object->id;
-							}
-
-							if(is_numeric($hash_context_id))
-								$hash_context_id = intval($hash_context_id);
-
-							$hash = md5(json_encode(array($context, $hash_context_id, $prefix, $nested)));
-
-							if(isset(self::$_cache_loads[$hash])) {
-								$values = self::$_cache_loads[$hash];
-
-							} else {
-								$ctx->getContext($context_object, $labels, $values, $prefix);
-								self::$_cache_loads[$hash] = $values;
-							}
-
-						} else {
-							$ctx->getContext($context_object, $labels, $values, $prefix);
-
-						}
-
+						$ctx->getContext(null, $labels, $values, $prefix);
+						$cache->save(array('labels' => $labels, 'values' => $values), $cache_key, [], 0, $cache_local);
 					}
 				}
-				break;
+				
+			} else {
+				// If instance caching is enabled
+				if(self::$_is_caching_loads) {
+					$hash_context_id = $context_object;
+					
+					// Hash uniformly (if we have a model, hash as its ID, so an ID only request uses cache)
+					if(is_object($context_object) && isset($context_object->id)) {
+						$hash_context_id = $context_object->id;
+					}
+					
+					if(is_numeric($hash_context_id))
+						$hash_context_id = intval($hash_context_id);
+					
+					$hash = sha1($context . ':' . $hash_context_id . ':' . $prefix . ':' . ($nested ? 1 : 0));
+					
+					if(isset(self::$_cache_loads[$hash])) {
+						$values = self::$_cache_loads[$hash];
+
+					} else {
+						$ctx->getContext($context_object, $labels, $values, $prefix);
+						self::$_cache_loads[$hash] = $values;
+					}
+					
+				} else {
+					$ctx->getContext($context_object, $labels, $values, $prefix);
+					
+					if($skip_labels) {
+						$labels = [];
+						unset($values['_labels']);
+						unset($values['_types']);
+					}
+				}
+			}
 		}
 
 		if(!$nested) {
@@ -1223,7 +1252,7 @@ class CerberusContexts {
 
 		// Pop the stack
 		array_pop(self::$_stack);
-
+		
 		return null;
 	}
 
@@ -2645,7 +2674,7 @@ class CerberusLicense {
 	}
 
 	public static function getReleases() {
-		/*																																																																																																																														*/return json_decode(base64_decode('eyI1LjAuMCI6MTI3MTg5NDQwMCwiNS4xLjAiOjEyODE4MzA0MDAsIjUuMi4wIjoxMjg4NTY5NjAwLCI1LjMuMCI6MTI5NTA0OTYwMCwiNS40LjAiOjEzMDM4NjI0MDAsIjUuNS4wIjoxMzEyNDE2MDAwLCI1LjYuMCI6MTMxNzY4NjQwMCwiNS43LjAiOjEzMjYwNjcyMDAsIjYuMC4wIjoxMzM4MTYzMjAwLCI2LjEuMCI6MTM0NjAyNTYwMCwiNi4yLjAiOjEzNTM4ODgwMDAsIjYuMy4wIjoxMzY0MTY5NjAwLCI2LjQuMCI6MTM3MDIxNzYwMCwiNi41LjAiOjEzNzkyODk2MDAsIjYuNi4wIjoxMzkxMTI2NDAwLCI2LjcuMCI6MTM5ODEyNDgwMCwiNi44LjAiOjE0MTA3MzkyMDAsIjYuOS4wIjoxNDIyMjMwNDAwLCI3LjAuMCI6MTQzMjU5ODQwMCwiNy4xLjAiOjE0NDg5MjgwMDAsIjcuMi4wIjoxNDYyMDYwODAwLCI3LjMuMCI6MTQ3MjY4ODAwMCwiOC4wLjAiOjE0OTU3NTY4MDAsIjguMS4wIjoxNTAzOTY0ODAwLCI4LjIuMCI6MTUwOTMyMTYwMCwiOC4zLjAiOjE1MTk2MDMyMDAsIjkuMC4wIjoxNTMzNTEzNjAwLCI5LjEuMCI6MTU0NDgzMjAwMCwiOS4yLjAiOjE1NTEzMTIwMDB9'),true);/*
+		/*																																																																																																																														*/return json_decode(base64_decode('eyI1LjAuMCI6MTI3MTg5NDQwMCwiNS4xLjAiOjEyODE4MzA0MDAsIjUuMi4wIjoxMjg4NTY5NjAwLCI1LjMuMCI6MTI5NTA0OTYwMCwiNS40LjAiOjEzMDM4NjI0MDAsIjUuNS4wIjoxMzEyNDE2MDAwLCI1LjYuMCI6MTMxNzY4NjQwMCwiNS43LjAiOjEzMjYwNjcyMDAsIjYuMC4wIjoxMzM4MTYzMjAwLCI2LjEuMCI6MTM0NjAyNTYwMCwiNi4yLjAiOjEzNTM4ODgwMDAsIjYuMy4wIjoxMzY0MTY5NjAwLCI2LjQuMCI6MTM3MDIxNzYwMCwiNi41LjAiOjEzNzkyODk2MDAsIjYuNi4wIjoxMzkxMTI2NDAwLCI2LjcuMCI6MTM5ODEyNDgwMCwiNi44LjAiOjE0MTA3MzkyMDAsIjYuOS4wIjoxNDIyMjMwNDAwLCI3LjAuMCI6MTQzMjU5ODQwMCwiNy4xLjAiOjE0NDg5MjgwMDAsIjcuMi4wIjoxNDYyMDYwODAwLCI3LjMuMCI6MTQ3MjY4ODAwMCwiOC4wLjAiOjE0OTU3NTY4MDAsIjguMS4wIjoxNTAzOTY0ODAwLCI4LjIuMCI6MTUwOTMyMTYwMCwiOC4zLjAiOjE1MTk2MDMyMDAsIjkuMC4wIjoxNTMzNTEzNjAwLCI5LjEuMCI6MTU0NDgzMjAwMCwiOS4yLjAiOjE1NTEzMTIwMDAsIjkuMy4wIjoxNTU5MjYwODAwfQ=='),true);/*
 		 * Major versions by release date (in GMT)
 		 */
 		return array(
@@ -2678,6 +2707,7 @@ class CerberusLicense {
 			'9.0.0' => gmmktime(0,0,0,8,6,2018),
 			'9.1.0' => gmmktime(0,0,0,12,15,2018),
 			'9.2.0' => gmmktime(0,0,0,2,28,2019),
+			'9.3.0' => gmmktime(0,0,0,5,31,2019),
 		);
 	}
 
@@ -3275,7 +3305,6 @@ class CerbLoginWorkerAuthState {
 	function wasConsentAsked() {
 		return $this->was_consent_asked;
 	}
-	
 };
 
 class Cerb_ORMHelper extends DevblocksORMHelper {
@@ -3454,74 +3483,79 @@ class _CerbApplication_Packages {
 		return Cerb_Packages::importFromJson($json, $prompts, $records_created);
 	}
 	
-	function importToLibraryFromFiles(array $package_files, $package_basepath=null) {
+	function importToLibraryFromString($package_json) {
 		$db = DevblocksPlatform::services()->database();
 		
 		$storage = new DevblocksStorageEngineDisk();
 		$storage->setOptions([]);
 		
+		if(false === (@$package_data = json_decode($package_json, true)))
+			return;
+		
+		if(false == (@$library_meta = $package_data['package']['library']))
+			return;
+		
+		$db->ExecuteMaster(sprintf("INSERT INTO package_library (uri, name, description, instructions, point, updated_at, package_json) ".
+			"VALUES (%s, %s, %s, %s, %s, %d, %s) ".
+			"ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), name=VALUES(name), uri=VALUES(uri), description=VALUES(description), instructions=VALUES(instructions), point=VALUES(point), updated_at=VALUES(updated_at), package_json=VALUES(package_json)",
+			$db->qstr($library_meta['uri']),
+			$db->qstr($library_meta['name']),
+			$db->qstr($library_meta['description']),
+			$db->qstr(@$library_meta['instructions']),
+			$db->qstr($library_meta['point']),
+			time(),
+			$db->qstr($package_json)
+		));
+		
+		$package_id = $db->LastInsertId();
+		
+		// Package images
+		if($package_id && array_key_exists('image', $library_meta) && $library_meta['image']) {
+			$imagedata = $library_meta['image'];
+			
+			if(DevblocksPlatform::strStartsWith($imagedata,'data:image/png;base64,')) {
+				$content_type = 'image/png';
+				
+				// Decode it to binary
+				if(false !== ($imagedata = base64_decode(substr($imagedata, 22)))) {
+					$sql = sprintf("INSERT INTO context_avatar (context,context_id,content_type,is_approved,updated_at) ".
+						"VALUES (%s,%d,%s,%d,%d) ".
+						"ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), context=VALUES(context), context_id=VALUES(context_id), is_approved=VALUES(is_approved), updated_at=VALUES(updated_at)",
+						$db->qstr('cerberusweb.contexts.package.library'),
+						$package_id,
+						$db->qstr($content_type),
+						1,
+						time()
+					);
+					$db->ExecuteMaster($sql);
+					
+					$storage_id = $db->LastInsertId();
+					
+					// Put in storage
+					$storage_key = $storage->put('context_avatar', $storage_id, $imagedata);
+					
+					// Update record key
+					$sql = sprintf("UPDATE context_avatar SET storage_extension = %s, storage_key = %s, storage_size = %d WHERE id = %d",
+						$db->qstr('devblocks.storage.engine.disk'),
+						$db->qstr($storage_key),
+						strlen($imagedata),
+						$storage_id
+					);
+					$db->ExecuteMaster($sql);
+				}
+			}
+		}
+	}
+	
+	function importToLibraryFromFiles(array $package_files, $package_basepath=null) {
 		if(is_null($package_basepath))
 			$package_basepath = APP_PATH . '/features/cerberusweb.core/packages/library/';
 		
 		foreach($package_files as $package_file) {
-			$package_json = file_get_contents($package_basepath . $package_file);
-			
-			if(false === (@$package_data = json_decode($package_json, true)))
+			if(false == ($package_json = file_get_contents($package_basepath . $package_file)))
 				continue;
 			
-			if(false == (@$library_meta = $package_data['package']['library']))
-				continue;
-			
-			$db->ExecuteMaster(sprintf("INSERT INTO package_library (uri, name, description, instructions, point, updated_at, package_json) ".
-				"VALUES (%s, %s, %s, %s, %s, %d, %s) ".
-				"ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), name=VALUES(name), uri=VALUES(uri), description=VALUES(description), instructions=VALUES(instructions), point=VALUES(point), updated_at=VALUES(updated_at), package_json=VALUES(package_json)",
-				$db->qstr($library_meta['uri']),
-				$db->qstr($library_meta['name']),
-				$db->qstr($library_meta['description']),
-				$db->qstr(@$library_meta['instructions']),
-				$db->qstr($library_meta['point']),
-				time(),
-				$db->qstr($package_json)
-			));
-			
-			$package_id = $db->LastInsertId();
-			
-			// Package images
-			if($package_id && array_key_exists('image', $library_meta) && $library_meta['image']) {
-				$imagedata = $library_meta['image'];
-				
-				if(DevblocksPlatform::strStartsWith($imagedata,'data:image/png;base64,')) {
-					$content_type = 'image/png';
-					
-					// Decode it to binary
-					if(false !== ($imagedata = base64_decode(substr($imagedata, 22)))) {
-						$sql = sprintf("INSERT INTO context_avatar (context,context_id,content_type,is_approved,updated_at) ".
-							"VALUES (%s,%d,%s,%d,%d) ".
-							"ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), context=VALUES(context), context_id=VALUES(context_id), is_approved=VALUES(is_approved), updated_at=VALUES(updated_at)",
-							$db->qstr('cerberusweb.contexts.package.library'),
-							$package_id,
-							$db->qstr($content_type),
-							1,
-							time()
-						);
-						$db->ExecuteMaster($sql);
-						
-						$storage_id = $db->LastInsertId();
-						
-						// Put in storage
-						$storage_key = $storage->put('context_avatar', $storage_id, $imagedata);
-						
-						// Update record key
-						$sql = sprintf("UPDATE context_avatar SET storage_extension = %s, storage_key = %s, storage_size = %d WHERE id = %d",
-							$db->qstr('devblocks.storage.engine.disk'),
-							$db->qstr($storage_key),
-							strlen($imagedata),
-							$storage_id
-						);
-						$db->ExecuteMaster($sql);
-					}
-				}
-			}
+			$this->importToLibraryFromString($package_json);
 		}
 	}
 };
