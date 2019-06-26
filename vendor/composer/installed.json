@@ -255,35 +255,32 @@
     },
     {
         "name": "lcobucci/jwt",
-        "version": "3.2.5",
-        "version_normalized": "3.2.5.0",
+        "version": "3.3.1",
+        "version_normalized": "3.3.1.0",
         "source": {
             "type": "git",
             "url": "https://github.com/lcobucci/jwt.git",
-            "reference": "82be04b4753f8b7693b62852b7eab30f97524f9b"
+            "reference": "a11ec5f4b4d75d1fcd04e133dede4c317aac9e18"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/lcobucci/jwt/zipball/82be04b4753f8b7693b62852b7eab30f97524f9b",
-            "reference": "82be04b4753f8b7693b62852b7eab30f97524f9b",
+            "url": "https://api.github.com/repos/lcobucci/jwt/zipball/a11ec5f4b4d75d1fcd04e133dede4c317aac9e18",
+            "reference": "a11ec5f4b4d75d1fcd04e133dede4c317aac9e18",
             "shasum": ""
         },
         "require": {
+            "ext-mbstring": "*",
             "ext-openssl": "*",
-            "php": ">=5.5"
+            "php": "^5.6 || ^7.0"
         },
         "require-dev": {
-            "mdanter/ecc": "~0.3.1",
             "mikey179/vfsstream": "~1.5",
             "phpmd/phpmd": "~2.2",
             "phpunit/php-invoker": "~1.1",
-            "phpunit/phpunit": "~4.5",
+            "phpunit/phpunit": "^5.7 || ^7.3",
             "squizlabs/php_codesniffer": "~2.3"
         },
-        "suggest": {
-            "mdanter/ecc": "Required to use Elliptic Curves based algorithms."
-        },
-        "time": "2018-11-11T12:22:26+00:00",
+        "time": "2019-05-24T18:30:49+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -304,7 +301,7 @@
             {
                 "name": "Luís Otávio Cobucci Oblonczyk",
                 "email": "lcobucci@gmail.com",
-                "role": "developer"
+                "role": "Developer"
             }
         ],
         "description": "A simple library to work with JSON Web Token and JSON Web Signature",
@@ -436,17 +433,17 @@
     },
     {
         "name": "league/oauth2-server",
-        "version": "7.3.2",
-        "version_normalized": "7.3.2.0",
+        "version": "7.4.0",
+        "version_normalized": "7.4.0.0",
         "source": {
             "type": "git",
             "url": "https://github.com/thephpleague/oauth2-server.git",
-            "reference": "b71f382cd76e3f6905dfc53ef8148b3eebe1fd41"
+            "reference": "2eb1cf79e59d807d89c256e7ac5e2bf8bdbd4acf"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/thephpleague/oauth2-server/zipball/b71f382cd76e3f6905dfc53ef8148b3eebe1fd41",
-            "reference": "b71f382cd76e3f6905dfc53ef8148b3eebe1fd41",
+            "url": "https://api.github.com/repos/thephpleague/oauth2-server/zipball/2eb1cf79e59d807d89c256e7ac5e2bf8bdbd4acf",
+            "reference": "2eb1cf79e59d807d89c256e7ac5e2bf8bdbd4acf",
             "shasum": ""
         },
         "require": {
@@ -469,7 +466,7 @@
             "roave/security-advisories": "dev-master",
             "zendframework/zend-diactoros": "^1.3.2"
         },
-        "time": "2018-11-21T21:42:43+00:00",
+        "time": "2019-05-05T09:22:01+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
@@ -561,22 +558,22 @@
     },
     {
         "name": "onelogin/php-saml",
-        "version": "v3.1.0",
-        "version_normalized": "3.1.0.0",
+        "version": "3.1.1",
+        "version_normalized": "3.1.1.0",
         "source": {
             "type": "git",
             "url": "https://github.com/onelogin/php-saml.git",
-            "reference": "15016f9d633614c62fe6bb1d4ec86079b3e13a63"
+            "reference": "c9026b26395a65184550055d9a01bdf9dbd30861"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/onelogin/php-saml/zipball/15016f9d633614c62fe6bb1d4ec86079b3e13a63",
-            "reference": "15016f9d633614c62fe6bb1d4ec86079b3e13a63",
+            "url": "https://api.github.com/repos/onelogin/php-saml/zipball/c9026b26395a65184550055d9a01bdf9dbd30861",
+            "reference": "c9026b26395a65184550055d9a01bdf9dbd30861",
             "shasum": ""
         },
         "require": {
             "php": ">=5.4",
-            "robrichards/xmlseclibs": "^3.0"
+            "robrichards/xmlseclibs": ">=3.0.3"
         },
         "require-dev": {
             "pdepend/pdepend": "^2.5.0",
@@ -591,7 +588,7 @@
             "ext-gettext": "Install gettext and php5-gettext libs to handle translations",
             "ext-openssl": "Install openssl lib in order to handle with x509 certs (require to support sign and encryption)"
         },
-        "time": "2019-01-28T13:04:13+00:00",
+        "time": "2019-03-11T09:41:32+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
@@ -660,17 +657,17 @@
     },
     {
         "name": "phpseclib/phpseclib",
-        "version": "2.0.14",
-        "version_normalized": "2.0.14.0",
+        "version": "2.0.20",
+        "version_normalized": "2.0.20.0",
         "source": {
             "type": "git",
             "url": "https://github.com/phpseclib/phpseclib.git",
-            "reference": "8ebfcadbf30524aeb75b2c446bc2519d5b321478"
+            "reference": "d6819a55b05e123db1e881d8b230d57f912126be"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/8ebfcadbf30524aeb75b2c446bc2519d5b321478",
-            "reference": "8ebfcadbf30524aeb75b2c446bc2519d5b321478",
+            "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/d6819a55b05e123db1e881d8b230d57f912126be",
+            "reference": "d6819a55b05e123db1e881d8b230d57f912126be",
             "shasum": ""
         },
         "require": {
@@ -688,7 +685,7 @@
             "ext-mcrypt": "Install the Mcrypt extension in order to speed up a few other cryptographic operations.",
             "ext-openssl": "Install the OpenSSL extension in order to speed up a wide variety of cryptographic operations."
         },
-        "time": "2019-01-27T19:37:29+00:00",
+        "time": "2019-06-23T16:33:11+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
