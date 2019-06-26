@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>9.3.0</version>
+	<version>9.3.1</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -4626,7 +4626,7 @@
 			<id>core.bot.action.interaction_proactive.schedule</id>
 			<name>Schedule Proactive Interaction</name>
 			<class>
-				<file>api/bot/actions/interactions.php</file>
+				<file>api/bots/actions/interactions.php</file>
 				<name>BotAction_ScheduleInteractionProactive</name>
 			</class>
 			<params>

@@ -174,6 +174,10 @@ var cerbAutocompleteSuggestions = {
 			'true',
 			'false'
 		],
+		'layout:paging:': [
+			'true',
+			'false'
+			],
 		
 		// Column types
 		'columns:-:': [
@@ -1176,6 +1180,7 @@ var ajax = new cAjaxCalls();
 					{ value: "title", meta: "filter" },
 					{ value: "trim", meta: "filter" },
 					{ value: "truncate(10)", meta: "filter" },
+					{ value: "unescape", meta: "filter" },
 					{ value: "upper", meta: "filter" },
 					{ value: "url_decode", meta: "filter" },
 					{ value: "url_decode('json')", meta: "filter" },
@@ -1450,7 +1455,7 @@ var ajax = new cAjaxCalls();
 			});
 			
 			var completer = {
-				identifierRegexps: [/[a-zA-Z_0-9\#\@\.\$\-\u00A2-\uFFFF]/],
+				identifierRegexps: [/[a-zA-Z_0-9\*\#\@\.\$\-\u00A2-\uFFFF]/],
 				formatData: function(scope_key) {
 					return editor.completer.autocomplete_suggestions[scope_key].map(function(data) {
 						if('object' == typeof data) {
@@ -1800,7 +1805,7 @@ var ajax = new cAjaxCalls();
 			editor.completer.exactMatch = true;
 			
 			var completer = {
-				identifierRegexps: [/[a-zA-Z_0-9\#\@\.\$\-\u00A2-\uFFFF]/],
+				identifierRegexps: [/[a-zA-Z_0-9\*\#\@\.\$\-\u00A2-\uFFFF]/],
 				formatData: function(scope_key) {
 					if(!autocomplete_suggestions.hasOwnProperty(scope_key) 
 						|| undefined == autocomplete_suggestions.hasOwnProperty(scope_key))
