@@ -187,26 +187,178 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 	
 	function getActionExtensions(Model_TriggerEvent $trigger) {
 		$actions =
-			array(
-				'create_comment' => array('label' =>'Create comment'),
-				'create_notification' => array('label' =>'Create notification'),
-				'create_task' => array('label' =>'Create task'),
-				'create_ticket' => array('label' =>'Create ticket'),
-				'send_email' => array('label' => 'Send email'),
-				
-				'prompt_captcha' => array('label' => 'Form prompt with CAPTCHA challenge'),
-				'prompt_checkboxes' => array('label' => 'Form prompt with multiple choices'),
-				'prompt_radios' => array('label' => 'Form prompt with single choice'),
-				'prompt_text' => array('label' => 'Form prompt with text'),
-				
-				'prompt_submit' => array('label' => 'Form prompt with submit'),
-				
-				'respond_sheet' => array('label' => 'Form respond with sheet'),
-				'respond_text' => array('label' => 'Form respond with text'),
-			)
+			[
+				'prompt_captcha' => [
+					'label' => 'Prompt with CAPTCHA challenge',
+					'notes' => '',
+					'params' => [
+						'var' => [
+							'type' => 'placeholder',
+							'required' => true,
+							'notes' => 'The placeholder to set with the CAPTCHA challenge response',
+						],
+					],
+				],
+				'prompt_checkboxes' => [
+					'label' => 'Prompt with multiple choices',
+					'notes' => '',
+					'params' => [
+						'label' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The label for the set of choices',
+						],
+						'options' => [
+							'label' => [
+								'type' => 'text',
+								'required' => true,
+								'notes' => 'Predefined options separated by newlines',
+							],
+						],
+						'var' => [
+							'type' => 'placeholder',
+							'required' => true,
+							'notes' => "The placeholder to set with the user's choices",
+						],
+						'var_validate' => [
+							'type' => 'text',
+							'notes' => "A template for validating this prompt",
+						],
+					],
+				],
+				'prompt_radios' => [
+					'label' => 'Prompt with single choice',
+					'notes' => '',
+					'params' => [
+						'label' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The label for the set of choices',
+						],
+						'style' => [
+							'label' => [
+								'type' => 'text',
+								'notes' => '`radios` or `buttons`',
+							],
+						],
+						'orientation' => [
+							'label' => [
+								'type' => 'text',
+								'notes' => '`horizontal` or `vertical`',
+							],
+						],
+						'options' => [
+							'label' => [
+								'type' => 'text',
+								'required' => true,
+								'notes' => 'Predefined options separated by newlines',
+							],
+						],
+						'default' => [
+							'label' => [
+								'type' => 'text',
+								'notes' => 'The selected option by default',
+							],
+						],
+						'var' => [
+							'type' => 'placeholder',
+							'required' => true,
+							'notes' => "The placeholder to set with the user's choices",
+						],
+						'var_format' => [
+							'type' => 'text',
+							'notes' => "A template for formatting this prompt",
+						],
+						'var_validate' => [
+							'type' => 'text',
+							'notes' => "A template for validating this prompt",
+						],
+					],
+				],
+				'prompt_text' => [
+					'label' => 'Prompt with text',
+					'notes' => '',
+					'params' => [
+						'label' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The label for the text input',
+						],
+						'placeholder' => [
+							'type' => 'text',
+							'notes' => 'The descriptive text in the textbox when empty',
+						],
+						'default' => [
+							'type' => 'text',
+							'notes' => 'The default value in the textbox',
+						],
+						'mode' => [
+							'type' => 'text',
+							'notes' => '`multiple` (multiple lines), or omit for single line',
+						],
+						'var' => [
+							'type' => 'placeholder',
+							'required' => true,
+							'notes' => "The placeholder to set with the user's input",
+						],
+						'var_format' => [
+							'type' => 'text',
+							'notes' => "A template for formatting this prompt",
+						],
+						'var_validate' => [
+							'type' => 'text',
+							'notes' => "A template for validating this prompt",
+						],
+					],
+				],
+				'prompt_submit' => [
+					'label' => 'Prompt with submit',
+					'notes' => 'This action has no configurable parameters.',
+					'params' => [],
+				],
+				'respond_sheet' => [
+					'label' => 'Respond with sheet',
+					'notes' => '',
+					'params' => [
+						'data_query' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => "The [data query](/docs/data-queries/) to run",
+						],
+						'placeholder_simulator_yaml' => [
+							'type' => 'yaml',
+							'notes' => "The test placeholder values when using the simulator",
+						],
+						'sheet_yaml' => [
+							'type' => 'yaml',
+							'required' => true,
+							'notes' => "The [sheet](/docs/sheets/) schema to display",
+						],
+					],
+				],
+				'respond_text' => [
+					'label' => 'Respond with text',
+					'notes' => '',
+					'params' => [
+						'message' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => "The message to send to the user",
+						],
+						'format' => [
+							'type' => 'text',
+							'notes' => "The format of the message: `markdown`, `html`, or omit for plaintext",
+						],
+					],
+				],
+			]
 			;
 		
 		return $actions;
+	}
+	
+	function getActionDefaultOn() {
+		return 'worker_id';
 	}
 	
 	function renderActionExtension($token, $trigger, $params=[], $seq=null) {
@@ -224,26 +376,6 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 		$tpl->assign('token_labels', $labels);
 			
 		switch($token) {
-			case 'create_comment':
-				DevblocksEventHelper::renderActionCreateComment($trigger);
-				break;
-
-			case 'create_notification':
-				DevblocksEventHelper::renderActionCreateNotification($trigger);
-				break;
-
-			case 'create_task':
-				DevblocksEventHelper::renderActionCreateTask($trigger);
-				break;
-
-			case 'create_ticket':
-				DevblocksEventHelper::renderActionCreateTicket($trigger);
-				break;
-				
-			case 'send_email':
-				DevblocksEventHelper::renderActionSendEmail($trigger);
-				break;
-			
 			case 'prompt_captcha':
 				$tpl->display('devblocks:cerberusweb.core::events/form_interaction/_common/prompts/action_prompt_captcha.tpl');
 				break;
@@ -289,23 +421,9 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 	}
 	
 	function simulateActionExtension($token, $trigger, $params, DevblocksDictionaryDelegate $dict) {
+		$out = '';
+		
 		switch($token) {
-			case 'create_comment':
-				return DevblocksEventHelper::simulateActionCreateComment($params, $dict, 'worker_id');
-				break;
-
-			case 'create_notification':
-				return DevblocksEventHelper::simulateActionCreateNotification($params, $dict, 'worker_id');
-				break;
-
-			case 'create_task':
-				return DevblocksEventHelper::simulateActionCreateTask($params, $dict, 'worker_id');
-				break;
-
-			case 'create_ticket':
-				return DevblocksEventHelper::simulateActionCreateTicket($params, $dict, 'worker_id');
-				break;
-			
 			case 'prompt_captcha':
 				$out = ">>> Prompting with CAPTCHA challenge\n";
 				break;
@@ -346,10 +464,6 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 			case 'prompt_submit':
 				break;
 				
-			case 'send_email':
-				return DevblocksEventHelper::simulateActionSendEmail($params, $dict);
-				break;
-			
 			case 'respond_text':
 				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 				$content = $tpl_builder->build($params['message'], $dict);
@@ -374,22 +488,6 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 	
 	function runActionExtension($token, $trigger, $params, DevblocksDictionaryDelegate $dict) {
 		switch($token) {
-			case 'create_comment':
-				DevblocksEventHelper::runActionCreateComment($params, $dict, 'worker_id');
-				break;
-				
-			case 'create_notification':
-				DevblocksEventHelper::runActionCreateNotification($params, $dict, 'worker_id');
-				break;
-				
-			case 'create_task':
-				DevblocksEventHelper::runActionCreateTask($params, $dict, 'worker_id');
-				break;
-
-			case 'create_ticket':
-				DevblocksEventHelper::runActionCreateTicket($params, $dict);
-				break;
-			
 			case 'prompt_captcha':
 				$actions =& $dict->_actions;
 				
@@ -513,10 +611,6 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 				$dict->__exit = 'suspend';
 				break;
 				
-			case 'send_email':
-				DevblocksEventHelper::runActionSendEmail($params, $dict);
-				break;
-			
 			case 'respond_text':
 				$actions =& $dict->_actions;
 				

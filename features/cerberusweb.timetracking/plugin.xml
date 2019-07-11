@@ -4,7 +4,7 @@
 	<name>Time Tracking</name>
 	<description>Track time spent on various helpdesk activities (replying to tickets, etc).  This adds a Track Time button to Display Ticket and Organizations, and a Time Tracking tab to the Activity page.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>9.3.1</version>
+	<version>9.3.2</version>
 	<link>http://wiki.cerbweb.com/Features:Time_Tracking</link>
 	<image>plugin.png</image>
 	
@@ -185,6 +185,7 @@
 						<data key="cerberusweb.contexts.worker" />
 					</value>
 				</param>
+				<param key="menu_key" value="Records:Custom Behavior:Time tracking entry" />
 				<param key="options">
 					<value>
 						<data key="visibility" />

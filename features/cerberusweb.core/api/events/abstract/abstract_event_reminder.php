@@ -175,18 +175,22 @@ abstract class AbstractEvent_Reminder extends Extension_DevblocksEvent {
 	
 	function getActionExtensions(Model_TriggerEvent $trigger) {
 		$actions =
-			array(
-				'create_comment' => array('label' =>'Create comment'),
-				'create_notification' => array('label' =>'Create notification'),
-				'create_task' => array('label' =>'Create task'),
-				'create_ticket' => array('label' =>'Create ticket'),
-				'send_email' => array('label' => 'Send email'),
-				'set_reminder_status' => ['label' => 'Set reminder status'],
-			)
+			[
+				'set_reminder_status' => [
+					'label' => 'Set reminder status',
+					'deprecated' => true,
+					'notes' => 'Use [Record update](/docs/bots/events/actions/core.bot.action.record.update/) instead',
+					'params' => [],
+				],
+			]
 			+ DevblocksEventHelper::getActionCustomFieldsFromLabels($this->getLabels($trigger))
 			;
 			
 		return $actions;
+	}
+	
+	function getActionDefaultOn() {
+		return 'reminder_id';
 	}
 	
 	function renderActionExtension($token, $trigger, $params=[], $seq=null) {
@@ -200,31 +204,12 @@ abstract class AbstractEvent_Reminder extends Extension_DevblocksEvent {
 		$tpl->assign('token_labels', $labels);
 			
 		switch($token) {
-			case 'create_comment':
-				DevblocksEventHelper::renderActionCreateComment($trigger);
-				break;
-				
-			case 'create_notification':
-				DevblocksEventHelper::renderActionCreateNotification($trigger);
-				break;
-				
-			case 'create_task':
-				DevblocksEventHelper::renderActionCreateTask($trigger);
-				break;
-				
-			case 'create_ticket':
-				DevblocksEventHelper::renderActionCreateTicket($trigger);
-				break;
-				
-			case 'send_email':
-				DevblocksEventHelper::renderActionSendEmail($trigger);
-				break;
-				
 			case 'set_reminder_status':
 				$tpl->display('devblocks:cerberusweb.core::events/model/reminder/action_set_status.tpl');
 				break;
 
 			default:
+				$matches = [];
 				if(preg_match('#set_cf_(.*?_*)custom_([0-9]+)#', $token, $matches)) {
 					$field_id = $matches[2];
 					$custom_field = DAO_CustomField::get($field_id);
@@ -245,21 +230,6 @@ abstract class AbstractEvent_Reminder extends Extension_DevblocksEvent {
 			return;
 		
 		switch($token) {
-			case 'create_comment':
-				return DevblocksEventHelper::simulateActionCreateComment($params, $dict, 'reminder_id');
-				break;
-			case 'create_notification':
-				return DevblocksEventHelper::simulateActionCreateNotification($params, $dict, 'reminder_id');
-				break;
-			case 'create_task':
-				return DevblocksEventHelper::simulateActionCreateTask($params, $dict, 'reminder_id');
-				break;
-			case 'create_ticket':
-				return DevblocksEventHelper::simulateActionCreateTicket($params, $dict);
-				break;
-			case 'send_email':
-				return DevblocksEventHelper::simulateActionSendEmail($params, $dict);
-				break;
 			case 'set_reminder_status':
 				@$to_is_closed = DevblocksPlatform::intClamp(intval($params['is_closed']), 0, 1);
 				$dict->reminder_is_closed = $to_is_closed;
@@ -288,26 +258,6 @@ abstract class AbstractEvent_Reminder extends Extension_DevblocksEvent {
 			return;
 		
 		switch($token) {
-			case 'create_comment':
-				DevblocksEventHelper::runActionCreateComment($params, $dict, 'reminder_id');
-				break;
-				
-			case 'create_notification':
-				DevblocksEventHelper::runActionCreateNotification($params, $dict, 'reminder_id');
-				break;
-				
-			case 'create_task':
-				DevblocksEventHelper::runActionCreateTask($params, $dict, 'reminder_id');
-				break;
-
-			case 'create_ticket':
-				DevblocksEventHelper::runActionCreateTicket($params, $dict);
-				break;
-				
-			case 'send_email':
-				DevblocksEventHelper::runActionSendEmail($params, $dict);
-				break;
-				
 			case 'set_reminder_status':
 				$this->simulateAction($token, $trigger, $params, $dict);
 				

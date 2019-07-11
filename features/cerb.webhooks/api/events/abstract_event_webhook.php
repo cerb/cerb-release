@@ -320,23 +320,64 @@ abstract class AbstractEvent_Webhook extends Extension_DevblocksEvent {
 	
 	function getActionExtensions(Model_TriggerEvent $trigger) {
 		$actions =
-			array(
-				'add_watchers' => array('label' =>'Add watchers'),
-				'create_comment' => array('label' =>'Create comment'),
-				'create_notification' => array('label' =>'Create notification'),
-				'create_task' => array('label' =>'Create task'),
-				'create_ticket' => array('label' =>'Create ticket'),
-				'send_email' => array('label' => 'Send email'),
-				'set_links' => array('label' => 'Set links'),
-				'set_http_header' => array('label' => 'Respond with HTTP header'),
-				'set_http_body' => array('label' => 'Respond with HTTP body'),
-				'set_http_status' => array('label' => 'Respond with HTTP status'),
-				'set_timezone' => array('label' => 'Set timezone'),
-			)
+			[
+				'set_http_header' => [
+					'label' => 'Respond with HTTP header',
+					'notes' => '',
+					'params' => [
+						'name' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The HTTP response header name',
+						],
+						'value' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The HTTP response header value',
+						],
+					],
+				],
+				'set_http_body' => [
+					'label' => 'Respond with HTTP body',
+					'notes' => '',
+					'params' => [
+						'value' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The HTTP response body',
+						],
+					],
+				],
+				'set_http_status' => [
+					'label' => 'Respond with HTTP status',
+					'notes' => '',
+					'params' => [
+						'value' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The HTTP response status (e.g. 200 OK)',
+						],
+					],
+				],
+				'set_timezone' => [
+					'label' => 'Set timezone',
+					'params' => [
+						'value' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The new timezone (e.g. `America/Los_Angeles`)',
+						],
+					],
+				],
+			]
 			+ DevblocksEventHelper::getActionCustomFieldsFromLabels($this->getLabels($trigger))
 			;
 			
 		return $actions;
+	}
+	
+	function getActionDefaultOn() {
+		return 'va_id';
 	}
 	
 	function renderActionExtension($token, $trigger, $params=array(), $seq=null) {
@@ -366,35 +407,8 @@ abstract class AbstractEvent_Webhook extends Extension_DevblocksEvent {
 				DevblocksEventHelper::renderActionSetVariableString($labels);
 				break;
 				
-			case 'add_watchers':
-				DevblocksEventHelper::renderActionAddWatchers($trigger);
-				break;
-			
-			case 'create_comment':
-				DevblocksEventHelper::renderActionCreateComment($trigger);
-				break;
-				
-			case 'create_notification':
-				DevblocksEventHelper::renderActionCreateNotification($trigger);
-				break;
-				
-			case 'create_task':
-				DevblocksEventHelper::renderActionCreateTask($trigger);
-				break;
-				
-			case 'create_ticket':
-				DevblocksEventHelper::renderActionCreateTicket($trigger);
-				break;
-				
-			case 'send_email':
-				DevblocksEventHelper::renderActionSendEmail($trigger);
-				break;
-
-			case 'set_links':
-				DevblocksEventHelper::renderActionSetLinks($trigger);
-				break;
-
 			default:
+				$matches = [];
 				if(preg_match('#set_cf_(.*?_*)custom_([0-9]+)#', $token, $matches)) {
 					$field_id = $matches[2];
 					$custom_field = DAO_CustomField::get($field_id);
@@ -469,34 +483,6 @@ abstract class AbstractEvent_Webhook extends Extension_DevblocksEvent {
 				);
 				break;
 			
-			case 'add_watchers':
-				return DevblocksEventHelper::simulateActionAddWatchers($params, $dict, 'va_id');
-				break;
-				
-			case 'create_comment':
-				return DevblocksEventHelper::simulateActionCreateComment($params, $dict, 'va_id');
-				break;
-				
-			case 'create_notification':
-				return DevblocksEventHelper::simulateActionCreateNotification($params, $dict, 'va_id');
-				break;
-				
-			case 'create_task':
-				return DevblocksEventHelper::simulateActionCreateTask($params, $dict, 'va_id');
-				break;
-				
-			case 'create_ticket':
-				return DevblocksEventHelper::simulateActionCreateTicket($params, $dict);
-				break;
-				
-			case 'send_email':
-				return DevblocksEventHelper::simulateActionSendEmail($params, $dict);
-				break;
-				
-			case 'set_links':
-				return DevblocksEventHelper::simulateActionSetLinks($trigger, $params, $dict);
-				break;
-				
 			default:
 				if(preg_match('#set_cf_(.*?_*)custom_([0-9]+)#', $token))
 					return DevblocksEventHelper::simulateActionSetCustomField($token, $params, $dict);
@@ -549,34 +535,6 @@ abstract class AbstractEvent_Webhook extends Extension_DevblocksEvent {
 				DevblocksPlatform::setTimezone($value);
 				break;
 			
-			case 'add_watchers':
-				DevblocksEventHelper::runActionAddWatchers($params, $dict, 'va_id');
-				break;
-			
-			case 'create_comment':
-				DevblocksEventHelper::runActionCreateComment($params, $dict, 'va_id');
-				break;
-				
-			case 'create_notification':
-				DevblocksEventHelper::runActionCreateNotification($params, $dict, 'va_id');
-				break;
-				
-			case 'create_task':
-				DevblocksEventHelper::runActionCreateTask($params, $dict, 'va_id');
-				break;
-
-			case 'create_ticket':
-				DevblocksEventHelper::runActionCreateTicket($params, $dict);
-				break;
-				
-			case 'send_email':
-				DevblocksEventHelper::runActionSendEmail($params, $dict);
-				break;
-				
-			case 'set_links':
-				DevblocksEventHelper::runActionSetLinks($trigger, $params, $dict);
-				break;
-				
 			default:
 				if(preg_match('#set_cf_(.*?_*)custom_([0-9]+)#', $token))
 					return DevblocksEventHelper::runActionSetCustomField($token, $params, $dict);

@@ -150,6 +150,21 @@ abstract class AbstractEvent_MailBeforeSent extends Extension_DevblocksEvent {
 		//$labels['worker_id'] = $prefix.'worker id';
 		$values['worker_id'] =& $properties['worker_id'];
 		
+		// Ticket custom fields
+		$custom_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_TICKET, true, true);
+		
+		foreach($custom_fields as $custom_field) {
+			$labels['custom_' . $custom_field->id] = $prefix.'custom field ' . DevblocksPlatform::strLower($custom_field->name);
+			
+			if(
+				array_key_exists('custom_fields', $properties)
+				&& is_array($properties['custom_fields'])
+				&& array_key_exists($custom_field->id, $properties['custom_fields'])
+			) {
+				$values['custom_' . $custom_field->id] = $properties['custom_fields'][$custom_field->id];
+			}
+		}
+		
 		/**
 		 * Ticket
 		 */
@@ -445,17 +460,86 @@ abstract class AbstractEvent_MailBeforeSent extends Extension_DevblocksEvent {
 	
 	function getActionExtensions(Model_TriggerEvent $trigger) {
 		$actions =
-			array(
-				'append_to_content' => array('label' =>'Append text to message content'),
-				'create_notification' => array('label' =>'Create notification'),
-				'prepend_to_content' => array('label' =>'Prepend text to message content'),
-				'replace_content' => array('label' =>'Replace text in message content'),
-				'set_header' => array('label' => 'Set message header'),
-			)
+			[
+				'append_to_content' => [
+					'label' => 'Append text to message content',
+					'notes' => '',
+					'params' => [
+						'content' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The content to append to the message body',
+						],
+						'mode' => [
+							'type' => 'text',
+							'notes' => '`sent` (only sent message), `saved` (only saved message), or omit for both',
+						],
+					],
+				],
+				'prepend_to_content' => [
+					'label' => 'Prepend text to message content',
+					'notes' => '',
+					'params' => [
+						'content' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The content to prepend to the message body',
+						],
+						'mode' => [
+							'type' => 'text',
+							'notes' => '`sent` (only sent message), `saved` (only saved message), or omit for both',
+						],
+					],
+				],
+				'replace_content' => [
+					'label' => 'Replace text in message content',
+					'notes' => '',
+					'params' => [
+						'is_regexp' => [
+							'type' => 'bit',
+							'notes' => '`0` (plaintext match), `1` (regular expression match)',
+						],
+						'replace_mode' => [
+							'type' => 'text',
+							'notes' => '`text`, `html`, or omit for both',
+						],
+						'replace' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The content to match in the message body',
+						],
+						'with' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The new content to replace the match with',
+						],
+					],
+				],
+				'set_header' => [
+					'label' => 'Set message header',
+					'notes' => '',
+					'params' => [
+						'header' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The email header to set',
+						],
+						'value' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The value of the email header',
+						],
+					],
+				],
+			]
 			+ DevblocksEventHelper::getActionCustomFieldsFromLabels($this->getLabels($trigger))
 			;
 		
 		return $actions;
+	}
+	
+	function getActionDefaultOn() {
+		return 'ticket_id';
 	}
 	
 	function renderActionExtension($token, $trigger, $params=array(), $seq=null) {
@@ -473,10 +557,6 @@ abstract class AbstractEvent_MailBeforeSent extends Extension_DevblocksEvent {
 			case 'prepend_to_content':
 				$tpl->assign('is_sent', true);
 				$tpl->display('devblocks:cerberusweb.core::events/mail_before_sent_by_group/action_add_content.tpl');
-				break;
-				
-			case 'create_notification':
-				DevblocksEventHelper::renderActionCreateNotification($trigger);
 				break;
 				
 			case 'replace_content':
@@ -637,10 +717,6 @@ abstract class AbstractEvent_MailBeforeSent extends Extension_DevblocksEvent {
 			return;
 		
 		switch($token) {
-			case 'create_notification':
-				return DevblocksEventHelper::simulateActionCreateNotification($params, $dict, 'ticket_id');
-				break;
-
 			default:
 				if(preg_match('#set_cf_(.*?_*)custom_([0-9]+)#', $token))
 					return DevblocksEventHelper::simulateActionSetCustomField($token, $params, $dict);
@@ -742,10 +818,6 @@ abstract class AbstractEvent_MailBeforeSent extends Extension_DevblocksEvent {
 			return;
 		
 		switch($token) {
-			case 'create_notification':
-				DevblocksEventHelper::runActionCreateNotification($params, $dict, 'ticket_id');
-				break;
-
 			default:
 				if(preg_match('#set_cf_(.*?_*)custom_([0-9]+)#', $token))
 					return DevblocksEventHelper::runActionSetCustomField($token, $params, $dict);

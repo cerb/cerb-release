@@ -617,32 +617,168 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 	
 	function getActionExtensions(Model_TriggerEvent $trigger) {
 		$actions =
-			array(
-				'add_recipients' => array('label' =>'Add recipients'),
-				'add_watchers' => array('label' =>'Add watchers'),
-				'create_comment' => array('label' =>'Create comment'),
-				'create_notification' => array('label' =>'Create notification'),
-				'create_task' => array('label' =>'Create task'),
-				'create_ticket' => array('label' =>'Create ticket'),
-				'move_to' => array('label' => 'Move to'),
-				'relay_email' => array('label' => 'Relay to external email'),
-				'remove_recipients' => array('label' =>'Remove recipients'),
-				'schedule_email_recipients' => array('label' => 'Schedule email to recipients'),
-				'send_email' => array('label' => 'Send email'),
-				'send_email_recipients' => array('label' => 'Send email to recipients'),
-				'set_importance' => array('label' =>'Set ticket importance'),
-				'set_org' => array('label' =>'Set organization'),
-				'set_owner' => array('label' =>'Set ticket owner'),
-				'set_reopen_date' => array('label' => 'Set ticket reopen date'),
-				'set_spam_training' => array('label' => 'Set ticket spam training'),
-				'set_status' => array('label' => 'Set ticket status'),
-				'set_subject' => array('label' => 'Set ticket subject'),
-				'set_links' => array('label' => 'Set links'),
-			)
+			[
+				'add_recipients' => [
+					'label' =>'Add recipients',
+					'notes' => '',
+					'params' => [
+						'recipients' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'A comma-delimited list of email addresses to add as recipients',
+						]
+					],
+				],
+				'move_to' => [
+					'label' => 'Move to bucket',
+					'notes' => '',
+					'params' => [
+						'group_id' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The [group](/docs/records/types/group/) to move the ticket into',
+						],
+						'bucket_id' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The [bucket](/docs/records/types/bucket/) to move the ticket into',
+						]
+					],
+				],
+				'relay_email' => [
+					'label' => 'Send email relay to workers',
+					'notes' => '',
+					'params' => [
+						'to' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'An array of [email addresses](/docs/records/types/address/) recipients. These must match registered worker email addresses',
+						],
+						'to_owner' => [
+							'type' => 'text',
+							'notes' => 'Any value enables this option to include the ticket owner as a recipient',
+						],
+						'to_watchers' => [
+							'type' => 'text',
+							'notes' => 'Any value enables this option to include the ticket watchers as recipients',
+						],
+						'subject' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The subject of the relayed message',
+						],
+						'content' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The body of the relayed message',
+						],
+						'include_attachments' => [
+							'type' => 'bit',
+							'notes' => '`0` (do not include attachments) or `1` (include attachments)',
+						],
+					],
+				],
+				'remove_recipients' => [
+					'label' =>'Remove recipients',
+					'notes' => '',
+					'params' => [
+						'recipients' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'A comma-delimited list of email addresses to remove as recipients',
+						]
+					],
+				],
+				'schedule_email_recipients' => [
+					'label' => 'Send scheduled email to recipients',
+					'notes' => '',
+					'params' => [
+						'content' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The message to send',
+						],
+						'delivery_date' => [
+							'type' => 'datetime',
+							'required' => true,
+							'notes' => 'When to deliver the message (e.g. `now`, `+2 days`, `Friday 8am`)',
+						]
+					],
+				],
+				'send_email_recipients' => [
+					'label' => 'Send email to recipients',
+					'notes' => '',
+					'params' => [
+						'headers' => [
+							'type' => 'text',
+							'notes' => 'A list of `Header: Value` pairs delimited by newlines',
+						],
+						'format' => [
+							'type' => 'text',
+							'notes' => '`parsedown` for Markdown/HTML, or omitted for plaintext',
+						],
+						'content' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The email message body',
+						],
+						'html_template_id' => [
+							'type' => 'id',
+							'notes' => 'The [html template](/docs/records/types/html_template/) to use with Markdown format',
+						],
+						'bundle_ids' => [
+							'type' => 'id[]',
+							'notes' => 'An array of [file bundles](/docs/records/types/file_bundle/) to attach',
+						],
+						'is_autoreply' => [
+							'type' => 'bit',
+							'notes' => '`0` (not an autoreply), `1` (an autoreply)',
+						],
+					],
+				],
+				'set_importance' => [
+					'label' =>'Set ticket importance',
+					'deprecated' => true,
+				],
+				'set_org' => [
+					'label' =>'Set organization',
+					'deprecated' => true,
+				],
+				'set_owner' => [
+					'label' =>'Set ticket owner',
+					'deprecated' => true,
+				],
+				'set_reopen_date' => [
+					'label' => 'Set ticket reopen date',
+					'deprecated' => true,
+				],
+				'set_spam_training' => [
+					'label' => 'Set ticket spam training',
+					'deprecated' => true,
+				],
+				'set_status' => [
+					'label' => 'Set ticket status',
+					'deprecated' => true,
+				],
+				'set_subject' => [
+					'label' => 'Set ticket subject',
+					'deprecated' => true,
+				],
+			]
 			+ DevblocksEventHelper::getActionCustomFieldsFromLabels($this->getLabels($trigger))
 			;
 		
 		return $actions;
+	}
+	
+	function getActionDefaultOn() {
+		return 'ticket_id';
+	}
+	
+	function getActionEmailRecipients() {
+		return [
+			'ticket_bucket_replyto_id,group_replyto_id' => 'Ticket Bucket',
+		];
 	}
 	
 	function renderActionExtension($token, $trigger, $params=array(), $seq=null) {
@@ -658,26 +794,6 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 		switch($token) {
 			case 'add_recipients':
 				DevblocksEventHelper::renderActionAddRecipients($trigger);
-				break;
-				
-			case 'add_watchers':
-				DevblocksEventHelper::renderActionAddWatchers($trigger);
-				break;
-
-			case 'create_comment':
-				DevblocksEventHelper::renderActionCreateComment($trigger);
-				break;
-				
-			case 'create_notification':
-				DevblocksEventHelper::renderActionCreateNotification($trigger);
-				break;
-				
-			case 'create_task':
-				DevblocksEventHelper::renderActionCreateTask($trigger);
-				break;
-				
-			case 'create_ticket':
-				DevblocksEventHelper::renderActionCreateTicket($trigger);
 				break;
 				
 			case 'move_to':
@@ -745,14 +861,6 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 				DevblocksEventHelper::renderActionSetTicketOwner($trigger);
 				break;
 			
-			case 'send_email':
-				$placeholders = [
-					'ticket_bucket_replyto_id,group_replyto_id' => 'Ticket Bucket',
-				];
-				
-				DevblocksEventHelper::renderActionSendEmail($trigger, $placeholders);
-				break;
-				
 			case 'send_email_recipients':
 				$tpl->assign('workers', DAO_Worker::getAll());
 				
@@ -778,10 +886,6 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 				$tpl->display('devblocks:cerberusweb.core::internal/decisions/actions/_set_var_string.tpl');
 				break;
 			
-			case 'set_links':
-				DevblocksEventHelper::renderActionSetLinks($trigger);
-				break;
-				
 			default:
 				$matches = [];
 				if(preg_match('#set_cf_(.*?_*)custom_([0-9]+)#', $token, $matches)) {
@@ -809,26 +913,6 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 				return DevblocksEventHelper::simulateActionAddRecipients($params, $dict, 'ticket_id');
 				break;
 				
-			case 'add_watchers':
-				return DevblocksEventHelper::simulateActionAddWatchers($params, $dict, 'ticket_id');
-				break;
-			
-			case 'create_comment':
-				return DevblocksEventHelper::simulateActionCreateComment($params, $dict, 'ticket_id');
-				break;
-				
-			case 'create_notification':
-				return DevblocksEventHelper::simulateActionCreateNotification($params, $dict, 'ticket_id');
-				break;
-				
-			case 'create_task':
-				return DevblocksEventHelper::simulateActionCreateTask($params, $dict, 'ticket_id');
-				break;
-
-			case 'create_ticket':
-				return DevblocksEventHelper::simulateActionCreateTicket($params, $dict, 'ticket_id');
-				break;
-
 			case 'relay_email':
 				return DevblocksEventHelper::simulateActionRelayEmail(
 					$params,
@@ -851,10 +935,6 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 				
 			case 'schedule_email_recipients':
 				//return DevblocksEventHelper::simulateActionScheduleTicketReply($params, $dict, $ticket_id, $message_id);
-				break;
-				
-			case 'send_email':
-				return DevblocksEventHelper::simulateActionSendEmail($params, $dict);
 				break;
 				
 			case 'send_email_recipients':
@@ -932,9 +1012,6 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 				return $out;
 				break;
 			
-			case 'set_links':
-				return DevblocksEventHelper::simulateActionSetLinks($trigger, $params, $dict);
-				break;
 				
 			default:
 				if(preg_match('#set_cf_(.*?_*)custom_([0-9]+)#', $token))
@@ -955,26 +1032,6 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 				DevblocksEventHelper::runActionAddRecipients($params, $dict, 'ticket_id');
 				break;
 				
-			case 'add_watchers':
-				DevblocksEventHelper::runActionAddWatchers($params, $dict, 'ticket_id');
-				break;
-			
-			case 'create_comment':
-				DevblocksEventHelper::runActionCreateComment($params, $dict, 'ticket_id');
-				break;
-				
-			case 'create_notification':
-				DevblocksEventHelper::runActionCreateNotification($params, $dict, 'ticket_id');
-				break;
-				
-			case 'create_task':
-				DevblocksEventHelper::runActionCreateTask($params, $dict, 'ticket_id');
-				break;
-
-			case 'create_ticket':
-				DevblocksEventHelper::runActionCreateTicket($params, $dict, 'ticket_id');
-				break;
-
 			case 'relay_email':
 				DevblocksEventHelper::runActionRelayEmail(
 					$params,
@@ -1003,10 +1060,6 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 				DevblocksEventHelper::runActionSetTicketImportance($params, $dict, 'ticket_id', 'ticket_importance');
 				break;
 
-			case 'send_email':
-				DevblocksEventHelper::runActionSendEmail($params, $dict);
-				break;
-				
 			case 'send_email_recipients':
 				// Translate message tokens
 				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
@@ -1201,10 +1254,6 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 				$dict->ticket_bucket_id = $to_bucket_id;
 				break;
 			
-			case 'set_links':
-				DevblocksEventHelper::runActionSetLinks($trigger, $params, $dict);
-				break;
-				
 			default:
 				if(preg_match('#set_cf_(.*?_*)custom_([0-9]+)#', $token))
 					return DevblocksEventHelper::runActionSetCustomField($token, $params, $dict);

@@ -72,7 +72,7 @@ class Event_GetInteractionsForWorker extends Extension_DevblocksEvent {
 			
 			$dict = DevblocksDictionaryDelegate::instance($values);
 			
-			$result = $behavior->runDecisionTree($dict, false, $event);
+			$behavior->runDecisionTree($dict, false, $event);
 			
 			foreach($actions as $action) {
 				switch(@$action['_action']) {
@@ -347,9 +347,33 @@ class Event_GetInteractionsForWorker extends Extension_DevblocksEvent {
 	
 	function getActionExtensions(Model_TriggerEvent $trigger) {
 		$actions =
-			array(
-				'return_interaction' => array('label' => 'Return interaction'),
-			)
+			[
+				'return_interaction' => [
+					'label' => 'Return interaction',
+					'notes' => '',
+					'params' => [
+						'behavior_id' => [
+							'type' => 'id',
+							'required' => true,
+							'notes' => 'The ID of the [behavior](/docs/records/types/behavior/) to run',
+						],
+						'name' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The name of the displayed interaction',
+						],
+						'interaction' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The ID of the displayed interaction',
+						],
+						'interaction_params_json' => [
+							'type' => 'json',
+							'notes' => 'The parameters of the displayed interaction',
+						],
+					],
+				],
+			]
 		;
 		
 		return $actions;
@@ -394,6 +418,7 @@ class Event_GetInteractionsForWorker extends Extension_DevblocksEvent {
 					break;
 				
 				@$interaction_params_json = $tpl_builder->build($params['interaction_params_json'], $dict);
+				
 				if(false == ($interaction_params = json_decode($interaction_params_json, true)))
 					$interaction_params = [];
 				
@@ -406,7 +431,7 @@ class Event_GetInteractionsForWorker extends Extension_DevblocksEvent {
 					$name,
 					$behavior->title,
 					$behavior_id,
-					DevblocksPlatform::strFormatJson($interaction_params_json)
+					DevblocksPlatform::strFormatJson(json_encode($interaction_params))
 				);
 				break;
 		}

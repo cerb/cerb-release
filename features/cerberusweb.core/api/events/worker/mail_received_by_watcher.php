@@ -63,7 +63,9 @@ class Event_MailReceivedByWatcher extends Extension_DevblocksEvent {
 			$result = array_shift($results);
 			
 			$message_id = $result[SearchFields_Ticket::TICKET_LAST_MESSAGE_ID];
-			$worker_id = $active_worker->id;
+			
+			if($active_worker)
+				$worker_id = $active_worker->id;
 		}
 		
 		return new Model_DevblocksEvent(
@@ -115,7 +117,7 @@ class Event_MailReceivedByWatcher extends Extension_DevblocksEvent {
 
 			// Fill some custom values
 			if(!is_null($event_model)) {
-				$values['is_first'] = ($values['id'] == $ticket_values['initial_message_id']) ? 1 : 0;
+				$values['is_first'] = ($values['id'] == @$ticket_values['initial_message_id']) ? 1 : 0;
 			}
 			
 			$values['ticket_has_owner'] = !empty($ticket_values['owner_id']) ? 1 : 0;
@@ -454,22 +456,84 @@ class Event_MailReceivedByWatcher extends Extension_DevblocksEvent {
 	}
 	
 	function getActionExtensions(Model_TriggerEvent $trigger) {
-		$actions = array(
-			'add_watchers' => array('label' =>'Add watchers'),
-			//'set_spam_training' => array('label' => 'Set spam training'),
-			//'set_status' => array('label' => 'Set status'),
-			'send_email' => array('label' => 'Send email'),
-			'relay_email' => array('label' => 'Relay to external email'),
-			'send_email_recipients' => array('label' => 'Reply to recipients'),
-			'create_comment' => array('label' =>'Create comment'),
-			'create_notification' => array('label' =>'Create notification'),
-			'create_task' => array('label' =>'Create task'),
-			'create_ticket' => array('label' =>'Create ticket'),
-		);
-		
-		// [TODO] Add set custom fields
+		$actions = [
+			'relay_email' => [
+				'label' => 'Send email relay to workers',
+				'notes' => '',
+				'params' => [
+					'to' => [
+						'type' => 'text',
+						'required' => true,
+						'notes' => 'An array of [email addresses](/docs/records/types/address/) recipients. These must match registered worker email addresses',
+					],
+					'to_owner' => [
+						'type' => 'text',
+						'notes' => 'Any value enables this option to include the ticket owner as a recipient',
+					],
+					'to_watchers' => [
+						'type' => 'text',
+						'notes' => 'Any value enables this option to include the ticket watchers as recipients',
+					],
+					'subject' => [
+						'type' => 'text',
+						'required' => true,
+						'notes' => 'The subject of the relayed message',
+					],
+					'content' => [
+						'type' => 'text',
+						'required' => true,
+						'notes' => 'The body of the relayed message',
+					],
+					'include_attachments' => [
+						'type' => 'bit',
+						'notes' => '`0` (do not include attachments) or `1` (include attachments)',
+					],
+				],
+			],
+			'send_email_recipients' => [
+				'label' => 'Send email to recipients',
+				'notes' => '',
+				'params' => [
+					'headers' => [
+						'type' => 'text',
+						'notes' => 'A list of `Header: Value` pairs delimited by newlines',
+					],
+					'format' => [
+						'type' => 'text',
+						'notes' => '`parsedown` for Markdown/HTML, or omitted for plaintext',
+					],
+					'content' => [
+						'type' => 'text',
+						'required' => true,
+						'notes' => 'The email message body',
+					],
+					'html_template_id' => [
+						'type' => 'id',
+						'notes' => 'The [html template](/docs/records/types/html_template/) to use with Markdown format',
+					],
+					'bundle_ids' => [
+						'type' => 'id[]',
+						'notes' => 'An array of [file bundles](/docs/records/types/file_bundle/) to attach',
+					],
+					'is_autoreply' => [
+						'type' => 'bit',
+						'notes' => '`0` (not an autoreply), `1` (an autoreply)',
+					],
+				],
+			],
+		];
 		
 		return $actions;
+	}
+	
+	function getActionDefaultOn() {
+		return 'ticket_id';
+	}
+	
+	function getActionEmailRecipients() {
+		return [
+			'ticket_bucket_replyto_id,group_replyto_id' => 'Ticket Bucket',
+		];
 	}
 	
 	function renderActionExtension($token, $trigger, $params=array(), $seq=null) {
@@ -483,26 +547,6 @@ class Event_MailReceivedByWatcher extends Extension_DevblocksEvent {
 		$tpl->assign('token_labels', $labels);
 			
 		switch($token) {
-			case 'add_watchers':
-				DevblocksEventHelper::renderActionAddWatchers($trigger);
-				break;
-				
-			case 'create_comment':
-				DevblocksEventHelper::renderActionCreateComment($trigger);
-				break;
-				
-			case 'create_notification':
-				DevblocksEventHelper::renderActionCreateNotification($trigger);
-				break;
-				
-			case 'create_task':
-				DevblocksEventHelper::renderActionCreateTask($trigger);
-				break;
-				
-			case 'create_ticket':
-				DevblocksEventHelper::renderActionCreateTicket($trigger);
-				break;
-				
 			case 'relay_email':
 				if(false == ($va = $trigger->getBot()))
 					break;
@@ -515,14 +559,6 @@ class Event_MailReceivedByWatcher extends Extension_DevblocksEvent {
 				);
 				break;
 				
-			case 'send_email':
-				$placeholders = [
-					'ticket_bucket_replyto_id,group_replyto_id' => 'Ticket Bucket',
-				];
-				
-				DevblocksEventHelper::renderActionSendEmail($trigger, $placeholders);
-				break;
-				
 			case 'send_email_recipients':
 				$tpl->assign('workers', DAO_Worker::getAll());
 				
@@ -531,14 +567,6 @@ class Event_MailReceivedByWatcher extends Extension_DevblocksEvent {
 				
 				$tpl->display('devblocks:cerberusweb.core::events/mail_received_by_owner/action_send_email_recipients.tpl');
 				break;
-				
-//			default:
-//				if('set_cf_' == substr($token,0,7)) {
-//					$field_id = substr($token,7);
-//					$custom_field = DAO_CustomField::get($field_id);
-//					DevblocksEventHelper::renderActionSetCustomField($custom_field, $trigger);
-//				}
-//				break;
 		}
 		
 		$tpl->clearAssign('params');
@@ -554,31 +582,7 @@ class Event_MailReceivedByWatcher extends Extension_DevblocksEvent {
 			return;
 		
 		switch($token) {
-			case 'add_watchers':
-				return DevblocksEventHelper::simulateActionAddWatchers($params, $dict, 'ticket_id');
-				break;
-				
-			case 'create_comment':
-				return DevblocksEventHelper::simulateActionCreateComment($params, $dict, 'ticket_id');
-				break;
-				
-			case 'create_notification':
-				return DevblocksEventHelper::simulateActionCreateNotification($params, $dict, 'ticket_id');
-				break;
-				
-			case 'create_task':
-				return DevblocksEventHelper::simulateActionCreateTask($params, $dict, 'ticket_id');
-				break;
-
-			case 'create_ticket':
-				return DevblocksEventHelper::simulateActionCreateTicket($params, $dict, 'ticket_id');
-				break;
-				
 			case 'relay_email':
-				break;
-				
-			case 'send_email':
-				return DevblocksEventHelper::simulateActionSendEmail($params, $dict);
 				break;
 				
 			case 'send_email_recipients':
@@ -596,26 +600,6 @@ class Event_MailReceivedByWatcher extends Extension_DevblocksEvent {
 			return;
 		
 		switch($token) {
-			case 'add_watchers':
-				DevblocksEventHelper::runActionAddWatchers($params, $dict, 'ticket_id');
-				break;
-				
-			case 'create_comment':
-				DevblocksEventHelper::runActionCreateComment($params, $dict, 'ticket_id');
-				break;
-				
-			case 'create_notification':
-				DevblocksEventHelper::runActionCreateNotification($params, $dict, 'ticket_id');
-				break;
-				
-			case 'create_task':
-				DevblocksEventHelper::runActionCreateTask($params, $dict, 'ticket_id');
-				break;
-
-			case 'create_ticket':
-				DevblocksEventHelper::runActionCreateTicket($params, $dict, 'ticket_id');
-				break;
-				
 			case 'relay_email':
 				DevblocksEventHelper::runActionRelayEmail(
 					$params,
@@ -630,10 +614,6 @@ class Event_MailReceivedByWatcher extends Extension_DevblocksEvent {
 					$dict->sender_full_name,
 					$dict->ticket_subject
 				);
-				break;
-				
-			case 'send_email':
-				DevblocksEventHelper::runActionSendEmail($params, $dict);
 				break;
 				
 			case 'send_email_recipients':

@@ -635,7 +635,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	/**
 	 * @internal
 	 */
-	static function getPlaceholderTree($labels, $label_separator=' ', $key_separator=' ') {
+	static function getPlaceholderTree($labels, $label_separator=' ', $key_separator=' ', $condense=true) {
 		natcasesort($labels);
 		
 		$keys = new DevblocksMenuItemPlaceholder();
@@ -684,8 +684,8 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		$forward_recurse($keys, '');
 		
-		$condense = null;
-		$condense = function(&$node, $key=null, &$parent=null) use (&$condense, $label_separator, $key_separator) {
+		$condense_func = null;
+		$condense_func = function(&$node, $key=null, &$parent=null) use (&$condense_func, $label_separator, $key_separator) {
 			// If this node has exactly one child
 			if(is_array($node->children) && 1 == count($node->children) && $parent && is_null($node->label)) {
 				reset($node->children);
@@ -711,17 +711,19 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 				
 				// Recurse through the parent again
 				foreach($parent->children as $k => &$n)
-					$condense($n, $k, $parent);
+					$condense_func($n, $k, $parent);
 				
 			} else {
 				// If this node still has children, recurse into them
 				if(is_array($node->children))
 				foreach($node->children as $k => &$n)
-					$condense($n, $k, $node);
+					$condense_func($n, $k, $node);
 			}
 			
 		};
-		$condense($keys);
+		
+		if($condense)
+			$condense_func($keys);
 		
 		return $keys->children;
 	}
@@ -740,7 +742,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		if($this->hasOption('links')) {
 			$map['links'] = '_links';
 		}
-		
+
 		return $map;
 	}
 	
@@ -834,13 +836,13 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		}
 		
 		if(array_key_exists('fieldsets', $keys)) {
-			$keys['links']['type'] = 'fieldsets';
-			$keys['links']['notes'] = 'An array or comma-separated list of [custom fieldset](/docs/records/types/custom_fieldset/) IDs';
+			$keys['fieldsets']['type'] = 'fieldsets';
+			$keys['fieldsets']['notes'] = 'An array or comma-separated list of [custom fieldset](/docs/records/types/custom_fieldset/) IDs';
 		}
 		
 		if(array_key_exists('links', $keys)) {
 			$keys['links']['type'] = 'links';
-			$keys['links']['notes'] = 'An array of record `type:id` tuples to link to';
+			$keys['links']['notes'] = 'An array of record `type:id` tuples to link to. Prefix with `-` to unlink.';
 		}
 		
 		return $keys;
@@ -1485,7 +1487,15 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		$links = [];
 		
+		if(is_array($value))
 		foreach($value as &$tuple) {
+			$is_remove = false;
+			
+			if(DevblocksPlatform::strStartsWith($tuple, ['-'])) {
+				$is_remove = true;
+				$tuple = ltrim($tuple,'-');
+			}
+			
 			@list($context, $id) = explode(':', $tuple, 2);
 			
 			if(false == ($context_ext = Extension_DevblocksContext::getByAlias($context, false))) {
@@ -1495,13 +1505,15 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 			
 			$context = $context_ext->id;
 			
-			$tuple = sprintf("%s:%d",
+			$tuple = sprintf("%s%s:%d",
+				$is_remove ? '-' : '',
 				$context,
 				$id
 			);
 			
 			$links[] = $tuple;
 		}
+		
 		
 		if(false == ($json = json_encode($links))) {
 			$error = 'could not be JSON encoded.';
@@ -1821,7 +1833,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 				$manifest->id = $event_id;
 				$manifest->plugin_id = 'cerberusweb.core';
 				$manifest->point = Extension_DevblocksEvent::POINT;
-				$manifest->name = 'Record custom behavior on ' . DevblocksPlatform::strLower($custom_record->name);
+				$manifest->name = 'Record custom behavior on ' . DevblocksPlatform::strUpperFirst($custom_record->name, true);
 				$manifest->file = 'api/events/macro/abstract_custom_record_macro.php';
 				$manifest->class = 'Event_AbstractCustomRecord_' . $custom_record->id;
 				$manifest->params = [
@@ -1834,6 +1846,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 							'cerberusweb.contexts.worker' => '',
 						],
 					],
+					'menu_key' => 'Records:Custom Behavior:' . DevblocksPlatform::strUpperFirst($custom_record->name, true),
 					'options' => [
 						0 => [
 							'visibility' => '',
@@ -2735,33 +2748,394 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 	 * @internal
 	 */
 	function getActions($trigger) { /* @var $trigger Model_TriggerEvent */
-		$actions = array(
-			'_create_calendar_event' => array('label' => 'Create calendar event'),
-			'_exit' => array('label' => 'Behavior exit'),
-			'_get_key' => array('label' => 'Get persistent key'),
-			'_get_links' => array('label' => 'Get links'),
-			'_get_worklist_metric' => array('label' => 'Get worklist metric'),
-			'_run_behavior' => array('label' => 'Behavior run'),
-			'_run_subroutine' => array('label' => 'Behavior call subroutine'),
-			'_schedule_behavior' => array('label' => 'Behavior schedule'),
-			'_set_custom_var' => array('label' => 'Set custom placeholder'),
-			'_set_custom_var_snippet' => array('label' => 'Set custom placeholder using a snippet'),
-			'_set_key' => array('label' => 'Set persistent key'),
-			'_unschedule_behavior' => array('label' => 'Behavior unschedule'),
+		$actions = [
+			'_create_calendar_event' => [
+				'label' => 'Create calendar event',
+				'notes' => 'Use [Record create](/docs/bots/events/actions/core.bot.action.record.create/) instead.',
+				'deprecated' => true,
+				'params' => [
+					'calendar_id' => [
+						'type' => 'id',
+						'required' => true,
+						'notes' => 'The ID of the [calendar](/docs/records/types/calendar/) to add the event to',
+					],
+					'title' => [
+						'type' => 'text',
+						'required' => true,
+						'notes' => 'The name of the event',
+					],
+					'when' => [
+						'type' => 'timestamp',
+						'required' => true,
+						'notes' => 'The start datetime of the event',
+					],
+					'until' => [
+						'type' => 'timestamp',
+						'required' => true,
+						'notes' => 'The end of datetime of the event',
+					],
+					'is_available' => [
+						'type' => 'bit',
+						'notes' => '`0`=busy, `1`=available',
+					],
+					'comment' => [
+						'type' => 'text',
+						'notes' => 'An optional comment to add to the new record',
+					],
+					'run_in_simulator' => [
+						'type' => 'bit',
+						'notes' => 'Create new records from the simulator: `0`=no, `1`=yes',
+					],
+					'object_var' => [
+						'type' => 'text',
+						'notes' => 'Save the new record into this `var_` behavior variable',
+					],
+				],
+			],
+			'_exit' => [
+				'label' => 'Behavior exit',
+				'params' => [
+					'mode' => [
+						'type' => 'text',
+						'notes' => 'may be `suspend` on resumable behaviors, otherwise omit',
+					],
+				],
+			],
+			'_get_key' => [
+				'label' => 'Get persistent key',
+				'params' => [
+					'key' => [
+						'type' => 'string',
+						'required' => true,
+						'notes' => 'The key of the value to retrieve from storage',
+					],
+					'var' => [
+						'type' => 'placeholder',
+						'required' => true,
+						'notes' => 'Save the returned value to this placeholder',
+					],
+				],
+			],
+			'_get_links' => [
+				'label' => 'Get links',
+				'params' => [
+					'on' => [
+						'type' => 'placeholder',
+						'required' => true,
+						'notes' => 'The placeholder/variable containing the target record',
+					],
+					'links_context' => [
+						'type' => 'context',
+						'required' => true,
+						'notes' => 'Fetch links of [record type](/docs/records/types/)',
+					],
+					'var' => [
+						'type' => 'placeholder',
+						'notes' => 'Save the link results to this placeholder',
+					],
+					'behavior_var' => [
+						'type' => 'placeholder',
+						'notes' => 'Set this behavior variable with the link results',
+					],
+				],
+			],
+			'_get_worklist_metric' => [
+				'label' => 'Get worklist metric',
+				'deprecated' => true,
+				'notes' => 'Use [Execute Data Query](/docs/bots/events/actions/core.bot.action.data_query/) instead.',
+				'params' => [],
+			],
+			'_run_behavior' => [
+				'label' => 'Behavior run',
+				'params' => [
+					'on' => [
+						'type' => 'placeholder',
+						'required' => true,
+						'notes' => 'The placeholder/variable containing the target record',
+					],
+					'behavior_id' => [
+						'type' => 'id',
+						'required' => true,
+						'notes' => 'The ID of the [behavior](/docs/records/types/behavior/) to execute',
+					],
+					'var_*' => [
+						'type' => 'mixed',
+						'notes' => 'Input variables for the target behavior',
+					],
+					'run_in_simulator' => [
+						'type' => 'bit',
+						'notes' => 'Run the target behavior in the simulator: `0`=no, `1`=yes',
+					],
+					'var' => [
+						'type' => 'placeholder',
+						'notes' => 'Save the behavior results to this placeholder',
+					],
+				],
+			],
+			'_run_subroutine' => [
+				'label' => 'Behavior call subroutine',
+				'params' => [
+					'subroutine' => [
+						'type' => 'text',
+						'required' => true,
+						'notes' => 'The name of the behavior [subroutine](/docs/bots/behaviors/#subroutines) to execute',
+					],
+				],
+			],
+			'_schedule_behavior' => [
+				'label' => 'Behavior schedule',
+				'params' => [
+					'on' => [
+						'type' => 'placeholder',
+						'required' => true,
+						'notes' => 'The placeholder/variable containing the target record',
+					],
+					'behavior_id' => [
+						'type' => 'id',
+						'required' => true,
+						'notes' => 'The ID of the [behavior](/docs/records/types/behavior/) to execute',
+					],
+					'var_*' => [
+						'type' => 'mixed',
+						'notes' => 'Input variables for the target behavior',
+					],
+					'run_date' => [
+						'type' => 'template',
+						'notes' => 'When to run the scheduled behavior (e.g. `now`, `+2 days`, `Friday 8am`)',
+					],
+					'on_dupe' => [
+						'type' => 'text',
+						'notes' => '`first` (only schedule earliest), `last` (only schedule latest), or omit to allow multiple occurrences',
+					],
+				],
+			],
+			'_set_custom_var' => [
+				'label' => 'Set custom placeholder',
+				'params' => [
+					'var' => [
+						'type' => 'placeholder',
+						'required' => true,
+						'notes' => 'The placeholder to set',
+					],
+					'value' => [
+						'type' => 'string',
+						'required' => true,
+						'notes' => 'The new value of the placeholder',
+					],
+					'format' => [
+						'type' => 'string',
+						'notes' => 'The format of the value: `json`, or omit for text',
+					],
+					'is_simulator_only' => [
+						'type' => 'bit',
+						'notes' => 'Only set the placeholder in simulator mode: `0`=no, `1`=yes',
+					],
+				],
+			],
+			'_set_custom_var_snippet' => [
+				'label' => 'Set custom placeholder using a snippet',
+				'params' => [
+					'var' => [
+						'type' => 'placeholder',
+						'required' => true,
+						'notes' => 'Save the snippet output to this placeholder',
+					],
+					'on' => [
+						'type' => 'placeholder',
+						'required' => true,
+						'notes' => 'The placeholder/variable containing the target record',
+					],
+					'snippet_id' => [
+						'type' => 'id',
+						'required' => true,
+						'notes' => 'The ID of the [snippet](/docs/records/types/snippet/) to use',
+					],
+				],
+			],
+			'_set_key' => [
+				'label' => 'Set persistent key',
+				'params' => [
+					'key' => [
+						'type' => 'string',
+						'required' => true,
+						'notes' => 'The key to set in storage',
+					],
+					'value' => [
+						'type' => 'string',
+						'required' => true,
+						'notes' => 'The value to set in storage',
+					],
+					'expires_at' => [
+						'type' => 'datetime',
+						'notes' => 'When to expire the key (e.g. `now`, `+2 days`, `Friday 8am`); omit to never expire',
+					],
+				],
+			],
+			'_unschedule_behavior' => [
+				'label' => 'Behavior unschedule',
+				'params' => [
+					'on' => [
+						'type' => 'placeholder',
+						'required' => true,
+						'notes' => 'The placeholder/variable containing the target record',
+					],
+					'behavior_id' => [
+						'type' => 'id',
+						'required' => true,
+						'notes' => 'The ID of the [behavior](/docs/records/types/behavior/) to remove',
+					],
+				],
+			],
+			'add_watchers' => [
+				'label' =>'Add watchers',
+				'params' => [
+					'on' => [
+						'type' => 'placeholder',
+						'required' => true,
+						'notes' => 'The placeholder/variable containing the target record',
+					],
+					'worker_id' => [
+						'type' => 'id[]',
+						'required' => true,
+						'notes' => 'An array of [worker](/docs/records/types/worker/) IDs to add as watchers to the target record',
+					],
+				],
+			],
+			'create_comment' => [
+				'label' => 'Create comment',
+				'notes' => 'Use [Record create](/docs/bots/events/actions/core.bot.action.record.create/) instead.',
+				'deprecated' => true,
+				'params' => [
+				],
+			],
+			'create_notification' => [
+				'label' => 'Create notification',
+				'notes' => 'Use [Record create](/docs/bots/events/actions/core.bot.action.record.create/) instead.',
+				'deprecated' => true,
+				'params' => [
+				],
+			],
+			'create_task' => [
+				'label' => 'Create task',
+				'notes' => 'Use [Record create](/docs/bots/events/actions/core.bot.action.record.create/) instead.',
+				'deprecated' => true,
+				'params' => [
+				],
+			],
+			'create_ticket' => [
+				'label' => 'Create ticket',
+				'notes' => 'Use [Record create](/docs/bots/events/actions/core.bot.action.record.create/) or [Execute email parser](/docs/bots/events/actions/core.bot.action.email_parser/) instead.',
+				'deprecated' => true,
+				'params' => [
+				],
+			],
+			'send_email' => [
+				'label' => 'Send email',
+				'params' => [
+					'from_address_id' => [
+						'type' => 'id',
+						'required' => true,
+						'notes' => 'The sender [email address](/docs/records/types/address/) ID to as `From:`',
+					],
+					'send_as' => [
+						'type' => 'text',
+						'notes' => 'The personalized `From:` name',
+					],
+					'to' => [
+						'type' => 'text',
+						'required' => true,
+						'notes' => 'A list of `To:` recipient email addresses delimited with commas',
+					],
+					'cc' => [
+						'type' => 'text',
+						'notes' => 'A list of `Cc:` recipient email addresses delimited with commas',
+					],
+					'bcc' => [
+						'type' => 'text',
+						'notes' => 'A list of `Bcc:` recipient email addresses delimited with commas',
+					],
+					'subject' => [
+						'type' => 'text',
+						'required' => true,
+						'notes' => 'The `Subject:` of the email message',
+					],
+					'headers' => [
+						'type' => 'text',
+						'notes' => 'A list of `Header: Value` pairs delimited with newlines',
+					],
+					'format' => [
+						'type' => 'text',
+						'notes' => '`parsedown` for Markdown/HTML, or omitted for plaintext',
+					],
+					'content' => [
+						'type' => 'text',
+						'notes' => 'The email message body',
+					],
+					'html_template_id' => [
+						'type' => 'id',
+						'notes' => 'The [html template](/docs/records/types/html_template/) to use with Markdown format',
+					],
+					'bundle_ids' => [
+						'type' => 'id[]',
+						'notes' => 'An array of [file bundles](/docs/records/types/file_bundle/) to attach',
+					],
+					'run_in_simulator' => [
+						'type' => 'bit',
+						'notes' => 'Send live email in the simulator: `0`=no, `1`=yes',
+					],
+				],
+			],
+			'set_links' => [
+				'label' => 'Set links',
+				'params' => [
+					'on' => [
+						'type' => 'placeholder',
+						'required' => true,
+						'notes' => 'The placeholder/variable containing the target record',
+					],
+					'is_remove' => [
+						'type' => 'bit',
+						'notes' => '`0` (add links), `1` (remove links)',
+					],
+					'context_objects' => [
+						'type' => 'array',
+						'required' => true,
+						'notes' => 'An array of `record_type:record_id` pairs to link to the target',
+					],
+				],
+			],
+		];
+		
+		$actions = array_map(
+			function($action) {
+				$action['scope'] = 'global';
+				return $action;
+			},
+			$actions
 		);
+		
 		$custom = $this->getActionExtensions($trigger);
-
-		if(!empty($custom) && is_array($custom))
+		
+		if(!empty($custom) && is_array($custom)) {
+			$custom = array_map(function($action) {
+				$action['scope'] = 'local';
+				return $action;
+			}, $custom);
+			
 			$actions = array_merge($actions, $custom);
+		}
 
 		// Trigger variables
 
 		if(is_array($trigger->variables))
 		foreach($trigger->variables as $key => $var) {
-			$actions[$key] = array('label' => 'Set (variable) ' . $var['label']);
+			$actions[$key] = [
+				'label' => 'Set (variable) ' . $var['label'],
+				'scope' => 'local',
+			];
 		}
 
-		$va = $trigger->getBot();
+		$bot = $trigger->getBot();
 
 		// Add plugin extensions
 
@@ -2769,11 +3143,20 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 
 		// Filter extensions by VA permissions
 
-		$manifests = $va->filterActionManifestsByAllowed($manifests);
+		$manifests = $bot->filterActionManifestsByAllowed($manifests);
 
 		if(is_array($manifests))
 		foreach($manifests as $manifest) {
-			$actions[$manifest->id] = array('label' => $manifest->params['label']);
+			$action = [];
+			
+			if(method_exists($manifest->class, 'getMeta')) {
+				$action = call_user_func([$manifest->class, 'getMeta']);
+			}
+			
+			$action['label'] = $manifest->params['label'];
+			$action['scope'] = 'global';
+			
+			$actions[$manifest->id] = $action;
 		}
 
 		// Sort by label
@@ -2782,7 +3165,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 
 		return $actions;
 	}
-
+	
 	abstract function getActionExtensions(Model_TriggerEvent $trigger);
 	abstract function renderActionExtension($token, $trigger, $params=[], $seq=null);
 	abstract function runActionExtension($token, $trigger, $params, DevblocksDictionaryDelegate $dict);
@@ -2867,7 +3250,36 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 				case '_unschedule_behavior':
 					DevblocksEventHelper::renderActionUnscheduleBehavior($trigger);
 					break;
+					
+				case 'add_watchers':
+					DevblocksEventHelper::renderActionAddWatchers($trigger);
+					break;
+				
+				case 'create_comment':
+					DevblocksEventHelper::renderActionCreateComment($trigger);
+					break;
+					
+				case 'create_notification':
+					DevblocksEventHelper::renderActionCreateNotification($trigger);
+					break;
+					
+				case 'create_task':
+					DevblocksEventHelper::renderActionCreateTask($trigger);
+					break;
+					
+				case 'create_ticket':
+					DevblocksEventHelper::renderActionCreateTicket($trigger);
+					break;
+					
+				case 'send_email':
+					$email_recipients = method_exists($this, 'getActionEmailRecipients') ? $this->getActionEmailRecipients() : null;
+					DevblocksEventHelper::renderActionSendEmail($trigger, $email_recipients);
+					break;
 
+				case 'set_links':
+					DevblocksEventHelper::renderActionSetLinks($trigger);
+					break;
+					
 				default:
 					// Variables
 					if(DevblocksPlatform::strStartsWith($token, 'var_')) {
@@ -3015,6 +3427,38 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 					
 				case '_unschedule_behavior':
 					return DevblocksEventHelper::simulateActionUnscheduleBehavior($params, $dict);
+					break;
+					
+				case 'add_watchers':
+					$on_default = method_exists($this, 'getActionDefaultOn') ? $this->getActionDefaultOn() : null;
+					return DevblocksEventHelper::simulateActionAddWatchers($params, $dict, $on_default);
+					break;
+					
+				case 'create_comment':
+					$on_default = method_exists($this, 'getActionDefaultOn') ? $this->getActionDefaultOn() : null;
+					return DevblocksEventHelper::simulateActionCreateComment($params, $dict, $on_default);
+					break;
+
+				case 'create_notification':
+					$on_default = method_exists($this, 'getActionDefaultOn') ? $this->getActionDefaultOn() : null;
+					return DevblocksEventHelper::simulateActionCreateNotification($params, $dict, $on_default);
+					break;
+
+				case 'create_task':
+					$on_default = method_exists($this, 'getActionDefaultOn') ? $this->getActionDefaultOn() : null;
+					return DevblocksEventHelper::simulateActionCreateTask($params, $dict, $on_default);
+					break;
+
+				case 'create_ticket':
+					return DevblocksEventHelper::simulateActionCreateTicket($params, $dict);
+					break;
+
+				case 'send_email':
+					return DevblocksEventHelper::simulateActionSendEmail($params, $dict);
+					break;
+
+				case 'set_links':
+					return DevblocksEventHelper::simulateActionSetLinks($trigger, $params, $dict);
 					break;
 
 				default:
@@ -3223,7 +3667,39 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 					else
 						DevblocksEventHelper::runActionUnscheduleBehavior($params, $dict);
 					break;
-
+					
+				case 'add_watchers':
+					$on_default = method_exists($this, 'getActionDefaultOn') ? $this->getActionDefaultOn() : null;
+					DevblocksEventHelper::runActionAddWatchers($params, $dict, $on_default);
+					break;
+				
+				case 'create_comment':
+					$on_default = method_exists($this, 'getActionDefaultOn') ? $this->getActionDefaultOn() : null;
+					DevblocksEventHelper::runActionCreateComment($params, $dict, $on_default);
+					break;
+					
+				case 'create_notification':
+					$on_default = method_exists($this, 'getActionDefaultOn') ? $this->getActionDefaultOn() : null;
+					DevblocksEventHelper::runActionCreateNotification($params, $dict, $on_default);
+					break;
+					
+				case 'create_task':
+					$on_default = method_exists($this, 'getActionDefaultOn') ? $this->getActionDefaultOn() : null;
+					DevblocksEventHelper::runActionCreateTask($params, $dict, $on_default);
+					break;
+					
+				case 'create_ticket':
+					DevblocksEventHelper::runActionCreateTicket($params, $dict);
+					break;
+					
+				case 'send_email':
+					DevblocksEventHelper::runActionSendEmail($params, $dict);
+					break;
+			
+				case 'set_links':
+					DevblocksEventHelper::runActionSetLinks($trigger, $params, $dict);
+					break;
+			
 				default:
 					// Variables
 					if(substr($token,0,4) == 'var_') {
@@ -3351,6 +3827,11 @@ abstract class Extension_DevblocksEventAction extends DevblocksExtension {
 		return $results;
 	}
 
+	/**
+	 * Return information about the action (params, notes, etc)
+	 */
+	static function getMeta() { return []; }
+	
 	/**
 	 * Render the behavior action's configuration template.
 	 */

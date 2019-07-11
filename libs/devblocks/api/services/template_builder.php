@@ -30,14 +30,14 @@ class _DevblocksTemplateBuilder {
 	private $_twig = null;
 	private $_errors = [];
 	
-	private function __construct() {
+	private function __construct($autoescaping=false) {
 		$this->_twig = new Twig_Environment(new Twig_Loader_String(), array(
 			'cache' => false,
 			'debug' => false,
 			'strict_variables' => false,
 			'auto_reload' => true,
 			'trim_blocks' => true,
-			'autoescape' => false,
+			'autoescape' => $autoescaping,
 		));
 		
 		if(class_exists('_DevblocksTwigExtensions', true)) {
@@ -194,8 +194,8 @@ class _DevblocksTemplateBuilder {
 		return $instance;
 	}
 	
-	static function newInstance() {
-		return new _DevblocksTemplateBuilder();
+	static function newInstance($autoescaping=false) {
+		return new _DevblocksTemplateBuilder($autoescaping);
 	}
 
 	/**
@@ -408,14 +408,15 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		if(!is_null($value))
 			return $value;
 		
-		if($default)
-			return $default;
-		
-		return null;
+		return $default;
 	}
 	
 	public function set($name, $value) {
 		return $this->$name = $value;
+	}
+	
+	public function unset($name) {
+		return $this->__unset($name);
 	}
 	
 	public function &__get($name) {
@@ -434,7 +435,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 			
 			$token = substr($name, strlen($context_data['prefix']));
 			
-			if(null == ($context = Extension_DevblocksContext::get($context_ext)))
+			if(null == ($context = Extension_DevblocksContext::getByAlias($context_ext, true)))
 				continue;
 			
 			if(!method_exists($context, 'lazyLoadContextValues'))
@@ -764,14 +765,14 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 			new Twig_SimpleFunction('cerb_avatar_url', [$this, 'function_cerb_avatar_url']),
 			new Twig_SimpleFunction('cerb_file_url', [$this, 'function_cerb_file_url']),
 			new Twig_SimpleFunction('cerb_has_priv', [$this, 'function_cerb_has_priv']),
-			new Twig_SimpleFunction('cerb_placeholders_list', [$this, 'function_placeholders_list'], ['needs_environment' => true]),
+			new Twig_SimpleFunction('cerb_placeholders_list', [$this, 'function_cerb_placeholders_list'], ['needs_environment' => true]),
 			new Twig_SimpleFunction('cerb_record_readable', [$this, 'function_cerb_record_readable']),
 			new Twig_SimpleFunction('cerb_record_writeable', [$this, 'function_cerb_record_writeable']),
 			new Twig_SimpleFunction('cerb_url', [$this, 'function_cerb_url']),
 			new Twig_SimpleFunction('dict_set', [$this, 'function_dict_set']),
 			new Twig_SimpleFunction('json_decode', [$this, 'function_json_decode']),
 			new Twig_SimpleFunction('jsonpath_set', [$this, 'function_jsonpath_set']),
-			new Twig_SimpleFunction('placeholders_list', [$this, 'function_placeholders_list'], ['needs_environment' => true]),
+			new Twig_SimpleFunction('placeholders_list', [$this, 'function_cerb_placeholders_list'], ['needs_environment' => true]),
 			new Twig_SimpleFunction('random_string', [$this, 'function_random_string']),
 			new Twig_SimpleFunction('regexp_match_all', [$this, 'function_regexp_match_all']),
 			new Twig_SimpleFunction('shuffle', [$this, 'function_shuffle']),
@@ -952,7 +953,7 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 		return $var;
 	}
 	
-	function function_placeholders_list(Twig_Environment $env) {
+	function function_cerb_placeholders_list(Twig_Environment $env) {
 		if(false == (@$callback = $env->getUndefinedVariableCallbacks()[0]) || !is_array($callback))
 			return [];
 		
@@ -1162,8 +1163,11 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 		if(!is_string($string))
 			return '';
 		
-		if(false == ($ctx_manifest = Extension_DevblocksContext::get($string, false)))
+		if(false == ($ctx_manifest = Extension_DevblocksContext::getByAlias($string, false)))
 			return '';
+		
+		if('id' == $type)
+			return $ctx_manifest->id;
 		
 		if(false == ($aliases = Extension_DevblocksContext::getAliasesForContext($ctx_manifest)))
 			return '';
