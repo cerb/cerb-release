@@ -1284,6 +1284,54 @@ class DevblocksPlatformTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($expected, $actual);
 	}
 	
+	public function testArraySearchNoCase() {
+		$array = ['ReD', 'GReEN', 'bLUe'];
+		
+		$expected = 1;
+		$actual = DevblocksPlatform::arraySearchNoCase('green', $array);
+		$this->assertEquals($expected, $actual);
+		
+		$expected = 2;
+		$actual = DevblocksPlatform::arraySearchNoCase('BLUE', $array);
+		$this->assertEquals($expected, $actual);
+		
+		$expected = false;
+		$actual = DevblocksPlatform::arraySearchNoCase('Chartreuse', $array);
+		$this->assertEquals($expected, $actual);
+	}
+	
+	public function testArrayInNoCase() {
+		$array = ['ReD', 'GReEN', 'bLUe'];
+		
+		$expected = true;
+		$actual = DevblocksPlatform::arrayInNoCase('red', $array);
+		$this->assertEquals($expected, $actual);
+		
+		$expected = false;
+		$actual = DevblocksPlatform::arrayInNoCase('Chartreuse', $array);
+		$this->assertEquals($expected, $actual);
+	}
+	
+	public function testArrayIsIndexed() {
+		// Indexed numbers
+		$array = [1,2,3,4,5];
+		$expected = true;
+		$actual = DevblocksPlatform::arrayIsIndexed($array);
+		$this->assertEquals($expected, $actual);
+		
+		// Indexed strings
+		$array = ['red', 'green', 'blue'];
+		$expected = true;
+		$actual = DevblocksPlatform::arrayIsIndexed($array);
+		$this->assertEquals($expected, $actual);
+		
+		// Assoc strings
+		$array = ['color' => 'red', 'age' => 40];
+		$expected = false;
+		$actual = DevblocksPlatform::arrayIsIndexed($array);
+		$this->assertEquals($expected, $actual);
+	}
+	
 	public function testArrayDictSet() {
 		// Nested dot notation
 		

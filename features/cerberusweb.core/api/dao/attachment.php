@@ -899,6 +899,13 @@ class SearchFields_Attachment extends DevblocksSearchFields {
 			self::VIRTUAL_ON => new DevblocksSearchField(self::VIRTUAL_ON, '*', 'on', $translate->_('common.on'), null, false),
 		);
 		
+		// Custom fields with fieldsets
+		
+		$custom_columns = DevblocksSearchField::getCustomSearchFieldsByContexts(array_keys(self::getCustomFieldContextKeys()));
+		
+		if(is_array($custom_columns))
+			$columns = array_merge($columns, $custom_columns);
+		
 		// Sort by label (translation-conscious)
 		DevblocksPlatform::sortObjects($columns, 'db_label');
 
@@ -995,12 +1002,12 @@ class Storage_Attachments extends Extension_DevblocksStorageSchema {
 			$profile = self::getActiveStorageProfile();
 		}
 		
+		$profile_id = 0;
+		
 		if($profile instanceof Model_DevblocksStorageProfile) {
 			$profile_id = $profile->id;
 		} elseif(is_numeric($profile)) {
-			$profile_id = intval($profile_id);
-		} elseif(is_string($profile)) {
-			$profile_id = 0;
+			$profile_id = intval($profile);
 		}
 
 		$storage = DevblocksPlatform::getStorageService($profile);
@@ -1937,7 +1944,7 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 		
 		$keys['attach']['type'] = 'links';
 		$keys['attach']['notes'] = 'An array of `type:id` tuples to attach this file to';
-		$keys['content']['notes'] = 'The content of this file';
+		$keys['content']['notes'] = 'The content of this file. For binary, base64-encode in [data URI format](https://en.wikipedia.org/wiki/Data_URI_scheme)';
 		$keys['mime_type']['notes'] = 'The MIME type of this file (e.g. `image/png`); defaults to `application/octet-stream`';
 		$keys['name']['notes'] = 'The filename';
 		

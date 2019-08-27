@@ -76,6 +76,7 @@ class _DevblocksTemplateBuilder {
 				'base64url_decode',
 				'bytes_pretty',
 				'cerb_translate',
+				'context_alias',
 				'context_name',
 				'date_pretty',
 				'hash_hmac',
@@ -411,12 +412,101 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		return $default;
 	}
 	
+	public function getKeyPath($name, $default=null) {
+		$queue = $this->_getPathFromText($name);
+		
+		$ptr =& $this->_dictionary;
+		
+		if(is_array($queue))
+		while(null !== ($k = array_shift($queue))) {
+			if(is_array($ptr)) {
+				if(!array_key_exists($k, $ptr)) {
+					return $default;
+				}
+				
+				$ptr =& $ptr[$k];
+				
+			} else {
+				if(empty($queue)) {
+					return $ptr;
+				}
+			}
+		}
+		
+		return $ptr;
+	}
+	
 	public function set($name, $value) {
 		return $this->$name = $value;
 	}
 	
+	public function _getPathFromText($name) {
+		$path = explode('.', $name);
+		return $path;
+	}
+	
+	public function setKeyPath($name, $value) {
+		$queue = $this->_getPathFromText($name);
+		
+		$ptr =& $this->_dictionary;
+		
+		if(is_array($queue))
+		while(null !== ($k = array_shift($queue))) {
+			if(!array_key_exists($k, $ptr)) {
+				$ptr[$k] = [];
+				$ptr =& $ptr[$k];
+				
+			} else if(!is_array($ptr[$k])) {
+				if($queue)
+					return false;
+				
+				$ptr =& $ptr[$k];
+				
+			} else {
+				$ptr =& $ptr[$k];
+			}
+		}
+		
+		$ptr = $value;
+		
+		return $ptr;
+	}
+	
+	public function setPush($name, $value) {
+		$current_value = $this->get($name, []);
+		
+		if(!is_array($current_value))
+			$current_value = [$current_value];
+		
+		array_push($current_value, $value);
+		
+		return $this->$name = $current_value;
+	}
+	
 	public function unset($name) {
 		return $this->__unset($name);
+	}
+	
+	public function unsetKeyPath($name) {
+		$path = $this->_getPathFromText($name);
+		
+		$ptr =& $this->_dictionary;
+		
+		while($k = array_shift($path)) {
+			if(!array_key_exists($k, $ptr)) {
+				return false;
+			}
+			
+			if(empty($path)) {
+				unset($ptr[$k]);
+				return true;
+				
+			} else {
+				$ptr =& $ptr[$k];
+			}
+		}
+		
+		return false;
 	}
 	
 	public function &__get($name) {
@@ -512,7 +602,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		return $this->get($name);
 	}
 	
-	public function getDictionary($with_prefix=null, $with_meta=true) {
+	public function getDictionary($with_prefix=null, $with_meta=true, $add_prefix=null) {
 		$dict = $this->_dictionary;
 		
 		if(!$with_meta) {
@@ -524,12 +614,12 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		}
 		
 		// Convert any nested dictionaries to arrays
-		array_walk_recursive($dict, function(&$v) use ($with_meta) {
+		array_walk_recursive($dict, function(&$v) use ($with_meta, $add_prefix) {
 			if($v instanceof DevblocksDictionaryDelegate)
-				$v = $v->getDictionary(null, $with_meta);
+				$v = $v->getDictionary(null, $with_meta, $add_prefix);
 		});
 		
-		if(empty($with_prefix))
+		if(!$with_prefix && !$add_prefix)
 			return $dict;
 
 		$new_dict = [];
@@ -537,7 +627,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		foreach($dict as $k => $v) {
 			$len = strlen($with_prefix);
 			if(0 == strcasecmp($with_prefix, substr($k,0,$len))) {
-				$new_dict[substr($k,$len)] = $v;
+				$new_dict[$add_prefix . substr($k,$len)] = $v;
 			}
 		}
 		
@@ -558,6 +648,52 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 			if(DevblocksPlatform::strEndsWith($key, $suffix))
 				unset($this->_dictionary[$key]);
 		}
+	}
+	
+	public function scrubKeyPathPrefix($name, $prefix) {
+		$path = $this->_getPathFromText($name);
+		
+		$ptr =& $this->_dictionary;
+		
+		if(is_array($path))
+		foreach($path as $k) {
+			if(!array_key_exists($k, $ptr)) {
+				return false;
+			}
+			
+			$ptr =& $ptr[$k];
+		}
+		
+		if(is_array($ptr))
+		foreach(array_keys($ptr) as $key) {
+			if(DevblocksPlatform::strStartsWith($key, $prefix))
+				unset($ptr[$key]);
+		}
+		
+		return true;
+	}
+	
+	public function scrubKeyPathSuffix($name, $suffix) {
+		$path = $this->_getPathFromText($name);
+		
+		$ptr =& $this->_dictionary;
+		
+		if(is_array($path))
+		foreach($path as $k) {
+			if(!array_key_exists($k, $ptr)) {
+				return false;
+			}
+			
+			$ptr =& $ptr[$k];
+		}
+		
+		if(is_array($ptr))
+		foreach(array_keys($ptr) as $key) {
+			if(DevblocksPlatform::strEndsWith($key, $suffix))
+				unset($ptr[$key]);
+		}
+		
+		return true;
 	}
 	
 	public function extract($prefix) {
@@ -1084,6 +1220,7 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 			new Twig_SimpleFilter('base64url_decode', [$this, 'filter_base64url_decode']),
 			new Twig_SimpleFilter('bytes_pretty', [$this, 'filter_bytes_pretty']),
 			new Twig_SimpleFilter('cerb_translate', [$this, 'filter_cerb_translate']),
+			new Twig_SimpleFilter('context_alias', [$this, 'filter_context_alias']),
 			new Twig_SimpleFilter('context_name', [$this, 'filter_context_name']),
 			new Twig_SimpleFilter('date_pretty', [$this, 'filter_date_pretty']),
 			new Twig_SimpleFilter('hash_hmac', [$this, 'filter_hash_hmac']),
@@ -1157,6 +1294,10 @@ class _DevblocksTwigExtensions extends Twig_Extension {
 	
 	function filter_cerb_translate($string) {
 		return DevblocksPlatform::translate($string);
+	}
+	
+	function filter_context_alias($string) {
+		return $this->filter_context_name($string, 'uri');
 	}
 	
 	function filter_context_name($string, $type='plural') {

@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>9.3.2</version>
+	<version>9.3.3</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -3013,8 +3013,8 @@
 			<params>
 				<param key="names">
 					<value>
-						<data key="behavior scheduled" value="singular" />
-						<data key="behaviors scheduled" value="plural" />
+						<data key="behavior schedule" value="singular" />
+						<data key="behavior schedules" value="plural" />
 					</value>
 				</param>
 				<param key="alias" value="scheduled_behavior" />

@@ -26,7 +26,7 @@ class Page_Login extends CerberusPageExtension {
 			'account.locked' => "Your account has been temporarily locked after too many failed login attempts. Please wait a few minutes and try again.",
 			'auth.expired' => "The code has expired.",
 			'auth.failed' => "Authentication failed.",
-			'confim.failed' => "The given confirmation code doesn't match the one on file.",
+			'confirm.failed' => "The given confirmation code doesn't match the one on file.",
 			'confirm.invalid' => "The given confirmation code is invalid.",
 			'email.invalid' => "The provided email address is not valid.",
 			'email.unavailable' => "The provided email address is not available.",
@@ -365,7 +365,7 @@ class Page_Login extends CerberusPageExtension {
 				$otp_seed = $login_state->getParam('mfa.totp.seed');
 				
 				// If verified
-				if($otp == DevblocksPlatform::services()->mfa()->getMultiFactorOtpFromSeed($otp_seed)) {
+				if(DevblocksPlatform::services()->mfa()->isAuthorized($otp, $otp_seed)) {
 					DAO_WorkerPref::set($worker->id, 'mfa.totp.seed', $otp_seed);
 					$login_state->setIsMfaAuthenticated(true);
 					DevblocksPlatform::redirect(new DevblocksHttpRequest(['login','authenticated']));
@@ -382,7 +382,7 @@ class Page_Login extends CerberusPageExtension {
 				
 				if($otp) {
 					// If verified
-					if($otp == DevblocksPlatform::services()->mfa()->getMultiFactorOtpFromSeed($mfa_totp_seed)) {
+					if(DevblocksPlatform::services()->mfa()->isAuthorized($otp, $mfa_totp_seed)) {
 						$login_state->setIsMfaAuthenticated(true);
 						
 						if($setting_can_remember && $remember_device) {
@@ -625,7 +625,7 @@ class Page_Login extends CerberusPageExtension {
 						
 					} else {
 						// OTP verified
-						if(0 == strcmp($otp, DevblocksPlatform::services()->mfa()->getMultiFactorOtpFromSeed($mfa_totp_seed))) {
+						if(DevblocksPlatform::services()->mfa()->isAuthorized($otp, $mfa_totp_seed)) {
 							$login_state
 								->setParam('recover.verified', true)
 								;
@@ -834,6 +834,11 @@ class Page_Login extends CerberusPageExtension {
 		$login_state->destroy();
 		
 		if($login_post_url) {
+			if(DevblocksPlatform::strStartsWith($login_post_url, 'internal/redirectRead/')) {
+				$url_parts = explode('/', $login_post_url);
+				$login_post_url = DevblocksPlatform::services()->url()->write('c=internal&a=redirectRead&id=' . intval(array_pop($url_parts)), true);
+			}
+			
 			if(DevblocksPlatform::strStartsWith($login_post_url, ['http:','https:'])) {
 				DevblocksPlatform::redirectURL($login_post_url, 1);
 				
