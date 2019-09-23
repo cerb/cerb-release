@@ -242,11 +242,16 @@ class DAO_Comment extends Cerb_ORMHelper {
 	}
 	
 	static function getByContext($context, $context_ids) {
-		if(!is_array($context_ids))
-			$context_ids = array($context_ids);
+		if(!is_array($context_ids)) {
+			if(0 == strlen($context_ids)) {
+				$context_ids = [];
+			} else {
+				$context_ids = [$context_ids];
+			}
+		}
 		
 		if(empty($context_ids))
-			return array();
+			return [];
 
 		return self::getWhere(sprintf("%s = %s AND %s IN (%s)",
 			self::CONTEXT,
@@ -828,7 +833,7 @@ class Model_Comment {
 		}
 	}
 	
-	public function getAuthorDictionary() {
+	public function getActorDictionary() {
 		$models = CerberusContexts::getModels($this->owner_context, [$this->owner_context_id]);
 		$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, $this->owner_context);
 		
@@ -846,6 +851,13 @@ class Model_Comment {
 			return false;
 		
 		return $dicts[$this->context_id];
+	}
+	
+	public function getTargetContext($as_instance=true) {
+		if(false == ($context_ext = Extension_DevblocksContext::get($this->context, $as_instance)))
+			return false;
+		
+		return $context_ext;
 	}
 	
 	function getAttachments() {

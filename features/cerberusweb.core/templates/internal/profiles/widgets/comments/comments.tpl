@@ -22,14 +22,13 @@ $(function() {
 	var $button = $comments.find('button.cerb-button-add');
 	
 	var $parent = $comments.closest('div.cerb-profile-widget');
-	var $refresh = $parent.find('li.cerb-profile-widget-menu--refresh > a');
-	
+
 	// Make sure we only ever listen once
 	$parent
 		.off('cerb_profile_comment_created.widget{$widget->id}')
 		.on('cerb_profile_comment_created.widget{$widget->id}', function(e) {
 			if(e.comment_id && e.comment_html) {
-				var $new_comment = $('<div id="comment' + e.comment_id + '"/>')
+				$('<div id="comment' + e.comment_id + '"/>')
 					.html(e.comment_html)
 					.prependTo($container)
 				;
@@ -43,12 +42,27 @@ $(function() {
 			e.stopPropagation();
 
 			if(e.id && e.comment_html) {
-				var $new_comment = $('<div id="comment' + e.id + '"/>')
+				$('<div id="comment' + e.id + '"/>')
 					.html(e.comment_html)
 					.prependTo($container)
 				;
 			}
 		})
 	;
+
+	// Scroll to and highlight comments in permalinks
+
+	var anchor = window.location.hash.substr(1);
+
+	if('comment' == anchor.substr(0,7)) {
+		var $anchor = $('#' + anchor);
+
+		if($anchor.length > 0) {
+			var offset = $anchor.offset();
+			window.scrollTo(offset.left, offset.top);
+
+			$anchor.find('> div.block').effect('highlight', { }, 1000);
+		}
+	}
 });
 </script>

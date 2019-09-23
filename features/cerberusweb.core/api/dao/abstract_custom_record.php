@@ -192,6 +192,7 @@ class DAO_AbstractCustomRecord extends Cerb_ORMHelper {
 	 * @param mixed $sortBy
 	 * @param mixed $sortAsc
 	 * @param integer $limit
+	 * @param array $options
 	 * @return Model_AbstractCustomRecord[]
 	 */
 	static function getWhere($where=null, $sortBy=null, $sortAsc=true, $limit=null, $options=null) {
@@ -569,7 +570,7 @@ class DAO_AbstractCustomRecord extends Cerb_ORMHelper {
 		if(!($rs instanceof mysqli_result))
 			return false;
 		
-		$results = array();
+		$results = [];
 		
 		while($row = mysqli_fetch_assoc($rs)) {
 			$object_id = intval($row[SearchFields_AbstractCustomRecord::ID]);
@@ -1159,6 +1160,21 @@ class Context_AbstractCustomRecord extends Extension_DevblocksContext implements
 			'params' => [
 				'context' => static::_getContextName(),
 			],
+		);
+		
+		$properties['owner_id'] = array(
+			'label' => mb_ucfirst($translate->_('common.owner')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->owner_context_id,
+			'params' => [
+				'context' => $model->owner_context
+			]
+		);
+		
+		$properties['id'] = array(
+			'label' => DevblocksPlatform::translate('common.id'),
+			'type' => Model_CustomField::TYPE_NUMBER,
+			'value' => $model->id,
 		);
 		
 		$properties['created'] = array(

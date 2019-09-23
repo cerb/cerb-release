@@ -14,14 +14,14 @@ $(function() {
 	var $popup = genericAjaxPopupFind('#{$search_popup_uniqid}');
 	
 	$popup.one('popup_open',function(event,ui) {
-		$popup.dialog('option','title', '{$popup_title|escape:'javascript'}');
+		$popup.dialog('option','title', '{$popup_title|escape:'js' nofilter}');
 		
 		var on_refresh = function() {
 			var $worklist = $popup.find('TABLE.worklist');
 
 			$worklist.css('background','none');
 			$worklist.css('background-color','rgb(100,100,100)');
-		}
+		};
 		
 		on_refresh();
 
