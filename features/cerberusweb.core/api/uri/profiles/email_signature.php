@@ -56,6 +56,7 @@ class PageSection_ProfilesEmailSignature extends Extension_PageSection {
 				@$name = DevblocksPlatform::importGPC($_REQUEST['name'], 'string', '');
 				@$owner = DevblocksPlatform::importGPC($_REQUEST['owner'], 'string', '');
 				@$signature = DevblocksPlatform::importGPC($_REQUEST['signature'], 'string', '');
+				@$file_ids = DevblocksPlatform::sanitizeArray(DevblocksPlatform::importGPC($_REQUEST['file_ids'],'array',array()), 'int');
 				
 				// Owner
 				
@@ -107,10 +108,15 @@ class PageSection_ProfilesEmailSignature extends Extension_PageSection {
 					DAO_EmailSignature::onUpdateByActor($active_worker, $fields, $id);
 				}
 				
-				// Custom field saves
-				@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
-				if(!DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_EMAIL_SIGNATURE, $id, $field_ids, $error))
-					throw new Exception_DevblocksAjaxValidationError($error);
+				if($id) {
+					// Add attachments
+					DAO_Attachment::setLinks(CerberusContexts::CONTEXT_EMAIL_SIGNATURE, $id, $file_ids);
+					
+					// Custom field saves
+					@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
+					if(!DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_EMAIL_SIGNATURE, $id, $field_ids, $error))
+						throw new Exception_DevblocksAjaxValidationError($error);
+				}
 				
 				echo json_encode(array(
 					'status' => true,

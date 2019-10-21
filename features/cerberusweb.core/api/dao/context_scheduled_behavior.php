@@ -761,8 +761,11 @@ class Model_ContextScheduledBehavior {
 			DAO_ContextScheduledBehavior::delete($this->id);
 		}
 		
+		if(!method_exists($ext->class, 'trigger'))
+			return;
+		
 		// Execute
-		call_user_func(array($ext->class, 'trigger'), $macro->id, $this->context_id, $this->variables);
+		call_user_func([$ext->class, 'trigger'], $macro->id, $this->context_id, $this->variables);
 	}
 	
 	function getNextOccurrence() {
@@ -1147,6 +1150,11 @@ class View_ContextScheduledBehavior extends C4_AbstractView implements IAbstract
 				
 			// [TODO]
 			case SearchFields_ContextScheduledBehavior::BEHAVIOR_BOT_ID:
+				break;
+				
+			case SearchFields_ContextScheduledBehavior::VIRTUAL_TARGET:
+				@$context_links = DevblocksPlatform::importGPC($_REQUEST['context_link'],'array',[]);
+				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$context_links);
 				break;
 				
 			default:
