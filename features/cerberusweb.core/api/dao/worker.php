@@ -199,7 +199,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		// base64 blob png
 		$validation
 			->addField(self::_IMAGE)
-			->image('image/png', 50, 50, 500, 500, 100000)
+			->image('image/png', 50, 50, 500, 500, 1000000)
 			;
 		// string
 		$validation
@@ -2545,7 +2545,7 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 					'options' => array('param_key' => SearchFields_Worker::AT_MENTION_NAME),
 					'suggester' => [
 						'type' => 'autocomplete',
-						'query' => 'type:worklist.subtotals of:workers by:mention~25 query:(mention:{{term}}*) format:dictionaries',
+						'query' => 'type:worklist.subtotals of:workers by:mention~25 query:(isDisabled:n mention:{{term}}*) format:dictionaries',
 						'key' => 'mention',
 						'limit' => 25,
 					]
