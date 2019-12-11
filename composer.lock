@@ -259,16 +259,16 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "6.4.1",
+            "version": "6.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "0895c932405407fd3a7368b6910c09a24d26db11"
+                "reference": "dbc2bc3a293ed6b1ae08a3651e2bfd213d19b6a5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/0895c932405407fd3a7368b6910c09a24d26db11",
-                "reference": "0895c932405407fd3a7368b6910c09a24d26db11",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/dbc2bc3a293ed6b1ae08a3651e2bfd213d19b6a5",
+                "reference": "dbc2bc3a293ed6b1ae08a3651e2bfd213d19b6a5",
                 "shasum": ""
             },
             "require": {
@@ -283,12 +283,13 @@
                 "psr/log": "^1.1"
             },
             "suggest": {
+                "ext-intl": "Required for Internationalized Domain Name (IDN) support",
                 "psr/log": "Required for using the Log middleware"
             },
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "6.3-dev"
+                    "dev-master": "6.5-dev"
                 }
             },
             "autoload": {
@@ -321,7 +322,7 @@
                 "rest",
                 "web service"
             ],
-            "time": "2019-10-23T15:58:00+00:00"
+            "time": "2019-12-07T18:20:45+00:00"
         },
         {
             "name": "guzzlehttp/promises",
@@ -740,16 +741,16 @@
         },
         {
             "name": "onelogin/php-saml",
-            "version": "3.3.1",
+            "version": "3.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/onelogin/php-saml.git",
-                "reference": "bb34489635cd5c7eb1b42833e4c57ca1c786a81a"
+                "reference": "5fbf3486704ac9835b68184023ab54862c95f213"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/onelogin/php-saml/zipball/bb34489635cd5c7eb1b42833e4c57ca1c786a81a",
-                "reference": "bb34489635cd5c7eb1b42833e4c57ca1c786a81a",
+                "url": "https://api.github.com/repos/onelogin/php-saml/zipball/5fbf3486704ac9835b68184023ab54862c95f213",
+                "reference": "5fbf3486704ac9835b68184023ab54862c95f213",
                 "shasum": ""
             },
             "require": {
@@ -786,7 +787,7 @@
                 "onelogin",
                 "saml"
             ],
-            "time": "2019-11-06T16:59:38+00:00"
+            "time": "2019-11-25T17:30:07+00:00"
         },
         {
             "name": "paragonie/random_compat",
@@ -1162,25 +1163,25 @@
         },
         {
             "name": "symfony/css-selector",
-            "version": "v4.3.7",
+            "version": "v5.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/css-selector.git",
-                "reference": "f4b3ff6a549d9ed28b2b0ecd1781bf67cf220ee9"
+                "reference": "19d29e7098b7b2c3313cb03902ca30f100dcb837"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/css-selector/zipball/f4b3ff6a549d9ed28b2b0ecd1781bf67cf220ee9",
-                "reference": "f4b3ff6a549d9ed28b2b0ecd1781bf67cf220ee9",
+                "url": "https://api.github.com/repos/symfony/css-selector/zipball/19d29e7098b7b2c3313cb03902ca30f100dcb837",
+                "reference": "19d29e7098b7b2c3313cb03902ca30f100dcb837",
                 "shasum": ""
             },
             "require": {
-                "php": "^7.1.3"
+                "php": "^7.2.5"
             },
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "4.3-dev"
+                    "dev-master": "5.0-dev"
                 }
             },
             "autoload": {
@@ -1211,7 +1212,7 @@
             ],
             "description": "Symfony CssSelector Component",
             "homepage": "https://symfony.com",
-            "time": "2019-10-02T08:36:26+00:00"
+            "time": "2019-11-18T17:27:11+00:00"
         },
         {
             "name": "tijsverkoyen/css-to-inline-styles",
@@ -1266,16 +1267,16 @@
     "packages-dev": [
         {
             "name": "giggsey/libphonenumber-for-php",
-            "version": "8.10.22",
+            "version": "8.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/giggsey/libphonenumber-for-php.git",
-                "reference": "f3a55dcb6fead9d4fb291c6dadda0564e5ae8d3f"
+                "reference": "356a97b1601edde8256dace68fe7ffeec0d777f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/giggsey/libphonenumber-for-php/zipball/f3a55dcb6fead9d4fb291c6dadda0564e5ae8d3f",
-                "reference": "f3a55dcb6fead9d4fb291c6dadda0564e5ae8d3f",
+                "url": "https://api.github.com/repos/giggsey/libphonenumber-for-php/zipball/356a97b1601edde8256dace68fe7ffeec0d777f9",
+                "reference": "356a97b1601edde8256dace68fe7ffeec0d777f9",
                 "shasum": ""
             },
             "require": {
@@ -1330,7 +1331,7 @@
                 "phonenumber",
                 "validation"
             ],
-            "time": "2019-10-30T11:52:30+00:00"
+            "time": "2019-11-26T16:09:47+00:00"
         },
         {
             "name": "giggsey/locale",

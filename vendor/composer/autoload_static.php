@@ -11,6 +11,8 @@ class ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723
         'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
         'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
+        'da5f6548f070d3d306f90eee42dd5de6' => __DIR__ . '/..' . '/donatj/phpuseragentparser/src/UserAgentParser.php',
+        '2cffec82183ee1cea088009cef9a6fc3' => __DIR__ . '/..' . '/ezyang/htmlpurifier/library/HTMLPurifier.composer.php',
         'decc78cc4436b1292c6c0d151b19445c' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/bootstrap.php',
         'f084d01b0a599f67676cffef638aa95b' => __DIR__ . '/..' . '/smarty/smarty/libs/bootstrap.php',
         '2c102faa651ef8ea5874edb585946bce' => __DIR__ . '/..' . '/swiftmailer/swiftmailer/lib/swift_required.php',
@@ -20,6 +22,14 @@ class ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723
         'p' => 
         array (
             'phpseclib\\' => 10,
+        ),
+        'T' => 
+        array (
+            'TijsVerkoyen\\CssToInlineStyles\\' => 31,
+        ),
+        'S' => 
+        array (
+            'Symfony\\Component\\CssSelector\\' => 30,
         ),
         'R' => 
         array (
@@ -60,6 +70,14 @@ class ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723
         'phpseclib\\' => 
         array (
             0 => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib',
+        ),
+        'TijsVerkoyen\\CssToInlineStyles\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/tijsverkoyen/css-to-inline-styles/src',
+        ),
+        'Symfony\\Component\\CssSelector\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/css-selector',
         ),
         'RobRichards\\XMLSecLibs\\' => 
         array (
@@ -111,11 +129,33 @@ class ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723
         ),
     );
 
+    public static $prefixesPsr0 = array (
+        'P' => 
+        array (
+            'ParsedownExtra' => 
+            array (
+                0 => __DIR__ . '/..' . '/erusev/parsedown-extra',
+            ),
+            'Parsedown' => 
+            array (
+                0 => __DIR__ . '/..' . '/erusev/parsedown',
+            ),
+        ),
+        'H' => 
+        array (
+            'HTMLPurifier' => 
+            array (
+                0 => __DIR__ . '/..' . '/ezyang/htmlpurifier/library',
+            ),
+        ),
+    );
+
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
             $loader->prefixLengthsPsr4 = ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723::$prefixLengthsPsr4;
             $loader->prefixDirsPsr4 = ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723::$prefixesPsr0;
 
         }, null, ClassLoader::class);
     }
