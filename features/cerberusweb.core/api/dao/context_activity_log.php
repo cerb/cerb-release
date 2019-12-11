@@ -1247,6 +1247,8 @@ class Context_ContextActivityLog extends Extension_DevblocksContext implements I
 			
 			$token_values['target__context'] = $entry->target_context;
 			$token_values['target_id'] = $entry->target_context_id;
+			
+			$token_values['params'] = json_decode($entry->entry_json, true);
 		}
 		
 		return true;
@@ -1327,6 +1329,10 @@ class Context_ContextActivityLog extends Extension_DevblocksContext implements I
 		}
 		
 		switch($token) {
+			default:
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
+				break;
 		}
 		
 		return $values;

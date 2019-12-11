@@ -2498,21 +2498,6 @@
 				<seg>Timeout Secs</seg>
 			</tuv>
 		</tu>
-		<tu tuid="dao.plugin_library.icon_url">
-			<tuv xml:lang="en_GB">
-				<seg>Icon URL</seg>
-			</tuv>
-		</tu>
-		<tu tuid="dao.plugin_library.plugin_id">
-			<tuv xml:lang="en_GB">
-				<seg>Plugin ID</seg>
-			</tuv>
-		</tu>
-		<tu tuid="dao.plugin_library.requirements_json">
-			<tuv xml:lang="en_GB">
-				<seg>Requirements</seg>
-			</tuv>
-		</tu>
 		<tu tuid="dao.snippet.total_uses">
 			<tuv xml:lang="en_GB">
 				<seg>All Uses</seg>
@@ -3991,16 +3976,6 @@
 		<tu tuid="preferences.account.mail.reply_textbox_size">
 			<tuv xml:lang="en_GB">
 				<seg>While replying:</seg>
-			</tuv>
-		</tu>
-		<tu tuid="preferences.account.mail.reply_textbox_size.auto">
-			<tuv xml:lang="en_GB">
-				<seg>Automatically grow the text box as I type</seg>
-			</tuv>
-		</tu>
-		<tu tuid="preferences.account.mail.reply_textbox_size.pixels">
-			<tuv xml:lang="en_GB">
-				<seg>Set the initial text box height to </seg>
 			</tuv>
 		</tu>
 		<tu tuid="preferences.account.mail.signature">

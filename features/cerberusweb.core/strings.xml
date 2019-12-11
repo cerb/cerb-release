@@ -280,6 +280,11 @@
 				<seg>add</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.add.widget">
+			<tuv xml:lang="en_US">
+				<seg>add widget</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.all">
 			<tuv xml:lang="en_US">
 				<seg>all</seg>
@@ -560,6 +565,16 @@
 				<seg>card</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.card.widget">
+			<tuv xml:lang="en_US">
+				<seg>card widget</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.card.widgets">
+			<tuv xml:lang="en_US">
+				<seg>card widgets</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.cards">
 			<tuv xml:lang="en_US">
 				<seg>cards</seg>
@@ -745,11 +760,6 @@
 				<seg>Context</seg>
 			</tuv>
 		</tu>
-		<tu tuid="common.context_id">
-			<tuv xml:lang="en_US">
-				<seg>Context ID</seg>
-			</tuv>
-		</tu>
 		<tu tuid="common.contexts">
 			<tuv xml:lang="en_US">
 				<seg>Contexts</seg>
@@ -778,6 +788,11 @@
 		<tu tuid="common.create">
 			<tuv xml:lang="en_US">
 				<seg>create</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.create_and_continue">
+			<tuv xml:lang="en_US">
+				<seg>Create &amp; Continue</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.created">
@@ -1008,6 +1023,11 @@
 		<tu tuid="common.due">
 			<tuv xml:lang="en_US">
 				<seg>due</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.draft">
+			<tuv xml:lang="en_US">
+				<seg>draft</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.duplicate">
@@ -2123,6 +2143,11 @@
 				<seg>Query</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.query.required">
+			<tuv xml:lang="en_US">
+				<seg>Required Query</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.quick_compose">
 			<tuv xml:lang="en_US">
 				<seg>Quick Compose</seg>
@@ -2188,9 +2213,29 @@
 				<seg>record</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.record.id">
+			<tuv xml:lang="en_US">
+				<seg>record id</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.record.ids">
+			<tuv xml:lang="en_US">
+				<seg>record ids</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.record.on">
 			<tuv xml:lang="en_US">
 				<seg>on record</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.record.type">
+			<tuv xml:lang="en_US">
+				<seg>record type</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.record.types">
+			<tuv xml:lang="en_US">
+				<seg>record types</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.records">
@@ -2276,6 +2321,11 @@
 		<tu tuid="common.results">
 			<tuv xml:lang="en_US">
 				<seg>results</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.resume">
+			<tuv xml:lang="en_US">
+				<seg>resume</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.retry">
@@ -2463,10 +2513,14 @@
 				<seg>settings</seg>
 			</tuv>
 		</tu>
-		
 		<tu tuid="common.signature">
 			<tuv xml:lang="en_US">
 				<seg>signature</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.signature.html">
+			<tuv xml:lang="en_US">
+				<seg>signature (HTML)</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.signed">
@@ -3140,24 +3194,6 @@
 			<seg>Fingerprint</seg></tuv>
 		</tu>
 		
-		<!-- Plugin Library -->
-		
-		<tu tuid="dao.plugin_library.plugin_id">
-			<tuv xml:lang="en_US">
-				<seg>Plugin ID</seg>
-			</tuv>
-		</tu>
-		<tu tuid="dao.plugin_library.icon_url">
-			<tuv xml:lang="en_US">
-				<seg>Icon URL</seg>
-			</tuv>
-		</tu>
-		<tu tuid="dao.plugin_library.requirements_json">
-			<tuv xml:lang="en_US">
-				<seg>Requirements</seg>
-			</tuv>
-		</tu>
-		
 		<!-- Mailbox -->
 		
 		<tu tuid='dao.mailbox.checked_at'>
@@ -3547,8 +3583,16 @@
 			</tuv>
 		</tu>
 
-		<!-- Confirmation Code -->
+		<!-- Comment -->
 		
+		<tu tuid="dao.comment.is_markdown">
+			<tuv xml:lang="en_US">
+				<seg>Is Markdown</seg>
+			</tuv>
+		</tu>
+
+		<!-- Confirmation Code -->
+
 		<tu tuid="dao.confirmation_code.namespace_key">
 			<tuv xml:lang="en_US">
 				<seg>Namespace</seg>
@@ -4319,12 +4363,12 @@
 		</tu>
 		<tu tuid="message.queued.delivery_immediate">
 			<tuv xml:lang="en_US">
-				<seg>scheduled for immediate delivery</seg>
+				<seg>sending now</seg>
 			</tuv>
 		</tu>
 		<tu tuid="message.queued.deliver_in">
 			<tuv xml:lang="en_US">
-				<seg>scheduled for delivery in %s</seg>
+				<seg>sending in %s</seg>
 			</tuv>
 		</tu>
 		<tu tuid="message.content">
@@ -4997,16 +5041,6 @@ For example: *receipt*</seg>
 		<tu tuid="preferences.account.mail.reply_textbox_size">
 			<tuv xml:lang="en_US">
 				<seg>While replying:</seg>
-			</tuv>
-		</tu>
-		<tu tuid="preferences.account.mail.reply_textbox_size.auto">
-			<tuv xml:lang="en_US">
-				<seg>Automatically grow the text box as I type</seg>
-			</tuv>
-		</tu>
-		<tu tuid="preferences.account.mail.reply_textbox_size.pixels">
-			<tuv xml:lang="en_US">
-				<seg>Set the initial text box height to </seg>
 			</tuv>
 		</tu>
 		<tu tuid="preferences.account.mail.reply_button">

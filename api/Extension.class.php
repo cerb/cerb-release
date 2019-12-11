@@ -45,20 +45,37 @@ abstract class Extension_CustomField extends DevblocksExtension {
 	
 	const POINT = 'cerb.custom_field';
 	
-	//abstract function hasMultipleValues();
+	abstract function renderConfig(Model_CustomField $field);
 	abstract function getLabelsForValues($values);
 	abstract function getValueTableName();
 	abstract function getValueTableSql($context, array $context_ids);
-	abstract function populateQuickSearchMeta(array &$search_field_meta);
+	abstract function populateQuickSearchMeta(Model_CustomField $field, array &$search_field_meta);
 	abstract function prepareCriteriaParam(Model_CustomField $field, $param, &$vals, &$implode_token);
 	abstract function renderEditable(Model_CustomField $field, $form_key, $form_value);
-	abstract function renderValue($value);
+	abstract function renderValue(Model_CustomField $field, $value);
 	abstract function setFieldValue(Model_CustomField $field, $context, $context_id, $value);
 	abstract function unsetFieldValue(Model_CustomField $field, $context, $context_id, $value=null);
 	abstract function validationRegister(Model_CustomField $field, _DevblocksValidationService &$validation);
 	
+	function hasMultipleValues() {
+		return false;
+	}
+	
 	function formatFieldValue($value) {
 		return $value;
+	}
+	
+	function getParamFromQueryFieldTokens($field, $tokens, $param_key) {
+		return false;
+	}
+
+	function getWhereSQLFromParam(Model_CustomField $field, DevblocksSearchCriteria $param) {
+		return null;
+	}
+	
+	function parseFormPost(Model_CustomField $field) {
+		@$field_value = DevblocksPlatform::importGPC($_REQUEST['field_'.$field->id],'string','');
+		return $field_value;
 	}
 }
 
@@ -111,11 +128,11 @@ abstract class Extension_PageSection extends DevblocksExtension {
 	 */
 	static function getExtensions($as_instances=true, $page_id=null) {
 		if(empty($page_id))
-			return DevblocksPlatform::getExtensions(self::POINT, $as_instances);
+			return DevblocksPlatform::getExtensions(self::POINT, $as_instances, false);
 
 		$results = [];
 		
-		$exts = DevblocksPlatform::getExtensions(self::POINT, false);
+		$exts = DevblocksPlatform::getExtensions(self::POINT, false, false);
 		foreach($exts as $ext_id => $ext) {
 			if(0 == strcasecmp($page_id, $ext->params['page_id']))
 				$results[$ext_id] = $as_instances ? $ext->createInstance() : $ext;
@@ -237,12 +254,6 @@ abstract class Extension_PageMenuItem extends DevblocksExtension {
 
 abstract class Extension_MessageToolbarItem extends DevblocksExtension {
 	const POINT = 'cerberusweb.message.toolbaritem';
-	
-	function render(Model_Message $message) { }
-};
-
-abstract class Extension_ReplyToolbarItem extends DevblocksExtension {
-	const POINT = 'cerberusweb.reply.toolbaritem';
 	
 	function render(Model_Message $message) { }
 };
@@ -519,6 +530,94 @@ abstract class Extension_CalendarDatasource extends DevblocksExtension {
 	
 	abstract function renderConfig(Model_Calendar $calendar, $params, $series_prefix);
 	abstract function getData(Model_Calendar $calendar, array $params=[], $params_prefix=null, $date_range_from, $date_range_to);
+};
+
+abstract class Extension_CardWidget extends DevblocksExtension {
+	const POINT = 'cerb.card.widget';
+	
+	static $_registry = [];
+	
+	/**
+	 * @param bool $as_instances
+	 * @return DevblocksExtensionManifest[]|Extension_CardWidget[]
+	 * @internal
+	 *
+	 */
+	static function getAll($as_instances=true) {
+		$exts = DevblocksPlatform::getExtensions(self::POINT, $as_instances);
+		
+		// Sorting
+		if($as_instances)
+			DevblocksPlatform::sortObjects($exts, 'manifest->name');
+		else
+			DevblocksPlatform::sortObjects($exts, 'name');
+		
+		return $exts;
+	}
+	
+	/**
+	 * @param string $extension_id
+	 * @return DevblocksExtensionManifest|mixed|null
+	 * @internal
+	 */
+	static function get($extension_id) {
+		if(isset(self::$_registry[$extension_id]))
+			return self::$_registry[$extension_id];
+		
+		if(null != ($extension = DevblocksPlatform::getExtension($extension_id, true))
+			&& $extension instanceof Extension_CardWidget) {
+			
+			self::$_registry[$extension->id] = $extension;
+			return $extension;
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * @internal
+	 */
+	static function getByContext($context, $as_instances=true) {
+		$extensions = self::getAll($as_instances);
+		
+		$extensions = array_filter($extensions, function($extension) use ($context, $as_instances) {
+			$ptr = ($as_instances) ? $extension->manifest : $extension;
+			
+			if(!array_key_exists('contexts', $ptr->params))
+				return true;
+			
+			@$contexts = $ptr->params['contexts'][0] ?: [];
+			
+			return isset($contexts[$context]);
+		});
+		
+		return $extensions;
+	}
+	
+	abstract function render(Model_CardWidget $model, $context, $context_id);
+	abstract function renderConfig(Model_CardWidget $model);
+	function saveConfig(array $fields, $id, &$error=null) { return true; }
+	
+	/**
+	 * @internal
+	 */
+	public function export(Model_CardWidget $widget) {
+		$widget_json = [
+			'widget' => [
+				'uid' => 'card_widget_' . $widget->id,
+				'_context' => CerberusContexts::CONTEXT_CARD_WIDGET,
+				'name' => $widget->name,
+				'record_type' => $widget->record_type,
+				'extension_id' => $widget->extension_id,
+				'pos' => $widget->pos,
+				'width_units' => $widget->width_units,
+				'zone' => $widget->zone,
+				'extension_params' => $widget->extension_params,
+			]
+		];
+		
+		return json_encode($widget_json);
+	}
 };
 
 abstract class Extension_WorkspacePage extends DevblocksExtension {

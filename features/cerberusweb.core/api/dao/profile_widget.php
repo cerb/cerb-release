@@ -293,7 +293,7 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 			$object->zone = $row['zone'];
 			
 			if(false != (@$params = json_decode($row['extension_params_json'], true)))
-			$object->extension_params = $params;
+				$object->extension_params = $params;
 			
 			$objects[$object->id] = $object;
 		}
@@ -598,7 +598,10 @@ class Model_ProfileWidget {
 	function getProfileTab() {
 		return DAO_ProfileTab::get($this->profile_tab_id);
 	}
-
+	
+	/**
+	 * @return DevblocksExtensionManifest|null
+	 */
 	function getExtension() {
 		return Extension_ProfileWidget::get($this->extension_id);
 	}
@@ -1216,16 +1219,9 @@ class Context_ProfileWidget extends Extension_DevblocksContext implements IDevbl
 		}
 		
 		switch($token) {
-			case 'links':
-				$links = $this->_lazyLoadLinks($context, $context_id);
-				$values = array_merge($values, $links);
-				break;
-		
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -1284,6 +1280,7 @@ class Context_ProfileWidget extends Extension_DevblocksContext implements IDevbl
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_PROFILE_WIDGET;
+		$model = null;
 		
 		if(!empty($context_id)) {
 			$model = DAO_ProfileWidget::get($context_id);
@@ -1372,43 +1369,7 @@ class Context_ProfileWidget extends Extension_DevblocksContext implements IDevbl
 			$tpl->display('devblocks:cerberusweb.core::internal/profiles/widgets/peek_edit.tpl');
 			
 		} else {
-			// Links
-			$links = array(
-				$context => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							$context,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-			
-			// Timeline
-			if($context_id) {
-				$timeline_json = Page_Profiles::getTimelineJson(Extension_DevblocksContext::getTimelineComments($context, $context_id));
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			// Dictionary
-			$labels = $values = [];
-			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$tpl->display('devblocks:cerberusweb.core::internal/profiles/widgets/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $model);
 		}
 	}
 };

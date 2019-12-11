@@ -510,8 +510,11 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 	}
 	
 	public function &__get($name) {
-		if($this->exists($name))
+		$name = $this->defuzzName($name);
+		
+		if($this->exists($name)) {
 			return $this->_dictionary[$name];
+		}
 		
 		// Lazy load
 		
@@ -561,7 +564,12 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 				}
 				
 				// The getDictionary() call above already filters out _labels and _types
-				$this->_dictionary[$new_key] = $v;
+				
+				if(array_key_exists($new_key, $this->_dictionary) && is_array($this->_dictionary[$new_key])) {
+					$this->_dictionary[$new_key] = array_merge($this->_dictionary[$new_key], $v);
+				} else {
+					$this->_dictionary[$new_key] = $v;
+				}
 			}
 		}
 		
@@ -569,12 +577,11 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 			$this->clearCaches();
 		
 		if(is_array($contexts))
-		foreach($contexts as $n) {
+		for($n=0, $n_len=count($contexts); $n < $n_len; $n++) {
 			CerberusContexts::popStack();
-			$n;
 		}
 		
-		if(!$this->exists($name)) {
+		if(!array_key_exists($name, $this->_dictionary)) {
 			// If the key isn't found and we invalidated the cache, recurse
 			if($is_cache_invalid) {
 				return $this->__get($name);
@@ -594,7 +601,33 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		return false;
 	}
 	
-	public function exists($name) {
+	// Handle fuzzy key expansion
+	public function defuzzName($name) {
+		if($name == 'custom_') {
+			return 'custom';
+			
+		} else if (DevblocksPlatform::strEndsWith($name, '_')) {
+			$id_key = $name . 'id';
+			$loaded_key = $name . '_loaded';
+			
+			// If the record was previously loaded
+			if($this->exists($loaded_key,false)) {
+				return $loaded_key;
+				
+			// If the ID is zero, consider the record previously loaded
+			} else if($this->exists($id_key,false) && 0 == $this->get($id_key)) {
+				return $id_key;
+			}
+		}
+		
+		return $name;
+	}
+	
+	public function exists($name, $is_fuzzy=true) {
+		if($is_fuzzy) {
+			$name = $this->defuzzName($name);
+		}
+		
 		return array_key_exists($name, $this->_dictionary);
 	}
 	
@@ -779,7 +812,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		
 		// Batch load extra keys
 		if(is_array($keys) && !empty($keys))
-		foreach($keys as $key) {
+		foreach(array_unique($keys) as $key) {
 			DevblocksDictionaryDelegate::bulkLazyLoad($dicts, $key);
 		}
 		
@@ -795,19 +828,21 @@ class DevblocksDictionaryDelegate implements JsonSerializable {
 		// [TODO] Don't run (n) queries to lazy load custom fields
 		
 		// Examine contexts on the first dictionary
+		/* @var DevblocksDictionaryDelegate $first_dict */
 		$first_dict = reset($dicts);
-
+		
+		if(!($first_dict instanceof DevblocksDictionaryDelegate))
+			return;
+		
+		if($first_dict->exists($token))
+			return;
+		
 		// Get the list of embedded contexts
 		$contexts = $first_dict->getContextsForName($token);
 		
 		foreach($contexts as $context_prefix => $context_data) {
 			// The top-level context is always loaded
 			if(empty($context_prefix))
-				continue;
-			
-			// If the context is already loaded, skip it
-			$loaded_key = $context_prefix . '__loaded';
-			if($first_dict->exists($loaded_key))
 				continue;
 			
 			$id_counts = [];

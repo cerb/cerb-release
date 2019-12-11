@@ -45,14 +45,14 @@ abstract class DevblocksORMHelper {
 				if(false == ($worker = DAO_Worker::get($actor->id)))
 					return false;
 				
-				// Create
+				// Update
 				if($id) {
 					if(!$worker->hasPriv(sprintf("contexts.%s.update", $context))) {
 						$error = DevblocksPlatform::translate('error.core.no_acl.edit');
 						return false;
 					}
 					
-				// Update
+				// Create
 				} else {
 					if(!$worker->hasPriv(sprintf("contexts.%s.create", $context))) {
 						$error = DevblocksPlatform::translate('error.core.no_acl.create');
@@ -165,7 +165,7 @@ abstract class DevblocksORMHelper {
 					;
 					break;
 				case Model_CustomField::TYPE_DROPDOWN:
-					$options = $custom_field->params['options'];
+					$options = $custom_field->params['options'] ?? [];
 					
 					if(!is_array($options))
 						$options = [];
@@ -212,7 +212,7 @@ abstract class DevblocksORMHelper {
 						;
 					break;
 				case Model_CustomField::TYPE_MULTI_CHECKBOX:
-					$options = $custom_field->params['options'];
+					$options = $custom_field->params['options'] ?? [];
 					
 					if(!is_array($options))
 						$options = [];

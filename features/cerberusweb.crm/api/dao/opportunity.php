@@ -1511,23 +1511,9 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		}
 		
 		switch($token) {
-			case 'links':
-				$links = $this->_lazyLoadLinks($context, $context_id);
-				$values = array_merge($values, $links);
-				break;
-			
-			case 'watchers':
-				$watchers = array(
-					$token => CerberusContexts::getWatchers($context, $context_id, true),
-				);
-				$values = array_merge($values, $watchers);
-				break;
-				
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -1588,8 +1574,6 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_OPPORTUNITY;
-		$active_worker = CerberusApplication::getActiveWorker();
-		
 		$opp = new Model_CrmOpportunity();
 		
 		if(!empty($context_id)) {
@@ -1621,49 +1605,7 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 			$tpl->display('devblocks:cerberusweb.crm::crm/opps/peek_edit.tpl');
 			
 		} else {
-			// Dictionary
-			$labels = [];
-			$values = [];
-			CerberusContexts::getContext($context, $opp, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			// Links
-			$links = array(
-				$context => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							$context,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-			
-			// Timeline
-			if($context_id) {
-				$timeline_json = Page_Profiles::getTimelineJson(Extension_DevblocksContext::getTimelineComments($context, $context_id));
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Interactions
-			$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
-			$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
-			$tpl->assign('interactions_menu', $interactions_menu);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$tpl->display('devblocks:cerberusweb.crm::crm/opps/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $opp);
 		}
 	}
 	

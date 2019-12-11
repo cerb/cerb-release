@@ -56,7 +56,7 @@
 $(function() {
 	var $container = $('#profileTab{$model->id}');
 	var $add_button = $('#btnProfileTabAddWidget{$model->id}');
-	
+
 	// Drag
 	{if $active_worker->is_superuser}
 	$container.find('.cerb-profile-layout-zone--widgets')
@@ -92,28 +92,30 @@ $(function() {
 	{/if}
 	
 	$container.on('cerb-reorder', function(e) {
-		var results = { 'zones': { } };
-		
+		var formData = new FormData();
+		formData.append('c', 'profiles');
+		formData.append('a', 'handleProfileTabAction');
+		formData.append('tab_id', '{$model->id}');
+		formData.append('action', 'reorderWidgets');
+
 		// Zones
 		$container.find('> .cerb-profile-layout-zone')
 			.each(function(d) {
 				var $cell = $(this);
 				var zone = $cell.attr('data-layout-zone');
 				var ids = $cell.find('.cerb-profile-widget').map(function(d) { return $(this).attr('data-widget-id'); });
-				
-				results.zones[zone] = $.makeArray(ids);
+
+				formData.append('zones[' + zone + ']', $.makeArray(ids));
 			})
 			;
 		
-		genericAjaxGet('', 'c=profiles&a=handleProfileTabAction&tab_id={$model->id}&action=reorderWidgets' 
-			+ '&' + $.param(results)
-		);
+		genericAjaxPost(formData);
 	});
 	
 	$container.on('cerb-widget-refresh', function(e) {
 		var widget_id = e.widget_id;
 		var refresh_options = (e.refresh_options && typeof e.refresh_options == 'object') ? e.refresh_options : {};
-		
+
 		async.series([ async.apply(loadWidgetFunc, widget_id, false, refresh_options) ], function(err, json) {
 			// Done
 		});
@@ -122,7 +124,21 @@ $(function() {
 	var addEvents = function($target) {
 		var $menu = $target.find('.cerb-profile-widget--menu');
 		var $menu_link = $target.find('.cerb-profile-widget--link');
-		
+		var $handle = $target.find('.glyphicons-menu-hamburger');
+
+		{if $active_worker->is_superuser}
+		$target.hoverIntent({
+			interval: 50,
+			timeout: 250,
+			over: function (e) {
+				$handle.show();
+			},
+			out: function (e) {
+				$handle.hide();
+			}
+		});
+		{/if}
+
 		$menu
 			.menu({
 				select: function(event, ui) {
@@ -132,7 +148,23 @@ $(function() {
 					var $widget = $li.closest('.cerb-profile-widget');
 					var widget_id = $widget.attr('data-widget-id');
 					
-					if($li.is('.cerb-profile-widget-menu--refresh')) {
+					if($li.is('.cerb-profile-widget-menu--edit')) {
+						$li.clone()
+							.cerbPeekTrigger()
+							.on('cerb-peek-saved', function(e) {
+								// [TODO] Check the event type
+								async.series([ async.apply(loadWidgetFunc, e.id, true, {}) ], function(err, json) {
+									// Done
+								});
+							})
+							.on('cerb-peek-deleted', function(e) {
+								$('#profileWidget' + e.id).closest('.cerb-profile-widget').remove();
+								$container.trigger('cerb-reorder');
+							})
+							.click()
+							;
+						
+					} else if($li.is('.cerb-profile-widget-menu--refresh')) {
 						async.series([ async.apply(loadWidgetFunc, widget_id, false, {}) ], function(err, json) {
 							// Done
 						});
@@ -148,24 +180,13 @@ $(function() {
 			$(this).closest('.cerb-profile-widget').find('.cerb-profile-widget--menu').toggle();
 		});
 		
-		$menu.find('.cerb-peek-trigger')
-			.cerbPeekTrigger()
-			.on('cerb-peek-saved', function(e) {
-				async.series([ async.apply(loadWidgetFunc, e.id, true, {}) ], function(err, json) {
-					// Done
-				});
-			})
-			.on('cerb-peek-deleted', function(e) {
-				$('#profileWidget' + e.id).closest('.cerb-profile-widget').remove();
-				$container.trigger('cerb-reorder');
-			})
-			;
-		
 		return $target;
 	}
 	
-	addEvents($container);
-	
+	$container.find('.cerb-profile-widget').each(function() {
+		addEvents($(this));
+	});
+
 	var jobs = [];
 	
 	{if $active_worker->is_superuser}

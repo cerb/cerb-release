@@ -6,6 +6,7 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 	const OWNER_CONTEXT = 'owner_context';
 	const OWNER_CONTEXT_ID = 'owner_context_id';
 	const SIGNATURE = 'signature';
+	const SIGNATURE_HTML = 'signature_html';
 	const UPDATED_AT = 'updated_at';
 	
 	const _CACHE_ALL = 'email_signatures_all';
@@ -43,6 +44,11 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 			->string()
 			->setMaxLength('24 bits')
 			->setRequired(true)
+			;
+		$validation
+			->addField(self::SIGNATURE_HTML)
+			->string()
+			->setMaxLength('24 bits')
 			;
 		$validation
 			->addField(self::UPDATED_AT)
@@ -164,7 +170,7 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
 		// SQL
-		$sql = "SELECT id, name, signature, owner_context, owner_context_id, is_default, updated_at ".
+		$sql = "SELECT id, name, signature, signature_html, owner_context, owner_context_id, is_default, updated_at ".
 			"FROM email_signature ".
 			$where_sql.
 			$sort_sql.
@@ -237,6 +243,7 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 			$object->owner_context = $row['owner_context'];
 			$object->owner_context_id = intval($row['owner_context_id']);
 			$object->signature = $row['signature'];
+			$object->signature_html = $row['signature_html'];
 			$object->is_default = @$row['is_default'] ? 1 : 0;
 			$object->updated_at = $row['updated_at'];
 			$objects[$object->id] = $object;
@@ -535,8 +542,29 @@ class Model_EmailSignature {
 	public $owner_context;
 	public $owner_context_id;
 	public $signature;
+	public $signature_html;
 	public $is_default;
 	public $updated_at;
+	
+	public function getSignature($worker_model, bool $as_html) {
+		// If we have a worker model, convert template tokens
+		if(!$worker_model)
+			$worker_model = new Model_Worker();
+		
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder()::newInstance();
+		
+		$dict = DevblocksDictionaryDelegate::instance([
+			'_context' => CerberusContexts::CONTEXT_WORKER,
+			'id' => $worker_model->id,
+		]);
+		
+		if($as_html && $this->signature_html) {
+			return $tpl_builder->build($this->signature_html, $dict);
+			
+		} else {
+			return $tpl_builder->build($this->signature, $dict);
+		}
+	}
 };
 
 class View_EmailSignature extends C4_AbstractView implements IAbstractView_Subtotals, IAbstractView_QuickSearch {
@@ -636,10 +664,6 @@ class View_EmailSignature extends C4_AbstractView implements IAbstractView_Subto
 			case SearchFields_EmailSignature::IS_DEFAULT:
 				$counts = $this->_getSubtotalCountForBooleanColumn($context, $column);
 				break;
-
-//			case SearchFields_EmailSignature::EXAMPLE_STRING:
-//				$counts = $this->_getSubtotalCountForStringColumn($context, $column);
-//				break;
 
 			case SearchFields_EmailSignature::VIRTUAL_OWNER:
 				$counts = $this->_getSubtotalCountForContextAndIdColumns($context, $column, DAO_EmailSignature::OWNER_CONTEXT, DAO_EmailSignature::OWNER_CONTEXT_ID, 'owner_context[]');
@@ -917,6 +941,12 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 			'value' => $model->signature,
 		);
 		
+		$properties['signature_html'] = array(
+			'label' => mb_ucfirst($translate->_('common.signature.html')),
+			'type' => Model_CustomField::TYPE_MULTI_LINE,
+			'value' => $model->signature_html,
+		);
+		
 		return $properties;
 	}
 	
@@ -996,6 +1026,7 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 			'owner__label' => $prefix.$translate->_('common.owner'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
 			'signature' => $prefix.$translate->_('common.signature'),
+			'signature_html' => $prefix.$translate->_('common.signature.html'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 		);
 		
@@ -1008,6 +1039,7 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 			'owner__label' => 'context_url',
 			'record_url' => Model_CustomField::TYPE_URL,
 			'signature' => Model_CustomField::TYPE_MULTI_LINE,
+			'signature_html' => Model_CustomField::TYPE_MULTI_LINE,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 		);
 		
@@ -1034,6 +1066,7 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 			$token_values['owner__context'] = $email_signature->owner_context;
 			$token_values['owner_id'] = $email_signature->owner_context_id;
 			$token_values['signature'] = $email_signature->signature;
+			$token_values['signature_html'] = $email_signature->signature_html;
 			$token_values['updated_at'] = $email_signature->updated_at;
 			
 			// Custom fields
@@ -1056,6 +1089,7 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 			'owner__context' => DAO_EmailSignature::OWNER_CONTEXT,
 			'owner_id' => DAO_EmailSignature::OWNER_CONTEXT_ID,
 			'signature' => DAO_EmailSignature::SIGNATURE,
+			'signature_html' => DAO_EmailSignature::SIGNATURE_HTML,
 			'updated_at' => DAO_EmailSignature::UPDATED_AT,
 		];
 	}
@@ -1065,6 +1099,7 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 		
 		$keys['is_default']['notes'] = "Is this the default signature?";
 		$keys['signature']['notes'] = "The [template](/docs/bots/scripting/) of the signature";
+		$keys['signature_html']['notes'] = "The HTML [template](/docs/bots/scripting/) of the signature";
 		
 		return $keys;
 	}
@@ -1097,16 +1132,9 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 		}
 		
 		switch($token) {
-			case 'links':
-				$links = $this->_lazyLoadLinks($context, $context_id);
-				$values = array_merge($values, $links);
-				break;
-		
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -1165,6 +1193,7 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_EMAIL_SIGNATURE;
+		$model = null;
 		
 		if(!empty($context_id)) {
 			$model = DAO_EmailSignature::get($context_id);
@@ -1193,49 +1222,21 @@ class Context_EmailSignature extends Extension_DevblocksContext implements IDevb
 			$attachments = DAO_Attachment::getByContextIds($context, $context_id);
 			$tpl->assign('attachments', $attachments);
 			
+			// Placeholders
+			
+			$labels = $values = [];
+			CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, null, $labels, $values, '', true, false);
+			
+			$placeholders = Extension_DevblocksContext::getPlaceholderTree($labels);
+			$tpl->assign('placeholders', $placeholders);
+			
 			// View
 			$tpl->assign('id', $context_id);
 			$tpl->assign('view_id', $view_id);
 			$tpl->display('devblocks:cerberusweb.core::internal/email_signature/peek_edit.tpl');
 			
 		} else {
-			// Links
-			$links = array(
-				$context => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							$context,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-			
-			// Timeline
-			if($context_id) {
-				$timeline_json = Page_Profiles::getTimelineJson(Extension_DevblocksContext::getTimelineComments($context, $context_id));
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			// Dictionary
-			$labels = $values = [];
-			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$tpl->display('devblocks:cerberusweb.core::internal/email_signature/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $model);
 		}
 	}
 };

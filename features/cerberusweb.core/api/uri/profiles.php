@@ -44,6 +44,86 @@ class Page_Profiles extends CerberusPageExtension {
 		$tpl->display('devblocks:cerberusweb.core::profiles/index.tpl');
 	}
 	
+	static function renderCard($context, $context_id, $model=null) {
+		$tpl = DevblocksPlatform::services()->template();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!$model) {
+			$tpl->assign('error_message', "This record no longer exists.");
+			$tpl->display('devblocks:cerberusweb.core::internal/peek/peek_error.tpl');
+			return;
+		}
+		
+		// Context
+		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+			return;
+		
+		// Links
+		if($context_ext->hasOption('links')) {
+			$links = [
+				$context => [
+					$context_id =>
+						DAO_ContextLink::getContextLinkCounts(
+							$context,
+							$context_id,
+							[]
+						),
+				],
+			];
+			$tpl->assign('links', $links);
+		}
+		
+		// Dictionary
+		if($model) {
+			$labels = $values = [];
+			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
+			$dict = DevblocksDictionaryDelegate::instance($values);
+		} else {
+			$dict = DevblocksDictionaryDelegate::instance([
+				'_context' => $context,
+				'id' => $context_id,
+			]);
+		}
+		$tpl->assign('dict', $dict);
+		
+		// Interactions
+		$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
+		$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
+		$tpl->assign('interactions_menu', $interactions_menu);
+		
+		// Widgets
+		$widgets = DAO_CardWidget::getByContext($context);
+		
+		$zones = [
+			'content' => [],
+		];
+		
+		// Sanitize zones
+		foreach($widgets as $widget_id => $widget) {
+			if(array_key_exists($widget->zone, $zones)) {
+				$zones[$widget->zone][$widget_id] = $widget;
+				continue;
+			}
+			
+			// If the zone doesn't exist, drop the widget into the first zone
+			$zones[key($zones)][$widget_id] = $widget;
+		}
+		
+		$tpl->assign('zones', $zones);
+		
+		$is_readable = CerberusContexts::isReadableByActor($context, $dict, $active_worker);
+		$tpl->assign('is_readable', $is_readable);
+		
+		$is_writeable = CerberusContexts::isWriteableByActor($context, $dict, $active_worker);
+		$tpl->assign('is_writeable', $is_writeable);
+		
+		// Template
+		$tpl->assign('peek_context', $context);
+		$tpl->assign('peek_context_id', $context_id);
+		$tpl->assign('context_ext', $context_ext);
+		$tpl->display('devblocks:cerberusweb.core::internal/cards/card.tpl');
+	}
+	
 	static function renderProfile($context, $context_id, $path=[]) {
 		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
@@ -302,6 +382,10 @@ class Page_Profiles extends CerberusPageExtension {
 				$context = CerberusContexts::CONTEXT_COMMENT;
 				$object = array('context' => $context, 'context_id' => $model->id);
 				$json['objects'][] = $object;
+			} else if($model instanceof Model_MailQueue) {
+				$context = CerberusContexts::CONTEXT_DRAFT;
+				$object = array('context' => $context, 'context_id' => $model->id);
+				$json['objects'][] = $object;
 			} elseif($model instanceof Model_Message) {
 				$context = CerberusContexts::CONTEXT_MESSAGE;
 				$object = array('context' => $context, 'context_id' => $model->id);
@@ -433,13 +517,14 @@ class ProfileTab_Dashboard extends Extension_ProfileTab {
 			return;
 		
 		$widgets = DAO_ProfileWidget::getByTab($tab_id);
+		$new_zones = [];
 		
 		// Sanitize widget IDs
-		foreach($zones as &$zone) {
-			$zone = array_values(array_intersect($zone, array_keys($widgets)));
+		foreach($zones as $zone_id => $zone) {
+			$new_zones[$zone_id] = array_values(array_intersect(explode(',', $zone), array_keys($widgets)));
 		}
 		
-		DAO_ProfileWidget::reorder($zones);
+		DAO_ProfileWidget::reorder($new_zones);
 	}
 	
 	function getPlaceholderToolbarForTabAction() {
@@ -679,8 +764,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 				$prefs['mail_always_read_all'] = DAO_WorkerPref::get($worker->id,'mail_always_read_all',0);
 				$prefs['mail_disable_html_display'] = DAO_WorkerPref::get($worker->id,'mail_disable_html_display',0);
 				$prefs['mail_reply_html'] = DAO_WorkerPref::get($worker->id,'mail_reply_html',0);
-				$prefs['mail_reply_textbox_size_auto'] = DAO_WorkerPref::get($worker->id,'mail_reply_textbox_size_auto',0);
-				$prefs['mail_reply_textbox_size_px'] = DAO_WorkerPref::get($worker->id,'mail_reply_textbox_size_px',300);
 				$prefs['mail_reply_button'] = DAO_WorkerPref::get($worker->id,'mail_reply_button',0);
 				$prefs['mail_reply_format'] = DAO_WorkerPref::get($worker->id,'mail_reply_format','');
 				$prefs['mail_status_compose'] = DAO_WorkerPref::get($worker->id,'compose.status','waiting');
@@ -910,12 +993,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 					@$mail_reply_html = DevblocksPlatform::importGPC($_REQUEST['mail_reply_html'],'integer',0);
 					DAO_WorkerPref::set($worker->id, 'mail_reply_html', $mail_reply_html);
 					
-					@$mail_reply_textbox_size_px = DevblocksPlatform::importGPC($_REQUEST['mail_reply_textbox_size_px'],'integer',0);
-					DAO_WorkerPref::set($worker->id, 'mail_reply_textbox_size_px', max(100, min(2000, $mail_reply_textbox_size_px)));
-					
-					@$mail_reply_textbox_size_auto = DevblocksPlatform::importGPC($_REQUEST['mail_reply_textbox_size_auto'],'integer',0);
-					DAO_WorkerPref::set($worker->id, 'mail_reply_textbox_size_auto', $mail_reply_textbox_size_auto);
-					
 					@$mail_reply_button = DevblocksPlatform::importGPC($_REQUEST['mail_reply_button'],'integer',0);
 					DAO_WorkerPref::set($worker->id, 'mail_reply_button', $mail_reply_button);
 					
@@ -941,6 +1018,10 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 				case 'search':
 					@$search_favorites = DevblocksPlatform::importGPC($_REQUEST['search_favorites'],'array',[]);
 					DAO_WorkerPref::setAsJson($worker->id, 'search_favorites_json', $search_favorites);
+					
+					$cache = DevblocksPlatform::services()->cache();
+					$cache_key = 'worker_search_menu_' . $worker_id;
+					$cache->remove($cache_key);
 					
 					echo json_encode([
 						'status' => true,

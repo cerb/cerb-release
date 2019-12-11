@@ -21,6 +21,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 	const CONTEXT_ID = 'context_id';
 	const CREATED = 'created';
 	const ID = 'id';
+	const IS_MARKDOWN = 'is_markdown';
 	const OWNER_CONTEXT = 'owner_context';
 	const OWNER_CONTEXT_ID = 'owner_context_id';
 	
@@ -53,6 +54,10 @@ class DAO_Comment extends Cerb_ORMHelper {
 			->addField(self::ID)
 			->id()
 			->setEditable(false)
+			;
+		$validation
+			->addField(self::IS_MARKDOWN)
+			->bit()
 			;
 		$validation
 			->addField(self::OWNER_CONTEXT)
@@ -205,7 +210,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
 		// SQL
-		$sql = "SELECT id, context, context_id, created, owner_context, owner_context_id, comment ".
+		$sql = "SELECT id, context, context_id, created, owner_context, owner_context_id, comment, is_markdown ".
 			"FROM comment ".
 			$where_sql.
 			$sort_sql.
@@ -241,7 +246,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 		return $ids;
 	}
 	
-	static function getByContext($context, $context_ids) {
+	static function getByContext($context, $context_ids, $limit=0) {
 		if(!is_array($context_ids)) {
 			if(0 == strlen($context_ids)) {
 				$context_ids = [];
@@ -253,12 +258,17 @@ class DAO_Comment extends Cerb_ORMHelper {
 		if(empty($context_ids))
 			return [];
 
-		return self::getWhere(sprintf("%s = %s AND %s IN (%s)",
-			self::CONTEXT,
-			Cerb_ORMHelper::qstr($context),
-			self::CONTEXT_ID,
-			implode(',', $context_ids)
-		));
+		return self::getWhere(
+			sprintf("%s = %s AND %s IN (%s)",
+				self::CONTEXT,
+				Cerb_ORMHelper::qstr($context),
+				self::CONTEXT_ID,
+				implode(',', $context_ids)
+			),
+			DAO_Comment::CREATED,
+			false,
+			$limit ? $limit : null
+		);
 	}
 
 	/**
@@ -295,6 +305,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 			$object->context = $row['context'];
 			$object->context_id = intval($row['context_id']);
 			$object->created = intval($row['created']);
+			$object->is_markdown = $row['is_markdown'] ? true : false;
 			$object->owner_context = $row['owner_context'];
 			$object->owner_context_id = intval($row['owner_context_id']);
 			$object->comment = $row['comment'];
@@ -386,6 +397,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 			"comment.created as %s, ".
 			"comment.owner_context as %s, ".
 			"comment.owner_context_id as %s, ".
+			"comment.is_markdown as %s, ".
 			"comment.comment as %s ",
 				SearchFields_Comment::ID,
 				SearchFields_Comment::CONTEXT,
@@ -393,6 +405,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 				SearchFields_Comment::CREATED,
 				SearchFields_Comment::OWNER_CONTEXT,
 				SearchFields_Comment::OWNER_CONTEXT_ID,
+				SearchFields_Comment::IS_MARKDOWN,
 				SearchFields_Comment::COMMENT
 			);
 			
@@ -506,6 +519,41 @@ class DAO_Comment extends Cerb_ORMHelper {
 			)
 		);
 	}
+	
+	public static function handleFormPost($context, $context_id) {
+		@$comment = DevblocksPlatform::importGPC(@$_REQUEST['comment'],'string','');
+		@$comment_enabled = DevblocksPlatform::importGPC(@$_REQUEST['comment_enabled'],'bit',0);
+		@$comment_is_markdown = DevblocksPlatform::importGPC(@$_REQUEST['comment_is_markdown'],'bit',0);
+		@$comment_file_ids = DevblocksPlatform::importGPC(@$_REQUEST['comment_file_ids'],'array',[]);
+		
+		if(!$comment_enabled)
+			return null;
+		
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if($context_id && $comment && $active_worker->hasPriv(sprintf("contexts.%s.comment", $context))) {
+			$also_notify_worker_ids = array_keys(CerberusApplication::getWorkersByAtMentionsText($comment));
+			
+			$fields = [
+				DAO_Comment::CREATED => time(),
+				DAO_Comment::CONTEXT => $context,
+				DAO_Comment::CONTEXT_ID => $context_id,
+				DAO_Comment::COMMENT => $comment,
+				DAO_Comment::IS_MARKDOWN => $comment_is_markdown,
+				DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_WORKER,
+				DAO_Comment::OWNER_CONTEXT_ID => $active_worker->id,
+			];
+			$comment_id = DAO_Comment::create($fields, $also_notify_worker_ids);
+			
+			if($comment_file_ids) {
+				DAO_Attachment::addLinks(CerberusContexts::CONTEXT_COMMENT, $comment_id, $comment_file_ids);
+			}
+			
+			return $comment_id;
+		}
+		
+		return null;
+	}
 };
 
 class SearchFields_Comment extends DevblocksSearchFields {
@@ -515,6 +563,7 @@ class SearchFields_Comment extends DevblocksSearchFields {
 	const CREATED = 'c_created';
 	const OWNER_CONTEXT = 'c_owner_context';
 	const OWNER_CONTEXT_ID = 'c_owner_context_id';
+	const IS_MARKDOWN = 'c_is_markdown';
 	const COMMENT = 'c_comment';
 	
 	const FULLTEXT_COMMENT_CONTENT = 'ftcc_content';
@@ -659,6 +708,7 @@ class SearchFields_Comment extends DevblocksSearchFields {
 			self::CREATED => new DevblocksSearchField(self::CREATED, 'comment', 'created', $translate->_('common.created'), Model_CustomField::TYPE_DATE, true),
 			self::OWNER_CONTEXT => new DevblocksSearchField(self::OWNER_CONTEXT, 'comment', 'owner_context', null, null, true),
 			self::OWNER_CONTEXT_ID => new DevblocksSearchField(self::OWNER_CONTEXT_ID, 'comment', 'owner_context_id', null, null, true),
+			self::IS_MARKDOWN => new DevblocksSearchField(self::IS_MARKDOWN, 'comment', 'is_markdown', $translate->_('common.format.markdown'), Model_CustomField::TYPE_CHECKBOX, true),
 			self::COMMENT => new DevblocksSearchField(self::COMMENT, 'comment', 'comment', $translate->_('common.comment'), Model_CustomField::TYPE_MULTI_LINE, true),
 			
 			self::VIRTUAL_ATTACHMENTS_SEARCH => new DevblocksSearchField(self::VIRTUAL_ATTACHMENTS_SEARCH, '*', 'attachments_search', null, null, false),
@@ -821,8 +871,19 @@ class Model_Comment {
 	public $owner_context;
 	public $owner_context_id;
 	public $comment;
+	public $is_markdown = false;
 	
-	public $_email_record = null;
+	public function getContent() {
+		if($this->is_markdown) {
+			return DevblocksPlatform::purifyHTML(
+				DevblocksPlatform::parseMarkdown($this->comment),
+				true,
+				true
+			);
+		} else {
+			return $this->comment;
+		}
+	}
 	
 	public function getOwnerMeta() {
 		if(null != ($ext = Extension_DevblocksContext::get($this->owner_context))) {
@@ -864,7 +925,7 @@ class Model_Comment {
 		return DAO_Attachment::getByContextIds(CerberusContexts::CONTEXT_COMMENT, $this->id);
 	}
 	
-	function getTimeline($is_ascending=true) {
+	function getTimeline($is_ascending=true, $target_id=0, &$start_index=0) {
 		// Load all the comments on the parent record
 		$timeline = DAO_Comment::getByContext($this->context, $this->context_id);
 		
@@ -880,6 +941,11 @@ class Model_Comment {
 				return 0;
 			}
 		});
+		
+		if($target_id) {
+			if(false !== ($pos = array_search($target_id, array_column($timeline, 'id'))))
+				$start_index = $pos;
+		}
 		
 		return $timeline;
 	}
@@ -1043,13 +1109,18 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_CUSTOM_FIELDSET, 'qr' => 'context:' . CerberusContexts::CONTEXT_COMMENT],
 					]
 				),
-			'id' => 
+			'id' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
 					'options' => array('param_key' => SearchFields_Comment::ID),
 					'examples' => [
 						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_COMMENT, 'q' => ''],
 					]
+				),
+			'isMarkdown' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_BOOL,
+					'options' => array('param_key' => SearchFields_Comment::IS_MARKDOWN),
 				),
 		);
 		
@@ -1228,7 +1299,7 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 				$criteria = $this->_doSetCriteriaDate($field, $oper);
 				break;
 				
-			case 'placeholder_bool':
+			case SearchFields_Comment::IS_MARKDOWN:
 				@$bool = DevblocksPlatform::importGPC($_REQUEST['bool'],'integer',1);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$bool);
 				break;
@@ -1343,6 +1414,12 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 			'value' => $model->created,
 		);
 		
+		$properties['is_markdown'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('dao.comment.is_markdown'),
+			'type' => Model_CustomField::TYPE_CHECKBOX,
+			'value' => $model->is_markdown,
+		);
+		
 		$properties['target'] = array(
 			'label' => DevblocksPlatform::translateCapitalized('common.target'),
 			'type' => Model_CustomField::TYPE_LINK,
@@ -1432,6 +1509,7 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 			)));
 			$token_values['_label'] = mb_strlen($label) > 128 ? (mb_substr($label, 0, 128) . '...') : $label;
 			$token_values['id'] = $comment->id;
+			$token_values['is_markdown'] = $comment->is_markdown ? 1 : 0;
 			$token_values['created'] = $comment->created;
 			$token_values['author__context'] = $comment->owner_context;
 			$token_values['author_id'] = $comment->owner_context_id;
@@ -1453,6 +1531,7 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 			'comment' => DAO_Comment::COMMENT,
 			'created' => DAO_Comment::CREATED,
 			'id' => DAO_Comment::ID,
+			'is_markdown' => DAO_Comment::IS_MARKDOWN,
 			'links' => '_links',
 			'target__context' => DAO_Comment::CONTEXT,
 			'target_id' => DAO_Comment::CONTEXT_ID,
@@ -1465,6 +1544,7 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 		$keys['author__context']['notes'] = "The [record type](/docs/records/#record-type) of the comment's author";
 		$keys['author_id']['notes'] = "The ID of the comment's author";
 		$keys['comment']['notes'] = "The text of the comment";
+		$keys['is_markdown']['notes'] = "`0`=plaintext, `1`=Markdown";
 		$keys['target__context']['notes'] = "The [record type](/docs/records/#record-type) of the target record";
 		$keys['target_id']['notes'] = "The ID of the target record";
 		
@@ -1480,12 +1560,6 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 	
 	function lazyLoadGetKeys() {
 		$lazy_keys = parent::lazyLoadGetKeys();
-		
-		$lazy_keys['attachments'] = [
-			'label' => 'Attachments',
-			'type' => 'HashMap',
-		];
-		
 		return $lazy_keys;
 	}
 
@@ -1505,28 +1579,9 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 		}
 		
 		switch($token) {
-			case 'attachments':
-				$results = DAO_Attachment::getByContextIds($context, $context_id);
-				$objects = [];
-				
-				foreach($results as $attachment_id => $attachment) {
-					$object = [
-						'id' => $attachment_id,
-						'file_name' => $attachment->name,
-						'file_size' => $attachment->storage_size,
-						'file_type' => $attachment->mime_type,
-					];
-					$objects[$attachment_id] = $object;
-				}
-				
-				$values['attachments'] = $objects;
-				break;
-			
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -1580,6 +1635,7 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 		$tpl->assign('view_id', $view_id);
 
 		$context = CerberusContexts::CONTEXT_COMMENT;
+		$model = null;
 		
 		if(!empty($context_id)) {
 			$model = DAO_Comment::get($context_id);
@@ -1633,60 +1689,7 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 			$tpl->display('devblocks:cerberusweb.core::internal/comments/peek_edit.tpl');
 			
 		} else {
-			if(empty($model)) {
-				$tpl->assign('error_message', "This comment no longer exists.");
-				$tpl->display('devblocks:cerberusweb.core::internal/peek/peek_error.tpl');
-				return;
-			}
-			
-			// Links
-			$links = array(
-				$context => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							$context,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-			
-			// Timeline
-			if($model) {
-				$timeline = $model->getTimeline();
-				$start_index = null;
-				
-				// Find the current model in thetimeline
-				foreach($timeline as $idx => $object) {
-					if($object instanceof Model_Comment && $object->id == $model->id) {
-						$start_index = $idx;
-						break;
-					}
-				}
-				
-				$timeline_json = Page_Profiles::getTimelineJson($timeline, true, $start_index);
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-			
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			// Dictionary
-			$labels = $values = [];
-			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$tpl->display('devblocks:cerberusweb.core::internal/comments/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $model);
 		}
 	}
 };

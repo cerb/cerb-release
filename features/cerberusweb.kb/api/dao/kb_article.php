@@ -95,6 +95,10 @@ class DAO_KbArticle extends Cerb_ORMHelper {
 		return $id;
 	}
 	
+	/**
+	 * @param $id
+	 * @return Model_KbArticle|null
+	 */
 	static function get($id) {
 		if(empty($id))
 			return null;
@@ -895,7 +899,7 @@ class Model_KbArticle {
 	public $updated = 0;
 	public $views = 0;
 	
-	function getContent() {
+	function getContent($sanitized=true) {
 		$html = '';
 		
 		switch($this->format) {
@@ -913,6 +917,9 @@ class Model_KbArticle {
 				$html = DevblocksPlatform::parseMarkdown($tpl_builder->build($this->content, []));
 				break;
 		}
+		
+		if($sanitized)
+			$html = DevblocksPlatform::purifyHTML($html, true, true);
 		
 		return $html;
 	}
@@ -1278,18 +1285,9 @@ class Context_KbArticle extends Extension_DevblocksContext implements IDevblocks
 				}
 				break;
 				
-			case 'watchers':
-				$watchers = array(
-					$token => CerberusContexts::getWatchers($context, $context_id, true),
-				);
-				$values = array_merge($values, $watchers);
-				break;
-				
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -1342,6 +1340,7 @@ class Context_KbArticle extends Extension_DevblocksContext implements IDevblocks
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_KB_ARTICLE;
+		$model = null;
 		
 		if(!empty($context_id)) {
 			$model = DAO_KbArticle::get($context_id);
@@ -1378,44 +1377,7 @@ class Context_KbArticle extends Extension_DevblocksContext implements IDevblocks
 			$tpl->display('devblocks:cerberusweb.kb::kb/article/peek_edit.tpl');
 			
 		} else {
-			// Links
-			$links = array(
-				$context => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							$context,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-			
-			// Timeline
-			if($context_id) {
-				$timeline_json = Page_Profiles::getTimelineJson(Extension_DevblocksContext::getTimelineComments($context, $context_id));
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			// Dictionary
-			$labels = [];
-			$values = [];
-			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$tpl->display('devblocks:cerberusweb.kb::kb/article/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $model);
 		}
 	}
 };

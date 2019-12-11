@@ -60,7 +60,13 @@ class CerberusParserMessage {
 	private function _buildHeaders() {
 		if(empty($this->raw_headers) && !empty($this->headers))
 		foreach($this->headers as $k => $v) {
-			$this->raw_headers .= sprintf("%s: %s\r\n", $k, $v);
+			if(is_array($v)) {
+				foreach($v as $vv) {
+					$this->raw_headers .= sprintf("%s: %s\r\n", $k, $vv);
+				}
+			} else if(is_string($v)) {
+				$this->raw_headers .= sprintf("%s: %s\r\n", $k, $v);
+			}
 		}
 	}
 	
@@ -670,11 +676,10 @@ class CerberusParser {
 				@unlink($file);
 			
 			if(is_numeric($ticket_id)) {
-				$values = [];
-				$null = null;
-				
-				CerberusContexts::getContext(CerberusContexts::CONTEXT_TICKET, $ticket_id, $null, $values);
-				$dict = new DevblocksDictionaryDelegate($values);
+				$dict = DevblocksDictionaryDelegate::instance([
+					'_context' => CerberusContexts::CONTEXT_TICKET,
+					'id' => $ticket_id,
+				]);
 				return $dict;
 				
 			} else {
@@ -1262,7 +1267,7 @@ class CerberusParser {
 						if(preg_match('/^#sig/', $line, $matches)) {
 							$state = '#sig';
 							$group = DAO_Group::get($proxy_ticket->group_id);
-							$sig = $group->getReplySignature($proxy_ticket->bucket_id, $proxy_worker);
+							$sig = $group->getReplySignature($proxy_ticket->bucket_id, $proxy_worker, false);
 							$body .= $sig . PHP_EOL;
 						
 						} elseif(preg_match('/^#start (.*)/', $line, $matches)) {

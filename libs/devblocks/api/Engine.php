@@ -14,6 +14,8 @@ if(!function_exists('mb_ucfirst')) {
 abstract class DevblocksEngine {
 	const CACHE_ACL = 'devblocks_acl';
 	const CACHE_ACTIVITY_POINTS = 'devblocks_activity_points';
+	const CACHE_CONTEXTS = 'devblocks_contexts';
+	const CACHE_CONTEXTS_INSTANCES = 'devblocks_contexts_instances';
 	const CACHE_CONTEXT_ALIASES = 'devblocks_context_aliases';
 	const CACHE_EVENT_POINTS = 'devblocks_event_points';
 	const CACHE_EVENTS = 'devblocks_events';
@@ -478,7 +480,6 @@ abstract class DevblocksEngine {
 	
 	static function getClientUserAgent() {
 		if(is_null(self::$_user_agent)) {
-			require_once(DEVBLOCKS_PATH . 'libs/user_agent_parser.php');
 			
 			try {
 				if(false != ($user_agent = parse_user_agent()))
@@ -671,7 +672,7 @@ abstract class DevblocksEngine {
 			// [JAS]: Plugin-supplied URIs
 			default:
 				$routing = [];
-				$controllers = DevblocksPlatform::getExtensions('devblocks.controller', false);
+				$controllers = DevblocksPlatform::getExtensions('devblocks.controller', false, false);
 
 				// Add any controllers which have definitive routing
 				if(is_array($controllers))

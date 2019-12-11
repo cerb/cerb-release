@@ -4,20 +4,20 @@
 	<name>Knowledgebase</name>
 	<description>Create and categorize articles to share knowledge between workers or your community.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>9.3.7</version>
+	<version>9.4.0</version>
 	<link>http://wiki.cerbweb.com/Features:Knowledgebase</link>
 	<image>plugin.png</image>
 	
 	<!-- Requirements -->
 
 	<requires>
-		<app_version min="9.3" max="9.3.99" />
+		<app_version min="9.4" max="9.4.99" />
 	</requires>
 	
 	<!-- Plugin Dependencies -->
 	
 	<dependencies>
-		<require plugin_id="cerberusweb.core" version="9.2.0" />
+		<require plugin_id="cerberusweb.core" version="9.4" />
 	</dependencies>
 	
 	<!-- Patches -->
@@ -91,7 +91,7 @@
 		</extension>
 	
 		<!-- Contexts -->
-		
+
 		<extension point="devblocks.context">
 			<id>cerberusweb.contexts.kb_article</id>
 			<name>Knowledgebase Article</name>
@@ -116,7 +116,9 @@
 				<param key="view_class" value="View_KbArticle" />
 				<param key="options">
 					<value>
+						<data key="attachments" />
 						<data key="cards" />
+						<data key="comments" />
 						<data key="custom_fields" />
 						<data key="links" />
 						<data key="records" />
@@ -164,6 +166,7 @@
 				<param key="options">
 					<value>
 						<data key="cards" />
+						<data key="comments" />
 						<data key="custom_fields" />
 						<data key="links" />
 						<data key="records" />
@@ -281,19 +284,6 @@
 			</class>
 			<params>
 				<param key="uri" value="kb.ajax" />
-			</params>
-		</extension>
-		
-		<!-- Ticket Reply Toolbar -->
-			
-		<extension point="cerberusweb.reply.toolbaritem">
-			<id>cerberusweb.kb.reply.toolbaritem.kb</id>
-			<name>KB Reply Toolbar</name>
-			<class>
-				<file>api/App.php</file>
-				<name>ChKbReplyToolbarButton</name>
-			</class>
-			<params>
 			</params>
 		</extension>
 		

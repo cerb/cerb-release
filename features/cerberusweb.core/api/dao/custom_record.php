@@ -154,7 +154,6 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 		}
 		
 		self::clearCache();
-		$cache->remove(DevblocksPlatform::CACHE_CONTEXT_ALIASES);
 	}
 	
 	static function updateWhere($fields, $where) {
@@ -465,7 +464,10 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 	static function clearCache() {
 		$cache = DevblocksPlatform::services()->cache();
 		$cache->remove(self::_CACHE_ALL);
-		$cache->removeByTags(['schema_records']);
+		$cache->remove(DevblocksPlatform::CACHE_CONTEXTS);
+		$cache->remove(DevblocksPlatform::CACHE_CONTEXTS_INSTANCES);
+		$cache->remove(DevblocksPlatform::CACHE_CONTEXT_ALIASES);
+		$cache->removeByTags(['schema_records','schema_workspaces','ui_search_menu']);
 	}
 };
 
@@ -980,8 +982,14 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 		if(is_null($model))
 			$model = new Model_CustomRecord();
 		
+		$properties['id'] = array(
+			'label' => mb_ucfirst($translate->_('common.id')),
+			'type' => Model_CustomField::TYPE_NUMBER,
+			'value' => $model->id,
+		);
+		
 		$properties['name'] = array(
-			'label' => mb_ucfirst($translate->_('common.name')),
+			'label' => mb_ucfirst($translate->_('common.singular')),
 			'type' => Model_CustomField::TYPE_LINK,
 			'value' => $model->id,
 			'params' => [
@@ -989,10 +997,16 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 			],
 		);
 		
-		$properties['id'] = array(
-			'label' => mb_ucfirst($translate->_('common.id')),
-			'type' => Model_CustomField::TYPE_NUMBER,
-			'value' => $model->id,
+		$properties['name_plural'] = array(
+			'label' => mb_ucfirst($translate->_('common.plural')),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->name_plural,
+		);
+		
+		$properties['uri'] = array(
+			'label' => DevblocksPlatform::translate('common.uri'),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->uri,
 		);
 		
 		$properties['updated'] = array(
@@ -1173,16 +1187,9 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 		}
 		
 		switch($token) {
-			case 'links':
-				$links = $this->_lazyLoadLinks($context, $context_id);
-				$values = array_merge($values, $links);
-				break;
-		
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -1241,6 +1248,7 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_CUSTOM_RECORD;
+		$model = null;
 		
 		if(!empty($context_id)) {
 			$model = DAO_CustomRecord::get($context_id);
@@ -1275,48 +1283,7 @@ class Context_CustomRecord extends Extension_DevblocksContext implements IDevblo
 			$tpl->display('devblocks:cerberusweb.core::internal/custom_records/peek_edit.tpl');
 			
 		} else {
-			$dao_class = sprintf('DAO_AbstractCustomRecord_%d', $context_id);
-			
-			// Links
-			$links = array(
-				$context => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							$context,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-			
-			// Timeline
-			if($context_id) {
-				$timeline_json = Page_Profiles::getTimelineJson(Extension_DevblocksContext::getTimelineComments($context, $context_id));
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			// Dictionary
-			$labels = $values = [];
-			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$record_count = $dao_class::count();
-			$tpl->assign('counts_records', $record_count);
-			
-			$tpl->display('devblocks:cerberusweb.core::internal/custom_records/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $model);
 		}
 	}
 };

@@ -61,7 +61,6 @@ class PageSection_ProfilesOrganization extends Extension_PageSection {
 				@$country = DevblocksPlatform::importGPC($_REQUEST['country'],'string','');
 				@$phone = DevblocksPlatform::importGPC($_REQUEST['phone'],'string','');
 				@$website = DevblocksPlatform::importGPC($_REQUEST['website'],'string','');
-				@$comment = DevblocksPlatform::importGPC($_REQUEST['comment'],'string','');
 				@$email_id = DevblocksPlatform::importGPC($_REQUEST['email_id'],'integer',0);
 				
 				$error = null;
@@ -122,19 +121,7 @@ class PageSection_ProfilesOrganization extends Extension_PageSection {
 					DAO_ContextAvatar::upsertWithImage(CerberusContexts::CONTEXT_ORG, $id, $avatar_image);
 					
 					// Comments
-					if(!empty($comment)) {
-						$also_notify_worker_ids = array_keys(CerberusApplication::getWorkersByAtMentionsText($comment));
-						
-						$fields = array(
-							DAO_Comment::CREATED => time(),
-							DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_ORG,
-							DAO_Comment::CONTEXT_ID => $id,
-							DAO_Comment::COMMENT => $comment,
-							DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_WORKER,
-							DAO_Comment::OWNER_CONTEXT_ID => $active_worker->id,
-						);
-						DAO_Comment::create($fields, $also_notify_worker_ids);
-					}
+					DAO_Comment::handleFormPost(CerberusContexts::CONTEXT_ORG, $id);
 					
 					// Index immediately
 					$search = Extension_DevblocksSearchSchema::get(Search_Org::ID);
@@ -198,7 +185,7 @@ class PageSection_ProfilesOrganization extends Extension_PageSection {
 		
 		// Placeholders
 		$token_values = $context_ext->broadcastPlaceholdersGet();
-		$token_labels = $token_values['_labels'];
+		@$token_labels = $token_values['_labels'] ?: [];
 		
 		$placeholders = Extension_DevblocksContext::getPlaceholderTree($token_labels);
 		$tpl->assign('placeholders', $placeholders);

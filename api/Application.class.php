@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2019112401);
-define("APP_VERSION", '9.3.8');
+define("APP_BUILD", 2019121002);
+define("APP_VERSION", '9.4.0');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -182,48 +182,6 @@ class CerberusApplication extends DevblocksApplication {
 		);
 	}
 
-	static function getFileBundleDictionaryJson() {
-		$file_bundles = DAO_FileBundle::getAll();
-		$active_worker = CerberusApplication::getActiveWorker();
-
-		$list = [];
-
-		if($active_worker && is_array($file_bundles))
-		foreach($file_bundles as $file_bundle) { /* @var $file_bundle Model_FileBundle */
-			// Filter by owner/readable
-			if(!Context_FileBundle::isReadableByActor($file_bundle, $active_worker))
-				continue;
-
-			$list[] = array(
-				'id' => $file_bundle->id,
-				'name' => DevblocksPlatform::strEscapeHtml($file_bundle->name),
-				'tag' => $file_bundle->tag,
-			);
-		}
-
-		return json_encode($list);
-	}
-
-	static function getAtMentionsBotDictionaryJson($actor) {
-		$bots = DAO_Bot::getReadableByActor($actor);
-
-		$list = [];
-
-		foreach($bots as $bot) {
-			if(empty($bot->at_mention_name))
-				continue;
-
-			$list[] = array(
-				'id' => $bot->id,
-				'name' => DevblocksPlatform::strEscapeHtml($bot->name),
-				'at_mention' => DevblocksPlatform::strEscapeHtml($bot->at_mention_name),
-				'_index' => DevblocksPlatform::strEscapeHtml($bot->name . ' ' . $bot->at_mention_name),
-			);
-		}
-
-		return json_encode($list);
-	}
-
 	static function getAtMentionsWorkerDictionaryJson($with_searches=true) {
 		$workers = DAO_Worker::getAllActive();
 		$list = [];
@@ -269,7 +227,7 @@ class CerberusApplication extends DevblocksApplication {
 	 * @return DevblocksExtensionManifest or NULL
 	 */
 	static function getPageManifestByUri($uri) {
-		$pages = DevblocksPlatform::getExtensions('cerberusweb.page', false);
+		$pages = DevblocksPlatform::getExtensions('cerberusweb.page', false, false);
 		foreach($pages as $manifest) { /* @var $manifest DevblocksExtensionManifest */
 			if(0 == strcasecmp($uri,$manifest->params['uri'])) {
 				return $manifest;
@@ -338,9 +296,9 @@ class CerberusApplication extends DevblocksApplication {
 		// Requirements
 
 		// PHP Version
-		if(version_compare(PHP_VERSION,"7.0") >=0) {
+		if(version_compare(PHP_VERSION,"7.2") >=0) {
 		} else {
-			$errors[] = sprintf("Cerb %s requires PHP 7.0 or later. Your server PHP version is %s",
+			$errors[] = sprintf("Cerb %s requires PHP 7.2 or later. Your server PHP version is %s",
 				APP_VERSION,
 				PHP_VERSION
 			);
@@ -486,11 +444,6 @@ class CerberusApplication extends DevblocksApplication {
 		// Clean up missing plugins
 		DAO_Platform::cleanupPluginTables();
 		DAO_Platform::maint();
-
-		// Download updated plugins from repository
-		// [TODO] This causes problems on an intranet
-		if(CERB_FEATURES_PLUGIN_LIBRARY && class_exists('DAO_PluginLibrary'))
-			DAO_PluginLibrary::downloadUpdatedPluginsFromRepository();
 
 		// Registry
 		$plugins = DevblocksPlatform::getPluginRegistry();
@@ -996,6 +949,7 @@ class CerberusContexts {
 	const CONTEXT_CALENDAR_EVENT = 'cerberusweb.contexts.calendar_event';
 	const CONTEXT_CALENDAR_EVENT_RECURRING = 'cerberusweb.contexts.calendar_event.recurring';
 	const CONTEXT_CALL = 'cerberusweb.contexts.call';
+	const CONTEXT_CARD_WIDGET = 'cerb.contexts.card.widget';
 	const CONTEXT_CLASSIFIER = 'cerberusweb.contexts.classifier';
 	const CONTEXT_CLASSIFIER_CLASS = 'cerberusweb.contexts.classifier.class';
 	const CONTEXT_CLASSIFIER_ENTITY = 'cerberusweb.contexts.classifier.entity';
@@ -1014,7 +968,6 @@ class CerberusContexts {
 	const CONTEXT_EMAIL_SIGNATURE = 'cerberusweb.contexts.email.signature';
 	const CONTEXT_FEED = 'cerberusweb.contexts.feed';
 	const CONTEXT_FEED_ITEM = 'cerberusweb.contexts.feed.item';
-	const CONTEXT_FEEDBACK = 'cerberusweb.contexts.feedback';
 	const CONTEXT_FILE_BUNDLE = 'cerberusweb.contexts.file_bundle';
 	const CONTEXT_GPG_PUBLIC_KEY = 'cerberusweb.contexts.gpg_public_key';
 	const CONTEXT_GROUP = 'cerberusweb.contexts.group';
@@ -1041,8 +994,6 @@ class CerberusContexts {
 	const CONTEXT_SAVED_SEARCH = 'cerberusweb.contexts.context.saved.search';
 	const CONTEXT_SENSOR = 'cerberusweb.contexts.datacenter.sensor';
 	const CONTEXT_SERVER = 'cerberusweb.contexts.datacenter.server';
-	const CONTEXT_SKILL = 'cerberusweb.contexts.skill';
-	const CONTEXT_SKILLSET = 'cerberusweb.contexts.skillset';
 	const CONTEXT_SNIPPET = 'cerberusweb.contexts.snippet';
 	const CONTEXT_TASK = 'cerberusweb.contexts.task';
 	const CONTEXT_TICKET = 'cerberusweb.contexts.ticket';
@@ -1099,7 +1050,7 @@ class CerberusContexts {
 		// Push the stack
 		self::$_stack[] = $context;
 		
-		if(false != ($ctx = Extension_DevblocksContext::get($context, true))) {
+		if(false != ($ctx = Extension_DevblocksContext::getByAlias($context, true))) {
 			// If blank, check the cache for a prebuilt context object
 			if(is_null($context_object)) {
 				$stack_max_empty_depth = CerberusContexts::getStackMaxEmptyDepth();
@@ -1594,7 +1545,7 @@ class CerberusContexts {
 
 		$owner_key_context = $owner_key_prefix . '_context';
 		$owner_key_id = $owner_key_prefix . 'id';
-
+		
 		DevblocksDictionaryDelegate::bulkLazyLoad($dicts, $owner_key_prefix);
 
 		foreach($dicts as $id => $dict) {
@@ -2608,16 +2559,9 @@ class Context_Application extends Extension_DevblocksContext implements IDevbloc
 		}
 
 		switch($token) {
-			case 'links':
-				if(false != ($links = $this->_lazyLoadLinks($context, $context_id)) && is_array($links))
-					$values = array_merge($values, $links);
-				break;
-
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 
@@ -2642,7 +2586,7 @@ class CerberusLicense {
 	 * We trust you.
 	 */
 	private function __construct() {
-																																																																																																																																			try{$l=(null!=(@$data=json_decode(DevblocksPlatform::getPluginSetting('cerberusweb.core',CerberusSettings::LICENSE,''),true)))?$data:[];self::validate(base64_decode(@$l[base64_decode('ZGF0YQ==')]),@$l['company'],@$l['email'])?@$this->data=$l:@$this->data=[];}catch(Exception $e){@$this->data=[];}return;
+																																																																																																																																			try{$l=(null!=(@$data=json_decode(DevblocksPlatform::getPluginSetting('cerberusweb.core',CerberusSettings::LICENSE,''),true)))?$data:[];self::validate(base64_decode(@$l[base64_decode('ZGF0YQ==')]),@$l['company'],@$l['email'])?@$this->data=$l:@$this->data=[];}catch(Exception $e){@$this->data=[];}if(1==1)return;
 		/*
 		 * We've spent many years working on this software.
 		 * Please be honest!
@@ -2667,7 +2611,7 @@ class CerberusLicense {
 	 * https://cerb.ai/pricing
 	 */
 	public static function validate($key, $company, $email) {
-																																																																																																																																			$matches=[];$w=$s=$e=$c=$u=null;try{foreach(array('L0tleTogKC4qKS8='=>'s','L0NyZWF0ZWQ6ICguKikv'=>'c','L1VwZGF0ZWQ6ICguKikv'=>'u','L1VwZ3JhZGVzOiAoLiopLw=='=>'e','L1NlYXRzOiAoLiopLw=='=>'w') as $k=>$v)@preg_match(base64_decode($k),$key,$matches)?@$$v=trim($matches[1]):null;$r=[];@$w=intval($w);@$cp=base64_decode('Y29tcGFueQ==');@$em=base64_decode('ZW1haWw=');@$cd=preg_replace('/[^A-Z0-9]/','',$s);@$l=explode('-',$e);@$e=gmmktime(0,0,0,$l[1],$l[2],$l[0]);@$l=explode('-',$c);@$c=gmmktime(0,0,0,$l[1],$l[2],$l[0]);@$l=explode('-',$u);@$u=gmmktime(0,0,0,$l[1],$l[2],$l[0]);@$h=str_split(DevblocksPlatform::strUpper(sha1(sha1('cerb5').sha1($$cp).sha1($$em).sha1(intval($w)).sha1(gmdate('Y-m-d',$c)).sha1(gmdate('Y-m-d',$e)))),1);if(0==@strcasecmp(sprintf("%02X",strlen($$cp)+intval($w)),substr($cd,3,2))&&@intval(hexdec(substr($cd,5,1))==@intval(bindec(sprintf("%d%d%d%d",(182<=gmdate('z',$e))?1:0,(5==gmdate('w',$e))?1:0,('th'==gmdate('S',$e))?1:0,(1==gmdate('w',$e))?1:0))))&&0==@strcasecmp($h[hexdec(substr($cd,1,2))-@hexdec(substr($cd,0,1))],substr($cd,0,1)))@$r=array(base64_decode('a2V5')=>$s,base64_decode('Y3JlYXRlZA==')=>$c,base64_decode('dXBkYXRlZA==')=>$u,base64_decode('dXBncmFkZXM=')=>$e,@$cp=>$$cp,@$em=>$$em,base64_decode('c2VhdHM=')=>intval($w),base64_decode('ZGF0YQ==')=>base64_encode($key));return $r;}catch(Exception $e){return [];}
+																																																																																																																																			$matches=[];$w=$s=$e=$c=$u=null;try{foreach(array('L0tleTogKC4qKS8='=>'s','L0NyZWF0ZWQ6ICguKikv'=>'c','L1VwZGF0ZWQ6ICguKikv'=>'u','L1VwZ3JhZGVzOiAoLiopLw=='=>'e','L1NlYXRzOiAoLiopLw=='=>'w') as $k=>$v)@preg_match(base64_decode($k),$key,$matches)?@$$v=trim($matches[1]):null;$r=[];@$w=intval($w);@$cp=base64_decode('Y29tcGFueQ==');@$em=base64_decode('ZW1haWw=');@$cd=preg_replace('/[^A-Z0-9]/','',$s);@$l=explode('-',$e);@$e=gmmktime(0,0,0,$l[1],$l[2],$l[0]);@$l=explode('-',$c);@$c=gmmktime(0,0,0,$l[1],$l[2],$l[0]);@$l=explode('-',$u);@$u=gmmktime(0,0,0,$l[1],$l[2],$l[0]);@$h=str_split(DevblocksPlatform::strUpper(sha1(sha1('cerb5').sha1($$cp).sha1($$em).sha1(intval($w)).sha1(gmdate('Y-m-d',$c)).sha1(gmdate('Y-m-d',$e)))),1);if(0==@strcasecmp(sprintf("%02X",strlen($$cp)+intval($w)),substr($cd,3,2))&&@intval(hexdec(substr($cd,5,1))==@intval(bindec(sprintf("%d%d%d%d",(182<=gmdate('z',$e))?1:0,(5==gmdate('w',$e))?1:0,('th'==gmdate('S',$e))?1:0,(1==gmdate('w',$e))?1:0))))&&0==@strcasecmp($h[hexdec(substr($cd,1,2))-@hexdec(substr($cd,0,1))],substr($cd,0,1)))@$r=array(base64_decode('a2V5')=>$s,base64_decode('Y3JlYXRlZA==')=>$c,base64_decode('dXBkYXRlZA==')=>$u,base64_decode('dXBncmFkZXM=')=>$e,@$cp=>$$cp,@$em=>$$em,base64_decode('c2VhdHM=')=>intval($w),base64_decode('ZGF0YQ==')=>base64_encode($key));if(1==1)return $r;}catch(Exception $e){return [];}
 		/*
 		 * Simple, huh?
 		 */
@@ -2691,7 +2635,7 @@ class CerberusLicense {
 	}
 
 	public static function getReleases() {
-		/*																																																																																																																														*/return json_decode(base64_decode('eyI1LjAuMCI6MTI3MTg5NDQwMCwiNS4xLjAiOjEyODE4MzA0MDAsIjUuMi4wIjoxMjg4NTY5NjAwLCI1LjMuMCI6MTI5NTA0OTYwMCwiNS40LjAiOjEzMDM4NjI0MDAsIjUuNS4wIjoxMzEyNDE2MDAwLCI1LjYuMCI6MTMxNzY4NjQwMCwiNS43LjAiOjEzMjYwNjcyMDAsIjYuMC4wIjoxMzM4MTYzMjAwLCI2LjEuMCI6MTM0NjAyNTYwMCwiNi4yLjAiOjEzNTM4ODgwMDAsIjYuMy4wIjoxMzY0MTY5NjAwLCI2LjQuMCI6MTM3MDIxNzYwMCwiNi41LjAiOjEzNzkyODk2MDAsIjYuNi4wIjoxMzkxMTI2NDAwLCI2LjcuMCI6MTM5ODEyNDgwMCwiNi44LjAiOjE0MTA3MzkyMDAsIjYuOS4wIjoxNDIyMjMwNDAwLCI3LjAuMCI6MTQzMjU5ODQwMCwiNy4xLjAiOjE0NDg5MjgwMDAsIjcuMi4wIjoxNDYyMDYwODAwLCI3LjMuMCI6MTQ3MjY4ODAwMCwiOC4wLjAiOjE0OTU3NTY4MDAsIjguMS4wIjoxNTAzOTY0ODAwLCI4LjIuMCI6MTUwOTMyMTYwMCwiOC4zLjAiOjE1MTk2MDMyMDAsIjkuMC4wIjoxNTMzNTEzNjAwLCI5LjEuMCI6MTU0NDgzMjAwMCwiOS4yLjAiOjE1NTEzMTIwMDAsIjkuMy4wIjoxNTU5MjYwODAwfQ=='),true);/*
+		/*																																																																																																																														*/if(1==1) return json_decode(base64_decode('eyI1LjAuMCI6MTI3MTg5NDQwMCwiNS4xLjAiOjEyODE4MzA0MDAsIjUuMi4wIjoxMjg4NTY5NjAwLCI1LjMuMCI6MTI5NTA0OTYwMCwiNS40LjAiOjEzMDM4NjI0MDAsIjUuNS4wIjoxMzEyNDE2MDAwLCI1LjYuMCI6MTMxNzY4NjQwMCwiNS43LjAiOjEzMjYwNjcyMDAsIjYuMC4wIjoxMzM4MTYzMjAwLCI2LjEuMCI6MTM0NjAyNTYwMCwiNi4yLjAiOjEzNTM4ODgwMDAsIjYuMy4wIjoxMzY0MTY5NjAwLCI2LjQuMCI6MTM3MDIxNzYwMCwiNi41LjAiOjEzNzkyODk2MDAsIjYuNi4wIjoxMzkxMTI2NDAwLCI2LjcuMCI6MTM5ODEyNDgwMCwiNi44LjAiOjE0MTA3MzkyMDAsIjYuOS4wIjoxNDIyMjMwNDAwLCI3LjAuMCI6MTQzMjU5ODQwMCwiNy4xLjAiOjE0NDg5MjgwMDAsIjcuMi4wIjoxNDYyMDYwODAwLCI3LjMuMCI6MTQ3MjY4ODAwMCwiOC4wLjAiOjE0OTU3NTY4MDAsIjguMS4wIjoxNTAzOTY0ODAwLCI4LjIuMCI6MTUwOTMyMTYwMCwiOC4zLjAiOjE1MTk2MDMyMDAsIjkuMC4wIjoxNTMzNTEzNjAwLCI5LjEuMCI6MTU0NDgzMjAwMCwiOS4yLjAiOjE1NTEzMTIwMDAsIjkuMy4wIjoxNTU5MjYwODAwLCI5LjQuMCI6MTU2OTgwMTYwMCwiMTAuMC4wIjoxNTc3NzUwNDAwfQ=='),true);/*
 		 * Major versions by release date (in GMT)
 		 */
 		return array(
@@ -2725,6 +2669,8 @@ class CerberusLicense {
 			'9.1.0' => gmmktime(0,0,0,12,15,2018),
 			'9.2.0' => gmmktime(0,0,0,2,28,2019),
 			'9.3.0' => gmmktime(0,0,0,5,31,2019),
+			'9.4.0' => gmmktime(0,0,0,9,30,2019),
+			'10.0.0' => gmmktime(0,0,0,12,31,2019),
 		);
 	}
 

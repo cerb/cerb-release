@@ -880,7 +880,7 @@ class Model_Bucket {
 		return $personal;
 	}
 	
-	public function getReplySignature($worker_model=null) {
+	public function getReplySignature($worker_model=null, $as_html=false) {
 		// Check bucket first
 		$signature_id = $this->reply_signature_id;
 		
@@ -895,14 +895,24 @@ class Model_Bucket {
 		if(empty($worker_model))
 			$worker_model = new Model_Worker();
 		
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-		$token_labels = $token_values = [];
-		CerberusContexts::getContext(CerberusContexts::CONTEXT_WORKER, $worker_model, $token_labels, $token_values);
-		$signature = $tpl_builder->build($signature->signature, $token_values);
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder()::newInstance();
 		
-		return $signature;
+		$dict = DevblocksDictionaryDelegate::instance([
+			'_context' => CerberusContexts::CONTEXT_WORKER,
+			'id' => $worker_model->id,
+		]);
+		
+		if($as_html && $signature->signature_html) {
+			return $tpl_builder->build($signature->signature_html, $dict);
+			
+		} else {
+			return $tpl_builder->build($signature->signature, $dict);
+		}
 	}
 	
+	/**
+	 * @return Model_MailHtmlTemplate|null
+	 */
 	public function getReplyHtmlTemplate() {
 		// Check bucket first
 		$html_template_id = $this->reply_html_template_id;
@@ -1247,18 +1257,9 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 		}
 		
 		switch($token) {
-			case 'watchers':
-				$watchers = array(
-					$token => CerberusContexts::getWatchers($context, $context_id, true),
-				);
-				$values = array_merge($values, $watchers);
-				break;
-				
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -1314,6 +1315,7 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 		
 		$context = CerberusContexts::CONTEXT_BUCKET;
 		$active_worker = CerberusApplication::getActiveWorker();
+		$bucket = null;
 		
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
@@ -1389,50 +1391,7 @@ class Context_Bucket extends Extension_DevblocksContext implements IDevblocksCon
 			$tpl->display('devblocks:cerberusweb.core::internal/bucket/peek_edit.tpl');
 			
 		} else {
-			// Dictionary
-			$labels = [];
-			$values = [];
-			CerberusContexts::getContext($context, $bucket, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			$links = array(
-				CerberusContexts::CONTEXT_BUCKET => [
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							CerberusContexts::CONTEXT_BUCKET,
-							$context_id,
-							[]
-						),
-				],
-			);
-			$tpl->assign('links', $links);
-			
-			// Timeline
-			if($context_id) {
-				$timeline_json = Page_Profiles::getTimelineJson(Extension_DevblocksContext::getTimelineComments(CerberusContexts::CONTEXT_BUCKET, $context_id));
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-			
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_BUCKET)))
-				return;
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Interactions
-			$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
-			$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
-			$tpl->assign('interactions_menu', $interactions_menu);
-			
-			$tpl->assign('counts_tickets', DAO_Ticket::countsByBucketId($context_id));
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$tpl->display('devblocks:cerberusweb.core::internal/bucket/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $bucket);
 		}
 		
 	}

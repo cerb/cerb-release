@@ -125,6 +125,9 @@ class _DevblocksSheetService {
 				if(!array_key_exists($column_type, $this->_types))
 					continue;
 				
+				if(!($sheet_dict instanceof DevblocksDictionaryDelegate))
+					$sheet_dict = DevblocksDictionaryDelegate::instance($sheet_dict);
+				
 				$row[$column_key] = $this->_types[$column_type]($column, $sheet_dict);
 			}
 			
@@ -137,7 +140,7 @@ class _DevblocksSheetService {
 
 class _DevblocksSheetServiceTypes {
 	function card() {
-		return function($column, $sheet_dict) {
+		return function($column, DevblocksDictionaryDelegate $sheet_dict) {
 			$url_writer = DevblocksPlatform::services()->url();
 			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			
@@ -196,6 +199,12 @@ class _DevblocksSheetServiceTypes {
 				$card_id = $sheet_dict->get($default_card_id_key);
 			}
 			
+			if(array_key_exists('icon', $column_params) && $column_params['icon']) {
+				$icon_column = $column;
+				$icon_column['params'] = $column_params['icon'];
+				$value .= $this->icon()($icon_column, $sheet_dict);
+			}
+			
 			if($card_context && $card_id && $card_label) {
 				// Avatar image?
 				if(array_key_exists('image', $column_params) && $column_params['image']) {
@@ -221,7 +230,7 @@ class _DevblocksSheetServiceTypes {
 				);
 				
 			} else {
-				$value = $card_label;
+				$value .= DevblocksPlatform::strEscapeHtml($card_label);
 			}
 			
 			return $value;
@@ -229,7 +238,7 @@ class _DevblocksSheetServiceTypes {
 	}
 	
 	function date() {
-		return function($column, $sheet_dict) {
+		return function($column, DevblocksDictionaryDelegate $sheet_dict) {
 			@$column_params = $column['params'] ?: [];
 			
 			if(array_key_exists('value', $column_params)) {
@@ -256,8 +265,71 @@ class _DevblocksSheetServiceTypes {
 		};
 	}
 	
-	function link() {
+	function icon() {
 		return function($column, $sheet_dict) {
+			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+			$value = '';
+			
+			@$column_params = $column['params'] ?: [];
+			
+			if(!is_array($column_params)) {
+				$column_params = [
+					'image' => $column_params
+				];
+			}
+			
+			if(array_key_exists('image', $column_params) && $column_params['image']) {
+				$image = $column_params['image'];
+			} else if(array_key_exists('image_key', $column_params)) {
+				$image = $sheet_dict->get($column_params['image_key']);
+			} else if(array_key_exists('image_template', $column_params)) {
+				$image = $tpl_builder->build($column_params['image_template'], $sheet_dict);
+			} else {
+				$image = '';
+			}
+			
+			$image = trim($image);
+			
+			// Sanitize image name against known list
+			
+			$icons_available = PageSection_SetupDevelopersReferenceIcons::getIcons();
+			
+			if($image) {
+				if(!in_array($image, $icons_available))
+					$image = null;
+			}
+			
+			/*
+			if(array_key_exists('color', $column_params) && $column_params['color']) {
+				$color = $column_params['color'];
+			} else if(array_key_exists('color_key', $column_params)) {
+				$color = $sheet_dict->get($column_params['color_key']);
+			} else if(array_key_exists('color_template', $column_params)) {
+				$color = $tpl_builder->build($column_params['color_template'], $sheet_dict);
+				$color = DevblocksPlatform::purifyHTML($color, false, true);
+			} else {
+				$color = '';
+			}
+			*/
+			
+			// [TODO] Sanitize color
+			
+			if($image) {
+				$span = sprintf('<span class="glyphicons glyphicons-%s" style="margin-right:0.25em;"></span>',
+					DevblocksPlatform::strEscapeHtml($image)
+				);
+				
+				DevblocksPlatform::purifyHTML($span);
+				
+				$value .= $span;
+			}
+			
+			return $value;
+		};
+	}
+	
+	function link() {
+		return function($column, DevblocksDictionaryDelegate $sheet_dict) {
 			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			
 			@$column_params = $column['params'] ?: [];
@@ -307,7 +379,7 @@ class _DevblocksSheetServiceTypes {
 	}
 	
 	function search() {
-		return function($column, $sheet_dict) {
+		return function($column, DevblocksDictionaryDelegate $sheet_dict) {
 			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			
 			@$column_key = $column['key'];
@@ -386,7 +458,7 @@ class _DevblocksSheetServiceTypes {
 	}
 	
 	function searchButton() {
-		return function($column, $sheet_dict) {
+		return function($column, DevblocksDictionaryDelegate $sheet_dict) {
 			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			
 			@$column_params = $column['params'] ?: [];
@@ -427,7 +499,7 @@ class _DevblocksSheetServiceTypes {
 	}
 	
 	function slider() {
-		return function($column, $sheet_dict) {
+		return function($column, DevblocksDictionaryDelegate $sheet_dict) {
 			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			
 			@$column_params = $column['params'] ?: [];
@@ -471,40 +543,49 @@ class _DevblocksSheetServiceTypes {
 	}
 	
 	function text() {
-		return function($column, $sheet_dict) {
+		return function($column, DevblocksDictionaryDelegate $sheet_dict) {
 			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			
 			@$column_params = $column['params'] ?: [];
 			$is_escaped = false;
 			
+			$value = '';
+			
+			if(array_key_exists('icon', $column_params) && $column_params['icon']) {
+				$icon_column = $column;
+				$icon_column['params'] = $column_params['icon'];
+				$value .= $this->icon()($icon_column, $sheet_dict);
+			}
+			
 			if(array_key_exists('value', $column_params)) {
-				$value = $column_params['value'];
+				$text_value = $column_params['value'];
 			} else if(array_key_exists('value_key', $column_params)) {
-				$value = $sheet_dict->get($column_params['value_key']);
+				$text_value = $sheet_dict->get($column_params['value_key']);
 			} else if(array_key_exists('value_template', $column_params)) {
-				$value = $tpl_builder->build($column_params['value_template'], $sheet_dict);
-				$value = DevblocksPlatform::purifyHTML($value, false, true);
+				$out = $tpl_builder->build($column_params['value_template'], $sheet_dict);
+				$text_value = DevblocksPlatform::purifyHTML($out, false, true);
 				$is_escaped = true;
 			} else {
-				$value = $sheet_dict->get($column['key']);
+				$text_value = $sheet_dict->get($column['key'], null);
 			}
+			
+			// [TODO] Sheets need a chance to use custom field extensions for rendering labels/cells
+			if(is_array($text_value))
+				$text_value = json_encode($text_value);
 			
 			if(array_key_exists('value_map', $column_params) && is_array($column_params['value_map'])) {
 				if(array_key_exists($value, $column_params['value_map']))
-					$value = $column_params['value_map'][$value];
+					$text_value = $column_params['value_map'][$text_value];
 			}
 			
-			if($is_escaped) {
-				return $value;
-				
-			} else {
-				return DevblocksPlatform::strEscapeHtml($value);
-			}
+			$value .= $is_escaped ? $text_value : DevblocksPlatform::strEscapeHtml($text_value);
+			
+			return $value;
 		};
 	}
 	
 	function timeElapsed() {
-		return function($column, $sheet_dict) {
+		return function($column, DevblocksDictionaryDelegate $sheet_dict) {
 			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 			
 			@$column_params = $column['params'] ?: [];

@@ -48,7 +48,12 @@ abstract class C4_AbstractView {
 	}
 	abstract function getData();
 	function getDataAsObjects($ids=null) { return []; }
-	function getDataSample($size) {}
+	
+	/**
+	 * @param integer $size
+	 * @return array
+	 */
+	function getDataSample($size) { return []; }
 	
 	private $_placeholderLabels = [];
 	private $_placeholderValues = [];
@@ -2003,7 +2008,7 @@ abstract class C4_AbstractView {
 					
 				default:
 					if(false != ($field_ext = $cfield->getTypeExtension())) {
-						$field_ext->populateQuickSearchMeta($search_field_meta);
+						$field_ext->populateQuickSearchMeta($cfield, $search_field_meta);
 					}
 					break;
 			}
@@ -3820,6 +3825,16 @@ abstract class C4_AbstractView {
 			if(!($context_ext instanceof IDevblocksContextBroadcast))
 				return;
 			
+			$message_properties = [
+				'worker_id' => @$params['worker_id'] ?: 0,
+				'subject' => $params['subject'],
+				'content' => $params['message'],
+				'content_format' => @$params['format'] ?: '',
+				'group_id' => @$params['group_id'] ?: 0,
+				'html_template_id' => @$params['html_template_id'] ?: 0,
+				'file_ids' => @$params['file_ids'] ?: [],
+			];
+			
 			if(is_array($dicts))
 			foreach($dicts as $id => $dict) {
 				try {
@@ -3828,8 +3843,9 @@ abstract class C4_AbstractView {
 					
 					$recipients = CerberusApplication::hashLookupAddresses($recipients, true);
 					
+					if(is_array($recipients))
 					foreach($recipients as $model) {
-						// Skip banned or defuct recipients
+						// Skip banned or defunct recipients
 						if($model->is_banned || $model->is_defunct)
 							continue;
 						
@@ -3842,36 +3858,38 @@ abstract class C4_AbstractView {
 						$dict->broadcast_email_;
 						
 						// Templates
-						$subject = $tpl_builder->build($params['subject'], $dict);
-						$body = $tpl_builder->build($params['message'], $dict);
+						$subject = $tpl_builder->build($message_properties['subject'], $dict);
+						$body = $tpl_builder->build($message_properties['content'], $dict);
 						
 						$json_params = array(
 							'to' => $dict->broadcast_email__label,
-							'group_id' => $params['group_id'],
+							'group_id' => $message_properties['group_id'],
 							'status_id' => $status_id,
+							'subject' => $subject,
+							'content' => $body,
+							'worker_id' => $message_properties['worker_id'],
 							'is_broadcast' => 1,
 							'context_links' => [
 								[$context, $id],
 							],
 						);
 						
-						if(isset($params['format']))
-							$json_params['format'] = $params['format'];
+						if(array_key_exists('content_format', $message_properties))
+							$json_params['format'] = $message_properties['content_format'];
 						
-						if(isset($params['html_template_id']))
-							$json_params['html_template_id'] = intval($params['html_template_id']);
+						if(array_key_exists('html_template_id', $message_properties))
+							$json_params['html_template_id'] = intval($message_properties['html_template_id']);
 						
-						if(isset($params['file_ids']))
-							$json_params['file_ids'] = $params['file_ids'];
+						if(array_key_exists('file_ids', $message_properties))
+							$json_params['file_ids'] = $message_properties['file_ids'];
 						
 						$fields = array(
 							DAO_MailQueue::TYPE => Model_MailQueue::TYPE_COMPOSE,
 							DAO_MailQueue::TICKET_ID => 0,
-							DAO_MailQueue::WORKER_ID => $params['worker_id'],
+							DAO_MailQueue::WORKER_ID => $message_properties['worker_id'],
 							DAO_MailQueue::UPDATED => time(),
 							DAO_MailQueue::HINT_TO => $dict->broadcast_email__label,
-							DAO_MailQueue::SUBJECT => $subject,
-							DAO_MailQueue::BODY => $body,
+							DAO_MailQueue::NAME => $subject,
 							DAO_MailQueue::PARAMS_JSON => json_encode($json_params),
 						);
 						
@@ -3993,6 +4011,7 @@ class CerbQuickSearchLexer {
 			' OR ' => ' <$OR> ',
 			' AND ' => ' <$AND> ',
 			'!(' => ' <$PON> ',
+			':all(' => ': <$POA> ',
 			':!' => ': <$NOT> ',
 			'(' => ' <$PO> ',
 			')' => ' <$PC> ',
@@ -4072,6 +4091,10 @@ class CerbQuickSearchLexer {
 								$token_type = 'T_PARENTHETICAL_OPEN_NEG';
 								$token_value = '!(';
 								break;
+							case '<$POA>':
+								$token_type = 'T_PARENTHETICAL_OPEN_ALL';
+								$token_value = 'all(';
+								break;
 							case '<$PC>':
 								$token_type = 'T_PARENTHETICAL_CLOSE';
 								$token_value = ')';
@@ -4141,6 +4164,7 @@ class CerbQuickSearchLexer {
 		
 		while($token = current($tokens)) {
 			switch($token->type) {
+				case 'T_PARENTHETICAL_OPEN_ALL':
 				case 'T_PARENTHETICAL_OPEN_NEG':
 				case 'T_PARENTHETICAL_OPEN':
 					$opens[] = key($tokens);
@@ -4156,8 +4180,18 @@ class CerbQuickSearchLexer {
 					$open_token = array_shift($cut);
 					array_pop($cut);
 					
-					$value = ($open_token->type == 'T_PARENTHETICAL_OPEN_NEG') ? '!' : null;
-					$tokens[$start] = new CerbQuickSearchLexerToken('T_GROUP', $value, $cut);
+					$value = null;
+					$token_params = [];
+					
+					if($open_token->type == 'T_PARENTHETICAL_OPEN_NEG') {
+						$value = '!';
+						$token_params['subtype'] = '!';
+					} else if($open_token->type == 'T_PARENTHETICAL_OPEN_ALL') {
+						$value = 'all';
+						$token_params['subtype'] = 'all';
+					}
+					
+					$tokens[$start] = new CerbQuickSearchLexerToken('T_GROUP', $value, $cut, $token_params);
 
 					reset($tokens);
 					break;
@@ -4261,22 +4295,33 @@ class CerbQuickSearchLexer {
 			// [TODO] Operator precedence AND -> OR
 			// [TODO] Handle 'a OR b AND c'
 			
-			$not = ($token->value == '!') ? true : false;
+			$all = (@$token->params['subtype'] == 'all') ? true : false;
+			$not = (@$token->params['subtype'] == '!') ? true : false;
 			$token->value = null;
 			
 			foreach($token->children as $k => $child) {
 				switch($child->type) {
 					case 'T_BOOL':
 						if(empty($token->value)) {
-							$oper = 'AND';
+							$oper = sprintf('%sAND',
+								$all ? 'ALL ' : ''
+							);
+							
+							// [TODO] This should write a group like 'NOT (a AND b)' instead
 							
 							switch($child->value) {
 								case 'OR':
-									$oper = ($not) ? 'OR NOT' : 'OR';
+									$oper = sprintf('%sOR%s',
+										$all ? 'ALL ': '',
+										$not ? ' NOT' : ''
+									);
 									break;
 									
 								default:
-									$oper = ($not) ? 'AND NOT' : 'AND';
+									$oper = sprintf('%sAND%s',
+										$all ? 'ALL ': '',
+										$not ? ' NOT' : ''
+									);
 									break;
 							}
 							
@@ -4289,7 +4334,10 @@ class CerbQuickSearchLexer {
 			}
 			
 			if(empty($token->value))
-				$token->value = ($not) ? 'AND NOT' : 'AND';
+				$token->value = sprintf('%sAND%s',
+					$all ? 'ALL ' : '',
+					$not ? ' NOT' : ''
+				);
 		});
 		
 		$params = null;
@@ -4371,11 +4419,7 @@ class CerbQuickSearchLexer {
 					break;
 					
 				case 'T_GROUP':
-					if(DevblocksPlatform::strEndsWith($token->value,'NOT')) {
-						$string .= '!(';
-					} else {
-						$string .= '(';
-					}
+					$string .= sprintf('%s(', @$token->params['subtype']);
 					
 					// The separators are always OR/AND, we use NOT for the overall group in !(
 					switch($token->value) {
@@ -4562,11 +4606,13 @@ class CerbQuickSearchLexerToken {
 	public $type = null;
 	public $value = null;
 	public $children = [];
+	public $params = [];
 	
-	public function __construct($type, $value, $children=[]) {
+	public function __construct($type, $value, $children=[], $params=[]) {
 		$this->type = $type;
 		$this->value = $value;
 		$this->children = $children;
+		$this->params = $params;
 	}
 };
 

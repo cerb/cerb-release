@@ -1101,18 +1101,43 @@ class DAO_Worker extends Cerb_ORMHelper {
 		
 		$worker_auth = $db->GetRowSlave(sprintf("SELECT pass_hash, pass_salt, method FROM worker_auth_hash WHERE worker_id = %d", $worker->id));
 		
-		if(!isset($worker_auth['pass_hash']) || !isset($worker_auth['pass_salt']))
+		if(!isset($worker_auth['pass_hash']))
 			return null;
 		
-		if(empty($worker_auth['pass_hash']) || empty($worker_auth['pass_salt']))
+		if(empty($worker_auth['pass_hash']))
 			return null;
 		
 		switch(@$worker_auth['method']) {
+			// password_hash()
+			case 1:
+				if(password_verify($password, $worker_auth['pass_hash'])) {
+					if(password_needs_rehash($worker_auth['pass_hash'], PASSWORD_DEFAULT)) {
+						$db->ExecuteMaster(sprintf("UPDATE worker_auth_hash SET pass_hash = %s WHERE worker_id = %d",
+							$db->qstr(password_hash($password, PASSWORD_DEFAULT)),
+							$worker->id
+						));
+					}
+					
+					return $worker;
+				}
+				break;
+				
+			// Legacy hashing (Cerb < 9.4)
 			default:
+				if(!array_key_exists('pass_salt', $worker_auth) || !$worker_auth['pass_salt'])
+					return null;
+				
 				$given_hash = sha1($worker_auth['pass_salt'] . md5($password));
 				
-				if($given_hash == $worker_auth['pass_hash'])
+				if($given_hash == $worker_auth['pass_hash']) {
+					// Upgrade password to stronger hashing method
+					$db->ExecuteMaster(sprintf("UPDATE worker_auth_hash SET pass_hash = %s, pass_salt = '', method = 1 WHERE worker_id = %d",
+						$db->qstr(password_hash($password, PASSWORD_DEFAULT)),
+						$worker->id
+					));
+					
 					return $worker;
+				}
 				break;
 		}
 		
@@ -1397,7 +1422,7 @@ class SearchFields_Worker extends DevblocksSearchFields {
 				break;
 				
 			case self::VIRTUAL_ALIAS:
-				return  self::_getWhereSQLFromAliasesField($param, CerberusContexts::CONTEXT_WORKER, self::getPrimaryKey());
+				return self::_getWhereSQLFromAliasesField($param, CerberusContexts::CONTEXT_WORKER, self::getPrimaryKey());
 				break;
 				
 			case self::VIRTUAL_CONTEXT_LINK:
@@ -3610,16 +3635,9 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 		}
 		
 		switch($token) {
-			case 'links':
-				$links = $this->_lazyLoadLinks($context, $context_id);
-				$values = array_merge($values, $links);
-				break;
-			
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -3751,55 +3769,7 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			$tpl->display('devblocks:cerberusweb.core::workers/peek_edit.tpl');
 			
 		} else {
-			// Links
-			$links = array(
-				$context => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							$context,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-			
-			// Latest activity
-			$tpl->assign('latest_activity', $worker->getLatestActivity());
-			$tpl->assign('latest_session', $worker->getLatestSession());
-			
-			// Timeline
-			if($context_id) {
-				$timeline_json = Page_Profiles::getTimelineJson(Extension_DevblocksContext::getTimelineComments($context, $context_id));
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-			
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			// Dictionary
-			$labels = $values = [];
-			CerberusContexts::getContext($context, $worker, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			// Interactions
-			$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
-			$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
-			$tpl->assign('interactions_menu', $interactions_menu);
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$counts_tickets = DAO_Ticket::countsByOwnerId($context_id);
-			$tpl->assign('counts_tickets', $counts_tickets);
-			
-			$tpl->display('devblocks:cerberusweb.core::workers/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $worker);
 		}
 	}
 };

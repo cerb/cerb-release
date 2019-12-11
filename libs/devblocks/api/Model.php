@@ -681,7 +681,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 		}
 	}
 	
-	static function _getWhereSQLFromVirtualSearchSqlField(DevblocksSearchCriteria $param, $context, $subquery_sql, $where_key=null) {
+	static function _getWhereSQLFromVirtualSearchSqlField(DevblocksSearchCriteria $param, $context, $subquery_sql='%s', $where_key=null) {
 		// Handle nested quick search filters first
 		if($param->operator == DevblocksSearchCriteria::OPER_CUSTOM) {
 			$query = $param->value;
@@ -881,9 +881,15 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				return;
 			
 			$not = false;
+			$all = false;
+			
 			if(DevblocksPlatform::strStartsWith($query, '!')) {
 				$not = true;
 				$query = mb_substr($query, 1);
+				
+			} elseif(DevblocksPlatform::strStartsWith($query, 'all(')) {
+				$all = true;
+				$query = mb_substr($query, 3);
 			}
 			
 			$view = $ext->getTempView();
@@ -911,13 +917,30 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				. $query_parts['sort']
 				;
 			
-			return sprintf("%s %sIN (SELECT from_context_id FROM context_link cl WHERE from_context = %s AND to_context = %s AND to_context_id IN (%s)) ",
-				$pkey,
-				$not ? 'NOT ' : '',
-				Cerb_ORMHelper::qstr($from_context),
-				Cerb_ORMHelper::qstr($ext->id),
-				$sql
-			);
+			// All
+			if($all) {
+				return sprintf("%s %sIN (SELECT from_context_id FROM context_link cl WHERE from_context = %s AND to_context = %s AND to_context_id IN (%s) ".
+					"GROUP BY (from_context_id) ".
+					"HAVING COUNT(*) = (SELECT COUNT(*) FROM context_link WHERE from_context = %s AND to_context = %s AND from_context_id = cl.from_context_id)) ",
+					$pkey,
+					$not ? 'NOT ' : '',
+					Cerb_ORMHelper::qstr($from_context),
+					Cerb_ORMHelper::qstr($ext->id),
+					$sql,
+					Cerb_ORMHelper::qstr($from_context),
+					Cerb_ORMHelper::qstr($ext->id)
+				);
+				
+			// Any
+			} else {
+				return sprintf("%s %sIN (SELECT from_context_id FROM context_link cl WHERE from_context = %s AND to_context = %s AND to_context_id IN (%s)) ",
+					$pkey,
+					$not ? 'NOT ' : '',
+					Cerb_ORMHelper::qstr($from_context),
+					Cerb_ORMHelper::qstr($ext->id),
+					$sql
+				);
+			}
 		}
 		
 		if($param->operator != DevblocksSearchCriteria::OPER_TRUE) {
@@ -1101,7 +1124,6 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 		// Return a soft failure when a filtered custom field has been deleted (i.e. ignore)
 		if(false == ($field = DAO_CustomField::get($field_id)))
 			return '';
-		
 
 		$field_table = sprintf("cf_%d", $field_id);
 		$value_table = DAO_CustomFieldValue::getValueTableName($field_id);
@@ -1171,6 +1193,12 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				break;
 				
 			default:
+				if(null != ($field_ext = $field->getTypeExtension())) {
+					if(false != ($where_sql = $field_ext->getWhereSQLFromParam($field, $param))) {
+						return $where_sql;
+					}
+				}
+				
 				switch($param->operator) {
 					case DevblocksSearchCriteria::OPER_IN_OR_NULL:
 						$param->operator = DevblocksSearchCriteria::OPER_IN;
@@ -1416,6 +1444,13 @@ class DevblocksSearchCriteria {
 					case Model_CustomField::TYPE_LINK:
 						if($param_key && false != $param = DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, $param_key))
 							return $param;
+						break;
+						
+					default:
+						if(false != ($field_ext = $custom_field->getTypeExtension())) {
+							if($param_key && false != ($param = $field_ext->getParamFromQueryFieldTokens($field, $tokens, $param_key)))
+								return $param;
+						}
 						break;
 				}
 				break;
@@ -2646,9 +2681,6 @@ class DevblocksPluginManifest {
 	}
 	
 	function uninstall() {
-		if(!CERB_FEATURES_PLUGIN_LIBRARY)
-			return false;
-		
 		$plugin_path = $this->getStoragePath();
 		$storage_path = APP_STORAGE_PATH . '/plugins/';
 		
@@ -2752,15 +2784,8 @@ class DevblocksExtensionManifest {
 	 * @return boolean
 	 */
 	function hasOption($key) {
-		if(!isset($this->params['options']) || !is_array($this->params['options']) || empty($this->params['options']))
-			return false;
-		
-		if(!isset($this->params['options'][0]))
-			return false;
-		
-		$options = $this->params['options'][0];
-		
-		return isset($options[$key]);
+		@$options = $this->params['options'][0] ?: [];
+		return array_key_exists($key, $options);
 	}
 };
 

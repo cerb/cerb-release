@@ -932,27 +932,24 @@ class View_WorkspaceList extends C4_AbstractView implements IAbstractView_Subtot
 		switch($field) {
 			case SearchFields_WorkspaceList::COLUMNS_HIDDEN_JSON:
 			case SearchFields_WorkspaceList::CONTEXT:
-			case SearchFields_WorkspaceList::ID:
 			case SearchFields_WorkspaceList::NAME:
 			case SearchFields_WorkspaceList::OPTIONS_JSON:
 			case SearchFields_WorkspaceList::PARAMS_EDITABLE_JSON:
 			case SearchFields_WorkspaceList::PARAMS_REQUIRED_JSON:
 			case SearchFields_WorkspaceList::PARAMS_REQUIRED_QUERY:
-			case SearchFields_WorkspaceList::RENDER_LIMIT:
 			case SearchFields_WorkspaceList::RENDER_SORT_JSON:
 			case SearchFields_WorkspaceList::RENDER_SUBTOTALS:
-			case SearchFields_WorkspaceList::UPDATED_AT:
-			case SearchFields_WorkspaceList::WORKSPACE_TAB_ID:
-			case SearchFields_WorkspaceList::WORKSPACE_TAB_POS:
-			case 'placeholder_string':
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
 				
-			case 'placeholder_number':
+			case SearchFields_WorkspaceList::ID:
+			case SearchFields_WorkspaceList::RENDER_LIMIT:
+			case SearchFields_WorkspaceList::WORKSPACE_TAB_ID:
+			case SearchFields_WorkspaceList::WORKSPACE_TAB_POS:
 				$criteria = new DevblocksSearchCriteria($field,$oper,$value);
 				break;
 				
-			case 'placeholder_date':
+			case SearchFields_WorkspaceList::UPDATED_AT:
 				$criteria = $this->_doSetCriteriaDate($field, $oper);
 				break;
 				
@@ -1354,16 +1351,9 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 				$values = $dictionary;
 				break;
 			
-			case 'links':
-				$links = $this->_lazyLoadLinks($context, $context_id);
-				$values = array_merge($values, $links);
-				break;
-			
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -1422,7 +1412,6 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_WORKSPACE_WORKLIST;
-		
 		$model = new Model_WorkspaceList();
 		
 		if(!empty($context_id)) {
@@ -1462,44 +1451,7 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 			$tpl->display('devblocks:cerberusweb.core::internal/workspaces/worklists/peek_edit.tpl');
 			
 		} else {
-			// Links
-			$links = array(
-				$context => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							$context,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-			
-			// Timeline
-			if($context_id) {
-				$timeline_json = Page_Profiles::getTimelineJson(Extension_DevblocksContext::getTimelineComments($context, $context_id));
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			// Dictionary
-			$labels = [];
-			$values = [];
-			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$tpl->display('devblocks:cerberusweb.core::internal/workspaces/worklists/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $model);
 		}
 	}
 };

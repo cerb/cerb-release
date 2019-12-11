@@ -878,6 +878,108 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		}
 	}
 	
+	public static function updateWithMessageProperties(array &$properties, Model_Ticket &$ticket, array $change_fields=[], $unset=true) {
+		// Automatically add new 'To:' recipients?
+		if(!array_key_exists('is_forward', $properties) && array_key_exists('to', $properties)) {
+			try {
+				if(false != ($to_addys = CerberusMail::parseRfcAddresses($properties['to']))) {
+					foreach(array_keys($to_addys) as $to_addy)
+						DAO_Ticket::createRequester($to_addy, $ticket->id);
+				}
+			} catch(Exception $e) {}
+		}
+		
+		if(array_key_exists('owner_id', $properties)) {
+			@$owner_id = DevblocksPlatform::importVar($properties['owner_id'], 'int', 0);
+			
+			if(!$owner_id || null != (DAO_Worker::get($owner_id))) {
+				$ticket->owner_id = $owner_id;
+				$change_fields[DAO_Ticket::OWNER_ID] = $owner_id;
+			}
+			
+			if($unset)
+				unset($properties['owner_id']);
+		}
+		
+		if(array_key_exists('status_id', $properties)) {
+			@$status_id = DevblocksPlatform::importVar($properties['status_id'], 'int', 0);
+			@$reopen_at = DevblocksPlatform::importVar($properties['ticket_reopen'], 'string', '');
+			
+			// Handle reopen date
+			if($reopen_at) {
+				if(is_numeric($reopen_at) && false != (@$reopen_at = strtotime('now', $reopen_at))) {
+				} else if(false !== (@$reopen_at = strtotime($reopen_at))) {
+				}
+			}
+			
+			switch($status_id) {
+				case Model_Ticket::STATUS_OPEN:
+					$change_fields[DAO_Ticket::STATUS_ID] = Model_Ticket::STATUS_OPEN;
+					$change_fields[DAO_Ticket::REOPEN_AT] = 0;
+					break;
+				case Model_Ticket::STATUS_CLOSED:
+					$change_fields[DAO_Ticket::STATUS_ID] = Model_Ticket::STATUS_CLOSED;
+					$change_fields[DAO_Ticket::REOPEN_AT] = intval($reopen_at);
+					break;
+				case Model_Ticket::STATUS_WAITING:
+					$change_fields[DAO_Ticket::STATUS_ID] = Model_Ticket::STATUS_WAITING;
+					$change_fields[DAO_Ticket::REOPEN_AT] = intval($reopen_at);
+					break;
+			}
+			
+			if($unset) {
+				unset($properties['status_id']);
+				unset($properties['ticket_reopen']);
+			}
+		}
+		
+		// Move
+		if(array_key_exists('group_id', $properties) || array_key_exists('bucket_id', $properties)) {
+			@$move_to_group_id = intval($properties['group_id']);
+			@$move_to_bucket_id = intval($properties['bucket_id']);
+			
+			if(!$move_to_group_id || false == ($move_to_group = DAO_Group::get($move_to_group_id)))
+				$move_to_group = DAO_Group::getDefaultGroup();
+			
+			$change_fields[DAO_Ticket::GROUP_ID] = $move_to_group->id;
+			
+			// Validate the given bucket id
+			
+			if(!$move_to_bucket_id
+				|| false == ($move_to_bucket = DAO_Bucket::get($move_to_bucket_id))
+				|| $move_to_bucket->group_id != $move_to_group->id) {
+				
+				$move_to_bucket = $move_to_group->getDefaultBucket();
+			}
+			
+			// Move to the new bucket if it is an inbox, or it belongs to the group
+			if($move_to_bucket) {
+				$change_fields[DAO_Ticket::BUCKET_ID] = $move_to_bucket->id;
+			}
+			
+			if($unset) {
+				unset($properties['group_id']);
+				unset($properties['bucket_id']);
+			}
+		}
+		
+		if($change_fields) {
+			DAO_Ticket::update($ticket->id, $change_fields);
+		}
+		
+		// Custom fields
+		@$custom_fields = isset($properties['custom_fields']) ? $properties['custom_fields'] : [];
+		
+		if($custom_fields && is_array($custom_fields)) {
+			DAO_CustomFieldValue::formatAndSetFieldValues(CerberusContexts::CONTEXT_TICKET, $ticket->id, $custom_fields, true, true, false);
+		}
+		
+		if($unset)
+			unset($properties['custom_fields']);
+		
+		return true;
+	}
+	
 	static public function onBeforeUpdateByActor($actor, &$fields, $id=null, &$error=null) {
 		$context = CerberusContexts::CONTEXT_TICKET;
 		
@@ -1009,7 +1111,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		if(isset($do['behavior']))
 			C4_AbstractView::_doBulkScheduleBehavior(CerberusContexts::CONTEXT_TICKET, $do['behavior'], $ids);
 		
-		if(isset($do['broadcast'])) {
+		if(array_key_exists('broadcast', $do)) {
 			try {
 				$broadcast_params = $do['broadcast'];
 				
@@ -1022,40 +1124,52 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				$models = CerberusContexts::getModels(CerberusContexts::CONTEXT_TICKET, $ids);
 				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_TICKET, array('custom_'));
 				
-				// $tpl_builder->tokenize($broadcast_params['message']
-				
 				$is_queued = (isset($broadcast_params['is_queued']) && $broadcast_params['is_queued']) ? true : false;
+				
+				$broadcast_properties = [
+					'worker_id' => $broadcast_params['worker_id'],
+					'content' => $broadcast_params['message'],
+					'content_format' => $broadcast_params['format'],
+					'html_template_id' => @$broadcast_params['html_template_id'] ?: 0,
+					'file_ids' => @$broadcast_params['file_ids'] ?: [],
+				];
 				
 				if(is_array($dicts))
 				foreach($dicts as $ticket_id => $dict) {
-					$body = $tpl_builder->build($broadcast_params['message'], $dict);
+					$message_properties = $broadcast_properties;
+					$message_properties['group_id'] = $dict->get('group_id', 0);
 					
 					$params_json = array(
 						'in_reply_message_id' => $dict->latest_message_id,
 						'is_broadcast' => 1,
+						'group_id' => $dict->group_id,
+						'bucket_id' => $dict->bucket_id,
+						'to' => $dict->requester_emails,
+						'subject' => $dict->subject,
+						'content' => $tpl_builder->build($message_properties['content'], $dict),
+						'worker_id' => $message_properties['worker_id'],
 					);
 					
-					if(isset($broadcast_params['format']))
-						$params_json['format'] = $broadcast_params['format'];
+					if(isset($message_properties['content_format']))
+						$params_json['format'] = $message_properties['content_format'];
 					
-					if(isset($broadcast_params['html_template_id']))
-						$params_json['html_template_id'] = intval($broadcast_params['html_template_id']);
+					if(isset($message_properties['html_template_id']))
+						$params_json['html_template_id'] = intval($message_properties['html_template_id']);
 					
 					$fields = array(
 						DAO_MailQueue::TYPE => Model_MailQueue::TYPE_TICKET_REPLY,
 						DAO_MailQueue::TICKET_ID => $ticket_id,
-						DAO_MailQueue::WORKER_ID => $broadcast_params['worker_id'],
+						DAO_MailQueue::WORKER_ID => $message_properties['worker_id'],
 						DAO_MailQueue::UPDATED => time(),
 						DAO_MailQueue::HINT_TO => $dict->initial_message_sender_address,
-						DAO_MailQueue::SUBJECT => $dict->subject,
-						DAO_MailQueue::BODY => $body,
+						DAO_MailQueue::NAME => $dict->subject,
 					);
 					
 					if($is_queued)
 						$fields[DAO_MailQueue::IS_QUEUED] = 1;
 
-					if(isset($broadcast_params['file_ids']))
-						$params_json['file_ids'] = $broadcast_params['file_ids'];
+					if(isset($message_properties['file_ids']))
+						$params_json['file_ids'] = $message_properties['file_ids'];
 					
 					if(!empty($params_json))
 						$fields[DAO_MailQueue::PARAMS_JSON] = json_encode($params_json);
@@ -2600,17 +2714,28 @@ class Model_Ticket {
 		return $messages;
 	}
 	
-	function getTimeline($is_ascending=true) {
+	function getTimeline($is_ascending=true, $target_context=null, $target_context_id=null, &$start_at=0) {
 		$timeline = $this->getMessages();
 		
 		if(false != ($comments = DAO_Comment::getByContext(CerberusContexts::CONTEXT_TICKET, $this->id)))
 			$timeline = array_merge($timeline, $comments);
+		
+		$drafts = DAO_MailQueue::getWhere(sprintf("%s = %d",
+			Cerb_ORMHelper::escape(DAO_MailQueue::TICKET_ID),
+			$this->id
+		));
+		
+		if($drafts) {
+			$timeline = array_merge($timeline, $drafts);
+		}
 		
 		usort($timeline, function($a, $b) use ($is_ascending) {
 			if($a instanceof Model_Message) {
 				$a_time = intval($a->created_date);
 			} else if($a instanceof Model_Comment) {
 				$a_time = intval($a->created);
+			} else if($a instanceof Model_MailQueue) {
+				$a_time = intval($a->updated);
 			} else {
 				$a_time = 0;
 			}
@@ -2619,6 +2744,8 @@ class Model_Ticket {
 				$b_time = intval($b->created_date);
 			} else if($b instanceof Model_Comment) {
 				$b_time = intval($b->created);
+			} else if($b instanceof Model_MailQueue) {
+				$b_time = intval($b->updated);
 			} else {
 				$b_time = 0;
 			}
@@ -2631,6 +2758,23 @@ class Model_Ticket {
 				return 0;
 			}
 		});
+		
+		if($target_context && $target_context_id) {
+			$target_classes = [
+				CerberusContexts::CONTEXT_COMMENT => 'Model_Comment',
+				CerberusContexts::CONTEXT_DRAFT => 'Model_MailQueue',
+				CerberusContexts::CONTEXT_MESSAGE => 'Model_Message',
+			];
+			
+			if(false != (@$target_class = $target_classes[$target_context])) {
+				foreach($timeline as $object_idx => $object) {
+					if($object instanceof $target_class && $object->id == $target_context_id) {
+						$start_at = $object_idx;
+						break;
+					}
+				}
+			}
+		}
 		
 		return $timeline;
 	}
@@ -4189,7 +4333,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 	}
 };
 
-class Context_Ticket extends Extension_DevblocksContext implements IDevblocksContextPeek, IDevblocksContextProfile, IDevblocksContextImport, IDevblocksContextMerge, IDevblocksContextAutocomplete {
+class Context_Ticket extends Extension_DevblocksContext implements IDevblocksContextPeek, IDevblocksContextProfile, IDevblocksContextImport, IDevblocksContextMerge, IDevblocksContextAutocomplete, IDevblocksContextBroadcast {
 	const ID = 'cerberusweb.contexts.ticket';
 	
 	static function isReadableByActor($models, $actor) {
@@ -4650,6 +4794,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			// URL
 			$url_writer = DevblocksPlatform::services()->url();
 			$token_values['url'] = $url_writer->writeNoProxy('c=profiles&type=ticket&id='.$ticket->mask,true);
+			$token_values['record_url'] = $token_values['url'];
 
 			// Group
 			$token_values['group_id'] = $ticket->group_id;
@@ -4953,11 +5098,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		}
 		
 		switch($token) {
-			case 'links':
-				$links = $this->_lazyLoadLinks($context, $context_id);
-				$values = array_merge($values, $links);
-				break;
-			
+			// [TODO] Add an entry for 'participants' and deprecate this (set both)
 			case 'requester_emails':
 				if(!isset($dictionary['requesters'])) {
 					$result = $this->lazyLoadContextValues('requesters', $dictionary);
@@ -4998,14 +5139,17 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 				if(!isset($dictionary['group_id']) || false == ($group = DAO_Group::get($dictionary['group_id'])))
 					break;
 				
-				$values['signature'] = $group->getReplySignature(intval($dictionary['bucket_id']), $active_worker);
+				$values['signature'] = $group->getReplySignature(intval($dictionary['bucket_id']), $active_worker, false);
 				break;
 				
-			case 'watchers':
-				$watchers = array(
-					$token => CerberusContexts::getWatchers($context, $context_id, true),
-				);
-				$values = array_merge($values, $watchers);
+			case 'signature_html':
+				if(false == ($active_worker = CerberusApplication::getActiveWorker()))
+					break;
+				
+				if(!isset($dictionary['group_id']) || false == ($group = DAO_Group::get($dictionary['group_id'])))
+					break;
+				
+				$values['signature_html'] = $group->getReplySignature(intval($dictionary['bucket_id']), $active_worker, true);
 				break;
 				
 			case '_messages':
@@ -5079,10 +5223,8 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 				break;
 				
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -5180,7 +5322,6 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		@$draft_id = DevblocksPlatform::importGPC($_REQUEST['draft_id'],'integer',0);
 		@$bucket_id = DevblocksPlatform::importGPC($_REQUEST['bucket_id'],'integer',0);
 		
-		$visit = CerberusApplication::getVisit();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.ticket.create'))
@@ -5268,29 +5409,28 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		
 		$tpl->assign('to', $to);
 		
-		// Continue a draft?
-		if(!empty($draft_id)) {
-			$drafts = DAO_MailQueue::getWhere(sprintf("%s = %d AND %s = %d AND %s = %s",
-				DAO_MailQueue::ID,
-				$draft_id,
-				DAO_MailQueue::WORKER_ID,
-				$active_worker->id,
-				DAO_MailQueue::TYPE,
-				Cerb_ORMHelper::qstr(Model_MailQueue::TYPE_COMPOSE)
-			));
-			
-			@$draft = $drafts[$draft_id];
-			
-			if(!empty($drafts)) {
-				$tpl->assign('draft', $draft);
-				
-				// Overload the defaults of the form
-				if(isset($draft->params['group_id']))
-					$defaults['group_id'] = $draft->params['group_id'];
-				if(isset($draft->params['bucket_id']))
-					$defaults['bucket_id'] = $draft->params['bucket_id'];
-			}
+		if(!$draft_id) {
+			$draft_id = DAO_MailQueue::create([
+				DAO_MailQueue::TYPE => Model_MailQueue::TYPE_COMPOSE,
+				DAO_MailQueue::WORKER_ID => $active_worker->id,
+				DAO_MailQueue::IS_QUEUED => 0,
+				DAO_MailQueue::QUEUE_DELIVERY_DATE => 0,
+			]);
 		}
+		
+		if(false == ($draft = DAO_MailQueue::get($draft_id)))
+			return false;
+		
+		if(!Context_Draft::isWriteableByActor($draft, $active_worker))
+			return false;
+		
+		$tpl->assign('draft', $draft);
+		
+		// Overload the defaults of the form
+		if(isset($draft->params['group_id']))
+			$defaults['group_id'] = $draft->params['group_id'];
+		if(isset($draft->params['bucket_id']))
+			$defaults['bucket_id'] = $draft->params['bucket_id'];
 		
 		// If we still don't have a default group, use the first group
 		if(empty($defaults['group_id']))
@@ -5437,59 +5577,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			$tpl->display('devblocks:cerberusweb.core::tickets/peek_edit.tpl');
 			
 		} else {
-			// Dictionary
-			$labels = [];
-			$values = [];
-			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			// Links
-			$links = array(
-				$context => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							$context,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-			
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			// Interactions
-			$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
-			$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
-			$tpl->assign('interactions_menu', $interactions_menu);
-			
-			// Privileges
-			
-			$is_readable = Context_Ticket::isReadableByActor($dict, $active_worker);
-			$tpl->assign('is_readable', $is_readable);
-			
-			$is_writeable = Context_Ticket::isWriteableByActor($dict, $active_worker);
-			$tpl->assign('is_writeable', $is_writeable);
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			// Timeline
-			if($is_readable && $model) {
-				$timeline_json = Page_Profiles::getTimelineJson($model->getTimeline());
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-			
-			// Template
-			
-			$tpl->display('devblocks:cerberusweb.core::tickets/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $model);
 		}
 	}
 	
@@ -5668,6 +5756,19 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		}
 
 		return array($add_watchers, $remove_watchers);
+	}
+	
+	function broadcastPlaceholdersGet() {
+		$token_values = $this->_broadcastPlaceholdersGet(CerberusContexts::CONTEXT_TICKET, false);
+		return $token_values;
+	}
+	
+	function broadcastRecipientFieldsGet() {
+		return [];
+	}
+	
+	function broadcastRecipientFieldsToEmails(array $fields, DevblocksDictionaryDelegate $dict) {
+		return [];
 	}
 };
 

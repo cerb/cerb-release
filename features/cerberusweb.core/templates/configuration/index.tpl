@@ -30,11 +30,8 @@
 			<div>
 				<a href="javascript:;" class="menu">{'common.records'|devblocks_translate|capitalize} <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
 				<ul class="cerb-popupmenu cerb-float">
-					<li><a href="{devblocks_url}c=config&a=records{/devblocks_url}">{'common.configure'|devblocks_translate|capitalize}</a></li>
-					<li><hr></li>
 					<li><a href="{devblocks_url}c=config&a=avatars{/devblocks_url}">Avatars</a></li>
 					<li><a href="{devblocks_url}c=config&a=fields{/devblocks_url}">{'common.custom_fields'|devblocks_translate|capitalize}</a></li>
-					<li><a href="{devblocks_url}c=config&a=skills{/devblocks_url}">{'common.skills'|devblocks_translate|capitalize}</a></li>
 					<li><a href="{devblocks_url}c=config&a=snippets{/devblocks_url}">{'common.snippets'|devblocks_translate|capitalize}</a></li>
 					
 					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.records')}
@@ -128,9 +125,8 @@
 			<div>
 				<a href="javascript:;" class="menu">{'common.plugins'|devblocks_translate|capitalize} <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
 				<ul class="cerb-popupmenu cerb-float">
-					<li><a href="{devblocks_url}c=config&a=plugins&tab=installed{/devblocks_url}">Installed Plugins</a></li>
-					{if $smarty.const.CERB_FEATURES_PLUGIN_LIBRARY}<li><a href="{devblocks_url}c=config&a=plugins&tab=library{/devblocks_url}">Plugin Library</a></li>{/if}
-					
+					<li><a href="{devblocks_url}c=config&a=plugins{/devblocks_url}">{'common.configure'|devblocks_translate|capitalize}</a></li>
+
 					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.plugins')}
 					{if !empty($exts)}<li><hr></li>{/if}
 					{foreach from=$exts item=menu_item}

@@ -500,8 +500,6 @@ class CerberusMail {
 		'subject'
 		'content'
 		'content_format'
-		'content_saved'
-		'content_sent'
 		'html_template_id'
 		'files'
 		'forward_files'
@@ -509,22 +507,24 @@ class CerberusMail {
 		'ticket_reopen'
 		'dont_send'
 		'draft_id'
+		'gpg_sign'
 		'gpg_encrypt'
+		'send_at'
 		 */
 		
+		@$draft_id = $properties['draft_id'];
 		@$group_id = $properties['group_id'];
 		@$bucket_id = intval($properties['bucket_id']);
-		
-		@$is_broadcast = intval($properties['is_broadcast']);
-		
 		@$worker_id = $properties['worker_id'];
+		@$send_at = strtotime($properties['send_at'] ?? 0);
+		
 		$worker = null;
 		
-		if(empty($worker_id) && null != ($worker = CerberusApplication::getActiveWorker()))
+		if(!$worker_id && null != ($worker = CerberusApplication::getActiveWorker()))
 			$worker_id = $worker->id;
 
 		// Worker
-		if(!empty($worker_id))
+		if($worker_id)
 			$worker = DAO_Worker::get($worker_id);
 		
 		// Group
@@ -535,11 +535,47 @@ class CerberusMail {
 		if(!$bucket_id || false == ($bucket = DAO_Bucket::get($bucket_id)) || $bucket->group_id != $group->id)
 			$bucket = $group->getDefaultBucket();
 		
+		$from_replyto = $group->getReplyTo($bucket->id);
+		$personal = $group->getReplyPersonal($bucket->id, $worker);
+		
+		if($send_at && $send_at >= time()) {
+			// If we're not resuming a draft from the UI, generate a draft
+			if (!$draft_id || false == (DAO_MailQueue::get($draft_id))) {
+				$change_fields = DAO_MailQueue::getFieldsFromMessageProperties($properties);
+				$change_fields[DAO_MailQueue::TYPE] = Model_MailQueue::TYPE_COMPOSE;
+				$change_fields[DAO_MailQueue::IS_QUEUED] = 1;
+				$change_fields[DAO_MailQueue::QUEUE_DELIVERY_DATE] = $send_at;
+				
+				$draft_id = DAO_MailQueue::create($change_fields);
+				
+				if(array_key_exists('forward_files', $properties)) {
+					DAO_Attachment::addLinks(CerberusContexts::CONTEXT_DRAFT, $draft_id, $properties['forward_files']);
+				}
+				
+			} else {
+				DAO_MailQueue::update($draft_id, [
+					DAO_MailQueue::IS_QUEUED => 1,
+					DAO_MailQueue::QUEUE_FAILS => 0,
+					DAO_MailQueue::QUEUE_DELIVERY_DATE => $send_at,
+				]);
+			}
+			
+			return true;
+		}
+		
+		$mask = CerberusApplication::generateTicketMask();
+		
 		// Changing the outgoing message through a VA (global)
 		Event_MailBeforeSent::trigger($properties, null, null, $group_id);
 		
 		// Changing the outgoing message through a VA (group)
 		Event_MailBeforeSentByGroup::trigger($properties, null, null, $group_id);
+		
+		$hash_commands = [];
+		
+		if($worker) {
+			CerberusMail::parseComposeHashCommands($worker, $properties, $hash_commands);
+		}
 		
 		// Handle content appends and prepends
 		self::_generateBodiesWithPrependsAppends($properties);
@@ -550,21 +586,14 @@ class CerberusMail {
 		@$bcc = $properties['bcc'];
 		@$subject = $properties['subject'];
 		@$content_format = $properties['content_format'];
-		@$content_saved = $properties['content_saved'];
-		@$content_sent = $properties['content_sent'];
 		@$html_template_id = $properties['html_template_id'];
 		@$files = $properties['files'];
 		@$embedded_files = [];
 		@$forward_files = $properties['forward_files'];
+		@$content_saved = $properties['content_saved'];
+		@$content_sent = $properties['content_sent'];
+		@$is_broadcast = intval($properties['is_broadcast']);
 		
-		@$status_id = $properties['status_id'];
-		@$ticket_reopen = $properties['ticket_reopen'];
-		
-		$from_replyto = $group->getReplyTo($bucket->id);
-		$personal = $group->getReplyPersonal($bucket->id, $worker);
-		
-		$mask = CerberusApplication::generateTicketMask();
-
 		if(empty($subject)) $subject = '(no subject)';
 		
 		// add mask to subject if group setting calls for it
@@ -581,7 +610,6 @@ class CerberusMail {
 		
 		// [JAS]: Replace any semi-colons with commas (people like using either)
 		$toList = CerberusMail::parseRfcAddresses($toStr);
-		
 		
 		try {
 			$mail_service = DevblocksPlatform::services()->mail();
@@ -698,39 +726,54 @@ class CerberusMail {
 					throw new Exception('Mail failed to send: unknown reason');
 				}
 			}
-	
-		} catch (Exception $e) {
-			@$draft_id = $properties['draft_id'];
 			
-			if(empty($draft_id)) {
-				$params = array(
-					'to' => $toStr,
-					'group_id' => $group->id,
-					'bucket_id' => $bucket->id,
-				);
+		} catch (Exception $e) {
+			if(!$draft_id) {
+				$fields = DAO_MailQueue::getFieldsFromMessageProperties($properties);
+				$fields[DAO_MailQueue::TYPE] = Model_MailQueue::TYPE_COMPOSE;
+				$fields[DAO_MailQueue::IS_QUEUED] = 1;
+				$fields[DAO_MailQueue::QUEUE_FAILS] = 1;
+				$fields[DAO_MailQueue::QUEUE_DELIVERY_DATE] = time() + 300;
 				
-				if(!empty($cc))
-					$params['cc'] = $cc;
-					
-				if(!empty($bcc))
-					$params['bcc'] = $bcc;
+				$draft_id = DAO_MailQueue::create($fields);
 				
-				if('parsedown' == $content_format)
-					$params['format'] = 'parsedown';
-					
+			} else {
+				if(false != ($draft = DAO_MailQueue::get($draft_id))) {
+					if($draft->queue_fails < 10) {
+						$fields = [
+							DAO_MailQueue::IS_QUEUED => 1,
+							DAO_MailQueue::QUEUE_FAILS => ++$draft->queue_fails,
+							DAO_MailQueue::QUEUE_DELIVERY_DATE => time() + 300,
+						];
+					} else {
+						$fields = [
+							DAO_MailQueue::IS_QUEUED => 0,
+							DAO_MailQueue::QUEUE_DELIVERY_DATE => 0,
+						];
+					}
+					DAO_MailQueue::update($draft_id, $fields);
+				}
+			}
+			
+			$last_error_message = $mail_service->getLastErrorMessage();
+			
+			if($e instanceof Swift_TransportException && !$last_error_message) {
+				$last_error_message = $e->getMessage();
+			} elseif($e instanceof Swift_RfcComplianceException && !$last_error_message) {
+				$last_error_message = $e->getMessage();
+			}
+			
+			// If we have an error message, log it on the draft
+			if($draft_id && !empty($last_error_message)) {
 				$fields = array(
-					DAO_MailQueue::TYPE => Model_MailQueue::TYPE_COMPOSE,
-					DAO_MailQueue::TICKET_ID => 0,
-					DAO_MailQueue::WORKER_ID => intval($worker_id),
-					DAO_MailQueue::UPDATED => time()+5, // small offset
-					DAO_MailQueue::HINT_TO => $toStr,
-					DAO_MailQueue::SUBJECT => $subject,
-					DAO_MailQueue::BODY => $content_sent,
-					DAO_MailQueue::PARAMS_JSON => json_encode($params),
-					DAO_MailQueue::IS_QUEUED => !empty($worker) ? 0 : 1,
-					DAO_MailQueue::QUEUE_DELIVERY_DATE => time(),
+					DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_APPLICATION,
+					DAO_Comment::OWNER_CONTEXT_ID => 0,
+					DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_DRAFT,
+					DAO_Comment::CONTEXT_ID => $draft_id,
+					DAO_Comment::COMMENT => 'Error sending message: ' . $last_error_message,
+					DAO_Comment::CREATED => time(),
 				);
-				DAO_MailQueue::create($fields);
+				DAO_Comment::create($fields);
 			}
 			
 			return false;
@@ -738,8 +781,6 @@ class CerberusMail {
 		
 		$fromAddressInst = CerberusApplication::hashLookupAddress($from_replyto->email, true);
 		$fromAddressId = $fromAddressInst->id;
-		
-		// [TODO] this is redundant with the Parser code.  Should be refactored later
 		
 		// Organization ID from first requester
 		if(empty($org_id)) {
@@ -753,28 +794,15 @@ class CerberusMail {
 		$fields = array(
 			DAO_Ticket::MASK => $mask,
 			DAO_Ticket::SUBJECT => $subject,
+			DAO_Ticket::STATUS_ID => 0,
+			DAO_Ticket::OWNER_ID => 0,
+			DAO_Ticket::REOPEN_AT => 0,
 			DAO_Ticket::CREATED_DATE => time(),
 			DAO_Ticket::FIRST_WROTE_ID => $fromAddressId,
 			DAO_Ticket::LAST_WROTE_ID => $fromAddressId,
 			DAO_Ticket::ORG_ID => intval($org_id),
 			DAO_Ticket::IMPORTANCE => 50,
 		);
-		
-		// "Next:" [TODO] This is highly redundant with CerberusMail::reply
-		
-		if(isset($properties['owner_id'])) {
-			$fields[DAO_Ticket::OWNER_ID] = intval($properties['owner_id']);
-		}
-		
-		if(isset($ticket_reopen) && !empty($ticket_reopen)) {
-			if(is_numeric($ticket_reopen) && false != (@$reopen_at = strtotime('now', $ticket_reopen))) {
-				$fields[DAO_Ticket::REOPEN_AT] = $reopen_at;
-			} else if(false !== (@$reopen_at = strtotime($ticket_reopen))) {
-				$fields[DAO_Ticket::REOPEN_AT] = $reopen_at;
-			}
-		}
-
-		// End "Next:"
 		
 		$ticket_id = DAO_Ticket::create($fields);
 		
@@ -870,34 +898,33 @@ class CerberusMail {
 		}
 		
 		// Finalize ticket
-		$fields = array(
+		$ticket_fields = [
 			DAO_Ticket::FIRST_MESSAGE_ID => $message_id,
 			DAO_Ticket::LAST_MESSAGE_ID => $message_id,
-		);
+		];
 
-		// Status
-		if(in_array($status_id, array(Model_Ticket::STATUS_WAITING, Model_Ticket::STATUS_CLOSED)))
-			$fields[DAO_Ticket::STATUS_ID] = $status_id;
-		
 		// Move last, so the event triggers properly
-		$fields[DAO_Ticket::GROUP_ID] = $group->id;
-		$fields[DAO_Ticket::BUCKET_ID] = $bucket->id;
+		$properties['group_id'] = $group->id;
+		$properties['bucket_id'] = $bucket->id;
 		
-		DAO_Ticket::update($ticket_id, $fields);
+		if(false !== ($ticket = DAO_Ticket::get($ticket_id)))
+			DAO_Ticket::updateWithMessageProperties($properties, $ticket, $ticket_fields, false);
 		
 		// Train as not spam
 		CerberusBayes::markTicketAsNotSpam($ticket_id);
 		
-		// Custom fields
-		@$custom_fields = isset($properties['custom_fields']) ? $properties['custom_fields'] : [];
-		if(is_array($custom_fields) && !empty($custom_fields)) {
-			DAO_CustomFieldValue::formatAndSetFieldValues(CerberusContexts::CONTEXT_TICKET, $ticket_id, $custom_fields);
+		if($worker) {
+			DAO_WorkerPref::set($worker->id, 'compose.group_id', $group_id);
+			DAO_WorkerPref::set($worker->id, 'compose.bucket_id', $bucket_id);
+			
+			if($hash_commands)
+				CerberusMail::handleComposeHashCommands($hash_commands, $ticket_id, $worker);
 		}
 		
 		// Events
 		if(!empty($message_id) && !empty($group_id)) {
 			// After message sent (global)
-			Event_MailAfterSent::trigger($message_id, $group_id);
+			Event_MailAfterSent::trigger($message_id);
 			
 			// After message sent in group
 			Event_MailAfterSentByGroup::trigger($message_id, $group_id);
@@ -908,6 +935,10 @@ class CerberusMail {
 			// Mail received by group
 			Event_MailReceivedByGroup::trigger($message_id, $group_id);
 		}
+		
+		// Remove the draft
+		if($draft_id)
+			DAO_MailQueue::delete($draft_id);
 		
 		return intval($ticket_id);
 	}
@@ -924,8 +955,6 @@ class CerberusMail {
 		'bcc'
 		'content',
 		'content_format', // markdown, parsedown, html
-		'content_saved',
-		'content_sent',
 		'html_template_id'
 		'headers'
 		'files'
@@ -940,8 +969,10 @@ class CerberusMail {
 		'is_autoreply'
 		'custom_fields'
 		'gpg_encrypt'
+		'gpg_sign'
 		'dont_send'
 		'dont_keep_copy'
+		'send_at'
 		*/
 
 		try {
@@ -950,19 +981,71 @@ class CerberusMail {
 			$mail = $mail_service->createMessage();
 			
 			@$reply_message_id = $properties['message_id'];
+			@$send_at = strtotime($properties['send_at'] ?? 0);
+			@$draft_id = $properties['draft_id'];
 			
-			if(null == ($message = DAO_Message::get($reply_message_id)))
-				return;
+			if(null == ($message = DAO_Message::get($reply_message_id))) {
+				if(false == ($ticket = DAO_Ticket::get($properties['ticket_id'] ?? 0)))
+					return false;
 				
-			$ticket_id = $message->ticket_id;
+				$message = $ticket->getLastMessage();
+				$reply_message_id = $message->id;
+				
+			} else {
+				// Ticket
+				if(null == ($ticket = $message->getTicket()))
+					return false;
+			}
 			
-			// Ticket
-			if(null == ($ticket = DAO_Ticket::get($ticket_id)))
-				return;
-				
 			// Group
 			if(null == ($group = DAO_Group::get($ticket->group_id)))
-				return;
+				return false;
+			
+			$worker = null;
+			$hash_commands = [];
+			
+			DAO_Ticket::updateWithMessageProperties($properties, $ticket, [], false);
+			
+			if($send_at && $send_at >= time()) {
+				// If we're not resuming a draft from the UI, generate a draft
+				if(!$draft_id || false == (DAO_MailQueue::get($draft_id))) {
+					if (!array_key_exists('subject', $properties))
+						$properties['subject'] = $ticket->subject;
+					
+					if (!array_key_exists('message_id', $properties))
+						$properties['message_id'] = $message->id;
+					
+					if (!array_key_exists('ticket_id', $properties))
+						$properties['ticket_id'] = $ticket->id;
+					
+					$change_fields = DAO_MailQueue::getFieldsFromMessageProperties($properties);
+					
+					$change_fields[DAO_MailQueue::TYPE] = empty($is_forward) ? Model_MailQueue::TYPE_TICKET_REPLY : Model_MailQueue::TYPE_TICKET_FORWARD;
+					$change_fields[DAO_MailQueue::IS_QUEUED] = 1;
+					$change_fields[DAO_MailQueue::QUEUE_DELIVERY_DATE] = $send_at;
+					
+					$draft_id = DAO_MailQueue::create($change_fields);
+					
+					if(array_key_exists('forward_files', $properties)) {
+						DAO_Attachment::addLinks(CerberusContexts::CONTEXT_DRAFT, $draft_id, $properties['forward_files']);
+					}
+					
+				} else {
+					DAO_MailQueue::update($draft_id, [
+						DAO_MailQueue::IS_QUEUED => 1,
+						DAO_MailQueue::QUEUE_FAILS => 0,
+						DAO_MailQueue::QUEUE_DELIVERY_DATE => $send_at,
+					]);
+				}
+				
+				return true;
+			}
+			
+			if(array_key_exists('worker_id', $properties)) {
+				if(false != ($worker = DAO_Worker::get($properties['worker_id']))) {
+					CerberusMail::parseReplyHashCommands($worker, $properties, $hash_commands);
+				}
+			}
 			
 			$mail->generateId();
 			$outgoing_message_id = $mail->getHeaders()->get('message-id')->getFieldBody();
@@ -1005,7 +1088,7 @@ class CerberusMail {
 			if($ticket->spam_training == CerberusTicketSpamTraining::BLANK
 				&& empty($is_autoreply)
 				&& !empty($worker_id)) {
-				CerberusBayes::markTicketAsNotSpam($ticket_id);
+				CerberusBayes::markTicketAsNotSpam($ticket->id);
 			}
 				
 			// Headers
@@ -1053,7 +1136,7 @@ class CerberusMail {
 					$headers->addTextHeader('Auto-Submitted','auto-replied');
 				
 				// Recipients
-				$requesters = DAO_Ticket::getRequestersByTicket($ticket_id);
+				$requesters = DAO_Ticket::getRequestersByTicket($ticket->id);
 				
 				if(is_array($requesters))
 				foreach($requesters as $requester) { /* @var $requester Model_Address */
@@ -1235,14 +1318,17 @@ class CerberusMail {
 				}
 			}
 			
+			if($worker && $hash_commands)
+				CerberusMail::handleReplyHashCommands($hash_commands, $ticket, $worker);
+			
 		} catch (Exception $e) {
-			@$draft_id = $properties['draft_id'];
-
 			// Only if we weren't trying to send a draft already...
 			if(empty($draft_id)) {
-				$params = array(
+				$params = [
 					'in_reply_message_id' => $properties['message_id'],
-				);
+					'subject' => $properties['subject'] ?? '',
+					'content' => $properties['content'] ?? '',
+				];
 				
 				if(isset($properties['cc']))
 					$params['cc'] = $properties['cc'];
@@ -1265,13 +1351,30 @@ class CerberusMail {
 					DAO_MailQueue::WORKER_ID => intval($worker_id),
 					DAO_MailQueue::UPDATED => time()+5, // small offset
 					DAO_MailQueue::HINT_TO => $hint_to,
-					DAO_MailQueue::SUBJECT => $subject,
-					DAO_MailQueue::BODY => $properties['content'],
+					DAO_MailQueue::NAME => $properties['subject'] ?? '',
 					DAO_MailQueue::PARAMS_JSON => json_encode($params),
-					DAO_MailQueue::IS_QUEUED => empty($worker_id) ? 1 : 0,
-					DAO_MailQueue::QUEUE_DELIVERY_DATE => time(),
+					DAO_MailQueue::IS_QUEUED => 1,
+					DAO_MailQueue::QUEUE_FAILS => 1,
+					DAO_MailQueue::QUEUE_DELIVERY_DATE => time() + 300,
 				);
 				$draft_id = DAO_MailQueue::create($fields);
+				
+			} else {
+				if(false != ($draft = DAO_MailQueue::get($draft_id))) {
+					if($draft->queue_fails < 10) {
+						$fields = [
+							DAO_MailQueue::IS_QUEUED => 1,
+							DAO_MailQueue::QUEUE_DELIVERY_DATE => time() + 300,
+							DAO_MailQueue::QUEUE_FAILS => ++$draft->queue_fails,
+						];
+					} else {
+						$fields = [
+							DAO_MailQueue::IS_QUEUED => 0,
+							DAO_MailQueue::QUEUE_DELIVERY_DATE => 0,
+						];
+					}
+					DAO_MailQueue::update($draft_id, $fields);
+				}
 			}
 			
 			$last_error_message = $mail_service->getLastErrorMessage();
@@ -1305,7 +1408,6 @@ class CerberusMail {
 		
 		if((!isset($properties['dont_keep_copy']) || !$properties['dont_keep_copy'])
 			&& empty($is_autoreply)) {
-			$change_fields[DAO_Ticket::LAST_MESSAGE_ID] = $fromAddressId;
 			$change_fields[DAO_Ticket::LAST_WROTE_ID] = $fromAddressId;
 			$change_fields[DAO_Ticket::UPDATED_DATE] = time();
 			
@@ -1343,7 +1445,7 @@ class CerberusMail {
 			// Fields
 			
 			$fields = array(
-				DAO_Message::TICKET_ID => $ticket_id,
+				DAO_Message::TICKET_ID => $ticket->id,
 				DAO_Message::CREATED_DATE => time(),
 				DAO_Message::ADDRESS_ID => $fromAddressId,
 				DAO_Message::IS_OUTGOING => 1,
@@ -1419,82 +1521,9 @@ class CerberusMail {
 			if(isset($embedded_files) && is_array($embedded_files) && !empty($embedded_files)) {
 				DAO_Attachment::addLinks(CerberusContexts::CONTEXT_MESSAGE, $message_id, $embedded_files);
 			}
-		}
-		
-		if(isset($properties['owner_id'])) {
-			if(empty($properties['owner_id']) || null != (DAO_Worker::get($properties['owner_id']))) {
-				$ticket->owner_id = intval($properties['owner_id']);
-				$change_fields[DAO_Ticket::OWNER_ID] = $ticket->owner_id;
-			}
-		}
-		
-		// Post-Reply Change Properties
-
-		if(isset($properties['status_id'])) {
-			$reopen_at = 0;
 			
-			// Handle reopen date
-			if(isset($properties['ticket_reopen']) && !empty($properties['ticket_reopen'])) {
-				if(is_numeric($properties['ticket_reopen']) && false != (@$reopen_at = strtotime('now', $properties['ticket_reopen']))) {
-				} else if(false !== (@$reopen_at = strtotime($properties['ticket_reopen']))) {
-				}
-			}
-			
-			switch($properties['status_id']) {
-				case Model_Ticket::STATUS_OPEN:
-					$change_fields[DAO_Ticket::STATUS_ID] = Model_Ticket::STATUS_OPEN;
-					$change_fields[DAO_Ticket::REOPEN_AT] = 0;
-					break;
-				case Model_Ticket::STATUS_CLOSED:
-					$change_fields[DAO_Ticket::STATUS_ID] = Model_Ticket::STATUS_CLOSED;
-					
-					if(isset($properties['ticket_reopen']))
-						$change_fields[DAO_Ticket::REOPEN_AT] = $reopen_at;
-					break;
-				case Model_Ticket::STATUS_WAITING:
-					$change_fields[DAO_Ticket::STATUS_ID] = Model_Ticket::STATUS_WAITING;
-					
-					if(isset($properties['ticket_reopen']))
-						$change_fields[DAO_Ticket::REOPEN_AT] = $reopen_at;
-					break;
-			}
-		}
-
-		// Move
-		if(isset($properties['group_id']) || isset($properties['bucket_id'])) {
-			@$move_to_group_id = intval($properties['group_id']);
-			@$move_to_bucket_id = intval($properties['bucket_id']);
-			
-			// Move to the new group if it exists
-			if($move_to_group_id && false != ($move_to_group = DAO_Group::get($move_to_group_id)))
-				$change_fields[DAO_Ticket::GROUP_ID] = $move_to_group_id;
-			
-			// Validate the given bucket id
-			if($move_to_bucket_id 
-				&& (false == ($move_to_bucket = DAO_Bucket::get($move_to_bucket_id)) 
-					|| $move_to_bucket->group_id != $move_to_group->id)) {
-					$move_to_bucket_id = 0;
-			}
-			
-			// Move to the new bucket if it is an inbox, or it belongs to the group
-			if(empty($move_to_bucket_id)) {
-				$move_to_bucket = $move_to_group->getDefaultBucket();
-				$move_to_bucket_id = $move_to_bucket->id;
-			}
-			
-			if($move_to_bucket) {
-				$change_fields[DAO_Ticket::BUCKET_ID] = $move_to_bucket->id;
-			}
-		}
-			
-		if(!empty($ticket_id) && !empty($change_fields)) {
-			DAO_Ticket::update($ticket_id, $change_fields);
-		}
-
-		// Custom fields
-		@$custom_fields = isset($properties['custom_fields']) ? $properties['custom_fields'] : [];
-		if(is_array($custom_fields) && !empty($custom_fields)) {
-			DAO_CustomFieldValue::formatAndSetFieldValues(CerberusContexts::CONTEXT_TICKET, $ticket_id, $custom_fields, true, true, false);
+			// Ticket
+			DAO_Ticket::update($ticket->id, $change_fields);
 		}
 		
 		// Events
@@ -1512,7 +1541,7 @@ class CerberusMail {
 			Event_MailReceivedByGroup::trigger($message_id, $group->id);
 
 			// Watchers
-			$context_watchers = CerberusContexts::getWatchers(CerberusContexts::CONTEXT_TICKET, $ticket_id);
+			$context_watchers = CerberusContexts::getWatchers(CerberusContexts::CONTEXT_TICKET, $ticket->id);
 			
 			// Include the owner
 			if(!empty($ticket->owner_id) && !isset($context_watchers[$ticket->owner_id]))
@@ -1537,12 +1566,356 @@ class CerberusMail {
 				'target' => sprintf("ctx://%s:%s", CerberusContexts::CONTEXT_TICKET, $ticket->mask),
 				)
 		);
-		CerberusContexts::logActivity('ticket.message.outbound', CerberusContexts::CONTEXT_TICKET, $ticket_id, $entry);
+		CerberusContexts::logActivity('ticket.message.outbound', CerberusContexts::CONTEXT_TICKET, $ticket->id, $entry);
+		
+		// Remove the draft
+		if($draft_id)
+			DAO_MailQueue::delete($draft_id);
 		
 		if(isset($message_id))
 			return $message_id;
 		
 		return true;
+	}
+	
+	static function parseBroadcastHashCommands(array &$message_properties) {
+		@$worker = DAO_Worker::get($message_properties['worker_id']) ?: new Model_Worker();
+		
+		$lines_in = DevblocksPlatform::parseCrlfString($message_properties['content'], true, false);
+		$lines_out = [];
+		
+		$is_cut = false;
+		
+		foreach($lines_in as $line) {
+			$handled = false;
+			$matches = [];
+			
+			if(preg_match('/^\#([A-Za-z0-9_]+)(.*)$/', $line, $matches)) {
+				@$command = $matches[1];
+				@$args = ltrim($matches[2]);
+				
+				switch($command) {
+					case 'cut':
+						$is_cut = true;
+						$handled = true;
+						break;
+					
+					case 'signature':
+						@$group_id = $message_properties['group_id'] ?: 0;
+						@$content_format = $message_properties['content_format'] ?: '';
+						@$html_template_id = $message_properties['html_template_id'] ?: 0;
+						
+						// [TODO] Error that group is required
+						if(false == ($group = DAO_Group::get($group_id))) {
+							$line = '';
+							break;
+						}
+						
+						$bucket = $group->getDefaultBucket();
+						
+						switch($content_format) {
+							case 'parsedown':
+								// Determine if we have an HTML template
+								
+								if(!$html_template_id || false == ($html_template = DAO_MailHtmlTemplate::get($html_template_id))) {
+									if(false == ($html_template = $group->getReplyHtmlTemplate($bucket->id)))
+										$html_template = null;
+								}
+								
+								// Determine signature
+								
+								if(!$html_template || false == ($signature = $html_template->getSignature($worker))) {
+									$signature = $group->getReplySignature($bucket->id, $worker, true);
+								}
+								
+								// Replace signature
+								
+								$line = $signature;
+								break;
+							
+							default:
+								$line = $group->getReplySignature($bucket->id, $worker, false);
+								break;
+						}
+						break;
+						
+					default:
+						$handled = false;
+						break;
+				}
+			}
+			
+			if(!$handled && !$is_cut) {
+				$lines_out[] = $line;
+			}
+		}
+		
+		$message_properties['content'] = implode("\n", $lines_out);
+	}
+	
+	static function parseComposeHashCommands(Model_Worker $worker, array &$message_properties, array &$commands) {
+		$lines_in = DevblocksPlatform::parseCrlfString($message_properties['content'], true, false);
+		$lines_out = array();
+		
+		$is_cut = false;
+		
+		foreach($lines_in as $line) {
+			$handled = false;
+			$matches = [];
+			
+			if(preg_match('/^\#([A-Za-z0-9_]+)(.*)$/', $line, $matches)) {
+				@$command = $matches[1];
+				@$args = ltrim($matches[2]);
+				
+				switch($command) {
+					case 'attach':
+						@$bundle_tag = $args;
+						$handled = true;
+						
+						if(empty($bundle_tag))
+							break;
+						
+						if(false == ($bundle = DAO_FileBundle::getByTag($bundle_tag)))
+							break;
+						
+						$attachments = $bundle->getAttachments();
+						
+						$message_properties['link_forward_files'] = true;
+						
+						if(!isset($message_properties['forward_files']))
+							$message_properties['forward_files'] = array();
+						
+						$message_properties['forward_files'] = array_merge($message_properties['forward_files'], array_keys($attachments));
+						break;
+					
+					case 'cut':
+						$is_cut = true;
+						$handled = true;
+						break;
+					
+					case 'signature':
+						@$group_id = $message_properties['group_id'];
+						@$bucket_id = $message_properties['bucket_id'];
+						@$content_format = $message_properties['content_format'];
+						@$html_template_id = $message_properties['html_template_id'];
+						
+						$group = DAO_Group::get($group_id);
+						
+						switch($content_format) {
+							case 'parsedown':
+								$html_template = null;
+								
+								// Determine if we have an HTML template
+								
+								if(!$html_template_id || false == ($html_template = DAO_MailHtmlTemplate::get($html_template_id))) {
+									if(false == ($html_template = $group->getReplyHtmlTemplate($bucket_id)))
+										$html_template = null;
+								}
+								
+								// Determine signature
+								
+								if(!$html_template || false == ($signature = $html_template->getSignature($worker))) {
+									$signature = $group->getReplySignature($bucket_id, $worker, true);
+								}
+								
+								// Replace signature
+								
+								$line = $signature;
+								break;
+							
+							default:
+								$line = $group->getReplySignature($bucket_id, $worker, false);
+								break;
+						}
+						break;
+					
+					case 'comment':
+					case 'watch':
+					case 'unwatch':
+						$handled = true;
+						$commands[] = array(
+							'command' => $command,
+							'args' => $args,
+						);
+						break;
+					
+					default:
+						$handled = false;
+						break;
+				}
+			}
+			
+			if(!$handled && !$is_cut) {
+				$lines_out[] = $line;
+			}
+		}
+		
+		$message_properties['content'] = implode("\n", $lines_out);
+	}
+	
+	static function handleComposeHashCommands(array $commands, $ticket_id, Model_Worker $worker) {
+		foreach($commands as $command_data) {
+			switch($command_data['command']) {
+				case 'comment':
+					@$comment = $command_data['args'];
+					
+					if(!empty($comment)) {
+						$also_notify_worker_ids = array_keys(CerberusApplication::getWorkersByAtMentionsText($comment));
+						
+						$fields = array(
+							DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_TICKET,
+							DAO_Comment::CONTEXT_ID => $ticket_id,
+							DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_WORKER,
+							DAO_Comment::OWNER_CONTEXT_ID => $worker->id,
+							DAO_Comment::CREATED => time()+2,
+							DAO_Comment::COMMENT => $comment,
+						);
+						DAO_Comment::create($fields, $also_notify_worker_ids);
+					}
+					break;
+				
+				case 'watch':
+					CerberusContexts::addWatchers(CerberusContexts::CONTEXT_TICKET, $ticket_id, array($worker->id));
+					break;
+				
+				case 'unwatch':
+					CerberusContexts::removeWatchers(CerberusContexts::CONTEXT_TICKET, $ticket_id, array($worker->id));
+					break;
+			}
+		}
+	}
+	
+	static function parseReplyHashCommands(Model_worker $worker, array &$message_properties, array &$commands) {
+		$lines_in = DevblocksPlatform::parseCrlfString($message_properties['content'], true, false);
+		$lines_out = [];
+		
+		$is_cut = false;
+		
+		foreach($lines_in as $line) {
+			$handled = false;
+			$matches = [];
+			
+			if(preg_match('/^\#([A-Za-z0-9_]+)(.*)$/', $line, $matches)) {
+				@$command = $matches[1];
+				@$args = ltrim($matches[2]);
+				
+				switch($command) {
+					case 'attach':
+						@$bundle_tag = $args;
+						$handled = true;
+						
+						if(empty($bundle_tag))
+							break;
+						
+						if(false == ($bundle = DAO_FileBundle::getByTag($bundle_tag)))
+							break;
+						
+						$attachments = $bundle->getAttachments();
+						
+						$message_properties['link_forward_files'] = true;
+						
+						if(!isset($message_properties['forward_files']))
+							$message_properties['forward_files'] = [];
+						
+						$message_properties['forward_files'] = array_merge($message_properties['forward_files'], array_keys($attachments));
+						break;
+					
+					case 'cut':
+						$is_cut = true;
+						$handled = true;
+						break;
+					
+					case 'signature':
+						@$group_id = $message_properties['group_id'];
+						@$bucket_id = $message_properties['bucket_id'];
+						@$content_format = $message_properties['content_format'];
+						
+						$signature = null;
+						
+						$group = DAO_Group::get($group_id);
+						
+						switch($content_format) {
+							case 'parsedown':
+								// Determine if we have an HTML template
+								
+								if(!$group || false == ($html_template = $group->getReplyHtmlTemplate($bucket_id)))
+									$html_template = null;
+								
+								// Determine signature
+								
+								if(!$html_template || false == ($signature = $html_template->getSignature($worker))) {
+									if($group instanceof Model_Group)
+										$signature = $group->getReplySignature($bucket_id, $worker, true);
+								}
+								
+								// Replace signature
+								
+								$line = $signature;
+								break;
+							
+							default:
+								if($group instanceof Model_Group)
+									$line = $group->getReplySignature($bucket_id, $worker, false);
+								else
+									$line = '';
+								break;
+						}
+						break;
+					
+					case 'comment':
+					case 'watch':
+					case 'unwatch':
+						$handled = true;
+						$commands[] = array(
+							'command' => $command,
+							'args' => $args,
+						);
+						break;
+					
+					default:
+						$handled = false;
+						break;
+				}
+			}
+			
+			if(!$handled && !$is_cut) {
+				$lines_out[] = $line;
+			}
+		}
+		
+		$message_properties['content'] = implode("\n", $lines_out);
+	}
+	
+	static function handleReplyHashCommands(array $commands, Model_Ticket $ticket, Model_Worker $worker) {
+		foreach($commands as $command_data) {
+			switch($command_data['command']) {
+				case 'comment':
+					@$comment = $command_data['args'];
+					
+					if(!empty($comment)) {
+						$also_notify_worker_ids = array_keys(CerberusApplication::getWorkersByAtMentionsText($comment));
+						
+						$fields = array(
+							DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_TICKET,
+							DAO_Comment::CONTEXT_ID => $ticket->id,
+							DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_WORKER,
+							DAO_Comment::OWNER_CONTEXT_ID => $worker->id,
+							DAO_Comment::CREATED => time()+2,
+							DAO_Comment::COMMENT => $comment,
+						);
+						DAO_Comment::create($fields, $also_notify_worker_ids);
+					}
+					break;
+				
+				case 'watch':
+					CerberusContexts::addWatchers(CerberusContexts::CONTEXT_TICKET, $ticket->id, array($worker->id));
+					break;
+				
+				case 'unwatch':
+					CerberusContexts::removeWatchers(CerberusContexts::CONTEXT_TICKET, $ticket->id, array($worker->id));
+					break;
+			}
+		}
 	}
 	
 	static function relay($message_id, $emails, $include_attachments = false, $content = null, $actor_context = null, $actor_context_id = null) {

@@ -75,6 +75,16 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 				$is_writeable = Context_Message::isWriteableByActor($message, $active_worker);
 				$tpl->assign('is_writeable', $is_writeable);
 				
+				$sender = $message->getSender();
+				
+				$tpl->assign('message_senders', [
+					$message->address_id => $sender,
+				]);
+				
+				$tpl->assign('message_senders_orgs', [
+					0 => $sender->getOrg(),
+				]);
+				
 				$tpl->display('devblocks:cerberusweb.core::tickets/peek_preview.tpl');
 				break;
 				
@@ -85,7 +95,72 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 				$tpl->assign('comment', $comment);
 				$tpl->display('devblocks:cerberusweb.core::tickets/peek_preview.tpl');
 				break;
+				
+			case CerberusContexts::CONTEXT_DRAFT:
+				if(false == ($draft = DAO_MailQueue::get($context_id)))
+					return;
+					
+				$tpl->assign('draft', $draft);
+				$tpl->display('devblocks:cerberusweb.core::tickets/peek_preview.tpl');
+				break;
 		}
+	}
+	
+	function previewReplyMessageAction() {
+		$tpl = DevblocksPlatform::services()->template();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		@$group_id = DevblocksPlatform::importGPC($_REQUEST['group_id'],'integer',0);
+		@$bucket_id = DevblocksPlatform::importGPC($_REQUEST['bucket_id'],'integer',0);
+		@$content = DevblocksPlatform::importGPC($_REQUEST['content'],'string','');
+		@$format = DevblocksPlatform::importGPC($_REQUEST['format'],'string','');
+		
+		if(false == ($group = DAO_Group::get($group_id)))
+			return;
+		
+		$html_template = $group->getReplyHtmlTemplate($bucket_id);
+		
+		// Parse #commands
+		
+		$message_properties = array(
+			'group_id' => $group_id,
+			'bucket_id' => $bucket_id,
+			'content' => $content,
+			'content_format' => $format,
+			'html_template_id' => 0, // [TODO] From group/bucket?
+		);
+		
+		$hash_commands = [];
+		
+		CerberusMail::parseReplyHashCommands($active_worker, $message_properties, $hash_commands);
+		
+		$output = $message_properties['content'];
+		
+		// Markdown
+		
+		if('parsedown' == $format) {
+			$output = DevblocksPlatform::parseMarkdown($output);
+			
+			// Wrap the reply in a template if we have one
+			
+			if($html_template) {
+				$dict = DevblocksDictionaryDelegate::instance([
+					'message_body' => $output,
+				]);
+				
+				$output = $tpl_builder->build($html_template->content, $dict);
+			}
+			
+			$output = DevblocksPlatform::purifyHTML($output, true, true);
+			
+		} else {
+			$output = nl2br(DevblocksPlatform::strEscapeHtml($output));
+		}
+		
+		$tpl->assign('content', $output);
+		
+		$tpl->display('devblocks:cerberusweb.core::internal/editors/preview_popup.tpl');
 	}
 	
 	function showMessageFullHeadersPopupAction() {
@@ -184,12 +259,18 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		$token_labels = $token_values = [];
 		
 		// Broadcast
-		CerberusContexts::getContext(CerberusContexts::CONTEXT_TICKET, null, $token_labels, $token_values);
+		if(false == ($context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_TICKET)))
+			return [];
 		
-		// Signature
-		$translate = DevblocksPlatform::getTranslationService();
-		$token_labels['signature'] = mb_convert_case($translate->_('common.signature'), MB_CASE_TITLE);
-		asort($token_labels);
+		/* @var $context_ext IDevblocksContextBroadcast */
+		
+		// Recipient fields
+		$recipient_fields = $context_ext->broadcastRecipientFieldsGet();
+		$tpl->assign('broadcast_recipient_fields', $recipient_fields);
+		
+		// Placeholders
+		$token_values = $context_ext->broadcastPlaceholdersGet();
+		@$token_labels = $token_values['_labels'] ?: [];
 		
 		$placeholders = Extension_DevblocksContext::getPlaceholderTree($token_labels);
 		$tpl->assign('placeholders', $placeholders);
@@ -258,6 +339,7 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		if($active_worker->hasPriv('core.ticket.view.actions.broadcast_reply')) {
 			@$do_broadcast = DevblocksPlatform::importGPC($_REQUEST['do_broadcast'],'string',null);
 			@$broadcast_message = DevblocksPlatform::importGPC($_REQUEST['broadcast_message'],'string',null);
+			@$broadcast_group_id = DevblocksPlatform::importGPC($_REQUEST['broadcast_group_id'],'integer',0);
 			@$broadcast_format = DevblocksPlatform::importGPC($_REQUEST['broadcast_format'],'string',null);
 			@$broadcast_html_template_id = DevblocksPlatform::importGPC($_REQUEST['broadcast_html_template_id'],'integer',0);
 			@$broadcast_file_ids = DevblocksPlatform::sanitizeArray(DevblocksPlatform::importGPC($_REQUEST['broadcast_file_ids'],'array',array()), 'integer', array('nonzero','unique'));
@@ -265,6 +347,7 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 			
 			if(0 != strlen($do_broadcast) && !empty($broadcast_message)) {
 				$do['broadcast'] = array(
+					'group_id' => $broadcast_group_id,
 					'message' => $broadcast_message,
 					'format' => $broadcast_format,
 					'html_template_id' => $broadcast_html_template_id,

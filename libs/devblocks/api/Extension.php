@@ -239,99 +239,116 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	 * @return Extension_DevblocksContext[]
 	 */
 	public static function getAll($as_instances=false, $with_options=null) {
-		$contexts = DevblocksPlatform::getExtensions('devblocks.context', $as_instances, false);
+		$cache = DevblocksPlatform::services()->cache();
+		$cache_key = $as_instances ? DevblocksPlatform::CACHE_CONTEXTS_INSTANCES : DevblocksPlatform::CACHE_CONTEXTS;
 		
-		if(
-			class_exists('DAO_CustomRecord', true)
-			&& false != ($custom_records = DAO_CustomRecord::getAll()) 
-			&& is_array($custom_records)
+		if(null === ($contexts = $cache->load($cache_key))) {
+			$contexts = DevblocksPlatform::getExtensions('devblocks.context', $as_instances, false);
+			
+			if (
+				class_exists('DAO_CustomRecord', true)
+				&& false != ($custom_records = DAO_CustomRecord::getAll())
+				&& is_array($custom_records)
 			) {
-			foreach($custom_records as $custom_record) {
-				$options = [
-					'autocomplete' => '',
-					'cards' => '',
-					'custom_fields' => '',
-					'links' => '',
-					'records' => '',
-					'search' => '',
-					'snippets' => '',
-					'va_variable' => '',
-					'watchers' => '',
-					'workspace' => '',
-				];
-				
-				if(is_array(@$custom_record->params['options']) && in_array('hide_search', $custom_record->params['options']))
-					unset($options['search']);
-				
-				if(is_array(@$custom_record->params['options']) && in_array('avatars', $custom_record->params['options']))
-					$options['avatars'] = '';
-				
-				$context_id = sprintf('contexts.custom_record.%d', $custom_record->id);
-				$manifest = new DevblocksExtensionManifest();
-				$manifest->id = $context_id;
-				$manifest->plugin_id = 'cerberusweb.core';
-				$manifest->point = Extension_DevblocksContext::ID;
-				$manifest->name = $custom_record->name;
-				$manifest->file = 'api/dao/abstract_custom_record.php';
-				$manifest->class = 'Context_AbstractCustomRecord_' . $custom_record->id;
-				$manifest->params = [
-					//'alias' => 'custom_record_' . $custom_record->id,
-					'alias' => $custom_record->uri,
-					'dao_class' => 'DAO_AbstractCustomRecord_' . $custom_record->id,
-					'view_class' => 'View_AbstractCustomRecord_' . $custom_record->id,
-					'acl' => [
-						0 => [
-							'broadcast' => '',
-							'comment' => '',
-							'create' => '',
-							'delete' => '',
-							'export' => '',
-							'import' => '',
-							'merge' => '',
-							'update' => '',
-							'update.bulk' => '',
+				foreach ($custom_records as $custom_record) {
+					$options = [
+						'autocomplete' => '',
+						'cards' => '',
+						'custom_fields' => '',
+						'links' => '',
+						'records' => '',
+						'search' => '',
+						'snippets' => '',
+						'va_variable' => '',
+						'watchers' => '',
+						'workspace' => '',
+					];
+					
+					if (is_array(@$custom_record->params['options'])) {
+						if (in_array('hide_search', $custom_record->params['options']))
+							unset($options['search']);
+						
+						if (in_array('attachments', $custom_record->params['options']))
+							$options['attachments'] = '';
+						
+						if (in_array('avatars', $custom_record->params['options']))
+							$options['avatars'] = '';
+						
+						if (in_array('comments', $custom_record->params['options']))
+							$options['comments'] = '';
+					}
+					
+					$context_id = sprintf('contexts.custom_record.%d', $custom_record->id);
+					$manifest = new DevblocksExtensionManifest();
+					$manifest->id = $context_id;
+					$manifest->plugin_id = 'cerberusweb.core';
+					$manifest->point = Extension_DevblocksContext::ID;
+					$manifest->name = $custom_record->name;
+					$manifest->file = 'api/dao/abstract_custom_record.php';
+					$manifest->class = 'Context_AbstractCustomRecord_' . $custom_record->id;
+					$manifest->params = [
+						'alias' => $custom_record->uri,
+						'dao_class' => 'DAO_AbstractCustomRecord_' . $custom_record->id,
+						'view_class' => 'View_AbstractCustomRecord_' . $custom_record->id,
+						'acl' => [
+							0 => [
+								'broadcast' => '',
+								'comment' => '',
+								'create' => '',
+								'delete' => '',
+								'export' => '',
+								'import' => '',
+								'merge' => '',
+								'update' => '',
+								'update.bulk' => '',
+							],
 						],
-					],
-					'options' => [
-						0 => $options,
-					],
-					'names' => [
-						0 => [
-							DevblocksPlatform::strLower($custom_record->name) => 'singular',
-							DevblocksPlatform::strLower($custom_record->name_plural) => 'plural',
-						]
-					],
-				];
-				
-				if($as_instances) {
-					$contexts[$context_id] = $manifest->createInstance();
-				} else {
-					$contexts[$context_id] = $manifest;
+						'options' => [
+							0 => $options,
+						],
+						'names' => [
+							0 => [
+								DevblocksPlatform::strLower($custom_record->name) => 'singular',
+								DevblocksPlatform::strLower($custom_record->name_plural) => 'plural',
+							]
+						],
+					];
+					
+					if ($as_instances) {
+						$contexts[$context_id] = $manifest->createInstance();
+					} else {
+						$contexts[$context_id] = $manifest;
+					}
 				}
 			}
 			
-			if(!empty($with_options)) {
-				if(!is_array($with_options))
-					$with_options = array($with_options);
-	
-				foreach($contexts as $k => $context) {
-					@$options = $context->params['options'][0];
-	
-					if(!is_array($options) || empty($options)) {
-						unset($contexts[$k]);
-						continue;
-					}
-	
-					if(count(array_intersect(array_keys($options), $with_options)) != count($with_options))
-						unset($contexts[$k]);
-				}
-			}
+			if($as_instances)
+				DevblocksPlatform::sortObjects($contexts, 'manifest->name');
+			else
+				DevblocksPlatform::sortObjects($contexts, 'name');
+			
+			$cache->save($contexts, $cache_key);
 		}
 		
-		if($as_instances)
-			DevblocksPlatform::sortObjects($contexts, 'manifest->name');
-		else
-			DevblocksPlatform::sortObjects($contexts, 'name');
+		if ($with_options) {
+			if (!is_array($with_options))
+				$with_options = [$with_options];
+			
+			foreach ($contexts as $k => $context) {
+				@$options = $as_instances
+					? $context->manifest->params['options'][0]
+					: $context->params['options'][0]
+				;
+				
+				if (!is_array($options) || empty($options)) {
+					unset($contexts[$k]);
+					continue;
+				}
+				
+				if (count(array_intersect(array_keys($options), $with_options)) != count($with_options))
+					unset($contexts[$k]);
+			}
+		}
 		
 		return $contexts;
 	}
@@ -448,6 +465,18 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		}
 		
 		return null;
+	}
+	
+	public static function getByAliases(array $aliases, $as_instances=false) {
+		$results = [];
+		
+		foreach($aliases as $alias) {
+			if(false != ($context_ext = self::getByAlias($alias, $as_instances)))
+				if(!array_key_exists($context_ext->id, $results))
+					$results[$context_ext->id] = $context_ext;
+		}
+		
+		return $results;
 	}
 	
 	/**
@@ -865,6 +894,8 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		$map = $this->getKeyToDaoFieldMap();
 		
+		// Custom fields
+		
 		if(!$this->_getDaoCustomFieldsFromKeysAndValues($context, $data, $out_custom_fields, $error))
 			return false;
 		
@@ -925,47 +956,6 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		return $properties;
 	}
 
-	/**
-	 * @internal
-	 */
-	function getCardSearchButtons(DevblocksDictionaryDelegate $dict, array $search_buttons=[]) {
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-		
-		$search_buttons = array_merge(
-			$search_buttons,
-			DevblocksPlatform::getPluginSetting('cerberusweb.core', 'card:search:' . $this->id, [], true)
-		);
-		
-		$results = [];
-		
-		if(is_array($search_buttons))
-		foreach($search_buttons as $search_button) {
-			if(false == ($search_button_context = Extension_DevblocksContext::get($search_button['context'], true)))
-				continue;
-			
-			if(false == ($view = $search_button_context->getTempView()))
-				continue;
-			
-			$label_aliases = Extension_DevblocksContext::getAliasesForContext($search_button_context->manifest);
-			$label_singular = @$search_button['label_singular'] ?: $label_aliases['singular'];
-			$label_plural = @$search_button['label_plural'] ?: $label_aliases['plural'];
-			
-			$search_button_query = $tpl_builder->build($search_button['query'], $dict);
-			$view->addParamsWithQuickSearch($search_button_query);
-			
-			$total = $view->getData()[1];
-			
-			$results[] = [
-				'label' => ($total == 1 ? $label_singular : $label_plural),
-				'context' => $search_button_context->id,
-				'count' => $total,
-				'query' => $search_button_query,
-			];
-		}
-		
-		return $results;
-	}
-	
 	/*
 	 * @return Cerb_ORMHelper
 	 */
@@ -1159,27 +1149,41 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	abstract function getView($context=null, $context_id=null, $options=[], $view_id=null);
 
 	function lazyLoadGetKeys() {
-		$context_mft = Extension_DevblocksContext::get(static::ID, false);
+		$context_ext = Extension_DevblocksContext::get(static::ID, true);
 		
 		$lazy_keys = [];
 		
-		if($context_mft->hasOption('custom_fields')) {
+		if($context_ext->hasOption('attachments')) {
+			$lazy_keys['attachments'] = [
+				'label' => '[Attachments](/docs/bots/behaviors/dictionaries/key-expansion/#attachments)',
+				'type' => 'Attachments',
+			];
+		}
+		
+		if($context_ext->hasOption('comments')) {
+			$lazy_keys['comments'] = [
+				'label' => '[Comments](/docs/bots/behaviors/dictionaries/key-expansion/#comments)',
+				'type' => 'Comments',
+			];
+		}
+		
+		if($context_ext->hasOption('custom_fields')) {
 			$lazy_keys['custom_<id>'] = [
-				'label' => 'Custom Fields',
+				'label' => '[Custom Fields](/docs/bots/behaviors/dictionaries/key-expansion/#custom-fields)',
 				'type' => 'Mixed',
 			];
 		}
 		
-		if($context_mft->hasOption('links')) {
+		if($context_ext->hasOption('links')) {
 			$lazy_keys['links'] = [
-				'label' => 'Links',
+				'label' => '[Links](/docs/bots/behaviors/dictionaries/key-expansion/#links)',
 				'type' => 'Links',
 			];
 		}
 		
-		if($context_mft->hasOption('watchers')) {
+		if($context_ext->hasOption('watchers')) {
 			$lazy_keys['watchers'] = [
-				'label' => 'Watchers',
+				'label' => '[Watchers](/docs/bots/behaviors/dictionaries/key-expansion/#watchers)',
 				'type' => 'Watchers',
 			];
 		}
@@ -1246,21 +1250,23 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	/**
 	 * @internal
 	 */
-	protected function _broadcastPlaceholdersGet($context) {
+	protected function _broadcastPlaceholdersGet($context, $with_broadcast_email=true) {
 		$token_labels = $token_values = [];
 		CerberusContexts::getContext($context, null, $token_labels, $token_values, null, true);
 		
-		$merge_token_labels = $merge_token_values = [];
-		CerberusContexts::getContext(CerberusContexts::CONTEXT_ADDRESS, null, $merge_token_labels, $merge_token_values, null, true);
-
-		CerberusContexts::merge(
-			'broadcast_email_',
-			'Broadcast ',
-			$merge_token_labels,
-			$merge_token_values,
-			$token_labels,
-			$token_values
-		);
+		if($with_broadcast_email) {
+			$merge_token_labels = $merge_token_values = [];
+			CerberusContexts::getContext(CerberusContexts::CONTEXT_ADDRESS, null, $merge_token_labels, $merge_token_values, null, true);
+			
+			CerberusContexts::merge(
+				'broadcast_email_',
+				'Broadcast ',
+				$merge_token_labels,
+				$merge_token_values,
+				$token_labels,
+				$token_values
+			);
+		}
 		
 		return $token_values;
 	}
@@ -1549,20 +1555,185 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		return $token_values;
 	}
 	
+	protected function _lazyLoadDefaults($token, $context, $context_id) {
+		$context_ext = Extension_DevblocksContext::get($context, true);
+		
+		if(('custom' == $token || DevblocksPlatform::strStartsWith($token, 'custom_')) && $context_ext->hasOption('custom_fields')) {
+			return $this->_lazyLoadCustomFields($token, $context, $context_id);
+			
+		} else if(($token === 'links' || DevblocksPlatform::strStartsWith($token, ['links.','links:','links~'])) && $context_ext->hasOption('links')) {
+			return $this->_lazyLoadLinks($token, $context, $context_id);
+			
+		} else if($token === 'watchers' && $context_ext->hasOption('watchers')) {
+			return [
+				$token => CerberusContexts::getWatchers($context, $context_id, true),
+			];
+			
+		} else if(($token === 'comments' || DevblocksPlatform::strStartsWith($token, ['comments:','comments~'])) && $context_ext->hasOption('comments')) {
+			return $this->_lazyLoadComments($token, $context, $context_id);
+			
+		} else if(($token === 'attachments' || DevblocksPlatform::strStartsWith($token, ['attachments:','attachments~'])) && $context_ext->hasOption('attachments')) {
+			return $this->_lazyLoadAttachments($token, $context, $context_id);
+		}
+		
+		return [];
+	}
+	
 	/**
+	 * @param string $token
+	 * @param string $context
+	 * @param integer $context_id
+	 * @return array
 	 * @internal
 	 */
-	protected function _lazyLoadLinks($context, $context_id) {
-		$results = DAO_ContextLink::getAllContextLinks($context, $context_id);
-		$token_values = [];
-		$token_values['links'] = [];
+	protected function _lazyLoadAttachments($token, $context, $context_id) {
+		$token_values = [
+			'attachments' => [],
+		];
 		
-		foreach($results as $result) {
-			if(!isset($token_values['links'][$result->context]))
-				$token_values['links'][$result->context] = [];
-			
-			$token_values['links'][$result->context][] = intval($result->context_id);
+		@$original_token = $token;
+		@list($token, $record_expands) = explode(':', $token);
+		@list(, $limit) = explode('~', $token);
+		
+		$limit = DevblocksPlatform::intClamp($limit ?: 10, 1, 25);
+		
+		if($record_expands) {
+			$record_expands = explode(',', $record_expands);
+		} else {
+			$record_expands = [];
 		}
+		
+		if(false == ($models = DAO_Attachment::getByContextIds($context, [$context_id], true, $limit)))
+			return $token_values;
+		
+		// Backwards compatibility
+		// @deprecated
+		if($original_token == 'attachments' && !$record_expands && in_array($context, [CerberusContexts::CONTEXT_COMMENT, CerberusContexts::CONTEXT_MESSAGE])) {
+			foreach($models as $attachment_id => $attachment) {
+				$object = [
+					'id' => $attachment_id,
+					'file_name' => $attachment->name,
+					'file_size' => $attachment->storage_size,
+					'file_type' => $attachment->mime_type,
+				];
+				$token_values['attachments'][$attachment_id] = $object;
+			}
+			
+			return $token_values;
+		}
+		
+		if(false == ($dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_ATTACHMENT, $record_expands)))
+			return $token_values;
+		
+		$token_values['attachments'] = array_values($dicts);
+		
+		return $token_values;
+	}
+	
+	/**
+	 * @param string $token
+	 * @param string $context
+	 * @param integer $context_id
+	 * @return array
+	 * @internal
+	 */
+	protected function _lazyLoadComments($token, $context, $context_id) {
+		$token_values = [
+			'comments' => [],
+		];
+		
+		@list($token, $record_expands) = explode(':', $token);
+		@list($token, $limit) = explode('~', $token);
+		
+		$limit = DevblocksPlatform::intClamp($limit ?: 10, 1, 25);
+		
+		if($record_expands) {
+			$record_expands = explode(',', $record_expands);
+		} else {
+			$record_expands = [];
+		}
+		
+		if(false == ($models = DAO_Comment::getByContext($context, $context_id, $limit)))
+			return $token_values;
+		
+		if(false == ($dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_COMMENT, $record_expands)))
+			return $token_values;
+		
+		$token_values['comments'] = $dicts;
+		
+		return $token_values;
+	}
+	
+	/**
+	 * @param string $token
+	 * @param string $context
+	 * @param int $context_id
+	 * @return array
+	 * @internal
+	 */
+	protected function _lazyLoadLinks($token, $context, $context_id) {
+		$token_values = [
+			'links' => [],
+		];
+		
+		$original_token = $token;
+		@list($token, $record_expands) = explode(':', $token);
+		@list($token, $limit) = explode('~', $token);
+		
+		$limit = DevblocksPlatform::intClamp($limit ?: 10, 1, 25);
+		
+		if($record_expands) {
+			$record_expands = explode(',', $record_expands);
+		} else {
+			$record_expands = [];
+		}
+		
+		$dicts = [];
+		
+		// All links
+		if(false == ($record_alias = DevblocksPlatform::services()->string()->strAfter($token, '.'))) {
+			if(false == ($results = DAO_ContextLink::getAllContextLinks($context, $context_id, $limit)))
+				return $token_values;
+			
+			// Backwards compatibility
+			// @deprecated
+			if($original_token == 'links' && !$record_expands) {
+				foreach($results as $result) {
+					if(!isset($token_values['links'][$result->context]))
+						$token_values['links'][$result->context] = [];
+					
+					$token_values['links'][$result->context][] = intval($result->context_id);
+				}
+				return $token_values;
+			}
+			
+			foreach($results as $result) {
+				$dicts[] = DevblocksDictionaryDelegate::instance([
+					'_context' => $result->context,
+					'id' => $result->context_id,
+				]);
+			}
+			
+		} else { // Links of a specific type
+			if(false == ($results = DAO_ContextLink::getContextLinks($context, $context_id, $record_alias, $limit)))
+				return $token_values;
+			
+			if(array_key_exists($context_id, $results)) {
+				foreach($results[$context_id] as $to_link) {
+					$dicts[] = DevblocksDictionaryDelegate::instance([
+						'_context' => $to_link->context,
+						'id' => $to_link->context_id,
+					]);
+				}
+			}
+		}
+		
+		if($record_expands) {
+			foreach ($record_expands as $record_expand)
+				DevblocksDictionaryDelegate::bulkLazyLoad($dicts, $record_expand, true);
+		}
+		
+		$token_values['links'] = $dicts;
 		
 		return $token_values;
 	}

@@ -635,7 +635,7 @@ class Model_Calendar {
 	public $params;
 	public $updated_at;
 	
-	function getEvents($date_from, $date_to) {
+	function getEvents($date_from, $date_to, $sorted=true) {
 		if(isset($this->params['manual_disabled']) && !empty($this->params['manual_disabled'])) {
 			$calendar_events = array();
 		} else {
@@ -671,6 +671,7 @@ class Model_Calendar {
 		ksort($calendar_events);
 		
 		// Sort daily events by start time
+		if($sorted)
 		foreach($calendar_events as $ts => $events) {
 			DevblocksPlatform::sortObjects($calendar_events[$ts], '[ts]');
 		}
@@ -1586,18 +1587,6 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 		}
 		
 		switch($token) {
-			case 'links':
-				$links = $this->_lazyLoadLinks($context, $context_id);
-				$values = array_merge($values, $links);
-				break;
-			
-			case 'watchers':
-				$watchers = [
-					$token => CerberusContexts::getWatchers($context, $context_id, true),
-				];
-				$values = array_merge($values, $watchers);
-				break;
-			
 			case 'scope':
 				// [TODO] Handle 'Start on Monday'
 				$month = null;
@@ -1722,10 +1711,8 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 				break;
 				
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -1779,7 +1766,7 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_CALENDAR;
-		$active_worker = CerberusApplication::getActiveWorker();
+		$calendar = null;
 		
 		if(!empty($context_id)) {
 			$calendar = DAO_Calendar::get($context_id);
@@ -1820,48 +1807,7 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 			$tpl->display('devblocks:cerberusweb.core::internal/calendar/peek_edit.tpl');
 			
 		} else {
-			// Dictionary
-			$labels = $values = [];
-			CerberusContexts::getContext($context, $calendar, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			// Links
-			$links = array(
-				$context => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							$context,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-			
-			// Timeline
-			if($context_id) {
-				$timeline_json = Page_Profiles::getTimelineJson(Extension_DevblocksContext::getTimelineComments($context, $context_id));
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Interactions
-			$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('record:' . $context, $dict, $active_worker);
-			$interactions_menu = Event_GetInteractionsForWorker::getInteractionMenu($interactions);
-			$tpl->assign('interactions_menu', $interactions_menu);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$tpl->display('devblocks:cerberusweb.core::internal/calendar/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $calendar);
 		}
 	}
 };

@@ -104,28 +104,7 @@ class ChDisplayPage extends CerberusPageExtension {
 		$tpl->display('devblocks:cerberusweb.core::display/modules/conversation/message.tpl');
 	}
 
-	function showMessagePeekPopupAction() {
-		@$context_id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer',0);
-		
-		$tpl = DevblocksPlatform::services()->template();
-		
-		if(false == ($message = DAO_Message::get($context_id)))
-			return;
-		
-		$tpl->assign('model', $message);
-		
-		$custom_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_MESSAGE, false);
-		$tpl->assign('custom_fields', $custom_fields);
-		
-		if(!empty($context_id)) {
-			$custom_field_values = DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_MESSAGE, $context_id);
-			if(isset($custom_field_values[$context_id]))
-				$tpl->assign('custom_field_values', $custom_field_values[$context_id]);
-		}
-		
-		$tpl->display('devblocks:cerberusweb.core::internal/messages/peek.tpl');
-	}
-	
+	// [TODO] Move to profiles
 	function saveMessagePeekJsonAction() {
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'], 'string', '');
 		
@@ -187,6 +166,22 @@ class ChDisplayPage extends CerberusPageExtension {
 			return;
 			
 		}
+	}
+	
+	function getDraftAction() {
+		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
+		
+		$tpl = DevblocksPlatform::services()->template();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(false == ($draft = DAO_MailQueue::get($id)))
+			return;
+		
+		if(!Context_Draft::isReadableByActor($draft, $active_worker))
+			return;
+		
+		$tpl->assign('draft', $draft);
+		$tpl->display('devblocks:cerberusweb.core::display/modules/conversation/draft.tpl');
 	}
 
 	private function _checkRecentTicketActivity($ticket_id, $since_timestamp) {
@@ -271,93 +266,7 @@ class ChDisplayPage extends CerberusPageExtension {
 		
 		return $activities;
 	}
-	
-	function getReplyMarkdownPreviewAction() {
-		@$group_id = DevblocksPlatform::importGPC($_REQUEST['group_id'],'integer',0);
-		@$bucket_id = DevblocksPlatform::importGPC($_REQUEST['bucket_id'],'integer',0);
-		@$content = DevblocksPlatform::importGPC($_REQUEST['content'],'string','');
-		@$format = DevblocksPlatform::importGPC($_REQUEST['format'],'string','');
-		@$html_template_id = DevblocksPlatform::importGPC($_REQUEST['html_template_id'],'integer',0);
 
-		if(false == ($group = DAO_Group::get($group_id)))
-			return;
-		
-		header("Content-Type: text/html; charset=" . LANG_CHARSET_CODE);
-
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-		$active_worker = CerberusApplication::getActiveWorker();
-		
-		// Determine if we have an HTML template
-		
-		if(!$html_template_id || false == ($html_template = DAO_MailHtmlTemplate::get($html_template_id))) {
-			if(false == ($html_template = $group->getReplyHtmlTemplate($bucket_id)))
-				$html_template = null;
-		}
-		
-		// Parse #commands
-		
-		$message_properties = array(
-			'group_id' => $group_id,
-			'bucket_id' => $bucket_id,
-			'content' => $content,
-			'content_format' => $format,
-			'html_template_id' => ($html_template) ? $html_template->id : 0,
-		);
-		
-		$hash_commands = [];
-		
-		$this->_parseReplyHashCommands($active_worker, $message_properties, $hash_commands);
-		
-		// Markdown
-		
-		$output = DevblocksPlatform::parseMarkdown($message_properties['content']);
-		
-		// Wrap the reply in a template if we have one
-		
-		if($html_template) {
-			$output = $tpl_builder->build(
-				$html_template->content,
-				array(
-					'message_body' => $output,
-				)
-			);
-		}
-			
-		echo sprintf('<html><head><meta http-equiv="content-type" content="text/html; charset=%s"></head><body>',
-			LANG_CHARSET_CODE
-		);
-		echo DevblocksPlatform::purifyHTML($output, true, true);
-		echo '</body></html>';
-	}
-	
-	function getReplyPreviewAction() {
-		@$group_id = DevblocksPlatform::importGPC($_REQUEST['group_id'],'integer',0);
-		@$bucket_id = DevblocksPlatform::importGPC($_REQUEST['bucket_id'],'integer',0);
-		@$content = DevblocksPlatform::importGPC($_REQUEST['content'],'string','');
-
-		header("Content-Type: text/html; charset=" . LANG_CHARSET_CODE);
-
-		// Parse #commands
-		
-		$active_worker = CerberusApplication::getActiveWorker();
-		
-		$message_properties = array(
-			'group_id' => $group_id,
-			'bucket_id' => $bucket_id,
-			'content' => $content,
-		);
-		
-		$hash_commands = [];
-		
-		$this->_parseReplyHashCommands($active_worker, $message_properties, $hash_commands);
-		
-		echo sprintf('<html><head><meta http-equiv="content-type" content="text/html; charset=%s"></head><body>',
-			LANG_CHARSET_CODE
-		);
-		echo DevblocksPlatform::purifyHTML(nl2br($message_properties['content']), true, true);
-		echo '</body></html>';
-	}
-	
 	function replyAction() {
 		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer',0);
 		@$is_forward = DevblocksPlatform::importGPC($_REQUEST['forward'],'integer',0);
@@ -374,9 +283,19 @@ class ChDisplayPage extends CerberusPageExtension {
 		$tpl->assign('reply_mode', $reply_mode);
 		$tpl->assign('reply_format', $reply_format);
 		
-		$message = DAO_Message::get($id);
-		$tpl->assign('message',$message);
-
+		if(false == ($message = DAO_Message::get($id))) {
+			if(!$draft_id || false == ($draft = DAO_MailQueue::get($draft_id)))
+				return false;
+			
+			if(false == ($ticket = $draft->getTicket()))
+				return false;
+			
+			if(false == ($message = $ticket->getLastMessage()))
+				return false;
+		}
+		
+		$tpl->assign('message', $message);
+		
 		$message_headers = $message->getHeaders();
 		$tpl->assign('message_headers', $message_headers);
 		
@@ -390,10 +309,120 @@ class ChDisplayPage extends CerberusPageExtension {
 				$tpl->assign('recent_activity', $recent_activity);
 		}
 		
-		// Continue
+		// Requesters
 		
-		$ticket = DAO_Ticket::get($message->ticket_id);
-		$tpl->assign('ticket',$ticket);
+		$ticket = $message->getTicket();
+		$requesters = $ticket->getRequesters();
+		
+		// Custom fields
+		
+		$custom_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_TICKET, false);
+		$tpl->assign('custom_fields', $custom_fields);
+		
+		$custom_field_values = DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_TICKET, $ticket->id);
+		$custom_field_values = @$custom_field_values[$ticket->id] ?: [];
+		
+		// Are we continuing a draft?
+		if($draft_id) {
+			if(false == ($draft = DAO_MailQueue::get($draft_id)))
+				return;
+			
+			if(!Context_Draft::isWriteableByActor($draft, $active_worker))
+				return;
+			
+			if($draft->worker_id != $active_worker->id)
+				return;
+			
+			$tpl->assign('draft', $draft);
+			
+			$tpl->assign('to', @$draft->params['to']);
+			$tpl->assign('cc', @$draft->params['cc']);
+			$tpl->assign('bcc', @$draft->params['bcc']);
+			$tpl->assign('subject', @$draft->params['subject']);
+			
+			if(array_key_exists('owner_id', $draft->params))
+				$ticket->owner_id = $draft->params['owner_id'];
+			
+			if(array_key_exists('group_id', $draft->params))
+				$ticket->group_id = $draft->params['group_id'];
+			
+			if(array_key_exists('bucket_id', $draft->params))
+				$ticket->bucket_id = $draft->params['bucket_id'];
+			
+			if(array_key_exists('custom_fields', $draft->params)) {
+				foreach($draft->params['custom_fields'] as $field_id => $field_value)
+					$custom_field_values[$field_id] = $field_value;
+			}
+			
+		// Or are we replying without a draft?
+		} else {
+			$to = '';
+			$cc = '';
+			$bcc = '';
+			$subject = $ticket->subject;
+			
+			// Reply to only these recipients
+			if(2 == $reply_mode) {
+				if(isset($message_headers['to'])) {
+					$from = isset($message_headers['reply-to']) ? $message_headers['reply-to'] : $message_headers['from'];
+					$addys = CerberusMail::parseRfcAddresses($from . ', ' . $message_headers['to'], true);
+					$recipients = [];
+					
+					if(is_array($addys))
+						foreach($addys as $addy) {
+							$recipients[] = $addy['full_email'];
+						}
+					
+					$to = implode(', ', $recipients);
+				}
+				
+				if(isset($message_headers['cc'])) {
+					$addys = CerberusMail::parseRfcAddresses($message_headers['cc'], true);
+					$recipients = [];
+					
+					if(is_array($addys))
+						foreach($addys as $addy) {
+							$recipients[] = $addy['full_email'];
+						}
+					
+					$cc = implode(', ', $recipients);
+				}
+				
+			// Forward
+			} else if($is_forward) {
+				$subject = sprintf("Fwd: %s",
+					$ticket->subject
+				);
+				
+			// Normal reply quoted or not
+			} else {
+				$recipients = [];
+				
+				if(is_array($requesters))
+					foreach($requesters as $requester) {
+						$requester_personal = $requester->getName();
+						$requester_addy = $requester->email;
+						@list($requester_mailbox, $requester_host) = explode('@', $requester_addy);
+						
+						if(false !== ($recipient = imap_rfc822_write_address($requester_mailbox, $requester_host, $requester_personal)))
+							$recipients[] = $recipient;
+					}
+				
+				$to = implode(', ', $recipients);
+				
+				// Suggested recipients
+				$suggested_recipients = DAO_Ticket::findMissingRequestersInHeaders($message_headers, $requesters);
+				$tpl->assign('suggested_recipients', $suggested_recipients);
+			}
+			
+			$tpl->assign('to', $to);
+			$tpl->assign('cc', $cc);
+			$tpl->assign('bcc', $bcc);
+			$tpl->assign('subject', $subject);
+		}
+		
+		$tpl->assign('ticket', $ticket);
+		$tpl->assign('custom_field_values', $custom_field_values);
 		
 		if(false == ($bucket = $ticket->getBucket()))
 			return;
@@ -412,113 +441,11 @@ class ChDisplayPage extends CerberusPageExtension {
 		$reply_as = $bucket->getReplyPersonal($active_worker);
 		$tpl->assign('reply_as', $reply_as);
 
-		// Requesters
-		
-		$requesters = $ticket->getRequesters();
-		
 		// Workers
 		
 		$object_watchers = DAO_ContextLink::getContextLinks(CerberusContexts::CONTEXT_TICKET, array($ticket->id), CerberusContexts::CONTEXT_WORKER);
 		$tpl->assign('object_watchers', $object_watchers);
 
-		// Are we continuing a draft?
-		if(!empty($draft_id)) {
-			// Drafts
-			$drafts = DAO_MailQueue::getWhere(sprintf("%s = %d AND %s = %d AND (%s = %s OR %s = %s) AND %s = %d",
-				DAO_MailQueue::TICKET_ID,
-				$message->ticket_id,
-				DAO_MailQueue::WORKER_ID,
-				$active_worker->id,
-				DAO_MailQueue::TYPE,
-				Cerb_ORMHelper::qstr(Model_MailQueue::TYPE_TICKET_REPLY),
-				DAO_MailQueue::TYPE,
-				Cerb_ORMHelper::qstr(Model_MailQueue::TYPE_TICKET_FORWARD),
-				DAO_MailQueue::ID,
-				$draft_id
-			));
-			
-			if(isset($drafts[$draft_id])) {
-				$draft = $drafts[$draft_id];
-				$tpl->assign('draft', $draft);
-				
-				$tpl->assign('to', $draft->params['to']);
-				$tpl->assign('cc', $draft->params['cc']);
-				$tpl->assign('bcc', $draft->params['bcc']);
-				$tpl->assign('subject', $draft->params['subject']);
-			}
-			
-		// Or are we replying without a draft?
-		} else {
-			$to = '';
-			$cc = '';
-			$bcc = '';
-			$subject = $ticket->subject;
-			
-			// Reply to only these recipients
-			if(2 == $reply_mode) {
-				if(isset($message_headers['to'])) {
-					$from = isset($message_headers['reply-to']) ? $message_headers['reply-to'] : $message_headers['from'];
-					$addys = CerberusMail::parseRfcAddresses($from . ', ' . $message_headers['to'], true);
-					$recipients = [];
-					
-					if(is_array($addys))
-					foreach($addys as $addy) {
-						$recipients[] = $addy['full_email'];
-					}
-					
-					$to = implode(', ', $recipients);
-				}
-				
-				if(isset($message_headers['cc'])) {
-					$addys = CerberusMail::parseRfcAddresses($message_headers['cc'], true);
-					$recipients = [];
-					
-					if(is_array($addys))
-					foreach($addys as $addy) {
-						$recipients[] = $addy['full_email'];
-					}
-					
-					$cc = implode(', ', $recipients);
-				}
-				
-			// Forward
-			} else if($is_forward) {
-				$subject = sprintf("Fwd: %s",
-					$ticket->subject
-				);
-				
-			// Normal reply quoted or not
-			} else {
-				$recipients = [];
-				
-				if(is_array($requesters))
-				foreach($requesters as $requester) {
-					$requester_personal = $requester->getName();
-					$requester_addy = $requester->email;
-					@list($requester_mailbox, $requester_host) = explode('@', $requester_addy); 
-					
-					if(false !== ($recipient = imap_rfc822_write_address($requester_mailbox, $requester_host, $requester_personal)))
-						$recipients[] = $recipient;
-				}
-				
-				$to = implode(', ', $recipients);
-				
-				// Suggested recipients
-				$suggested_recipients = DAO_Ticket::findMissingRequestersInHeaders($message_headers, $requesters);
-				$tpl->assign('suggested_recipients', $suggested_recipients);
-			}
-			
-			$tpl->assign('to', $to);
-			$tpl->assign('cc', $cc);
-			$tpl->assign('bcc', $bcc);
-			$tpl->assign('subject', $subject);
-		}
-
-		// ReplyToolbarItem Extensions
-		$replyToolbarItems = DevblocksPlatform::getExtensions('cerberusweb.reply.toolbaritem', true);
-		if(!empty($replyToolbarItems))
-			$tpl->assign('reply_toolbaritems', $replyToolbarItems);
-		
 		// Show attachments for forwarded messages
 		if($is_forward) {
 			$forward_attachments = $message->getAttachments();
@@ -538,36 +465,18 @@ class ChDisplayPage extends CerberusPageExtension {
 			// Signatures
 			@$ticket_group = $groups[$ticket->group_id]; /* @var $ticket_group Model_Group */
 			
-			if(!empty($ticket_group)) {
-				$signature = $ticket_group->getReplySignature($ticket->bucket_id, $active_worker);
-				$tpl->assign('signature', $signature);
-			}
-
 			$tpl->assign('signature_pos', DAO_WorkerPref::get($active_worker->id, 'mail_signature_pos', 2));
 			$tpl->assign('mail_status_reply', DAO_WorkerPref::get($active_worker->id,'mail_status_reply','waiting'));
 		}
 		
 		$tpl->assign('upload_max_filesize', ini_get('upload_max_filesize'));
 		
-		// Custom fields
-		
-		$custom_fields = DAO_CustomField::getByContext(CerberusContexts::CONTEXT_TICKET, false);
-		$tpl->assign('custom_fields', $custom_fields);
-		
-		$custom_field_values = DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_TICKET, $ticket->id);
-		if(isset($custom_field_values[$ticket->id]))
-			$tpl->assign('custom_field_values', $custom_field_values[$ticket->id]);
-		
 		// GPG
+		
 		$gpg = DevblocksPlatform::services()->gpg();
 		$tpl->assign('gpg', $gpg);
 		
-		// HTML templates
-		
-		$html_templates = DAO_MailHtmlTemplate::getAll();
-		$tpl->assign('html_templates', $html_templates);
-		
-		// VA behavior
+		// Bot behaviors
 		
 		if(null != $active_worker) {
 			$actions = [];
@@ -589,11 +498,10 @@ class ChDisplayPage extends CerberusPageExtension {
 		}
 		
 		// Dictionary
-		$labels = [];
-		$values = [];
-		CerberusContexts::getContext(CerberusContexts::CONTEXT_MESSAGE, $message, $labels, $values, '', true, false);
-		$dict = DevblocksDictionaryDelegate::instance($values);
-		//$tpl->assign('dict', $dict);
+		$dict = DevblocksDictionaryDelegate::instance([
+			'_context' => CerberusContexts::CONTEXT_MESSAGE,
+			'id' => $message->id,
+		]);
 		
 		// Interactions
 		$interactions = Event_GetInteractionsForWorker::getInteractionsByPointAndWorker('mail.reply', $dict, $active_worker);
@@ -601,7 +509,6 @@ class ChDisplayPage extends CerberusPageExtension {
 		$tpl->assign('interactions_menu', $interactions_menu);
 		
 		// Display template
-		
 		$tpl->display('devblocks:cerberusweb.core::display/rpc/reply.tpl');
 	}
 	
@@ -708,231 +615,20 @@ class ChDisplayPage extends CerberusPageExtension {
 	}
 
 	function sendReplyAction() {
-		@$ticket_id = DevblocksPlatform::importGPC($_REQUEST['ticket_id'],'integer');
-		@$ticket_mask = DevblocksPlatform::importGPC($_REQUEST['ticket_mask'],'string');
-		@$draft_id = DevblocksPlatform::importGPC($_REQUEST['draft_id'],'integer');
-		@$is_forward = DevblocksPlatform::importGPC($_REQUEST['is_forward'],'integer',0);
-		@$reply_mode = DevblocksPlatform::importGPC($_REQUEST['reply_mode'],'string','');
-
-		@$to = DevblocksPlatform::importGPC(@$_REQUEST['to']);
-
-		// Attachments
-		@$file_ids = DevblocksPlatform::importGPC($_POST['file_ids'],'array',[]);
-		$file_ids = DevblocksPlatform::sanitizeArray($file_ids, 'integer', array('unique', 'nonzero'));
-		
-		if(null == ($worker = CerberusApplication::getActiveWorker()))
-			return false;
-		
-		if(null == ($ticket = DAO_Ticket::get($ticket_id)))
-			return false;
-		
-		$properties = array(
-			'draft_id' => $draft_id,
-			'message_id' => DevblocksPlatform::importGPC(@$_REQUEST['id']),
-			'ticket_id' => $ticket_id,
-			'is_forward' => $is_forward,
-			'to' => $to,
-			'cc' => DevblocksPlatform::importGPC(@$_REQUEST['cc']),
-			'bcc' => DevblocksPlatform::importGPC(@$_REQUEST['bcc']),
-			'subject' => DevblocksPlatform::importGPC(@$_REQUEST['subject'],'string'),
-			'content' => DevblocksPlatform::importGPC(@$_REQUEST['content']),
-			'content_format' => DevblocksPlatform::importGPC(@$_REQUEST['format'],'string',''),
-			'html_template_id' => DevblocksPlatform::importGPC(@$_REQUEST['html_template_id'],'integer',0),
-			'status_id' => DevblocksPlatform::importGPC(@$_REQUEST['status_id'],'integer',0),
-			'group_id' => DevblocksPlatform::importGPC(@$_REQUEST['group_id'],'integer',0),
-			'bucket_id' => DevblocksPlatform::importGPC(@$_REQUEST['bucket_id'],'integer',0),
-			'owner_id' => DevblocksPlatform::importGPC(@$_REQUEST['owner_id'],'integer',0),
-			'ticket_reopen' => DevblocksPlatform::importGPC(@$_REQUEST['ticket_reopen'],'string',''),
-			'gpg_encrypt' => DevblocksPlatform::importGPC(@$_REQUEST['options_gpg_encrypt'],'integer',0),
-			'gpg_sign' => DevblocksPlatform::importGPC(@$_REQUEST['options_gpg_sign'],'integer',0),
-			'worker_id' => @$worker->id,
-			'forward_files' => $file_ids,
-			'link_forward_files' => true,
-		);
-		
-		$hash_commands = [];
-		
-		$this->_parseReplyHashCommands($worker, $properties, $hash_commands);
-		
-		// Custom fields
-		@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
-		$field_values = DAO_CustomFieldValue::parseFormPost(CerberusContexts::CONTEXT_TICKET, $field_ids);
-		if(!empty($field_values)) {
-			$properties['custom_fields'] = $field_values;
-		}
-		
 		// Save the draft one last time
-		if(!empty($draft_id)) {
-			if(false === $this->_saveDraft()) {
-				DAO_MailQueue::delete($draft_id);
-				$draft_id = null;
-			}
-		}
+		if(false == ($result = $this->_saveDraft()))
+			return false;
 		
-		// Options
-		if('save' == $reply_mode)
-			$properties['dont_send'] = true;
-
-		// Send
-		if(false != (CerberusMail::sendTicketMessage($properties))) {
-			if(!empty($draft_id))
-				DAO_MailQueue::delete($draft_id);
-			
-			// Run hash commands
-			if(!empty($hash_commands))
-				$this->_handleReplyHashCommands($hash_commands, $ticket, $worker);
-		}
-
-		// Automatically add new 'To:' recipients?
-		if(!$is_forward) {
-			try {
-				$to_addys = CerberusMail::parseRfcAddresses($to);
-				if(empty($to_addys))
-					throw new Exception("Blank recipients list.");
-
-				foreach(array_keys($to_addys) as $to_addy)
-					DAO_Ticket::createRequester($to_addy, $ticket_id);
-				
-			} catch(Exception $e) {}
-		}
+		$draft_id = $result['draft_id'];
+		$ticket = $result['ticket'];
 		
-		$ticket_uri = !empty($ticket_mask) ? $ticket_mask : $ticket_id;
+		if(false == ($draft = DAO_MailQueue::get($draft_id)))
+			return false;
 		
-		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('profiles','ticket',$ticket_uri)));
+		$draft->send();
+		
+		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('profiles','ticket',$ticket->mask)));
 	}
-	
-	private function _parseReplyHashCommands(Model_worker $worker, array &$message_properties, array &$commands) {
-		$lines_in = DevblocksPlatform::parseCrlfString($message_properties['content'], true, false);
-		$lines_out = [];
-		
-		$is_cut = false;
-		
-		foreach($lines_in as $line) {
-			$handled = false;
-			$matches = [];
-			
-			if(preg_match('/^\#([A-Za-z0-9_]+)(.*)$/', $line, $matches)) {
-				@$command = $matches[1];
-				@$args = ltrim($matches[2]);
-				
-				switch($command) {
-					case 'attach':
-						@$bundle_tag = $args;
-						$handled = true;
-						
-						if(empty($bundle_tag))
-							break;
-						
-						if(false == ($bundle = DAO_FileBundle::getByTag($bundle_tag)))
-							break;
-						
-						$attachments = $bundle->getAttachments();
-						
-						$message_properties['link_forward_files'] = true;
-						
-						if(!isset($message_properties['forward_files']))
-							$message_properties['forward_files'] = [];
-						
-						$message_properties['forward_files'] = array_merge($message_properties['forward_files'], array_keys($attachments));
-						break;
-					
-					case 'cut':
-						$is_cut = true;
-						$handled = true;
-						break;
-						
-					case 'signature':
-						@$group_id = $message_properties['group_id'];
-						@$bucket_id = $message_properties['bucket_id'];
-						@$content_format = $message_properties['content_format'];
-						@$html_template_id = $message_properties['html_template_id'];
-						
-						$group = DAO_Group::get($group_id);
-						
-						switch($content_format) {
-							case 'parsedown':
-								// Determine if we have an HTML template
-								
-								if(!$html_template_id || false == ($html_template = DAO_MailHtmlTemplate::get($html_template_id))) {
-									if(false == ($html_template = $group->getReplyHtmlTemplate($bucket_id)))
-										$html_template = null;
-								}
-								
-								// Determine signature
-								
-								if(!$html_template || false == ($signature = $html_template->getSignature($worker))) {
-									$signature = $group->getReplySignature($bucket_id, $worker);
-								}
-								
-								// Replace signature
-								
-								$line = $signature;
-								break;
-								
-							default:
-								if($group instanceof Model_Group)
-									$line = $group->getReplySignature($bucket_id, $worker);
-								else
-									$line = '';
-								break;
-						}
-						break;
-						
-					case 'comment':
-					case 'watch':
-					case 'unwatch':
-						$handled = true;
-						$commands[] = array(
-							'command' => $command,
-							'args' => $args,
-						);
-						break;	
-						
-					default:
-						$handled = false;
-						break;
-				}
-			}
-			
-			if(!$handled && !$is_cut) {
-				$lines_out[] = $line;
-			}
-		}
-		
-		$message_properties['content'] = implode("\n", $lines_out);
-	}
-	
-	private function _handleReplyHashCommands(array $commands, Model_Ticket $ticket, Model_Worker $worker) {
-		foreach($commands as $command_data) {
-			switch($command_data['command']) {
-				case 'comment':
-					@$comment = $command_data['args'];
-					
-					if(!empty($comment)) {
-						$also_notify_worker_ids = array_keys(CerberusApplication::getWorkersByAtMentionsText($comment));
-						
-						$fields = array(
-							DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_TICKET,
-							DAO_Comment::CONTEXT_ID => $ticket->id,
-							DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_WORKER,
-							DAO_Comment::OWNER_CONTEXT_ID => $worker->id,
-							DAO_Comment::CREATED => time()+2,
-							DAO_Comment::COMMENT => $comment,
-						);
-						DAO_Comment::create($fields, $also_notify_worker_ids);
-					}
-					break;
-		
-				case 'watch':
-					CerberusContexts::addWatchers(CerberusContexts::CONTEXT_TICKET, $ticket->id, array($worker->id));
-					break;
-		
-				case 'unwatch':
-					CerberusContexts::removeWatchers(CerberusContexts::CONTEXT_TICKET, $ticket->id, array($worker->id));
-					break;
-			}
-		}
-	}	
 	
 	private function _saveDraft() {
 		$active_worker = CerberusApplication::getActiveWorker();
@@ -971,6 +667,10 @@ class ChDisplayPage extends CerberusPageExtension {
 			
 			$params[$k] = $v;
 		}
+		
+		// Clear owner if not set
+		if(!array_key_exists('owner_id', $params))
+			$params['owner_id'] = 0;
 		
 		// We don't need to persist these fields
 		unset($params['c']);
@@ -1019,8 +719,7 @@ class ChDisplayPage extends CerberusPageExtension {
 		$fields = array(
 			DAO_MailQueue::UPDATED => time(),
 			DAO_MailQueue::HINT_TO => $hint_to,
-			DAO_MailQueue::SUBJECT => $subject,
-			DAO_MailQueue::BODY => $content,
+			DAO_MailQueue::NAME => $subject,
 			DAO_MailQueue::PARAMS_JSON => json_encode($params),
 			DAO_MailQueue::IS_QUEUED => 0,
 			DAO_MailQueue::QUEUE_DELIVERY_DATE => time(),

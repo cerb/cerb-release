@@ -247,7 +247,6 @@ class ChTicketsPage extends CerberusPageExtension {
 			@$bucket_id = DevblocksPlatform::importGPC($_REQUEST['bucket_id'],'integer',0);
 			@$spam_training = DevblocksPlatform::importGPC($_REQUEST['spam_training'],'string','');
 			@$ticket_reopen = DevblocksPlatform::importGPC(@$_REQUEST['ticket_reopen'],'string','');
-			@$comment = DevblocksPlatform::importGPC(@$_REQUEST['comment'],'string','');
 			
 			if(!$active_worker->hasPriv(sprintf('contexts.%s.update', CerberusContexts::CONTEXT_TICKET)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.edit'));
@@ -325,7 +324,7 @@ class ChTicketsPage extends CerberusPageExtension {
 					CerberusBayes::markTicketAsNotSpam($id);
 			}
 			
-			// Participiants
+			// Participants
 			$requesters = DAO_Ticket::getRequestersByTicket($id);
 			
 			// Delete requesters we've removed
@@ -356,19 +355,7 @@ class ChTicketsPage extends CerberusPageExtension {
 				throw new Exception_DevblocksAjaxValidationError($error);
 			
 			// Comments
-			if($id && !empty($comment)) {
-				$also_notify_worker_ids = array_keys(CerberusApplication::getWorkersByAtMentionsText($comment));
-				
-				$fields = array(
-					DAO_Comment::CREATED => time(),
-					DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_TICKET,
-					DAO_Comment::CONTEXT_ID => $id,
-					DAO_Comment::COMMENT => $comment,
-					DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_WORKER,
-					DAO_Comment::OWNER_CONTEXT_ID => $active_worker->id,
-				);
-				DAO_Comment::create($fields, $also_notify_worker_ids);
-			}
+			DAO_Comment::handleFormPost(CerberusContexts::CONTEXT_TICKET, $id);
 			
 			echo json_encode(array(
 				'status' => true,
@@ -406,91 +393,42 @@ class ChTicketsPage extends CerberusPageExtension {
 			if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.ticket.create'))
 				throw new Exception_DevblocksAjaxValidationError("You do not have permission to send mail.");
 			
-			@$draft_id = DevblocksPlatform::importGPC($_POST['draft_id'],'integer');
-	
-			// Destination
+			if(false == (@$draft_id = DevblocksPlatform::importGPC($_POST['draft_id'],'integer')))
+				throw new Exception_DevblocksAjaxValidationError("Invalid draft.");
 			
-			@$group_id = DevblocksPlatform::importGPC($_POST['group_id'],'integer',0);
-			@$bucket_id = DevblocksPlatform::importGPC($_POST['bucket_id'],'integer',0);
+			$drafts_ext = DevblocksPlatform::getExtension('core.page.profiles.draft', true);
 			
-			// Headers
-			
-			@$org_name = DevblocksPlatform::importGPC($_POST['org_name'],'string');
-			@$to = rtrim(DevblocksPlatform::importGPC($_POST['to'],'string'),' ,');
-			@$cc = rtrim(DevblocksPlatform::importGPC($_POST['cc'],'string',''),' ,;');
-			@$bcc = rtrim(DevblocksPlatform::importGPC($_POST['bcc'],'string',''),' ,;');
-			@$subject = DevblocksPlatform::importGPC($_POST['subject'],'string','(no subject)');
-			@$content = DevblocksPlatform::importGPC($_POST['content'],'string');
-			@$content_format = DevblocksPlatform::importGPC($_POST['format'],'string','');
-			@$html_template_id = DevblocksPlatform::importGPC($_POST['html_template_id'],'integer',0);
-	
-			// Properties
-			
-			@$status_id = DevblocksPlatform::importGPC($_POST['status_id'],'integer',0);
-			@$ticket_reopen = DevblocksPlatform::importGPC($_POST['ticket_reopen'],'string','');
-			
-			// Options
-			
-			@$options_gpg_encrypt = DevblocksPlatform::importGPC(@$_POST['options_gpg_encrypt'],'integer',0);
-			
-			// Attachments
-			
-			@$file_ids = DevblocksPlatform::importGPC($_POST['file_ids'],'array',array());
-			$file_ids = DevblocksPlatform::sanitizeArray($file_ids, 'integer', array('unique', 'nonzero'));
-			
-			// Org
-			
-			$org_id = 0;
-			if(!empty($org_name)) {
-				$org_id = DAO_ContactOrg::lookup($org_name, true);
-				
-			} else {
-				// If we weren't given an organization, use the first recipient
-				$to_addys = CerberusMail::parseRfcAddresses($to);
-				if(is_array($to_addys) && !empty($to_addys)) {
-					if(null != ($to_addy = DAO_Address::lookupAddress(key($to_addys), true))) {
-						if(!empty($to_addy->contact_org_id))
-							$org_id = $to_addy->contact_org_id;
-					}
-				}
+			/* @var $drafts_ext PageSection_ProfilesDraft */
+			if(false === $drafts_ext->saveDraft()) {
+				DAO_MailQueue::delete($draft_id);
+				throw new Exception_DevblocksAjaxValidationError("Failed to save draft.");
 			}
 			
-			$properties = array(
-				'draft_id' => $draft_id,
-				'group_id' => intval($group_id),
-				'bucket_id' => intval($bucket_id),
-				'org_id' => intval($org_id),
-				'to' => $to,
-				'cc' => $cc,
-				'bcc' => $bcc,
-				'subject' => $subject,
-				'content' => $content,
-				'content_format' => $content_format,
-				'html_template_id' => $html_template_id,
-				'forward_files' => $file_ids,
-				'status_id' => $status_id,
-				'ticket_reopen' => $ticket_reopen,
-				'link_forward_files' => true,
-				'worker_id' => $active_worker->id,
-				'gpg_encrypt' => !empty($options_gpg_encrypt),
-			);
+			if(false == ($draft = DAO_MailQueue::get($draft_id)))
+				throw new Exception_DevblocksAjaxValidationError("Failed to load draft.");
 			
-			if(!$properties['subject'])
+			$properties = $draft->getMessageProperties();
+			
+			if(!array_key_exists('subject', $properties) || !$properties['subject'])
 				throw new Exception_DevblocksAjaxValidationError("A 'Subject:' is required.");
 			
-			if(!$properties['to'] && ($properties['cc'] || $properties['bcc']))
+			@$to = $properties['to'];
+			@$cc = $properties['cc'];
+			@$bcc = $properties['bcc'];
+			
+			if(!$to && ($cc || $bcc))
 				throw new Exception_DevblocksAjaxValidationError("'To:' is required if you specify a 'Cc/Bcc:' recipient.");
 			
 			// Validate GPG if used (we need public keys for all recipients)
 			// [TODO] Share this between compose/reply
-			if($properties['gpg_encrypt']) {
+			if(array_key_exists('gpg_encrypt', $properties)) {
 				if(false == ($gpg = DevblocksPlatform::services()->gpg()) || !$gpg->isEnabled())
 					throw new Exception_DevblocksAjaxValidationError("The 'gnupg' PHP extension is not installed.");
 				
 				$email_addresses = DevblocksPlatform::parseCsvString(sprintf("%s%s%s",
-					!empty($properties['to']) ? ($properties['to'] . ', ') : '',
-					!empty($properties['cc']) ? ($properties['cc'] . ', ') : '',
-					!empty($properties['bcc']) ? ($properties['bcc'] . ', ') : ''
+					$to ? ($to . ', ') : '',
+					$cc ? ($cc . ', ') : '',
+					$bcc ? ($bcc . ', ') : ''
 				));
 				
 				$email_models = DAO_Address::lookupAddresses($email_addresses, true);
@@ -511,8 +449,6 @@ class ChTicketsPage extends CerberusPageExtension {
 					throw new Exception_DevblocksAjaxValidationError("Can't send encrypted message. We don't have a GPG public key for: " . implode(', ', array_keys($emails_to_check)));
 				}
 			}
-			
-			//throw new Exception_DevblocksAjaxValidationError("Keep on keeping up.");
 			
 			// [TODO] Give bot behaviors a stab at it
 			
@@ -537,282 +473,30 @@ class ChTicketsPage extends CerberusPageExtension {
 	function saveComposePeekAction() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
+		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'], 'string', null);
+		
 		if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.ticket.create'))
 			return;
 		
-		@$draft_id = DevblocksPlatform::importGPC($_POST['draft_id'],'integer');
-		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
-
-		if(!empty($draft_id)) {
-			$drafts_ext = DevblocksPlatform::getExtension('core.page.profiles.draft', true, true);
-			/* @var $drafts_ext PageSection_ProfilesDraft */
-			if(false === $drafts_ext->saveDraft()) {
-				DAO_MailQueue::delete($draft_id);
-				$draft_id = null;
-			}
+		$drafts_ext = DevblocksPlatform::getExtension('core.page.profiles.draft', true, true);
+		
+		/* @var $drafts_ext PageSection_ProfilesDraft */
+		if(false == ($draft_id = $drafts_ext->saveDraft())) {
+			DAO_MailQueue::delete($draft_id);
+			return false;
 		}
 		
-		// Destination
+		if(false == ($draft = DAO_MailQueue::get($draft_id)))
+			return false;
 		
-		@$group_id = DevblocksPlatform::importGPC($_POST['group_id'],'integer',0);
-		@$bucket_id = DevblocksPlatform::importGPC($_POST['bucket_id'],'integer',0);
-		
-		// Headers
-		
-		@$org_name = DevblocksPlatform::importGPC($_POST['org_name'],'string');
-		@$to = rtrim(DevblocksPlatform::importGPC($_POST['to'],'string'),' ,');
-		@$cc = rtrim(DevblocksPlatform::importGPC($_POST['cc'],'string',''),' ,;');
-		@$bcc = rtrim(DevblocksPlatform::importGPC($_POST['bcc'],'string',''),' ,;');
-		@$subject = DevblocksPlatform::importGPC($_POST['subject'],'string','(no subject)');
-		@$content = DevblocksPlatform::importGPC($_POST['content'],'string');
-		@$content_format = DevblocksPlatform::importGPC($_POST['format'],'string','');
-		@$html_template_id = DevblocksPlatform::importGPC($_POST['html_template_id'],'integer',0);
-
-		// Properties
-		
-		@$status_id = DevblocksPlatform::importGPC($_POST['status_id'],'integer',0);
-		@$ticket_reopen = DevblocksPlatform::importGPC($_POST['ticket_reopen'],'string','');
-		@$owner_id = DevblocksPlatform::importGPC($_POST['owner_id'],'integer',0);
-		
-		// Options
-		
-		@$options_dont_send = DevblocksPlatform::importGPC($_POST['options_dont_send'],'integer',0);
-		@$options_gpg_encrypt = DevblocksPlatform::importGPC(@$_POST['options_gpg_encrypt'],'integer',0);
-		
-		// Attachments
-		
-		@$file_ids = DevblocksPlatform::importGPC($_POST['file_ids'],'array',array());
-		$file_ids = DevblocksPlatform::sanitizeArray($file_ids, 'integer', array('unique', 'nonzero'));
-		
-		// Org
-		
-		$org_id = 0;
-		if(!empty($org_name)) {
-			$org_id = DAO_ContactOrg::lookup($org_name, true);
-		} else {
-			// If we weren't given an organization, use the first recipient
-			$to_addys = CerberusMail::parseRfcAddresses($to);
-			if(is_array($to_addys) && !empty($to_addys)) {
-				if(null != ($to_addy = DAO_Address::lookupAddress(key($to_addys), true))) {
-					if(!empty($to_addy->contact_org_id))
-						$org_id = $to_addy->contact_org_id;
-				}
-			}
-		}
-
-		$properties = array(
-			'draft_id' => $draft_id,
-			'group_id' => intval($group_id),
-			'bucket_id' => intval($bucket_id),
-			'org_id' => intval($org_id),
-			'to' => $to,
-			'cc' => $cc,
-			'bcc' => $bcc,
-			'subject' => $subject,
-			'content' => $content,
-			'content_format' => $content_format,
-			'html_template_id' => $html_template_id,
-			'forward_files' => $file_ids,
-			'status_id' => $status_id,
-			'ticket_reopen' => $ticket_reopen,
-			'link_forward_files' => true,
-			'worker_id' => $active_worker->id,
-			'gpg_encrypt' => !empty($options_gpg_encrypt),
-		);
-
-		// #commands
-		
-		$hash_commands = array();
-		
-		$this->_parseComposeHashCommands($active_worker, $properties, $hash_commands);
-		
-		// Custom fields
-		
-		@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
-		$field_values = DAO_CustomFieldValue::parseFormPost(CerberusContexts::CONTEXT_TICKET, $field_ids);
-		if(!empty($field_values)) {
-			$properties['custom_fields'] = $field_values;
-		}
-		
-		// Options
-		
-		if(!empty($owner_id))
-			$properties['owner_id'] = $owner_id;
-		
-		if(!empty($options_dont_send))
-			$properties['dont_send'] = 1;
-		
-		$ticket_id = CerberusMail::compose($properties);
-		
-		if(!empty($ticket_id)) {
-			if(!empty($draft_id))
-				DAO_MailQueue::delete($draft_id);
-
-			// Run hash commands
-			if(!empty($hash_commands))
-				$this->_handleComposeHashCommands($hash_commands, $ticket_id, $active_worker);
-				
-			// Watchers
-			@$add_watcher_ids = DevblocksPlatform::sanitizeArray(DevblocksPlatform::importGPC($_REQUEST ['add_watcher_ids'], 'array', []), 'integer', ['unique','nonzero']);
-			if(!empty($add_watcher_ids))
-				CerberusContexts::addWatchers(CerberusContexts::CONTEXT_TICKET, $ticket_id, $add_watcher_ids);
-			
-			// Preferences
-			
-			DAO_WorkerPref::set($active_worker->id, 'compose.group_id', $group_id);
-			DAO_WorkerPref::set($active_worker->id, 'compose.bucket_id', $bucket_id);
-
+		if($ticket_id = $draft->send()) {
 			// View marquee
 			
 			if(!empty($ticket_id) && !empty($view_id)) {
 				C4_AbstractView::setMarqueeContextCreated($view_id, CerberusContexts::CONTEXT_TICKET, $ticket_id);
 			}
 		}
-		
 		exit;
-	}
-	
-	private function _parseComposeHashCommands(Model_Worker $worker, array &$message_properties, array &$commands) {
-		$lines_in = DevblocksPlatform::parseCrlfString($message_properties['content'], true, false);
-		$lines_out = array();
-		
-		$is_cut = false;
-		
-		foreach($lines_in as $line) {
-			$handled = false;
-			$matches = [];
-			
-			if(preg_match('/^\#([A-Za-z0-9_]+)(.*)$/', $line, $matches)) {
-				@$command = $matches[1];
-				@$args = ltrim($matches[2]);
-				
-				switch($command) {
-					case 'attach':
-						@$bundle_tag = $args;
-						$handled = true;
-						
-						if(empty($bundle_tag))
-							break;
-						
-						if(false == ($bundle = DAO_FileBundle::getByTag($bundle_tag)))
-							break;
-						
-						$attachments = $bundle->getAttachments();
-						
-						$message_properties['link_forward_files'] = true;
-						
-						if(!isset($message_properties['forward_files']))
-							$message_properties['forward_files'] = array();
-						
-						$message_properties['forward_files'] = array_merge($message_properties['forward_files'], array_keys($attachments));
-						break;
-					
-					case 'cut':
-						$is_cut = true;
-						$handled = true;
-						break;
-						
-					case 'signature':
-						@$group_id = $message_properties['group_id'];
-						@$bucket_id = $message_properties['bucket_id'];
-						@$content_format = $message_properties['content_format'];
-						@$html_template_id = $message_properties['html_template_id'];
-						
-						$group = DAO_Group::get($group_id);
-						
-						switch($content_format) {
-							case 'parsedown':
-								// Determine if we have an HTML template
-								
-								if(!$html_template_id || false == ($html_template = DAO_MailHtmlTemplate::get($html_template_id))) {
-									if(false == ($html_template = $group->getReplyHtmlTemplate($bucket_id)))
-										$html_template = null;
-								}
-								
-								// Determine signature
-								
-								if(!$html_template || false == ($signature = $html_template->getSignature($worker))) {
-									$signature = $group->getReplySignature($bucket_id, $worker);
-								}
-								
-								// Replace signature
-								
-								$line = $signature;
-								break;
-								
-							default:
-								$line = $group->getReplySignature($bucket_id, $worker);
-								break;
-						}
-						break;
-						
-					case 'comment':
-					case 'watch':
-					case 'unwatch':
-						$handled = true;
-						$commands[] = array(
-							'command' => $command,
-							'args' => $args,
-						);
-						break;	
-						
-					default:
-						$handled = false;
-						break;
-				}
-			}
-			
-			if(!$handled && !$is_cut) {
-				$lines_out[] = $line;
-			}
-		}
-		
-		$message_properties['content'] = implode("\n", $lines_out);
-	}
-	
-	private function _handleComposeHashCommands(array $commands, $ticket_id, Model_Worker $worker) {
-		foreach($commands as $command_data) {
-			switch($command_data['command']) {
-				case 'comment':
-					@$comment = $command_data['args'];
-					
-					if(!empty($comment)) {
-						$also_notify_worker_ids = array_keys(CerberusApplication::getWorkersByAtMentionsText($comment));
-						
-						$fields = array(
-							DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_TICKET,
-							DAO_Comment::CONTEXT_ID => $ticket_id,
-							DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_WORKER,
-							DAO_Comment::OWNER_CONTEXT_ID => $worker->id,
-							DAO_Comment::CREATED => time()+2,
-							DAO_Comment::COMMENT => $comment,
-						);
-						DAO_Comment::create($fields, $also_notify_worker_ids);
-					}
-					break;
-		
-				case 'watch':
-					CerberusContexts::addWatchers(CerberusContexts::CONTEXT_TICKET, $ticket_id, array($worker->id));
-					break;
-		
-				case 'unwatch':
-					CerberusContexts::removeWatchers(CerberusContexts::CONTEXT_TICKET, $ticket_id, array($worker->id));
-					break;
-			}
-		}
-	}	
-	
-	function getComposeSignatureAction() {
-		@$group_id = DevblocksPlatform::importGPC($_REQUEST['group_id'],'integer',0);
-		@$bucket_id = DevblocksPlatform::importGPC($_REQUEST['bucket_id'],'integer',0);
-		@$raw = DevblocksPlatform::importGPC($_REQUEST['raw'],'integer',0);
-		
-		// Parsed or raw?
-		$active_worker = !empty($raw) ? null : CerberusApplication::getActiveWorker();
-		
-		if($group_id && null != ($group = DAO_Group::get($group_id))) {
-			echo $group->getReplySignature($bucket_id, $active_worker);
-		}
 	}
 	
 	function viewMoveTicketsAction() {

@@ -66,6 +66,7 @@ DIV.cerb-form {
 		
 		TEXTAREA {
 			width: 100%;
+			box-sizing: border-box;
 			height: 50px;
 		}
 	}
@@ -119,65 +120,6 @@ DIV.cerb-slider-container {
 			display: none;
 		}
 		
-	}
-}
-
-FIELDSET.cerb-skillset {
-	margin-bottom: 0;
-	
-	LABEL {
-		font-weight: bold;
-		padding: 0px 0px 5px 0px;
-		display: block;
-		
-		&> SMALL {
-			font-weight: normal;
-			font-size: 100%;
-		}
-	}
-	
-	DIV.cerb-skill {
-		margin:0px 10px 10px 5px;
-		width:250px;
-		display:inline-block;
-		
-		div.skill-slider {
-			background-color: rgb(235,235,235);
-			border-color: rgb(220,220,220);
-			
-			.ui-slider-handle {
-				background-color: rgb(208,229,245);
-				border-color: rgb(121,183,231);
-			}
-			
-			&.cerb-slider-green {
-				border-color: rgb(0,200,0);
-			
-				.ui-slider-handle {
-					background-color: rgb(0,220,0);
-					border-color: rgb(0,200,0);
-					cursor: pointer;
-
-				}
-				.ui-slider-range {
-					background: rgb(172, 235, 96);
-				}
-			}
-			
-			&.cerb-slider-gray {
-				.ui-slider-handle {
-					background-color: rgb(220,220,220);
-					border-color: rgb(200,200,200);
-					cursor: pointer;
-
-				}
-				.ui-slider-range {
-					background: rgb(200,200,200);
-				}
-			}
-			
-		}
-	
 	}
 }
 
@@ -622,6 +564,7 @@ DIV.dashboard-widget {
 		
 		.cerb-data-sheet--field-title {
 			font-weight: bold;
+			font-size: 125%;
 		}
 		
 		.cerb-data-sheet--field {
@@ -629,7 +572,6 @@ DIV.dashboard-widget {
 				padding: 2px 5px;
 				
 				&:first-child {
-					width: 1%;
 					white-space: nowrap;
 				}
 	
@@ -1296,7 +1238,7 @@ DIV.cerb-properties {
 
 FIELDSET.properties {
 	border-width:1px 0px 0px 0px;
-	background-color: white;
+	//background-color: white;
 
 	LEGEND {
 		color:rgb(50,50,50);
@@ -1606,6 +1548,10 @@ UL.cerb-popupmenu {
 		border-left:solid 5px rgb(240,240,240);
 		padding-left:5px;
 	}
+
+	IMG {
+		max-width: 100%;
+	}
 }
 
 // Menu
@@ -1691,26 +1637,147 @@ DIV.emailBodyHtml {
 		border-bottom: initial;
 	}
 
-	H1 {
-		font-weight: initial;
-		font-size: initial;
-		color: initial;
-		margin: initial;
+	BLOCKQUOTE {
+		color: rgb(100,100,100);
+		border-left: 5px solid;
+		margin: 0 0 0 10px;
+		padding: 0 0 0 10px;
 	}
 
-	H2 {
-		font-weight: initial;
+	PRE > CODE {
+		display: block;
+		border: 1px solid rgb(232,232,232);
+		background-color: rgb(246,242,240);
+		padding: 10px;
+	}
+
+	P > CODE {
+		background-color: rgb(246,242,240);
+		border: 1px solid rgb(232,232,232);
+		font-weight: bold;
+		padding: 0.1em 0.2em;
+		line-height: 1.75em;
+	}
+
+	%heading {
 		font-size: initial;
 		color: initial;
 		margin: initial;
+		font-weight: bold;
+	}
+
+	H1, H2, H3, H4, H5, H6 {
+		@extend %heading;
+	}
+
+	IMG {
+		max-width: 100%;
 	}
 
 	DIV.block {
-		H1, H2, H3 {
-			font-weight: initial;
-			font-size: initial;
-			margin: initial;
-			color: initial
+		H1, H2, H3, H4, H5, H6 {
+			@extend %heading;
+		}
+	}
+
+	UL {
+		padding-left: 2em;
+	}
+}
+
+// Comment container (reset styles)
+
+DIV.commentBodyHtml {
+	A {
+		color: initial;
+	}
+
+	ABBR {
+		border-bottom: initial;
+	}
+
+	BLOCKQUOTE {
+		clear: both;
+		color: rgb(100,100,100);
+		border-left: 5px solid;
+		margin: 0 0 0 10px;
+		padding: 0 0 0 10px;
+	}
+
+	PRE > CODE {
+		clear: both;
+		display: block;
+		border: 1px solid rgb(232,232,232);
+		background-color: rgb(246,242,240);
+		padding: 10px;
+	}
+
+	P > CODE {
+		background-color: rgb(246,242,240);
+		border: 1px solid rgb(232,232,232);
+		font-weight: bold;
+		padding: 0.1em 0.2em;
+		line-height: 1.75em;
+	}
+
+	%heading {
+		font-size: initial;
+		color: initial;
+		margin: initial;
+		font-weight: bold;
+		clear: both;
+	}
+
+	H1 {
+		@extend %heading;
+		font-size: 250%;
+	}
+
+	H2 {
+		@extend %heading;
+		font-size: 200%;
+	}
+
+	H3 {
+		@extend %heading;
+		font-size: 175%;
+	}
+
+	H4 {
+		@extend %heading;
+		font-size: 150%;
+	}
+
+	H5 {
+		@extend %heading;
+		font-size: 130%;
+	}
+
+	H6 {
+		@extend %heading;
+		font-size: 115%;
+	}
+
+	IMG {
+		max-width: 100%;
+	}
+
+	OL, UL {
+		margin: 0 0 0.5em 1.5em;
+		padding: 0;
+	}
+
+	PRE {
+		clear: both;
+	}
+
+	TABLE {
+		clear: both;
+	}
+
+	DIV.block {
+		H1, H2, H3, H4, H5, H6 {
+			@extend %heading;
 		}
 	}
 }

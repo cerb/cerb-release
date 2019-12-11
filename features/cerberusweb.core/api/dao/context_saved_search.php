@@ -571,7 +571,7 @@ class SearchFields_ContextSavedSearch extends DevblocksSearchFields {
 			self::NAME => new DevblocksSearchField(self::NAME, 'context_saved_search', 'name', $translate->_('common.name'), null, true),
 			self::TAG => new DevblocksSearchField(self::TAG, 'context_saved_search', 'tag', $translate->_('common.tag'), null, true),
 			self::QUERY => new DevblocksSearchField(self::QUERY, 'context_saved_search', 'query', $translate->_('common.query'), null, true),
-			self::CONTEXT => new DevblocksSearchField(self::CONTEXT, 'context_saved_search', 'context', $translate->_('common.context'), null, true),
+			self::CONTEXT => new DevblocksSearchField(self::CONTEXT, 'context_saved_search', 'context', $translate->_('common.record.type'), null, true),
 			self::OWNER_CONTEXT => new DevblocksSearchField(self::OWNER_CONTEXT, 'context_saved_search', 'owner_context', null, null, true),
 			self::OWNER_CONTEXT_ID => new DevblocksSearchField(self::OWNER_CONTEXT_ID, 'context_saved_search', 'owner_context_id', null, null, true),
 			self::UPDATED_AT => new DevblocksSearchField(self::UPDATED_AT, 'context_saved_search', 'updated_at', $translate->_('common.updated'), null, true),
@@ -961,7 +961,7 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 		$search_context_ext = $model->getContextExtension(false);
 		
 		$properties['context'] = array(
-			'label' => DevblocksPlatform::translateCapitalized('common.context'),
+			'label' => DevblocksPlatform::translateCapitalized('common.record.type'),
 			'type' => Model_CustomField::TYPE_SINGLE_LINE,
 			'value' => @$search_context_ext->name ?: null,
 		);
@@ -1013,6 +1013,7 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 			$prefix = 'Saved Search:';
 		
 		$translate = DevblocksPlatform::getTranslationService();
+		$url_writer = DevblocksPlatform::services()->url();
 		$fields = DAO_CustomField::getByContext('cerberusweb.contexts.context.saved.search');
 
 		// Polymorph
@@ -1061,7 +1062,7 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 			$token_types = array_merge($token_types, $custom_field_types);
 		
 		// Token values
-		$token_values = array();
+		$token_values = [];
 		
 		$token_values['_context'] = 'cerberusweb.contexts.context.saved.search';
 		$token_values['_types'] = $token_types;
@@ -1069,6 +1070,7 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 		if($context_saved_search) {
 			$token_values['_loaded'] = true;
 			$token_values['_label'] = $context_saved_search->name;
+			$token_values['_image_url'] = $url_writer->writeNoProxy(sprintf('c=avatars&ctx=%s&id=%d', 'saved_search', $context_saved_search->id), true) . '?v=' . $context_saved_search->updated_at;
 			$token_values['context'] = $context_saved_search->context;
 			$token_values['id'] = $context_saved_search->id;
 			$token_values['name'] = $context_saved_search->name;
@@ -1141,6 +1143,10 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 		}
 		
 		switch($token) {
+			default:
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
+				break;
 		}
 		
 		return $values;
@@ -1195,6 +1201,7 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 		$tpl->assign('view_id', $view_id);
 		
 		$context = CerberusContexts::CONTEXT_SAVED_SEARCH;
+		$model = null;
 		
 		if(!empty($context_id)) {
 			$model = DAO_ContextSavedSearch::get($context_id);
@@ -1229,24 +1236,7 @@ class Context_ContextSavedSearch extends Extension_DevblocksContext implements I
 			$tpl->display('devblocks:cerberusweb.core::internal/contexts/saved_search/peek_edit.tpl');
 			
 		} else {
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			// Dictionary
-			$labels = $values = [];
-			CerberusContexts::getContext($context, $model, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$tpl->display('devblocks:cerberusweb.core::internal/contexts/saved_search/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $model);
 		}
 	}
 };

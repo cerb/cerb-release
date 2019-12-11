@@ -1,117 +1,3 @@
-var markitupPlaintextDefaults = {
-	resizeHandle: false,
-	nameSpace:'markItUpPlaintext',
-	onShiftEnter:		{keepDefault:false, openWith:'\n\n'},
-	markupSet: [
-	]
-}
-
-var markitupMarkdownDefaults = {
-	resizeHandle: false,
-	previewParserPath:	DevblocksAppPath + 'ajax.php?c=internal&a=transformMarkupToHTML&format=markdown&_csrf_token=' + $('meta[name="_csrf_token"]').attr('content'),
-	onShiftEnter:		{keepDefault:false, openWith:'\n\n'},
-	markupSet: [
-		{name:'Heading 1', key:'1', openWith:'# ', placeHolder:'Your title here...', className:'h1' },
-		{name:'Heading 2', key:'2', openWith:'## ', placeHolder:'Your title here...', className:'h2' },
-		{name:'Heading 3', key:'3', openWith:'### ', placeHolder:'Your title here...', className:'h3' },
-		{separator:' ', className:'sep' },		
-		{name:'Bold', key:'B', openWith:'**', closeWith:'**', className:'b'},
-		{name:'Italic', key:'I', openWith:'_', closeWith:'_', className:'i'},
-		{separator:' ', className:'sep' },
-		{name:'Bulleted List', openWith:'- ', className:'ul' },
-		{name:'Numeric List', className:'ol', openWith:function(markItUp) {
-			return markItUp.line+'. ';
-		}},
-		{separator:' ', className:'sep' },
-		{name:'Link to an External Image', replaceWith:'![[![Alternative text]!]]([![Url:!:http://]!] "[![Title]!]")', className:'img'},
-		{name:'Link', key:'L', openWith:'[', closeWith:']([![Url:!:http://]!] "[![Title]!]")', placeHolder:'Your text to link here...', className:'a' },
-		{separator:' ', className:'sep'},	
-		{name:'Quotes', openWith:'> ', className:'blockquote'},
-		{
-			name:'Code Format', 
-			openWith:function(markitup) {
-				if(markitup.selection.split("\n").length > 1)
-					return "```\n";
-				return "`";
-			},
-			closeWith:function(markitup) {
-				if(markitup.selection.split("\n").length > 1)
-					return "\n```\n";
-				return "`";
-			},
-			placeHolder:'code',
-			className:'code'
-		},
-		{separator:' '},
-		{name:'Preview', key: 'P', call:'preview', className:"preview"}
-	]
-}
-
-var markitupParsedownDefaults = {
-	nameSpace:'markItUpParsedown',
-	resizeHandle: false,
-	previewParserPath:	DevblocksAppPath + 'ajax.php?c=internal&a=transformMarkupToHTML&format=parsedown&_csrf_token=' + $('meta[name="_csrf_token"]').attr('content'),
-	previewAutoRefresh: true,
-	previewInWindow: 'width=800, height=600, titlebar=no, location=no, menubar=no, status=no, toolbar=no, resizable=yes, scrollbars=yes',
-	onShiftEnter:		{keepDefault:false, openWith:'\n\n'},
-	markupSet: [
-		{name:'Bold', key:'B', openWith:'**', closeWith:'**', className:'b'},
-		{name:'Italic', openWith:'_', closeWith:'_', className:'i'},
-		{name:'Bulleted List', openWith:'- ', className:'ul' },
-		{name:'Numeric List', className:'ol', openWith:function(markItUp) {
-			return markItUp.line+'. ';
-		}},
-		{name:'Link to an External Image', openWith:'![Image](', closeWith:')', placeHolder:'http://www.example.com/path/to/image.png', className:'img'},
-		{name:'Link', key:"L", openWith:'[', closeWith:']([![Url:!:http://]!])', placeHolder:'Your text to link here...', className:'a' },
-		{name:'Quotes', openWith:'> ', className:'blockquote'},
-		{
-			name:'Code Format', 
-			openWith:function(markitup) {
-				if(markitup.selection.split("\n").length > 1)
-					return "```\n";
-				return "`";
-			},
-			closeWith:function(markitup) {
-				if(markitup.selection.split("\n").length > 1)
-					return "\n```\n";
-				return "`";
-			},
-			placeHolder:'code',
-			className:'code'
-		},
-		{separator:' '},
-		{name:'Preview', key: 'P', call:'preview', className:"preview"}
-	]
-}
-
-var markitupHTMLDefaults = {
-	resizeHandle: false,
-	previewParserPath:	DevblocksAppPath + 'ajax.php?c=internal&a=transformMarkupToHTML&format=html&_csrf_token=' + $('meta[name="_csrf_token"]').attr('content'),
-	onShiftEnter:	{keepDefault:false, replaceWith:'<br />\n'},
-	onCtrlEnter:	{keepDefault:false, openWith:'\n<p>', closeWith:'</p>\n'},
-	onTab:			{keepDefault:false, openWith:'	 '},
-	markupSet: [
-		{name:'Heading 1', key:'1', openWith:'<h1(!( class="[![Class]!]")!)>', closeWith:'</h1>', placeHolder:'Your title here...', className:'h1' },
-		{name:'Heading 2', key:'2', openWith:'<h2(!( class="[![Class]!]")!)>', closeWith:'</h2>', placeHolder:'Your title here...', className:'h2' },
-		{name:'Heading 3', key:'3', openWith:'<h3(!( class="[![Class]!]")!)>', closeWith:'</h3>', placeHolder:'Your title here...', className:'h3' },
-		{name:'Paragraph', openWith:'<p(!( class="[![Class]!]")!)>', closeWith:'</p>', className:'p' },
-		{separator:' ', className:'sep' },
-		{name:'Bold', key:'B', openWith:'(!(<strong>|!|<b>)!)', closeWith:'(!(</strong>|!|</b>)!)', className:'b' },
-		{name:'Italic', key:'I', openWith:'(!(<em>|!|<i>)!)', closeWith:'(!(</em>|!|</i>)!)', className:'i' },
-		{name:'Stroke through', key:'S', openWith:'<del>', closeWith:'</del>', className:'strike' },
-		{separator:' ', className:'sep' },
-		{name:'Ul', openWith:'<ul>\n', closeWith:'</ul>\n', className:'ul' },
-		{name:'Ol', openWith:'<ol>\n', closeWith:'</ol>\n', className:'ol' },
-		{name:'Li', openWith:'<li>', closeWith:'</li>', className:'li' },
-		{separator:' ', className:'sep' },
-		{name:'Link to an External Image', replaceWith:'<img src="[![Source:!:http://]!]" alt="[![Alternative text]!]" />', className:'img' },
-		{name:'Link', key:'L', openWith:'<a href="[![Link:!:http://]!]"(!( title="[![Title]!]")!)>', closeWith:'</a>', placeHolder:'Your text to link...', className:'a' },
-		{separator:' ', className:'sep' },
-		{name:'Clean', className:'clean', replaceWith:function(markitup) { return markitup.selection.replace(/<(.*?)>/g, "") } },
-		{name:'Preview', key: 'P', className:'preview', call:'preview' }
-	]
-}
-
 var cerbAutocompleteSuggestions = {
 	yamlDashboardFilters: {
 		'': [
@@ -194,6 +80,10 @@ var cerbAutocompleteSuggestions = {
 				snippet: 'date:\n    key: ${1:_label}\n    label: ${2:Label}\n    params:\n      #format: d-M-Y H:i:s T # See: https://php.net/date\n      #format: r\n      #value: 1577836800\n      #value_key: updated\n- '
 			},
 			{
+				caption: 'icon:',
+				snippet: 'icon:\n    key: ${1:_icon}\n    label: ${2:Icon}\n    params:\n      # See: Setup->Developers->Icon Reference\n      image: ${3:circle-ok}\n- '
+			},
+			{
 				caption: 'link:',
 				snippet: 'link:\n    key: ${1:_label}\n    label: ${2:Label}\n    params:\n      href: ${3:/some/path}\n      #href_key: some_key\n      #href_template: /some/path/{{placeholder}}\n      text: ${4:Link text}\n      #text_key: some_key\n- '
 			},
@@ -226,13 +116,19 @@ var cerbAutocompleteSuggestions = {
 			'value_key:',
 			'value_template:',
 			'value_map:',
-			'bold:'
+			'bold:',
+			'icon:'
 		],
 		'columns:-:text:params:bold:': [
 			'true',
 			'false'
 		],
-		
+		'columns:-:text:params:icon:': [
+			'image:',
+			'image_key:',
+			'image_template:'
+		],
+
 		// Cards
 		'columns:-:card:': [
 			'key:',
@@ -246,12 +142,18 @@ var cerbAutocompleteSuggestions = {
 			'context:',
 			'context_key:',
 			'context_template:',
+			'icon:',
 			'id:',
 			'id_key:',
 			'id_template:',
 			'label:',
 			'label_key:',
 			'label_template:'
+		],
+		'columns:-:card:params:icon:': [
+			'image:',
+			'image_key:',
+			'image_template:'
 		],
 		'columns:-:card:params:image:': [
 			'true',
@@ -287,7 +189,19 @@ var cerbAutocompleteSuggestions = {
 			'r',
 			'Y-m-d H:i:s a'
 		],
-		
+
+		// Icon
+		'columns:-:icon:': [
+			'key:',
+			'label:',
+			'params:'
+		],
+		'columns:-:icon:params:': [
+			'image:',
+			'image_key:',
+			'image_template:',
+		],
+
 		// Links
 		'columns:-:link:': [
 			'key:',
@@ -920,35 +834,41 @@ var cAjaxCalls = function() {
 			var $ul = $('<ul class="bubbles chooser-container"></ul>');
 			$ul.insertAfter($button);
 		}
+
+		$button.on('cerb-chooser-save', function(event) {
+			// If in single-selection mode
+			if(options.single)
+				$ul.find('li').remove();
+
+			// Add the labels
+			for(var idx in event.labels) {
+				if (0 === $ul.find('input:hidden[value="' + event.values[idx] + '"]').length) {
+					var $label = $('<a href="javascript:;" class="cerb-peek-trigger" data-context="cerberusweb.contexts.attachment" />')
+						.attr('data-context-id', event.values[idx])
+						.text(event.labels[idx])
+						.cerbPeekTrigger()
+					;
+					var $li = $('<li/>').append($label);
+					$('<input type="hidden">').attr('name', field_name + (options.single ? '' : '[]')).attr('value', event.values[idx]).appendTo($li);
+					$('<a href="javascript:;" onclick="$(this).parent().remove();"><span class="glyphicons glyphicons-circle-remove"></span></a>').appendTo($li);
+
+					if (null != options.style)
+						$li.addClass(options.style);
+
+					$ul.append($li);
+				}
+			}
+		});
 		
 		// The chooser search button
 		$button.click(function(event) {
-			var $button = $(button);
-			var $ul = $button.nextAll('ul.chooser-container:first');
 			var $chooser=genericAjaxPopup('chooser','c=internal&a=chooserOpenFile&single=' + (options.single ? '1' : '0'),null,true,'750');
 			
 			$chooser.one('chooser_save', function(event) {
-				// If in single-selection mode
-				if(options.single)
-					$ul.find('li').remove();
-				
-				// Add the labels
-				for(var idx in event.labels)
-					if(0==$ul.find('input:hidden[value="'+event.values[idx]+'"]').length) {
-						var $label = $('<a href="javascript:;" class="cerb-peek-trigger" data-context="cerberusweb.contexts.attachment" />')
-							.attr('data-context-id', event.values[idx])
-							.text(event.labels[idx])
-							.cerbPeekTrigger()
-							;
-						var $li = $('<li/>').append($label);
-						var $hidden = $('<input type="hidden">').attr('name', field_name + (options.single ? '' : '[]')).attr('value', event.values[idx]).appendTo($li);
-						var $a = $('<a href="javascript:;" onclick="$(this).parent().remove();"><span class="glyphicons glyphicons-circle-remove"></span></a>').appendTo($li);
-						
-						if(null != options.style)
-							$li.addClass(options.style);
-						$ul.append($li);
-					}
-				
+				var new_event = $.Event(event.type, event);
+				new_event.type = 'cerb-chooser-save';
+				event.stopPropagation();
+				$button.triggerHandler(new_event);
 				$button.focus();
 			});
 		});
@@ -1062,7 +982,7 @@ var ajax = new cAjaxCalls();
 				.hide()
 				;
 			
-			var editor_id = Devblocks.uniqueId();
+			var editor_id = Devblocks.uniqueId('editor');
 			
 			var $editor = $('<pre/>')
 				.attr('id', editor_id)
@@ -1080,7 +1000,10 @@ var ajax = new cAjaxCalls();
 			editor.setTheme("ace/theme/cerb");
 			editor.session.setMode(mode);
 			editor.session.setValue($this.val());
-			
+
+			editor.session.setOption('indentedSoftWrap', false);
+			editor.setOption('wrap', true);
+
 			$this
 				.data('$editor', $editor)
 				.data('editor', editor)
@@ -1330,13 +1253,537 @@ var ajax = new cAjaxCalls();
 			editor.setOptions(aceOptions);
 		});
 	};
+
+	$.fn.cerbCodeEditorToolbarHtml = function() {
+	  return this.each(function() {
+	      var $editor_toolbar = $(this);
+
+	      var $pre = $editor_toolbar.nextAll('pre.ace_editor');
+
+	      var editor = ace.edit($pre.attr('id'));
+
+          // Bold
+          $editor_toolbar.find('.cerb-html-editor-toolbar-button--bold').on('click', function () {
+              var selected_text = editor.getSelectedText();
+
+              if (0 === selected_text.length)
+                  return;
+
+              editor.session.replace(editor.getSelectionRange(), '<b>' + selected_text + '</b>');
+              editor.focus();
+          });
+
+          // Italics
+          $editor_toolbar.find('.cerb-html-editor-toolbar-button--italic').on('click', function () {
+              var selected_text = editor.getSelectedText();
+
+              if (0 === selected_text.length)
+                  return;
+
+              editor.session.replace(editor.getSelectionRange(), '<i>' + selected_text + '</i>');
+              editor.focus();
+          });
+
+		  // Headings
+		  $editor_toolbar.find('.cerb-html-editor-toolbar-button--heading').on('click', function () {
+			  var selected_text = editor.getSelectedText();
+
+			  if (0 === selected_text.length)
+				  return;
+
+			  editor.session.replace(editor.getSelectionRange(), '<h1>' + selected_text + '</h1>');
+			  editor.focus();
+		  });
+
+		  // Link
+          $editor_toolbar.find('.cerb-html-editor-toolbar-button--link').on('click', function () {
+              var selected_text = editor.getSelectedText();
+
+              if (0 === selected_text.length) {
+				  editor.insertSnippet('<a href="${1:https://example.com}">${2:link text}</a>');
+				  editor.focus();
+				  return;
+			  }
+
+			  editor.session.replace(editor.getSelectionRange(), '');
+              editor.insertSnippet('<a href="${1:https://example.com}">' + selected_text + '</a>');
+			  editor.focus();
+          });
+
+          // List
+          $editor_toolbar.find('.cerb-html-editor-toolbar-button--list').on('click', function () {
+              var range = editor.getSelectionRange();
+
+              // [TODO]
+
+              editor.session.indentRows(range.start.row, range.end.row, '* ');
+              editor.focus();
+          });
+
+          // Image
+          $editor_toolbar.find('.cerb-html-editor-toolbar-button--image').on('click', function () {
+              var $chooser = genericAjaxPopup('chooser', 'c=internal&a=chooserOpenFile&single=1', null, true, '750');
+
+              $chooser.one('chooser_save', function (event) {
+                  var file_id = event.values[0];
+                  var file_label = event.labels[0];
+                  var file_name = file_label.substring(0, file_label.lastIndexOf(' ('));
+
+                  var url =
+                      document.location.protocol
+                      + '//'
+                      + document.location.host
+                      + DevblocksWebPath
+                      + 'files/'
+                      + encodeURIComponent(file_id) + '/'
+                      + encodeURIComponent(file_name)
+                  ;
+
+                  $editor_toolbar.triggerHandler(
+                      $.Event(
+                          'cerb-editor-toolbar-image-inserted',
+                          { labels: event.labels, values: event.values, url: url }
+                      )
+                  );
+              });
+          });
+
+          // Quote
+          $editor_toolbar.find('.cerb-html-editor-toolbar-button--quote').on('click', function () {
+			  var selected_text = editor.getSelectedText();
+
+			  if (0 === selected_text.length)
+				  return;
+
+			  editor.session.replace(editor.getSelectionRange(), '<blockquote>' + selected_text + '</blockquote>');
+			  editor.focus();
+          });
+
+          // Code
+          $editor_toolbar.find('.cerb-html-editor-toolbar-button--code').on('click', function () {
+              var selected_text = editor.getSelectedText();
+
+              if (0 === selected_text.length) {
+	              editor.insertSnippet("<pre><code>\n${1:your code goes here}\n</code></pre>\n");
+                  editor.focus();
+                  return;
+              }
+
+              var range = editor.getSelectionRange();
+
+              // If multiple lines, use block format. Otherwise use backticks on vars
+              if (range.start.row !== range.end.row) {
+                  range.start.column = 0;
+                  range.end.row++;
+                  range.end.column = 0;
+                  editor.selection.setRange(range);
+                  editor.session.replace(range, "<pre><code>\n" + editor.getSelectedText() + "</code></pre>\n");
+
+              } else {
+                  editor.session.replace(editor.getSelectionRange(), '<var>' + selected_text + '</var>');
+              }
+
+              editor.focus();
+          });
+
+          // Table
+		  $editor_toolbar.find('.cerb-html-editor-toolbar-button--table').on('click', function () {
+			editor.insertSnippet('<table>\n<tr>\n<th>Column 1</th>\n<th>Column 2</th>\n</tr>\n<tr>\n<td>Cell 1</td>\n<td>Cell 2</td>\n</tr>\n</table>\n');
+		  	editor.focus();
+          });
+      });
+    };
+
+	$.widget('cerb.cerbTextEditor', {
+		options: {
+
+		},
+
+		_create: function() {
+			this.editor = this.element[0];
+
+			this.element
+				.css('width', '100%')
+				.css('height', '20em')
+			;
+		},
+
+		getCursorPosition: function() {
+			return this.editor.selectionEnd;
+		},
+
+		setCursorPosition: function(index) {
+			this.editor.selectionStart = index;
+			this.editor.selectionEnd = index;
+		},
+
+		getCurrentWordPos: function() {
+			var start = this.editor.selectionStart-1;
+			var end = this.editor.selectionStart;
+
+			for(var x = start; x >= 0; x--) {
+				var char = this.editor.value[x];
+
+				if(char.match(/\s/)) {
+					start = x + 1;
+					break;
+				}
+
+				if(0 === x) {
+					start = x;
+				}
+			}
+
+			return {
+				start: start,
+				end: end
+			};
+		},
+
+		getCurrentWord: function() {
+			var pos = this.getCurrentWordPos();
+			return this.editor.value.substring(pos.start,pos.end);
+		},
+
+		selectCurrentWord: function() {
+			var pos = this.getCurrentWordPos();
+			this.editor.selectionStart = pos.start;
+			this.editor.selectionEnd = pos.end;
+		},
+
+		replaceCurrentWord: function(replaceWith) {
+			this.selectCurrentWord();
+			this.replaceSelection(replaceWith);
+		},
+
+		getSelection: function() {
+			var start = this.editor.selectionStart;
+			var end = this.editor.selectionEnd;
+			var selectedText = this.editor.value.substring(start,end);
+			return selectedText;
+		},
+
+		setSelection: function(start, end) {
+			this.editor.selectionStart = start;
+			this.editor.selectionEnd = end;
+		},
+
+		insertText: function(insertText) {
+			var start = this.editor.selectionStart;
+
+			var newValue =
+				this.editor.value.substring(0,start)
+				+ insertText
+				+ this.editor.value.substring(start)
+			;
+
+			var offset = newValue.length - this.editor.value.length;
+
+			this.editor.value = newValue;
+
+			this.editor.selectionStart = start + offset;
+			this.editor.selectionEnd = start + offset;
+			this.editor.focus();
+		},
+
+		replaceSelection: function(replaceWith) {
+			var start = this.editor.selectionStart;
+			var end = this.editor.selectionEnd;
+
+			var newValue =
+				this.editor.value.substring(0,start)
+				+ replaceWith
+				+ this.editor.value.substring(end)
+			;
+
+			var offset = newValue.length - this.editor.value.length;
+
+			this.editor.value = newValue;
+
+			this.editor.selectionStart = end + offset;
+			this.editor.selectionEnd = end + offset;
+			this.editor.focus();
+		},
+
+		prefixCurrentLine: function(prefixWith) {
+			var start = Math.max(0, this.editor.value.substring(0, this.editor.selectionStart).lastIndexOf('\n')+1);
+			this.editor.selectionStart = start;
+			this.prefixSelection(prefixWith);
+		},
+
+		prefixSelectedLines: function(prefixWith) {
+			// [TODO]
+		},
+
+		prefixSelection: function(prefixWith) {
+			var selectedText = this.getSelection();
+			this.replaceSelection(prefixWith + selectedText);
+		},
+
+		wrapSelection: function(wrapWith) {
+			var selectedText = this.getSelection();
+			this.replaceSelection(wrapWith + selectedText + wrapWith);
+		}
+	});
+
+	$.fn.cerbTextEditorToolbarMarkdown = function() {
+	  return this.each(function() {
+	      var $editor_toolbar = $(this);
+	      var $editor = $editor_toolbar.nextAll('textarea');
+
+	      if(0 === $editor.length)
+	      	return;
+
+          // Bold
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--bold').on('click', function () {
+          	$editor.cerbTextEditor('wrapSelection', '**');
+          });
+
+          // Italics
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--italic').on('click', function () {
+          	$editor.cerbTextEditor('wrapSelection', '_');
+          });
+
+          // Headings
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--heading').on('click', function () {
+          	$editor.cerbTextEditor('prefixSelection', '# ');
+          });
+
+          // Link
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--link').on('click', function () {
+			  var selectedText = $editor.cerbTextEditor('getSelection');
+
+              if (0 === selectedText.length) {
+				$editor.cerbTextEditor('insertText', '[link text](https://example.com)');
+				return;
+			  }
+
+              $editor.cerbTextEditor('replaceSelection', '[' + selectedText + '](https://example.com)');
+		  });
+
+          // Image
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--image').on('click', function () {
+              var $chooser = genericAjaxPopup('chooser', 'c=internal&a=chooserOpenFile&single=1', null, true, '750');
+
+              $chooser.one('chooser_save', function (event) {
+				  var file_id = event.values[0];
+				  var file_label = event.labels[0];
+				  var file_name = file_label.substring(0, file_label.lastIndexOf(' ('));
+
+				  var url =
+					  document.location.protocol
+					  + '//'
+					  + document.location.host
+					  + DevblocksWebPath
+					  + 'files/'
+					  + encodeURIComponent(file_id) + '/'
+					  + encodeURIComponent(file_name)
+				  ;
+
+				  $editor_toolbar.triggerHandler(
+					  $.Event(
+						  'cerb-editor-toolbar-image-inserted',
+						  { labels: event.labels, values: event.values, file_id: file_id, file_name: file_name, url: url }
+					  )
+				  );
+              });
+          });
+
+		  // List
+		  $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--list').on('click', function () {
+			  var selectedText = $editor.cerbTextEditor('getSelection');
+
+			  if (0 === selectedText.length) {
+			  	$editor.cerbTextEditor('prefixCurrentLine', '* ');
+			    return;
+			  }
+
+			  if(-1 === selectedText.indexOf("\n")) {
+			  	$editor.cerbTextEditor('prefixCurrentLine', '* ');
+			  } else {
+			  	var quotedText = $.trim(selectedText).replace(new RegExp('\n', 'g'),'\n* ');
+			  	$editor.cerbTextEditor('replaceSelection', '* ' + quotedText + '\n');
+			  }
+		  });
+
+		  // Quote
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--quote').on('click', function () {
+			  var selectedText = $editor.cerbTextEditor('getSelection');
+
+			  if (0 === selectedText.length) {
+			  	$editor.cerbTextEditor('prefixCurrentLine', '> ');
+			    return;
+			  }
+
+			  if(-1 === selectedText.indexOf("\n")) {
+			  	$editor.cerbTextEditor('prefixCurrentLine', '> ');
+			  } else {
+			  	var quotedText = $.trim(selectedText).replace(new RegExp('\n', 'g'),'\n> ');
+			  	$editor.cerbTextEditor('replaceSelection', '> ' + quotedText + '\n');
+			  }
+          });
+
+          // Code
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--code').on('click', function () {
+			  var selectedText = $editor.cerbTextEditor('getSelection');
+
+              if (0 === selectedText.length) {
+              	  $editor.cerbTextEditor('insertText', "~~~\nyour code goes here\n~~~\n");
+                  return;
+              }
+
+              if(-1 === selectedText.indexOf("\n")) {
+              	 $editor.cerbTextEditor('wrapSelection', '`');
+			  } else {
+              	 $editor.cerbTextEditor('wrapSelection', '~~~\n');
+			  }
+          });
+
+          // Table
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--table').on('click', function () {
+          	  $editor.cerbTextEditor('insertText', "Column | Column\n--- | ---\nValue | Value\n");
+          });
+      });
+    };
+
+	$.fn.cerbCodeEditorToolbarMarkdown = function() {
+	  return this.each(function() {
+	      var $editor_toolbar = $(this);
+
+	      var $pre = $editor_toolbar.nextAll('pre.ace_editor');
+
+	      var editor = ace.edit($pre.attr('id'));
+
+          // Bold
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--bold').on('click', function () {
+              var selected_text = editor.getSelectedText();
+
+              if (0 === selected_text.length)
+                  return;
+
+              editor.session.replace(editor.getSelectionRange(), '**' + selected_text + '**');
+              editor.focus();
+          });
+
+          // Italics
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--italic').on('click', function () {
+              var selected_text = editor.getSelectedText();
+
+              if (0 === selected_text.length)
+                  return;
+
+              editor.session.replace(editor.getSelectionRange(), '_' + selected_text + '_');
+              editor.focus();
+          });
+
+          // Headings
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--heading').on('click', function () {
+			  var range = editor.getSelectionRange();
+
+			  editor.session.indentRows(range.start.row, range.end.row, '#');
+			  editor.focus();
+          });
+
+          // Link
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--link').on('click', function () {
+              var selected_text = editor.getSelectedText();
+
+              if (0 === selected_text.length) {
+                  editor.insertSnippet('[${1:link text}](${2:https://example.com})');
+                      editor.focus();
+                      return;
+                  }
+
+                  editor.session.replace(editor.getSelectionRange(), '');
+                  editor.insertSnippet('[' + selected_text + '](${1:https://example.com})');
+                      editor.focus();
+                  });
+
+          // List
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--list').on('click', function () {
+              var range = editor.getSelectionRange();
+
+              editor.session.indentRows(range.start.row, range.end.row, '* ');
+              editor.focus();
+          });
+
+          // Image
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--image').on('click', function () {
+              var $chooser = genericAjaxPopup('chooser', 'c=internal&a=chooserOpenFile&single=1', null, true, '750');
+
+              $chooser.one('chooser_save', function (event) {
+				  var file_id = event.values[0];
+				  var file_label = event.labels[0];
+				  var file_name = file_label.substring(0, file_label.lastIndexOf(' ('));
+
+				  var url =
+					  document.location.protocol
+					  + '//'
+					  + document.location.host
+					  + DevblocksWebPath
+					  + 'files/'
+					  + encodeURIComponent(file_id) + '/'
+					  + encodeURIComponent(file_name)
+				  ;
+
+				  $editor_toolbar.triggerHandler(
+					  $.Event(
+						  'cerb-editor-toolbar-image-inserted',
+						  { labels: event.labels, values: event.values, file_id: file_id, file_name: file_name, url: url }
+					  )
+				  );
+              });
+          });
+
+          // Quote
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--quote').on('click', function () {
+              var range = editor.getSelectionRange();
+
+              editor.session.indentRows(range.start.row, range.end.row, '> ');
+              editor.focus();
+          });
+
+          // Code
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--code').on('click', function () {
+              var selected_text = editor.getSelectedText();
+
+              if (0 === selected_text.length) {
+              editor.insertSnippet("~~~\n${1:your code goes here}\n~~~\n");
+                  editor.focus();
+                  return;
+              }
+
+              var range = editor.getSelectionRange();
+
+              // If multiple lines, use block format. Otherwise use backticks on vars
+              if (range.start.row != range.end.row) {
+                  range.start.column = 0;
+                  range.end.row++;
+                  range.end.column = 0;
+                  editor.selection.setRange(range);
+                  editor.session.replace(range, "~~~\n" + editor.getSelectedText() + "~~~~\n");
+
+              } else {
+                  editor.session.replace(editor.getSelectionRange(), '`' + selected_text + '`');
+              }
+
+              editor.focus();
+          });
+
+          // Table
+          $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--table').on('click', function () {
+              editor.insertSnippet("Column | Column\n--- | ---\nValue | Value\n");
+              editor.focus();
+          });
+      });
+    };
 	
 	$.fn.cerbCodeEditorAutocompleteYaml = function(autocomplete_options) {
 		var Autocomplete = require('ace/autocomplete').Autocomplete;
 		
 		var doCerbLiveAutocomplete = function(e) {
 			e.stopPropagation();
-			
+
 			if(!e.editor.completer) {
 				var Autocomplete = require('ace/autocomplete').Autocomplete;
 				e.editor.completer = new Autocomplete();
@@ -1387,10 +1834,39 @@ var ajax = new cAjaxCalls();
 				},
 				getCompletions: function(editor, session, pos, prefix, callback) {
 					var token_path = Devblocks.cerbCodeEditor.getYamlTokenPath(pos, editor);
-					var scope_key = token_path.join('');
+
+					// Normalize path (remove namespaces)
+					token_path = token_path.map(function(v) {
+						var pos = v.indexOf('/');
+						
+						if(-1 == pos)
+							return v;
+						
+						return v.substr(0,pos) + ':';
+					});
 					
+					var scope_key = token_path.join('');
+
+					// Simple static path full match
 					if(editor.completer.autocomplete_suggestions.hasOwnProperty(scope_key)) {
 						callback(null, autocompleterYaml.formatData(scope_key));
+						return;
+						
+					} else if (editor.completer.autocomplete_suggestions.hasOwnProperty('*')) {
+						var regexps = editor.completer.autocomplete_suggestions['*'];
+						
+						for(var regexp in regexps) {
+							if(scope_key.match(new RegExp('^' + regexp + '$'))) {
+								editor.completer.autocomplete_suggestions[scope_key] = regexps[regexp];
+								callback(null, autocompleterYaml.formatData(scope_key));
+								return;
+							}
+						}
+						
+						// Negative lookup cache
+						editor.completer.autocomplete_suggestions[scope_key] = [];
+						
+						callback(false);
 						return;
 						
 					} else {
@@ -1405,7 +1881,423 @@ var ajax = new cAjaxCalls();
 			editor.commands.on('afterExec', doCerbLiveAutocomplete);
 		});
 	}
-	
+
+	$.fn.cerbTextEditorAutocompleteComments = function() {
+		return this.each(function() {
+			var $editor = $(this);
+			var editor = $editor[0];
+
+			$editor.autocomplete({
+				appendTo: $editor.parent(),
+
+				_sourceMentions: function(request, response, token) {
+					var term = token.substring(1);
+					var ajax_requests = [];
+
+					ajax_requests.push(function(callback) {
+						var query = 'type:worklist.records of:worker query:(isDisabled:n'
+							+ (term.length === 0
+								? ' mention:!""'
+								: ' (mention:{}*)'.replace(/\{\}/g, term)
+							)
+							+ ')'
+						;
+
+						genericAjaxGet('', 'c=ui&a=dataQuery&q=' + encodeURIComponent(query), function(json) {
+							if ('object' != typeof json || !json.hasOwnProperty('data')) {
+								return callback(null, []);
+							}
+
+							var results = [];
+
+							for (var i in json.data) {
+								var worker = json.data[i];
+
+								results.push({
+									_type: 'worker',
+									label: worker['_label'],
+									value: '@' + worker['at_mention_name'],
+									title: worker['title'],
+									mention: '@' + worker['at_mention_name'],
+									image_url: worker['_image_url'],
+									id: worker['id']
+								});
+							}
+
+							return callback(null, results);
+						});
+					});
+
+					ajax_requests.push(function(callback) {
+						var query = 'type:worklist.records of:saved_search query:(context:worker'
+							+ (term.length === 0
+									? ' tag:!""'
+									: ' (tag:{}*)'.replace(/\{\}/g, term)
+							)
+							+ ')'
+						;
+
+						genericAjaxGet('', 'c=ui&a=dataQuery&q=' + encodeURIComponent(query), function(json) {
+							if ('object' != typeof json || !json.hasOwnProperty('data')) {
+								return callback(null, []);
+							}
+
+							var results = [];
+
+							for (var i in json.data) {
+								var search = json.data[i];
+
+								results.push({
+									_type: 'saved_search',
+									label: search['_label'],
+									value: '@' + search['tag'],
+									image_url: search['_image_url'],
+									mention: '@' + search['tag'],
+									id: search['id']
+								});
+							}
+
+							return callback(null, results);
+						});
+					});
+
+					async.parallelLimit(ajax_requests, 2, function(err, json) {
+						if(err)
+							return response([]);
+
+						var results = json.reduce(function(arr,val) { return arr.concat(val); });
+
+						return response(results);
+					});
+				},
+
+				source: function(request, response) {
+					var token = $editor.cerbTextEditor('getCurrentWord');
+
+					if(token.startsWith('@')) {
+						return this.options._sourceMentions(request, response, token);
+					} else {
+						response([]);
+					}
+
+				},
+
+				select: function(event, ui)  {
+					$editor.cerbTextEditor('replaceCurrentWord', ui.item.value);
+					return false;
+				},
+
+				focus: function(event, ui) {
+					return false;
+				},
+
+				open: function(event, ui) {
+					var $menu = $editor.autocomplete('widget');
+					var pos = getCaretCoordinates(editor, editor.selectionEnd);
+
+					$menu
+						.css('width', '400px')
+						.css('top', (editor.offsetTop - editor.scrollTop + pos.top + 15) + 'px')
+						.css('left', (editor.offsetLeft - editor.scrollLeft + pos.left + 5) + 'px')
+					;
+				}
+			})
+			.autocomplete( "instance" )._renderItem = function( ul, item ) {
+				var $li = $('<li/>');
+
+				if(item.image_url) {
+					$('<img/>')
+						.addClass('cerb-avatar')
+						.attr('src', item.image_url)
+						.appendTo($li)
+					;
+				}
+
+				$('<span/>')
+					.text(item.label)
+					.appendTo($li)
+					;
+
+				if(item.mention) {
+					$('<span/>')
+						.text(item.mention)
+						.css('margin-left', '10px')
+						.appendTo($li)
+					;
+				}
+
+				if(item.title) {
+					$('<span/>')
+						.text(item.title)
+						.css('margin-left', '10px')
+						.css('font-weight', 'normal')
+						.appendTo($li);
+					;
+				}
+
+				$li.appendTo(ul);
+
+				return $li;
+			};
+		});
+	}
+
+	$.fn.cerbTextEditorAutocompleteReplies = function() {
+		return this.each(function() {
+			var $editor = $(this);
+			var editor = $editor[0];
+
+			$editor.autocomplete({
+				appendTo: $editor.parent(),
+
+				_sourceCommand: function(request, response, token) {
+					var commands = [
+						{
+							label: '#attach',
+							value: '#attach ',
+							description: 'Attach a file bundle by alias'
+						},
+						{
+							label: '#comment',
+							value: '#comment ',
+							description: 'Add a comment with @mention notifications'
+						},
+						{
+							label: '#cut',
+							value: '#cut\n',
+							description: 'Ignore everything below this line'
+						},
+						{
+							label: '#delete_quote_from_here',
+							value: '#delete_quote_from_here',
+							description: 'Remove remaining quoted text from this line'
+						},
+						{
+							label: '#signature',
+							value: '#signature\n',
+							description: 'Insert the signature placeholder'
+						},
+						{
+							label: '#unwatch',
+							value: '#unwatch\n',
+							description: 'Stop watching this ticket'
+						},
+						{
+							label: '#watch',
+							value: '#watch\n',
+							description: 'Start watching this ticket'
+						}
+					];
+
+					// Filter
+					if(token.length > 1) {
+						return response(commands.filter(function (command) {
+							return command.label.startsWith(token);
+						}));
+					}
+
+					return response(commands);
+				},
+
+				_sourceMention: function(request, response, token) {
+					var term = token.substring(1);
+					var ajax_requests = [];
+
+					ajax_requests.push(function(callback) {
+						var query = 'type:worklist.records of:worker query:(isDisabled:n'
+							+ (term.length === 0
+								? ' mention:!""'
+								: ' (mention:{}*)'.replace(/\{\}/g, term)
+							)
+							+ ')'
+						;
+
+						genericAjaxGet('', 'c=ui&a=dataQuery&q=' + encodeURIComponent(query), function(json) {
+							if ('object' != typeof json || !json.hasOwnProperty('data')) {
+								return callback(null, []);
+							}
+
+							var results = [];
+
+							for (var i in json.data) {
+								var worker = json.data[i];
+
+								results.push({
+									_type: 'worker',
+									label: worker['_label'],
+									value: '@' + worker['at_mention_name'],
+									title: worker['title'],
+									mention: '@' + worker['at_mention_name'],
+									image_url: worker['_image_url'],
+									id: worker['id']
+								});
+							}
+
+							return callback(null, results);
+						});
+					});
+
+					ajax_requests.push(function(callback) {
+						var query = 'type:worklist.records of:saved_search query:(context:worker'
+							+ (term.length === 0
+								? ' tag:!""'
+								: ' (tag:{}*)'.replace(/\{\}/g, term)
+							)
+							+ ')'
+						;
+
+						genericAjaxGet('', 'c=ui&a=dataQuery&q=' + encodeURIComponent(query), function(json) {
+							if ('object' != typeof json || !json.hasOwnProperty('data')) {
+								return callback(null, []);
+							}
+
+							var results = [];
+
+							for (var i in json.data) {
+								var search = json.data[i];
+
+								results.push({
+									_type: 'saved_search',
+									label: search['_label'],
+									value: '@' + search['tag'],
+									image_url: search['_image_url'],
+									mention: '@' + search['tag'],
+									id: search['id']
+								});
+							}
+
+							return callback(null, results);
+						});
+					});
+
+					async.parallelLimit(ajax_requests, 2, function(err, json) {
+						if(err)
+							return response([]);
+
+						var results = json.reduce(function(arr,val) { return arr.concat(val); });
+
+						return response(results);
+					});
+				},
+
+				source: function(request, response) {
+					var token = $editor.cerbTextEditor('getCurrentWord');
+
+					if(token.startsWith('#')) {
+						return this.options._sourceCommand(request, response, token);
+					} else if(token.startsWith('@')) {
+						return this.options._sourceMention(request, response, token);
+					} else {
+						response([]);
+					}
+				},
+
+				select: function(event, ui)  {
+					if('#delete_quote_from_here' === ui.item.value) {
+						$editor.cerbTextEditor('replaceCurrentWord', '');
+						var start = $editor.cerbTextEditor('getCursorPosition');
+						var value = $editor.val();
+
+						var lines = value.substring(start).split(/\r?\n/g);
+						var remainder = [];
+						var finished = false;
+
+						for (var i in lines) {
+							if (!finished && lines[i].startsWith('>')) {
+								continue;
+							} else {
+								finished = true;
+							}
+
+							remainder.push(lines[i]);
+						}
+
+						$editor.cerbTextEditor('setSelection', start, value.length);
+						$editor.cerbTextEditor('replaceSelection', remainder.join('\n'));
+						$editor.cerbTextEditor('setCursorPosition', start);
+
+					} else {
+						$editor.cerbTextEditor('replaceCurrentWord', ui.item.value);
+					}
+
+					return false;
+				},
+
+				focus: function(event, ui) {
+					return false;
+				},
+
+				open: function(event, ui) {
+					var $menu = $editor.autocomplete('widget');
+					var pos = getCaretCoordinates(editor, editor.selectionEnd);
+
+					$menu
+						.css('width', '400px')
+						.css('top', (editor.offsetTop - editor.scrollTop + pos.top + 15) + 'px')
+						.css('left', (editor.offsetLeft - editor.scrollLeft + pos.left + 5) + 'px')
+					;
+				}
+			})
+			.autocomplete( "instance" )._renderItem = function( ul, item ) {
+				var $li = $('<li/>');
+
+				// #commands
+				if(item.label.startsWith('#')) {
+					$('<span/>')
+						.text(item.label)
+						.appendTo($li)
+					;
+
+					if(item.description) {
+						$('<span/>')
+							.text(item.description)
+							.css('display', 'block')
+							.css('margin-left', '10px')
+							.css('font-weight', 'normal')
+							.appendTo($li)
+						;
+					}
+
+				// @mentions
+				} else {
+					if(item.image_url) {
+						$('<img/>')
+							.addClass('cerb-avatar')
+							.attr('src', item.image_url)
+							.appendTo($li)
+						;
+					}
+
+					$('<span/>')
+						.text(item.label)
+						.appendTo($li)
+					;
+
+					if(item.mention) {
+						$('<span/>')
+							.text(item.mention)
+							.css('margin-left', '10px')
+							.appendTo($li)
+						;
+					}
+
+					if(item.title) {
+						$('<span/>')
+							.text(item.title)
+							.css('margin-left', '10px')
+							.css('font-weight', 'normal')
+							.appendTo($li);
+						;
+					}
+				}
+
+				$li.appendTo(ul);
+
+				return $li;
+			};
+		});
+	}
+
 	$.fn.cerbCodeEditorAutocompleteSearchQueries = function(autocomplete_options) {
 		var Autocomplete = require('ace/autocomplete').Autocomplete;
 		
@@ -1492,9 +2384,9 @@ var ajax = new cAjaxCalls();
 					// Don't give suggestions inside Twig elements or at the end of `)` sets
 					if(token) {
 						if(
-							('paren.rparen' == token.type)
-							|| 'variable.other.readwrite.local.twig' == token.type
-							|| ('keyword.operator.other' == token.type && token.value == '|')
+							('paren.rparen' === token.type)
+							|| 'variable.other.readwrite.local.twig' === token.type
+							|| ('keyword.operator.other' === token.type && token.value === '|')
 						){
 							callback(false);
 							return;
@@ -1641,7 +2533,7 @@ var ajax = new cAjaxCalls();
 			editor.commands.on('afterExec', doCerbLiveAutocomplete);
 		});
 	};
-	
+
 	$.fn.cerbCodeEditorAutocompleteDataQueries = function() {
 		var Autocomplete = require('ace/autocomplete').Autocomplete;
 		
@@ -1664,10 +2556,10 @@ var ajax = new cAjaxCalls();
 			e.stopPropagation();
 			
 			if(!(
-				'insertstring' == e.command.name 
-				|| 'paste' == e.command.name 
-				|| 'Return' == e.command.name 
-				|| 'backspace' == e.command.name)) {
+				'insertstring' === e.command.name
+				|| 'paste' === e.command.name
+				|| 'Return' === e.command.name
+				|| 'backspace' === e.command.name)) {
 				return;
 			}
 			
@@ -1681,21 +2573,21 @@ var ajax = new cAjaxCalls();
 			var is_dirty = false;
 			
 			// If we're in the middle of typing a dynamic series alias, ignore it
-			if(1 == current_field.scope.length
-				&& 0 == current_field.nodes.length
-				&& -1 != ['series.','values.'].indexOf(current_field.scope[0].substr(0,7))
+			if(1 === current_field.scope.length
+				&& 0 === current_field.nodes.length
+				&& -1 !== ['series.','values.'].indexOf(current_field.scope[0].substr(0,7))
 				) {
 				return;
 			}
 			
-			if(0 == value.length) {
+			if(0 === value.length) {
 				autocomplete_suggestions = {};
 				autocomplete_scope.type = '';
 				autocomplete_scope.of = '';
 				is_dirty = true;
 				
 			// If we pasted content, rediscover the scope
-			} else if('paste' == e.command.name) {
+			} else if('paste' === e.command.name) {
 				autocomplete_suggestions = {};
 				autocomplete_scope.type = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(e.editor, 'type:') || '';
 				autocomplete_scope.of = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(e.editor, 'of:') || '';
@@ -1705,52 +2597,52 @@ var ajax = new cAjaxCalls();
 			} else if(current_field.hasOwnProperty('scope')) {
 				var current_field_name = current_field.scope.slice(-1)[0];
 				
-				if(current_field_name == 'type:' && current_field.nodes[0]) {
+				if(current_field_name === 'type:' && current_field.nodes[0]) {
 					var token_path = Devblocks.cerbCodeEditor.getQueryTokenPath(pos, e.editor);
 					
-					if(1 == token_path.scope.length) {
+					if(1 === token_path.scope.length) {
 						var type = current_field.nodes[0].value;
 						
-						if(autocomplete_scope.type != type) {
+						if(autocomplete_scope.type !== type) {
 							autocomplete_scope.type = type;
 							autocomplete_scope.of = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(e.editor, 'of:') || '';
 							is_dirty = true;
 						}
 					}
 					
-				} else if(current_field_name == 'of:' && current_field.nodes[0]) {
+				} else if(current_field_name === 'of:' && current_field.nodes[0]) {
 					var token_path = Devblocks.cerbCodeEditor.getQueryTokenPath(pos, e.editor);
 					
-					if(1 == token_path.scope.length) {
+					if(1 === token_path.scope.length) {
 						var of = current_field.nodes[0].value;
 						
-						if(autocomplete_scope.of != of) {
+						if(autocomplete_scope.of !== of) {
 							autocomplete_scope.of = of;
 							
 							// If it's not a known context, ignore
-							if(-1 != autocomplete_contexts.indexOf(of)) {
+							if(-1 !== autocomplete_contexts.indexOf(of)) {
 								is_dirty = true;
 							}
 						}
 					
-					} else if(-1 != ['series.','values.'].indexOf(token_path.scope[0].substr(0,7))) {
+					} else if(-1 !== ['series.','values.'].indexOf(token_path.scope[0].substr(0,7))) {
 						var series_key = token_path.scope[0];
 						var series_of = token_path.nodes[0].value;
 						
-						if(autocomplete_scope[series_key + 'of:'] != series_of) {
+						if(autocomplete_scope[series_key + 'of:'] !== series_of) {
 							autocomplete_scope[series_key + 'of:'] = series_of;
 							
 							for(key in autocomplete_suggestions._contexts) {
-								if(series_key == key.substr(0,series_key.length))
+								if(series_key === key.substr(0,series_key.length))
 									autocomplete_suggestions._contexts[key] = null;
 							}
 							
 							for(key in autocomplete_suggestions) {
-								if(series_key == key.substr(0,series_key.length))
+								if(series_key === key.substr(0,series_key.length))
 									autocomplete_suggestions[key] = null;
 							}
 							
-							if(-1 != autocomplete_contexts.indexOf(series_of)) {
+							if(-1 !== autocomplete_contexts.indexOf(series_of)) {
 								autocomplete_scope[series_key + 'x:'] = {
 									'_type': 'series_of_field'
 								};
@@ -1777,7 +2669,7 @@ var ajax = new cAjaxCalls();
 				var of = autocomplete_scope.of;
 				
 				// If type: is invalid
-				if('' == type || -1 == autocomplete_suggestions_types['type:'].indexOf(type)) {
+				if('' === type || -1 === autocomplete_suggestions_types['type:'].indexOf(type)) {
 					autocomplete_suggestions = autocomplete_suggestions_types;
 					
 				} else {
@@ -1791,8 +2683,8 @@ var ajax = new cAjaxCalls();
 				}
 			}
 			
-			if('Return' != e.command.name && (!e.editor.completer.activated || e.editor.completer.isDynamic)) {
-				if(e.args && 1 == e.args.length) {
+			if('Return' !== e.command.name && (!e.editor.completer.activated || e.editor.completer.isDynamic)) {
+				if(e.args && 1 === e.args.length) {
 					e.editor.completer.showPopup(e.editor);
 				}
 			}
@@ -1814,7 +2706,7 @@ var ajax = new cAjaxCalls();
 			var completer = {
 				identifierRegexps: [/[a-zA-Z_0-9\*\#\@\.\$\-\u00A2-\uFFFF]/],
 				formatData: function(scope_key) {
-					if(!autocomplete_suggestions.hasOwnProperty(scope_key) 
+					if(!autocomplete_suggestions.hasOwnProperty(scope_key)
 						|| undefined == autocomplete_suggestions.hasOwnProperty(scope_key))
 						return [];
 					
@@ -1846,8 +2738,8 @@ var ajax = new cAjaxCalls();
 					// Don't give suggestions inside Twig elements
 					if(token) {
 						if(
-							'variable.other.readwrite.local.twig' == token.type
-							|| ('keyword.operator.other' == token.type && token.value == '|')
+							'variable.other.readwrite.local.twig' === token.type
+							|| ('keyword.operator.other' === token.type && token.value === '|')
 						){
 							callback(false);
 							return;
@@ -1865,7 +2757,7 @@ var ajax = new cAjaxCalls();
 						} else if('object' == typeof autocomplete_suggestions[scope_key] 
 							&& autocomplete_suggestions[scope_key].hasOwnProperty('_type')) {
 							
-							if('autocomplete' == autocomplete_suggestions[scope_key]._type) {
+							if('autocomplete' === autocomplete_suggestions[scope_key]._type) {
 								var key = autocomplete_suggestions[scope_key].hasOwnProperty('key') ? autocomplete_suggestions[scope_key].key : null;
 								var limit = autocomplete_suggestions[scope_key].hasOwnProperty('limit') ? autocomplete_suggestions[scope_key].limit : 0;
 								var min_length = autocomplete_suggestions[scope_key].hasOwnProperty('min_length') ? autocomplete_suggestions[scope_key].min_length : 0;
@@ -1896,7 +2788,7 @@ var ajax = new cAjaxCalls();
 									}
 									
 									// If we have the full set, persist it
-									if('' == prefix && limit && limit > json.data.length) {
+									if('' === prefix && limit && limit > json.data.length) {
 										autocomplete_suggestions[scope_key] = results;
 										
 									} else {
@@ -1907,7 +2799,7 @@ var ajax = new cAjaxCalls();
 									return;
 								});
 								
-							} else if('series_of_query' == autocomplete_suggestions[scope_key]._type) {
+							} else if('series_of_query' === autocomplete_suggestions[scope_key]._type) {
 								var of = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(editor, token_path.scope[0] + 'of:');
 								
 								if(!of) {
@@ -1926,7 +2818,7 @@ var ajax = new cAjaxCalls();
 									for(var path_key_idx in path_keys) {
 										var path_key = path_keys[path_key_idx];
 										
-										if(path_key == '_contexts') {
+										if(path_key === '_contexts') {
 											if(!autocomplete_suggestions.hasOwnProperty('_contexts'))
 												autocomplete_suggestions['_contexts'] = {};
 											
@@ -1947,7 +2839,7 @@ var ajax = new cAjaxCalls();
 									return;
 								});
 								
-							} else if('series_of_field' == autocomplete_suggestions[scope_key]._type) {
+							} else if('series_of_field' === autocomplete_suggestions[scope_key]._type) {
 								var of = autocomplete_scope[token_path.scope[0] + 'of:']
 									|| Devblocks.cerbCodeEditor.getQueryTokenValueByPath(editor, token_path.scope[0] + 'of:');
 								
@@ -1975,9 +2867,12 @@ var ajax = new cAjaxCalls();
 						
 					} else {
 						if(
-							('series.' == token_path.scope[0].substr(0,7) && !autocomplete_suggestions[token_path.scope[0]] && autocomplete_suggestions['series.*:'])
-							|| ('values.' == token_path.scope[0].substr(0,7) && !autocomplete_suggestions[token_path.scope[0]] && autocomplete_suggestions['values.*:'])
-							) {
+							('object' == typeof token_path && $.isArray(token_path.scope) && 'object' == typeof token_path.scope[0])
+							&& (
+								('series.' == token_path.scope[0].substr(0,7) && !autocomplete_suggestions[token_path.scope[0]] && autocomplete_suggestions['series.*:'])
+								||
+								('values.' == token_path.scope[0].substr(0,7) && !autocomplete_suggestions[token_path.scope[0]] && autocomplete_suggestions['values.*:'])
+							)) {
 							var series_key = token_path.scope[0];
 							var series_template_key = token_path.scope[0].substr(0,7) + '*:';
 							
@@ -1988,7 +2883,7 @@ var ajax = new cAjaxCalls();
 							}
 							var series_of = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(editor, token_path.scope[0] + 'of:');
 							
-							if(series_of && token_path.scope[1] && 'query' == token_path.scope[1].substr(0,5)) {
+							if(series_of && token_path.scope[1] && 'query' === token_path.scope[1].substr(0,5)) {
 								if(!autocomplete_suggestions['_contexts'])
 									autocomplete_suggestions['_contexts'] = {};
 								
@@ -2007,11 +2902,11 @@ var ajax = new cAjaxCalls();
 									}
 									
 									for(path_key in json) {
-										if(path_key == '_contexts') {
+										if(path_key === '_contexts') {
 											if(!autocomplete_suggestions['_contexts'])
 												autocomplete_suggestions['_contexts'] = {};
 											
-											for(context_key in json[path_key]) {
+											for(var context_key in json[path_key]) {
 												autocomplete_suggestions['_contexts'][expand_prefix + context_key] = json[path_key][context_key];
 											}
 											
@@ -2032,7 +2927,7 @@ var ajax = new cAjaxCalls();
 								editor.completer.showPopup(editor);
 								return;
 								
-							} else if(1 == token_path.scope.length) {
+							} else if(1 === token_path.scope.length) {
 								editor.completer.showPopup(editor);
 								return;
 							}
@@ -2078,11 +2973,11 @@ var ajax = new cAjaxCalls();
 								}
 								
 								for(path_key in json) {
-									if(path_key == '_contexts') {
+									if(path_key === '_contexts') {
 										if(!autocomplete_suggestions['_contexts'])
 											autocomplete_suggestions['_contexts'] = {};
 										
-										for(context_key in json[path_key]) {
+										for(var context_key in json[path_key]) {
 											autocomplete_suggestions['_contexts'][expand_prefix + context_key] = json[path_key][context_key];
 										}
 										
@@ -2126,7 +3021,7 @@ var ajax = new cAjaxCalls();
 					editor.on('focus', function(e) {
 						var val = editor.getValue();
 						
-						if(0 == val.length) {
+						if(0 === val.length) {
 							if(!editor.completer) {
 								editor.completer = new Autocomplete();
 							}
@@ -2326,11 +3221,19 @@ var ajax = new cAjaxCalls();
 			var $trigger = $(this);
 			
 			$trigger.click(function(evt) {
+				evt.preventDefault();
+				evt.stopPropagation();
+				
 				var context = $trigger.attr('data-context');
 				var context_id = $trigger.attr('data-context-id');
 				var layer = $trigger.attr('data-layer');
 				var width = $trigger.attr('data-width');
 				var edit_mode = $trigger.attr('data-edit') ? true : false;
+				
+				var profile_url = $trigger.attr('data-profile-url');
+				
+				if(!profile_url && (evt.shiftKey || evt.metaKey))
+					edit_mode = true;
 				
 				// Context
 				if(!(typeof context == "string") || 0 == context.length)
@@ -2341,12 +3244,7 @@ var ajax = new cAjaxCalls();
 					//layer = "peek" + Devblocks.uniqueId();
 					layer = $.md5(context + ':' + context_id + ':' + (edit_mode ? 'true' : 'false'));
 				
-				var profile_url = $trigger.attr('data-profile-url');
-				
-				// Are they also holding SHIFT or CMD?
-				if((evt.shiftKey || evt.metaKey) && profile_url) {
-					evt.preventDefault();
-					evt.stopPropagation();
+				if(profile_url && (evt.shiftKey || evt.metaKey)) {
 					window.open(profile_url, '_blank', 'noopener');
 					return;
 				}
@@ -2379,6 +3277,12 @@ var ajax = new cAjaxCalls();
 					e.type = 'cerb-peek-saved';
 					e.context = context;
 					$trigger.trigger(e);
+					
+					if(e.is_new) {
+						var new_event = $.Event(e.type, e);
+						new_event.type = 'cerb-peek-created';
+						$trigger.trigger(new_event);
+					}
 				});
 				
 				$peek.on('peek_deleted', function(e) {
@@ -2435,7 +3339,238 @@ var ajax = new cAjaxCalls();
 			});
 		});
 	}
-	
+
+	// Image paste
+
+	$.fn.cerbTextEditorInlineImagePaster = function(options) {
+		return this.each(function() {
+			var $cursor = $(this);
+			var $attachments = options['attachmentsContainer'];
+			var $ul = $attachments.find('ul.chooser-container');
+
+			$cursor.on('paste', function(e) {
+				e.stopPropagation();
+
+				var files = e.originalEvent.clipboardData.files;
+
+				if(0 === files.length) {
+					return;
+				}
+
+				e.preventDefault();
+
+				// Uploads
+
+				var jobs = [];
+				var labels = [];
+				var values = [];
+
+				var uploadFunc = function(f, labels, values, callback) {
+					var xhr = new XMLHttpRequest();
+
+					if(xhr.upload) {
+						var $spinner = $('<span class="cerb-ajax-spinner"/>')
+							.css('zoom', '0.5')
+							.css('margin-right', '5px')
+						;
+
+						var $status = $('<li/>');
+
+						$status
+							.appendTo($ul)
+							.append($spinner)
+							.append(
+								$('<span/>')
+									.text('Uploading ' + f.name)
+							)
+						;
+
+						xhr.open('POST', DevblocksAppPath + 'ajax.php?c=internal&a=chooserOpenFileAjaxUpload', true);
+						xhr.setRequestHeader('X-File-Name', encodeURIComponent(f.name));
+						xhr.setRequestHeader('X-File-Type', f.type);
+						xhr.setRequestHeader('X-File-Size', f.size);
+						xhr.setRequestHeader('X-CSRF-Token', $('meta[name="_csrf_token"]').attr('content'));
+
+						xhr.onreadystatechange = function(e) {
+							if(xhr.readyState == 4) {
+								$status.remove();
+
+								// var json = {};
+
+								if(xhr.status == 200) {
+									var json = JSON.parse(xhr.responseText);
+
+									var file_id = json.id;
+									var file_name = json.name;
+									var file_type = json.type;
+									var file_size_label = '(' + json.size_label + ')';
+
+									var url =
+										document.location.protocol
+										+ '//'
+										+ document.location.host
+										+ DevblocksWebPath
+										+ 'files/'
+										+ encodeURIComponent(file_id) + '/'
+										+ encodeURIComponent(file_name)
+									;
+
+									// Paste at cursor
+									if(file_type.lastIndexOf("image/", 0) === 0) {
+										$cursor.cerbTextEditor('insertText', '![inline-image](' + url + ")\n");
+									}
+
+									// Add to attachments container
+									if($ul && 0 === $ul.find('input:hidden[value="' + file_id + '"]').length) {
+										var $hidden = $('<input type="hidden" name="file_ids[]"/>').val(file_id);
+										var $remove = $('<a href="javascript:;" onclick="$(this).parent().remove();"><span class="glyphicons glyphicons-circle-remove"></span></a>');
+										var $a = $('<a href="javascript:;"/>')
+											.attr('data-context', 'attachment')
+											.attr('data-context-id', file_id)
+											.text(file_name + ' ' + file_size_label)
+											.cerbPeekTrigger()
+										;
+										var $li = $('<li/>').append($a).append($hidden).append($remove);
+										$ul.append($li);
+									}
+								}
+
+								callback(null);
+							}
+						};
+
+						xhr.send(f);
+					}
+				};
+
+				for(var i = 0, f; f = files[i]; i++) {
+					jobs.push(
+						async.apply(uploadFunc, f, labels, values)
+					);
+				}
+
+				if(0 === jobs.length)
+					return;
+
+				async.parallelLimit(jobs, 2, function(err, json) {
+					//if(err)
+				});
+			});
+		});
+	}
+
+	$.fn.cerbCodeEditorInlineImagePaster = function(options) {
+		return this.each(function() {
+			var $cursor = $(this);
+			var $attachments = options['attachmentsContainer'];
+			var $ul = $attachments.find('ul.chooser-container');
+
+			$cursor.on('paste', function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+
+				// Uploads
+
+				var jobs = [];
+				var labels = [];
+				var values = [];
+
+				var uploadFunc = function(f, labels, values, callback) {
+					var xhr = new XMLHttpRequest();
+
+					if(xhr.upload) {
+						var $spinner = $('<span class="cerb-ajax-spinner"/>')
+							.css('zoom', '0.5')
+							.css('margin-right', '5px')
+						;
+
+						var $status = $('<li/>');
+
+						$status
+							.appendTo($ul)
+							.append($spinner)
+							.append(
+								$('<span/>')
+									.text('Uploading ' + f.name)
+							)
+						;
+
+						xhr.open('POST', DevblocksAppPath + 'ajax.php?c=internal&a=chooserOpenFileAjaxUpload', true);
+						xhr.setRequestHeader('X-File-Name', encodeURIComponent(f.name));
+						xhr.setRequestHeader('X-File-Type', f.type);
+						xhr.setRequestHeader('X-File-Size', f.size);
+						xhr.setRequestHeader('X-CSRF-Token', $('meta[name="_csrf_token"]').attr('content'));
+
+						xhr.onreadystatechange = function(e) {
+							if(xhr.readyState == 4) {
+								$status.remove();
+
+								// var json = {};
+
+								if(xhr.status == 200) {
+									var json = JSON.parse(xhr.responseText);
+
+									var file_id = json.id;
+									var file_name = json.name;
+									var file_type = json.type;
+									var file_size_label = '(' + json.size_label + ')';
+
+									var url =
+										document.location.protocol
+										+ '//'
+										+ document.location.host
+										+ DevblocksWebPath
+										+ 'files/'
+										+ encodeURIComponent(file_id) + '/'
+										+ encodeURIComponent(file_name)
+									;
+
+									// Paste at cursor
+									if(file_type.lastIndexOf("image/", 0) === 0) {
+										options['editor'].insertSnippet('![inline-image](' + url + ")\n");
+									}
+
+									// Add to attachments container
+									if($ul && 0 === $ul.find('input:hidden[value="' + file_id + '"]').length) {
+										var $hidden = $('<input type="hidden" name="file_ids[]"/>').val(file_id);
+										var $remove = $('<a href="javascript:;" onclick="$(this).parent().remove();"><span class="glyphicons glyphicons-circle-remove"></span></a>');
+										var $a = $('<a href="javascript:;"/>')
+											.attr('data-context', 'attachment')
+											.attr('data-context-id', file_id)
+											.text(file_name + ' ' + file_size_label)
+											.cerbPeekTrigger()
+										;
+										var $li = $('<li/>').append($a).append($hidden).append($remove);
+										$ul.append($li);
+									}
+								}
+
+								callback(null);
+							}
+						};
+
+						xhr.send(f);
+					}
+				};
+
+				var files = e.originalEvent.clipboardData.files;
+
+				for(var i = 0, f; f = files[i]; i++) {
+					jobs.push(
+						async.apply(uploadFunc, f, labels, values)
+					);
+				}
+
+				if(0 === jobs.length)
+					return;
+
+				async.parallelLimit(jobs, 2, function(err, json) {
+					//if(err)
+				});
+			});
+		});
+	}
+
 	// File drag/drop zones
 	
 	$.fn.cerbAttachmentsDropZone = function() {
@@ -2831,3 +3966,157 @@ var ajax = new cAjaxCalls();
 	}
 	
 }(jQuery));
+
+// https://github.com/component/textarea-caret-position
+(function () {
+// We'll copy the properties below into the mirror div.
+// Note that some browsers, such as Firefox, do not concatenate properties
+// into their shorthand (e.g. padding-top, padding-bottom etc. -> padding),
+// so we have to list every single property explicitly.
+	var properties = [
+		'direction',  // RTL support
+		'boxSizing',
+		'width',  // on Chrome and IE, exclude the scrollbar, so the mirror div wraps exactly as the textarea does
+		'height',
+		'overflowX',
+		'overflowY',  // copy the scrollbar for IE
+
+		'borderTopWidth',
+		'borderRightWidth',
+		'borderBottomWidth',
+		'borderLeftWidth',
+		'borderStyle',
+
+		'paddingTop',
+		'paddingRight',
+		'paddingBottom',
+		'paddingLeft',
+
+		// https://developer.mozilla.org/en-US/docs/Web/CSS/font
+		'fontStyle',
+		'fontVariant',
+		'fontWeight',
+		'fontStretch',
+		'fontSize',
+		'fontSizeAdjust',
+		'lineHeight',
+		'fontFamily',
+
+		'textAlign',
+		'textTransform',
+		'textIndent',
+		'textDecoration',  // might not make a difference, but better be safe
+
+		'letterSpacing',
+		'wordSpacing',
+
+		'tabSize',
+		'MozTabSize'
+
+	];
+
+	var isBrowser = (typeof window !== 'undefined');
+	var isFirefox = (isBrowser && window.mozInnerScreenX != null);
+
+	function getCaretCoordinates(element, position, options) {
+		if (!isBrowser) {
+			throw new Error('textarea-caret-position#getCaretCoordinates should only be called in a browser');
+		}
+
+		var debug = options && options.debug || false;
+		if (debug) {
+			var el = document.querySelector('#input-textarea-caret-position-mirror-div');
+			if (el) el.parentNode.removeChild(el);
+		}
+
+		// The mirror div will replicate the textarea's style
+		var div = document.createElement('div');
+		div.id = 'input-textarea-caret-position-mirror-div';
+		document.body.appendChild(div);
+
+		var style = div.style;
+		var computed = window.getComputedStyle ? window.getComputedStyle(element) : element.currentStyle;  // currentStyle for IE < 9
+		var isInput = element.nodeName === 'INPUT';
+
+		// Default textarea styles
+		style.whiteSpace = 'pre-wrap';
+		if (!isInput)
+			style.wordWrap = 'break-word';  // only for textarea-s
+
+		// Position off-screen
+		style.position = 'absolute';  // required to return coordinates properly
+		if (!debug)
+			style.visibility = 'hidden';  // not 'display: none' because we want rendering
+
+		// Transfer the element's properties to the div
+		properties.forEach(function (prop) {
+			if (isInput && prop === 'lineHeight') {
+				// Special case for <input>s because text is rendered centered and line height may be != height
+				if (computed.boxSizing === "border-box") {
+					var height = parseInt(computed.height);
+					var outerHeight =
+						parseInt(computed.paddingTop) +
+						parseInt(computed.paddingBottom) +
+						parseInt(computed.borderTopWidth) +
+						parseInt(computed.borderBottomWidth);
+					var targetHeight = outerHeight + parseInt(computed.lineHeight);
+					if (height > targetHeight) {
+						style.lineHeight = height - outerHeight + "px";
+					} else if (height === targetHeight) {
+						style.lineHeight = computed.lineHeight;
+					} else {
+						style.lineHeight = 0;
+					}
+				} else {
+					style.lineHeight = computed.height;
+				}
+			} else {
+				style[prop] = computed[prop];
+			}
+		});
+
+		if (isFirefox) {
+			// Firefox lies about the overflow property for textareas: https://bugzilla.mozilla.org/show_bug.cgi?id=984275
+			if (element.scrollHeight > parseInt(computed.height))
+				style.overflowY = 'scroll';
+		} else {
+			style.overflow = 'hidden';  // for Chrome to not render a scrollbar; IE keeps overflowY = 'scroll'
+		}
+
+		div.textContent = element.value.substring(0, position);
+		// The second special handling for input type="text" vs textarea:
+		// spaces need to be replaced with non-breaking spaces - http://stackoverflow.com/a/13402035/1269037
+		if (isInput)
+			div.textContent = div.textContent.replace(/\s/g, '\u00a0');
+
+		var span = document.createElement('span');
+		// Wrapping must be replicated *exactly*, including when a long word gets
+		// onto the next line, with whitespace at the end of the line before (#7).
+		// The  *only* reliable way to do that is to copy the *entire* rest of the
+		// textarea's content into the <span> created at the caret position.
+		// For inputs, just '.' would be enough, but no need to bother.
+		span.textContent = element.value.substring(position) || '.';  // || because a completely empty faux span doesn't render at all
+		div.appendChild(span);
+
+		var coordinates = {
+			top: span.offsetTop + parseInt(computed['borderTopWidth']),
+			left: span.offsetLeft + parseInt(computed['borderLeftWidth']),
+			height: parseInt(computed['lineHeight'])
+		};
+
+		if (debug) {
+			span.style.backgroundColor = '#aaa';
+		} else {
+			document.body.removeChild(div);
+		}
+
+		return coordinates;
+	}
+
+	if (typeof module != 'undefined' && typeof module.exports != 'undefined') {
+		module.exports = getCaretCoordinates;
+	} else if(isBrowser) {
+		window.getCaretCoordinates = getCaretCoordinates;
+	}
+
+}());

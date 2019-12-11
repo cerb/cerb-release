@@ -2695,11 +2695,6 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 	function lazyLoadGetKeys() {
 		$lazy_keys = parent::lazyLoadGetKeys();
 		
-		$lazy_keys['attachments'] = [
-			'label' => 'Attachments',
-			'type' => 'Records',
-		];
-		
 		$lazy_keys['content'] = [
 			'label' => 'Content',
 			'type' => 'Text',
@@ -2755,25 +2750,7 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 				
 				$values['_label'] = sprintf("%s wrote on %s", $sender_address, $ticket_label);
 				break;
-				
-			case 'attachments':
-				$results = DAO_Attachment::getByContextIds($context, $context_id);
-				$objects = [];
-				
-				foreach($results as $attachment_id => $attachment) {
-					$object = [
-						'id' => $attachment_id,
-						'file_name' => $attachment->name,
-						'file_sha1hash' => $attachment->storage_sha1hash,
-						'file_size' => $attachment->storage_size,
-						'file_type' => $attachment->mime_type,
-					];
-					$objects[$attachment_id] = $object;
-				}
-				
-				$values['attachments'] = $objects;
-				break;
-				
+			
 			case 'content':
 				// [TODO] Allow an array with storage meta here?  It removes an extra (n) SELECT in dictionaries for content
 				$values['content'] = Storage_MessageContent::get($context_id);
@@ -2831,16 +2808,9 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 				}
 				break;
 				
-			case 'links':
-				$links = $this->_lazyLoadLinks($context, $context_id);
-				$values = array_merge($values, $links);
-				break;
-				
 			default:
-				if(DevblocksPlatform::strStartsWith($token, 'custom_')) {
-					$fields = $this->_lazyLoadCustomFields($token, $context, $context_id);
-					$values = array_merge($values, $fields);
-				}
+				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$values = array_merge($values, $defaults);
 				break;
 		}
 		
@@ -2892,7 +2862,9 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
 		$tpl = DevblocksPlatform::services()->template();
-		$active_worker = CerberusApplication::getActiveWorker();
+		
+		$context = CerberusContexts::CONTEXT_MESSAGE;
+		$message = null;
 		
 		$tpl->assign('view_id', $view_id);
 		
@@ -2913,49 +2885,7 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 			$tpl->display('devblocks:cerberusweb.core::internal/messages/peek_edit.tpl');
 			
 		} else {
-			$links = array(
-				CerberusContexts::CONTEXT_MESSAGE => array(
-					$context_id => 
-						DAO_ContextLink::getContextLinkCounts(
-							CerberusContexts::CONTEXT_MESSAGE,
-							$context_id,
-							[]
-						),
-				),
-			);
-			$tpl->assign('links', $links);
-
-			// Context
-			if(false == ($context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_MESSAGE)))
-				return;
-			
-			// Dictionary
-			$labels = [];
-			$values = [];
-			CerberusContexts::getContext(CerberusContexts::CONTEXT_MESSAGE, $message, $labels, $values, '', true, false);
-			$dict = DevblocksDictionaryDelegate::instance($values);
-			$tpl->assign('dict', $dict);
-			
-			$properties = $context_ext->getCardProperties();
-			$tpl->assign('properties', $properties);
-			
-			// Card search buttons
-			$search_buttons = $context_ext->getCardSearchButtons($dict, []);
-			$tpl->assign('search_buttons', $search_buttons);
-			
-			$is_readable = Context_Message::isReadableByActor($dict, $active_worker);
-			$tpl->assign('is_readable', $is_readable);
-			
-			$is_writeable = Context_Message::isWriteableByActor($dict, $active_worker);
-			$tpl->assign('is_writeable', $is_writeable);
-			
-			// Timeline
-			if($is_readable && $message) {
-				$timeline_json = Page_Profiles::getTimelineJson($message->getTimeline());
-				$tpl->assign('timeline_json', $timeline_json);
-			}
-			
-			$tpl->display('devblocks:cerberusweb.core::internal/messages/peek.tpl');
+			Page_Profiles::renderCard($context, $context_id, $message);
 		}
 	}
 	

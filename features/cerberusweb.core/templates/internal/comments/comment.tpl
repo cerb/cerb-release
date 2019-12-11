@@ -27,12 +27,14 @@
 		({$owner_meta.context_ext->manifest->name|lower})
 	{/if}
 
+	{if !$embed}
 	<div class="toolbar" style="display:none;float:right;margin-right:20px;">
-		<button type="button" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_COMMENT}" data-context-id="{$comment->id}"><span class="glyphicons glyphicons-cogwheel" title="{'common.edit'|devblocks_translate|lower}"></span></button>
+		{if $is_writeable}<button type="button" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_COMMENT}" data-context-id="{$comment->id}" data-edit="true"><span class="glyphicons glyphicons-cogwheel" title="{'common.edit'|devblocks_translate|lower}"></span></button>{/if}
 
 		{$permalink_url = "{devblocks_url full=true}c=profiles&type={$target_context->params.alias}&id={$comment->context_id}{/devblocks_url}/#comment{$comment->id}"}
 		<button type="button" onclick="genericAjaxPopup('permalink', 'c=internal&a=showPermalinkPopup&url={$permalink_url|escape:'url'}');" title="{'common.permalink'|devblocks_translate|lower}"><span class="glyphicons glyphicons-link"></span></button>
 	</div>
+	{/if}
 	
 	{if isset($owner_meta.context_ext->manifest->params.alias)}
 	<div style="float:left;margin:0px 5px 5px 0px;">
@@ -43,17 +45,47 @@
 	<br>
 	
 	{if isset($comment->created)}<b>{'message.header.date'|devblocks_translate|capitalize}:</b> {$comment->created|devblocks_date} ({$comment->created|devblocks_prettytime})<br>{/if}
-	
-	<pre class="emailbody" style="padding-top:10px;">{$comment->comment|trim|escape|devblocks_hyperlinks nofilter}</pre>
+
+	{if $comment->is_markdown}
+		<div class="commentBodyHtml">{$comment->getContent() nofilter}</div>
+	{else}
+		<pre class="emailbody" style="padding-top:10px;">{$comment->getContent()|trim|escape|devblocks_hyperlinks nofilter}</pre>
+	{/if}
 	<br clear="all">
 	
 	{* Attachments *}
 	{include file="devblocks:cerberusweb.core::internal/attachments/list.tpl" context="{CerberusContexts::CONTEXT_COMMENT}" context_id=$comment->id attachments=[]}
+
+	{* Custom Fields *}
+	{$values = array_shift(DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_COMMENT, $comment->id))|default:[]}
+	{if $values}
+	{$comment_custom_fields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_COMMENT, $values)}
+	{$comment_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_COMMENT, $comment->id, $values)}
+	<div style="margin-top:10px;">
+		{if $message_custom_fields}
+			<fieldset class="properties" style="padding:5px 0;border:0;">
+				<legend>{'common.properties'|devblocks_translate|capitalize}</legend>
+
+				<div style="padding:0px 5px;display:flex;flex-flow:row wrap;">
+					{foreach from=$comment_custom_fields item=v key=k name=comment_custom_fields}
+						<div style="flex:0 0 200px;text-overflow:ellipsis;">
+							{include file="devblocks:cerberusweb.core::internal/custom_fields/profile_cell_renderer.tpl"}
+						</div>
+					{/foreach}
+				</div>
+			</fieldset>
+		{/if}
+
+		{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/profile_fieldsets.tpl" properties=$comment_custom_fieldsets}
+	</div>
+	{/if}
+
 </div>
 
+{if !$embed}
 <script type="text/javascript">
 $(function() {
-	var $comment = $('#comment{$comment->id}')
+	$('#comment{$comment->id}')
 		.hover(
 			function() {
 				$(this).find('div.toolbar').show();
@@ -64,6 +96,14 @@ $(function() {
 		)
 		.find('.cerb-peek-trigger')
 			.cerbPeekTrigger()
+				.on('cerb-peek-saved', function(e) {
+					if(e.id && e.comment_html)
+						$('#comment' + e.id).html(e.comment_html);
+				})
+				.on('cerb-peek-deleted', function(e) {
+					$('#comment' + e.id).remove();
+				})
 		;
 });
 </script>
+{/if}

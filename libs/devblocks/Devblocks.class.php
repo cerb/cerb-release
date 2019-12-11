@@ -1,4 +1,6 @@
 <?php
+use TijsVerkoyen\CssToInlineStyles\CssToInlineStyles;
+
 include_once(DEVBLOCKS_PATH . "api/Engine.php");
 
 include_once(DEVBLOCKS_PATH . "api/services/bootstrap/logging.php");
@@ -6,7 +8,7 @@ include_once(DEVBLOCKS_PATH . "api/services/bootstrap/cache.php");
 include_once(DEVBLOCKS_PATH . "api/services/bootstrap/database.php");
 include_once(DEVBLOCKS_PATH . "api/services/bootstrap/classloader.php");
 
-define('PLATFORM_BUILD', 2018022601);
+define('PLATFORM_BUILD', 2019101501);
 
 class _DevblocksServices {
 	private static $_instance = null;
@@ -297,87 +299,6 @@ class DevblocksPlatform extends DevblocksEngine {
 		return self::translate($token, DevblocksPlatform::TRANSLATE_LOWER);
 	}
 
-	static function installPluginZip($zip_filename) {
-		$plugin_path = APP_STORAGE_PATH . '/plugins/';
-		
-		// Check write access
-		if(!(is_dir($plugin_path) && is_writeable($plugin_path)))
-			return false;
-		
-		// Unzip (Devblocks ZipArchive or pclzip)
-		if(extension_loaded('zip')) {
-			$zip = new ZipArchive();
-			
-			if(true !== $zip->open($zip_filename))
-				return false;
-			
-			// Read the plugin.xml file
-			for($i=0;$i<$zip->numFiles;$i++) {
-				$path = $zip->getNameIndex($i);
-				if(preg_match("#/plugin.xml$#", $path)) {
-					$manifest_fp = $zip->getStream($path);
-					$manifest_data = stream_get_contents($manifest_fp);
-					fclose($manifest_fp);
-					$xml = simplexml_load_string($manifest_data);
-					$plugin_id = (string) $xml->id;
-					//[TODO] Check version info
-				}
-			}
-			
-			$zip->extractTo($plugin_path);
-	
-		} else {
-			$zip = new PclZip($zip_filename);
-			
-			$contents = $zip->extract(PCLZIP_OPT_BY_PREG, "#/plugin.xml$#", PCLZIP_OPT_EXTRACT_AS_STRING);
-			$manifest_data = $contents[0]['content'];
-			
-			$xml = simplexml_load_string($manifest_data);
-			$plugin_id = (string) $xml->id;
-
-			$zip->extract(PCLZIP_OPT_PATH, $plugin_path, PCLZIP_OPT_REPLACE_NEWER);
-		}
-		
-		if(empty($plugin_id))
-			return false;
-		
-		return true;
-	}
-	
-	static function installPluginZipFromUrl($url) {
-		if(!extension_loaded('curl'))
-			return;
-		
-		$fp = DevblocksPlatform::getTempFile();
-		$fp_filename = DevblocksPlatform::getTempFileInfo($fp);
-		
-		$ch = DevblocksPlatform::curlInit($url);
-		curl_setopt_array($ch, array(
-			CURLOPT_CUSTOMREQUEST => 'GET',
-			CURLOPT_SSL_VERIFYPEER => false,
-			//CURLOPT_FILE => $fp,
-		));
-		$data = DevblocksPlatform::curlExec($ch);
-		
-		if(curl_errno($ch)) {
-			//curl_error($ch);
-			fclose($fp);
-			return false;
-		}
-		
-		// [TODO] Check status
-		//$info = curl_getinfo($ch);
-		//var_dump($info);
-		//$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-		
-		// Write
-		fwrite($fp, $data, strlen($data));
-		fclose($fp);
-		curl_close($ch);
-		
-		return self::installPluginZip($fp_filename);
-	}
-	
 	static function uninstallPlugin($plugin_id) {
 		if(null !== ($plugin = DevblocksPlatform::getPlugin($plugin_id))) {
 			$plugin->uninstall();
@@ -526,6 +447,9 @@ class DevblocksPlatform extends DevblocksEngine {
 				'month' => '%Y-%m',
 				'year' => '%Y',
 			];
+			
+			if(!array_key_exists($step, $formats))
+				return [];
 			
 			$format = $formats[$step];
 		}
@@ -1745,8 +1669,6 @@ class DevblocksPlatform extends DevblocksEngine {
 	static private $_purifier_configs = null;
 	
 	static function purifyHTMLOptions($inline_css=false, $untrusted=true) {
-		require_once(DEVBLOCKS_PATH . 'libs/htmlpurifier/HTMLPurifier.standalone.php');
-		
 		@$config = self::$_purifier_configs[$inline_css][$untrusted];
 		
 		if(!$config) {
@@ -1827,10 +1749,6 @@ class DevblocksPlatform extends DevblocksEngine {
 	 * @test DevblocksPlatformTest
 	 */
 	static function purifyHTML($dirty_html, $inline_css=false, $is_untrusted=true) {
-		require_once(DEVBLOCKS_PATH . 'libs/htmlpurifier/HTMLPurifier.standalone.php');
-		
-		$xml_encoding = sprintf('<?xml encoding="%s">', LANG_CHARSET_CODE);
-		
 		// If we're passed a file pointer, load the literal string
 		if(is_resource($dirty_html)) {
 			$fp = $dirty_html;
@@ -1841,12 +1759,10 @@ class DevblocksPlatform extends DevblocksEngine {
 		
 		// Handle inlining CSS
 		if($inline_css) {
-			$css_converter = new TijsVerkoyen\CssToInlineStyles\CssToInlineStyles();
-			$css_converter->setHTML($xml_encoding . $dirty_html);
-			$css_converter->setUseInlineStylesBlock(true);
-			$dirty_html = $css_converter->convert();
-			$dirty_html = str_replace($xml_encoding, '', $dirty_html);
-			unset($css_converter);
+			if($dirty_html) {
+				$css_converter = new CssToInlineStyles();
+				$dirty_html = $css_converter->convert($dirty_html);
+			}
 		}
 		
 		$config = self::purifyHTMLOptions($inline_css, $is_untrusted);
@@ -2506,6 +2422,7 @@ class DevblocksPlatform extends DevblocksEngine {
 		} else { // All
 			$cache->remove(self::CACHE_ACL);
 			$cache->remove(self::CACHE_ACTIVITY_POINTS);
+			$cache->remove(self::CACHE_CONTEXTS);
 			$cache->remove(self::CACHE_CONTEXT_ALIASES);
 			$cache->remove(self::CACHE_EVENTS);
 			$cache->remove(self::CACHE_EVENT_POINTS);
@@ -2516,6 +2433,7 @@ class DevblocksPlatform extends DevblocksEngine {
 			$cache->remove('devblocks:plugin:cerberusweb.core:params');
 			$cache->remove('devblocks:plugin:devblocks.core:params');
 			$cache->remove(_DevblocksClassLoadManager::CACHE_CLASS_MAP);
+			$cache->removeByTags(['schema_records','schema_workspaces','ui_search_menu']);
 			
 			// Flush template cache
 			if(!APP_SMARTY_COMPILE_PATH_MULTI_TENANT) {
@@ -2676,7 +2594,7 @@ class DevblocksPlatform extends DevblocksEngine {
 	 * @return DevblocksExtensionManifest[]
 	 */
 	static function getExtensions($point, $as_instances=false, $sorted=true) {
-		$results = array();
+		$results = [];
 		$extensions = DevblocksPlatform::getExtensionRegistry();
 
 		if(is_array($extensions))
