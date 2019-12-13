@@ -32,12 +32,12 @@
 		<button type="button" title="Preview" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--preview"><span class="glyphicons glyphicons-eye-open"></span></button>
 	</div>
 
-	<textarea id="content" name="content" data-editor-mode="ace/editor/markdown" data-editor-lines="15" data-editor-gutter="true" data-editor-line-numbers="true" rows="10" cols="60" style="display:none;">{$model->content}</textarea>
+	<textarea id="content" name="content" rows="10" cols="60">{$model->content}</textarea>
 </div>
 
 {$attachments = DAO_Attachment::getByContextIds(CerberusContexts::CONTEXT_KB_ARTICLE, $model->id)}
 
-<fieldset class="peek black" style="margin-top:10px;">
+<fieldset class="peek black cerb-attachments" style="margin-top:10px;">
 	<legend>{'common.attachments'|devblocks_translate|capitalize}:</legend>
 
 	<button type="button" class="chooser_file"><span class="glyphicons glyphicons-paperclip"></span></button>
@@ -120,16 +120,22 @@ $(function() {
 		$popup.find('.cerb-peek-trigger')
 			.cerbPeekTrigger()
 			;
-		
+
+		// Drag/drop attachments
+
+		var $attachments = $popup.find('fieldset.cerb-attachments');
+		$attachments.cerbAttachmentsDropZone();
+
 		// Editor
 		var $editor = $popup.find('textarea[name=content]')
-			.cerbCodeEditor()
-			;
-
-		var editor = ace.edit($editor.nextAll('pre.ace_editor').attr('id'));
+			.cerbTextEditor()
+			.cerbTextEditorInlineImagePaster({
+				attachmentsContainer: $attachments
+			})
+		;
 
 		var $editor_toolbar = $popup.find('.cerb-code-editor-toolbar--article')
-			.cerbCodeEditorToolbarMarkdown()
+			.cerbTextEditorToolbarMarkdown()
 			;
 
 		// Upload image
@@ -144,9 +150,8 @@ $(function() {
 			$popup.find('button.chooser_file').triggerHandler(new_event);
 
 			{literal}
-			editor.insertSnippet('![inline-image]({{cerb_file_url(' + event.file_id + ',"' + event.file_name + '")}})');
+			$editor.cerbTextEditor('insertText', '![inline-image]({{cerb_file_url(' + event.file_id + ',"' + event.file_name + '")}})');
 			{/literal}
-			editor.focus();
 		});
 
 		// Snippets
@@ -157,7 +162,7 @@ $(function() {
 			var $chooser = genericAjaxPopup(Devblocks.uniqueId(), chooser_url, null, true, '90%');
 
 			$chooser.on('chooser_save', function (event) {
-				if (!event.values || 0 == event.values.length)
+				if (!event.values || 0 === event.values.length)
 					return;
 
 				var snippet_id = event.values[0];
@@ -181,15 +186,11 @@ $(function() {
 							if (null == event.text)
 								return;
 
-							editor.insert(event.text);
-							editor.scrollToLine(editor.getCursorPosition().row);
-							editor.focus();
+							$editor.cerbTextEditor('insertText', event.text);
 						});
 
 					} else {
-						editor.insert(json.text);
-						editor.scrollToLine(editor.getCursorPosition().row);
-						editor.focus();
+						$editor.cerbTextEditor('insertText', json.text);
 					}
 				});
 			});
@@ -202,7 +203,7 @@ $(function() {
 			formData.append('a', 'handleSectionAction');
 			formData.append('section', 'kb');
 			formData.append('action', 'preview');
-			formData.append('content', editor.getValue());
+			formData.append('content', $editor.val());
 
 			genericAjaxPopup(
 				'preview_article',
