@@ -177,6 +177,13 @@ class DAO_Address extends Cerb_ORMHelper {
 			$fields[self::HOST] = substr($full_address, strpos($full_address, '@')+1);
 		}
 		
+		// If we're setting a contact, make sure we also set their org if not provided
+		if(array_key_exists(self::CONTACT_ID, $fields) && !array_key_exists(self::CONTACT_ORG_ID, $fields)) {
+			if(false != ($contact = DAO_Contact::get($fields[self::CONTACT_ID]))) {
+				$fields[self::CONTACT_ORG_ID] = $contact->org_id;
+			}
+		}
+		
 		if(!isset($fields[DAO_Address::UPDATED]))
 			$fields[DAO_Address::UPDATED] = time();
 		
@@ -2536,19 +2543,19 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 				$values['last_name'] = $dict->contact_last_name;
 				break;
 				
-			case 'last_recipient_message':
-				$values['last_recipient_message__context'] = CerberusContexts::CONTEXT_MESSAGE;
-				$values['last_recipient_message_id'] = intval(DAO_Message::getLatestIdByRecipientId($dictionary['id']));
-				break;
-				
-			case 'last_sender_message':
-				$values['last_sender_message__context'] = CerberusContexts::CONTEXT_MESSAGE;
-				$values['last_sender_message_id'] = intval(DAO_Message::getLatestIdBySenderId($dictionary['id']));
-				break;
-			
 			default:
-				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
-				$values = array_merge($values, $defaults);
+				if($token == 'last_recipient_message' || DevblocksPlatform::strStartsWith($token, 'last_recipient_message_')) {
+					$values['last_recipient_message__context'] = CerberusContexts::CONTEXT_MESSAGE;
+					$values['last_recipient_message_id'] = intval(DAO_Message::getLatestIdByRecipientId($dictionary['id']));
+					
+				} else if($token == 'last_sender_message' || DevblocksPlatform::strStartsWith($token, 'last_sender_message_')) {
+					$values['last_sender_message__context'] = CerberusContexts::CONTEXT_MESSAGE;
+					$values['last_sender_message_id'] = intval(DAO_Message::getLatestIdBySenderId($dictionary['id']));
+					
+				} else {
+					$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+					$values = array_merge($values, $defaults);
+				}
 				break;
 		}
 		

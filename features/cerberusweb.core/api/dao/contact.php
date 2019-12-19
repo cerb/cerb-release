@@ -221,6 +221,17 @@ class DAO_Contact extends Cerb_ORMHelper {
 		return true;
 	}
 	
+	static function onUpdateByActor($actor, $fields, $id) {
+		@$email_id = $fields[self::PRIMARY_EMAIL_ID];
+		
+		// If we're setting a primary email address on the contact, set the link in reverse on the address
+		if($email_id) {
+			DAO_Address::update($email_id, [
+				DAO_Address::CONTACT_ID => $id,
+			]);
+		}
+	}
+	
 	/**
 	 * @param Model_ContextBulkUpdate $update
 	 * @return boolean
@@ -2175,19 +2186,19 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 				}
 				break;
 			
-			case 'last_recipient_message':
-				$values['last_recipient_message__context'] = CerberusContexts::CONTEXT_MESSAGE;
-				$values['last_recipient_message_id'] = intval(DAO_Message::getLatestIdByRecipientContactId($dictionary['id']));
-				break;
-			
-			case 'last_sender_message':
-				$values['last_sender_message__context'] = CerberusContexts::CONTEXT_MESSAGE;
-				$values['last_sender_message_id'] = intval(DAO_Message::getLatestIdBySenderContactId($dictionary['id']));
-				break;
-			
 			default:
-				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
-				$values = array_merge($values, $defaults);
+				if($token == 'last_recipient_message' || DevblocksPlatform::strStartsWith($token, 'last_recipient_message_')) {
+					$values['last_recipient_message__context'] = CerberusContexts::CONTEXT_MESSAGE;
+					$values['last_recipient_message_id'] = intval(DAO_Message::getLatestIdByRecipientContactId($dictionary['id']));
+					
+				} else if($token == 'last_sender_message' || DevblocksPlatform::strStartsWith($token, 'last_sender_message_')) {
+					$values['last_sender_message__context'] = CerberusContexts::CONTEXT_MESSAGE;
+					$values['last_sender_message_id'] = intval(DAO_Message::getLatestIdBySenderContactId($dictionary['id']));
+					
+				} else {
+					$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+					$values = array_merge($values, $defaults);
+				}
 				break;
 		}
 		
