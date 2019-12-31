@@ -1440,6 +1440,34 @@ var ajax = new cAjaxCalls();
 			};
 		},
 
+		getCurrentLinePos: function() {
+			var start = this.editor.selectionStart-1;
+			var end = this.editor.selectionStart;
+
+			for(var x = start; x >= 0; x--) {
+				var char = this.editor.value[x];
+
+				if(char.match(/[\r\n^]/)) {
+					start = x + 1;
+					break;
+				}
+
+				if(0 === x) {
+					start = x;
+				}
+			}
+
+			return {
+				start: start,
+				end: end
+			};
+		},
+
+		getCurrentLine: function() {
+			var pos = this.getCurrentLinePos();
+			return this.editor.value.substring(pos.start,pos.end);
+		},
+
 		getCurrentWord: function() {
 			var pos = this.getCurrentWordPos();
 			return this.editor.value.substring(pos.start,pos.end);
@@ -1447,8 +1475,12 @@ var ajax = new cAjaxCalls();
 
 		selectCurrentWord: function() {
 			var pos = this.getCurrentWordPos();
-			this.editor.selectionStart = pos.start;
-			this.editor.selectionEnd = pos.end;
+			this.setSelection(pos.start, pos.end);
+		},
+
+		selectCurrentLine: function() {
+			var pos = this.getCurrentLinePos();
+			this.setSelection(pos.start, pos.end);
 		},
 
 		replaceCurrentWord: function(replaceWith) {
@@ -1456,10 +1488,21 @@ var ajax = new cAjaxCalls();
 			this.replaceSelection(replaceWith);
 		},
 
+		replaceCurrentLine: function(replaceWith) {
+			this.selectCurrentLine();
+			this.replaceSelection(replaceWith);
+		},
+
+		getSelectionBounds: function() {
+			return {
+				start: this.editor.selectionStart,
+				end: this.editor.selectionEnd
+			};
+		},
+
 		getSelection: function() {
-			var start = this.editor.selectionStart;
-			var end = this.editor.selectionEnd;
-			var selectedText = this.editor.value.substring(start,end);
+			var bounds = this.getSelectionBounds();
+			var selectedText = this.editor.value.substring(bounds.start,bounds.end);
 			return selectedText;
 		},
 
@@ -1481,27 +1524,24 @@ var ajax = new cAjaxCalls();
 
 			this.editor.value = newValue;
 
-			this.editor.selectionStart = start + offset;
-			this.editor.selectionEnd = start + offset;
+			this.setSelection(start + offset, start + offset);
 			this.editor.focus();
 		},
 
 		replaceSelection: function(replaceWith) {
-			var start = this.editor.selectionStart;
-			var end = this.editor.selectionEnd;
+			var bounds = this.getSelectionBounds();
 
 			var newValue =
-				this.editor.value.substring(0,start)
+				this.editor.value.substring(0,bounds.start)
 				+ replaceWith
-				+ this.editor.value.substring(end)
+				+ this.editor.value.substring(bounds.end)
 			;
 
 			var offset = newValue.length - this.editor.value.length;
 
 			this.editor.value = newValue;
 
-			this.editor.selectionStart = end + offset;
-			this.editor.selectionEnd = end + offset;
+			this.setSelection(bounds.end + offset, bounds.end + offset);
 			this.editor.focus();
 		},
 
@@ -1558,7 +1598,12 @@ var ajax = new cAjaxCalls();
 				return;
 			  }
 
-              $editor.cerbTextEditor('replaceSelection', '[' + selectedText + '](https://example.com)');
+              var bounds = $editor.cerbTextEditor('getSelectionBounds');
+              var cursor_at = bounds.start + selectedText.length + 3;
+              var default_link = 'https://example.com';
+
+              $editor.cerbTextEditor('replaceSelection', '[' + selectedText + '](' + default_link + ')');
+              $editor.cerbTextEditor('setSelection', cursor_at, cursor_at + default_link.length);
 		  });
 
           // Image
@@ -1643,6 +1688,27 @@ var ajax = new cAjaxCalls();
           $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--table').on('click', function () {
           	  $editor.cerbTextEditor('insertText', "Column | Column\n--- | ---\nValue | Value\n");
           });
+
+          // Keyboard shortcuts
+		  $editor.bind('keydown', 'ctrl+space', function(e) {
+			  e.preventDefault();
+			  e.stopPropagation();
+			  $editor.autocomplete('search');
+		  });
+
+          $editor_toolbar.find('.cerb-code-editor-toolbar-button').each(function() {
+          	var $button = $(this);
+          	var shortcut = $button.attr('data-cerb-key-binding');
+
+          	if(!shortcut)
+          		return;
+
+          	$editor.bind('keydown', shortcut, function(e) {
+			  e.preventDefault();
+			  e.stopPropagation();
+			  $button.click();
+		 	});
+		  });
       });
     };
 
@@ -1689,15 +1755,15 @@ var ajax = new cAjaxCalls();
               var selected_text = editor.getSelectedText();
 
               if (0 === selected_text.length) {
-                  editor.insertSnippet('[${1:link text}](${2:https://example.com})');
-                      editor.focus();
-                      return;
-                  }
+			  editor.insertSnippet('[${1:link text}](${2:https://example.com})');
+				  editor.focus();
+				  return;
+			  }
 
-                  editor.session.replace(editor.getSelectionRange(), '');
-                  editor.insertSnippet('[' + selected_text + '](${1:https://example.com})');
-                      editor.focus();
-                  });
+			  editor.session.replace(editor.getSelectionRange(), '');
+			  editor.insertSnippet('[' + selected_text + '](${1:https://example.com})');
+			  editor.focus();
+          });
 
           // List
           $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--list').on('click', function () {
@@ -1883,6 +1949,8 @@ var ajax = new cAjaxCalls();
 	}
 
 	$.fn.cerbTextEditorAutocompleteComments = function() {
+		var mentions_cache = null;
+
 		return this.each(function() {
 			var $editor = $(this);
 			var editor = $editor[0];
@@ -1893,83 +1961,32 @@ var ajax = new cAjaxCalls();
 				delay: 150,
 
 				_sourceMentions: function(request, response, token) {
-					var term = token.substring(1);
-					var ajax_requests = [];
+					var term = token.substring(1).toLowerCase();
+					var steps = [];
 
-					ajax_requests.push(function(callback) {
-						var query = 'type:worklist.records of:worker query:(isDisabled:n'
-							+ (term.length === 0
-								? ' mention:!""'
-								: ' (mention:{}*)'.replace(/\{\}/g, term)
-							)
-							+ ')'
-						;
+					steps.push(function(callback) {
+						// Check local cache
+						if(mentions_cache && $.isArray(mentions_cache)) {
+							return callback(null, mentions_cache);
+						}
 
-						genericAjaxGet('', 'c=ui&a=dataQuery&q=' + encodeURIComponent(query), function(json) {
-							if ('object' != typeof json || !json.hasOwnProperty('data')) {
-								return callback(null, []);
+						genericAjaxGet('', 'c=ui&a=getMentionsJson', function(json) {
+							if ('object' != typeof json) {
+								return callback(true);
 							}
 
-							var results = [];
-
-							for (var i in json.data) {
-								var worker = json.data[i];
-
-								results.push({
-									_type: 'worker',
-									label: worker['_label'],
-									value: '@' + worker['at_mention_name'] + ' ',
-									title: worker['title'],
-									mention: '@' + worker['at_mention_name'],
-									image_url: worker['_image_url'],
-									id: worker['id']
-								});
-							}
-
-							return callback(null, results);
+							mentions_cache = json;
+							return callback(null, json);
 						});
 					});
 
-					ajax_requests.push(function(callback) {
-						var query = 'type:worklist.records of:saved_search query:(context:worker'
-							+ (term.length === 0
-									? ' tag:!""'
-									: ' (tag:{}*)'.replace(/\{\}/g, term)
-							)
-							+ ')'
-						;
-
-						genericAjaxGet('', 'c=ui&a=dataQuery&q=' + encodeURIComponent(query), function(json) {
-							if ('object' != typeof json || !json.hasOwnProperty('data')) {
-								return callback(null, []);
-							}
-
-							var results = [];
-
-							for (var i in json.data) {
-								var search = json.data[i];
-
-								results.push({
-									_type: 'saved_search',
-									label: search['_label'],
-									value: '@' + search['tag'] + ' ',
-									image_url: search['_image_url'],
-									mention: '@' + search['tag'],
-									id: search['id']
-								});
-							}
-
-							return callback(null, results);
-						});
-					});
-
-					async.parallelLimit(ajax_requests, 2, function(err, json) {
-						if(err)
+					async.series(steps, function(err, results) {
+						if(err || results.length !== 1)
 							return response([]);
 
-						var results = json.reduce(function(arr,val) { return arr.concat(val); });
-
-						return response(results);
+						return response(results[0].filter(function(mention) {
+							return mention.label.toLowerCase().startsWith(term);
+						}));
 					});
 				},
 
@@ -2041,10 +2058,21 @@ var ajax = new cAjaxCalls();
 
 				return $li;
 			};
+
+			$editor.on('click', function(e) {
+				if($editor.autocomplete('widget').is(':visible')) {
+					$editor.autocomplete('search');
+				}
+			});
 		});
 	}
 
-	$.fn.cerbTextEditorAutocompleteReplies = function() {
+	$.fn.cerbTextEditorAutocompleteReplies = function(options) {
+		if(undefined == options)
+			options = {};
+
+		var mentions_cache = null;
+
 		return this.each(function() {
 			var $editor = $(this);
 			var editor = $editor[0];
@@ -2082,6 +2110,11 @@ var ajax = new cAjaxCalls();
 							description: 'Insert the signature placeholder'
 						},
 						{
+							label: '#snippet',
+							value: '#snippet ',
+							description: 'Insert a snippet'
+						},
+						{
 							label: '#unwatch',
 							value: '#unwatch\n',
 							description: 'Stop watching this ticket'
@@ -2103,51 +2136,50 @@ var ajax = new cAjaxCalls();
 					return response(commands);
 				},
 
-				_sourceMention: function(request, response, token) {
-					var term = token.substring(1);
-					var ajax_requests = [];
+				_sourceMentions: function(request, response, token) {
+					var term = token.substring(1).toLowerCase();
+					var steps = [];
 
-					ajax_requests.push(function(callback) {
-						var query = 'type:worklist.records of:worker query:(isDisabled:n'
-							+ (term.length === 0
-								? ' mention:!""'
-								: ' (mention:{}*)'.replace(/\{\}/g, term)
-							)
-							+ ')'
-						;
+					steps.push(function(callback) {
+						// Check local cache
+						if(mentions_cache && $.isArray(mentions_cache)) {
+							return callback(null, mentions_cache);
+						}
 
-						genericAjaxGet('', 'c=ui&a=dataQuery&q=' + encodeURIComponent(query), function(json) {
-							if ('object' != typeof json || !json.hasOwnProperty('data')) {
-								return callback(null, []);
+						genericAjaxGet('', 'c=ui&a=getMentionsJson', function(json) {
+							if ('object' != typeof json) {
+								return callback(true);
 							}
 
-							var results = [];
-
-							for (var i in json.data) {
-								var worker = json.data[i];
-
-								results.push({
-									_type: 'worker',
-									label: worker['_label'],
-									value: '@' + worker['at_mention_name'] + ' ',
-									title: worker['title'],
-									mention: '@' + worker['at_mention_name'],
-									image_url: worker['_image_url'],
-									id: worker['id']
-								});
-							}
-
-							return callback(null, results);
+							mentions_cache = json;
+							return callback(null, json);
 						});
 					});
 
+					async.series(steps, function(err, results) {
+						if(err || results.length !== 1)
+							return response([]);
+
+						return response(results[0].filter(function(mention) {
+							return mention.label.toLowerCase().startsWith(term);
+						}));
+					});
+				},
+
+				_sourceSnippet: function(request, response, token) {
+					var term = token;
+					var ajax_requests = [];
+
+					// [TODO] Sort by myUses
 					ajax_requests.push(function(callback) {
-						var query = 'type:worklist.records of:saved_search query:(context:worker'
+						var types = 'reply' === options.mode ? '[plaintext,ticket,worker]' : '[plaintext,worker]';
+
+						var query = 'type:worklist.records of:snippet query:(type:' + types
 							+ (term.length === 0
-								? ' tag:!""'
-								: ' (tag:{}*)'.replace(/\{\}/g, term)
+								? ' '
+								: ' title:"*{}*"'.replace(/\{\}/g, term)
 							)
-							+ ')'
+							+ ' sort:-totalUses)'
 						;
 
 						genericAjaxGet('', 'c=ui&a=dataQuery&q=' + encodeURIComponent(query), function(json) {
@@ -2158,15 +2190,13 @@ var ajax = new cAjaxCalls();
 							var results = [];
 
 							for (var i in json.data) {
-								var search = json.data[i];
+								var snippet = json.data[i];
 
 								results.push({
-									_type: 'saved_search',
-									label: search['_label'],
-									value: '@' + search['tag'] + ' ',
-									image_url: search['_image_url'],
-									mention: '@' + search['tag'],
-									id: search['id']
+									_type: 'snippet',
+									label: snippet['_label'],
+									value: '#snippet ' + snippet['title'],
+									id: snippet['id']
 								});
 							}
 
@@ -2186,18 +2216,40 @@ var ajax = new cAjaxCalls();
 
 				source: function(request, response) {
 					var token = $editor.cerbTextEditor('getCurrentWord');
+					var line = $editor.cerbTextEditor('getCurrentLine');
 
-					if(token.startsWith('#')) {
+					if(line.startsWith('#snippet ')) {
+						return this.options._sourceSnippet(request, response, line.substring(9));
+					} else if(token.startsWith('#')) {
 						return this.options._sourceCommand(request, response, token);
 					} else if(token.startsWith('@')) {
-						return this.options._sourceMention(request, response, token);
+						return this.options._sourceMentions(request, response, token);
 					} else {
 						response([]);
 					}
 				},
 
 				select: function(event, ui)  {
-					if('#delete_quote_from_here' === ui.item.value) {
+					if(ui.item.value.startsWith('#snippet ')) {
+						if(ui.item.value === '#snippet ') {
+							$editor.cerbTextEditor('replaceCurrentLine', ui.item.value);
+
+							setTimeout(function() {
+								$editor.autocomplete('search');
+							}, 50);
+
+						} else {
+							$editor.autocomplete('close');
+							$editor.cerbTextEditor('replaceCurrentLine', '');
+
+							var $editor_toolbar = $editor.prevAll('.cerb-code-editor-toolbar');
+
+							$editor_toolbar.triggerHandler(new $.Event('cerb-editor-toolbar-snippet-inserted', {
+								'snippet_id': ui.item.id
+							}));
+						}
+
+					} else if('#delete_quote_from_here' === ui.item.value) {
 						$editor.cerbTextEditor('replaceCurrentWord', '');
 						var start = $editor.cerbTextEditor('getCursorPosition');
 						var value = $editor.val();
@@ -2299,6 +2351,12 @@ var ajax = new cAjaxCalls();
 
 				return $li;
 			};
+
+			$editor.on('click', function(e) {
+				if($editor.autocomplete('widget').is(':visible')) {
+					$editor.autocomplete('search');
+				}
+			});
 		});
 	}
 
