@@ -134,13 +134,13 @@
 	<button type="button" title="Toggle formatting" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--formatting" data-format="{if $is_html}html{else}plaintext{/if}">{if $is_html}Formatting on{else}Formatting off{/if}</button>
 
 	<div class="cerb-code-editor-subtoolbar-format-html" style="display:inline-block;{if !$is_html}display:none;{/if}">
-		<button type="button" title="Bold" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--bold"><span class="glyphicons glyphicons-bold"></span></button>
-		<button type="button" title="Italics" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--italic"><span class="glyphicons glyphicons-italic"></span></button>
-		<button type="button" title="Link" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--link"><span class="glyphicons glyphicons-link"></span></button>
-		<button type="button" title="Image" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--image"><span class="glyphicons glyphicons-picture"></span></button>
+		<button type="button" title="Bold (Ctrl+B)" data-cerb-key-binding="ctrl+b" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--bold"><span class="glyphicons glyphicons-bold"></span></button>
+		<button type="button" title="Italics (Ctrl+I)" data-cerb-key-binding="ctrl+i" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--italic"><span class="glyphicons glyphicons-italic"></span></button>
+		<button type="button" title="Link (Ctrl+K)" data-cerb-key-binding="ctrl+k" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--link"><span class="glyphicons glyphicons-link"></span></button>
+		<button type="button" title="Image (Ctrl+M)" data-cerb-key-binding="ctrl+m" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--image"><span class="glyphicons glyphicons-picture"></span></button>
 		<button type="button" title="List" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--list"><span class="glyphicons glyphicons-list"></span></button>
-		<button type="button" title="Quote" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--quote"><span class="glyphicons glyphicons-quote"></span></button>
-		<button type="button" title="Code" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--code"><span class="glyphicons glyphicons-embed"></span></button>
+		<button type="button" title="Quote (Ctrl+Q)" data-cerb-key-binding="ctrl+q" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--quote"><span class="glyphicons glyphicons-quote"></span></button>
+		<button type="button" title="Code (Ctrl+O)" data-cerb-key-binding="ctrl+o" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--code"><span class="glyphicons glyphicons-embed"></span></button>
 		<button type="button" title="Table" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--table"><span class="glyphicons glyphicons-table"></span></button>
 	</div>
 
@@ -149,10 +149,10 @@
 	<button type="button" title="Insert #command" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--commands"><span class="glyphicons glyphicons-sampler"></span></button>
 	<button type="button" title="Insert snippet" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--snippets"><span class="glyphicons glyphicons-notes-2"></span></button>
 	{*<button type="button" title="Track time" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--save"><span class="glyphicons glyphicons-stopwatch"></span></button>*}
-	<button type="button" title="Save draft" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--save"><span class="glyphicons glyphicons-floppy-save"></span></button>
+	<button type="button" title="Save draft (Ctrl+S)" data-cerb-key-binding="ctrl+s" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--save"><span class="glyphicons glyphicons-floppy-save"></span></button>
 	<div class="cerb-code-editor-toolbar-divider"></div>
 
-	<button type="button" title="Preview message" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--preview"><span class="glyphicons glyphicons-eye-open"></span></button>
+	<button type="button" title="Preview message (Ctrl+Shift+P)" data-cerb-key-binding="ctrl+shift+p" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--preview"><span class="glyphicons glyphicons-eye-open"></span></button>
 </div>
 
 {if $is_forward}
@@ -467,7 +467,9 @@ $(function() {
 
 		var $editor = $('#reply_{$message->id}')
 			.cerbTextEditor()
-			.cerbTextEditorAutocompleteReplies()
+			.cerbTextEditorAutocompleteReplies({
+				'mode': 'reply'
+			})
 			.cerbTextEditorInlineImagePaster({
 				attachmentsContainer: $attachments
 			})
@@ -528,7 +530,7 @@ $(function() {
 				values: event.values
 			});
 
-			$popup.find('button.chooser_file').triggerHandler(new_event);
+			$reply.find('button.chooser_file').triggerHandler(new_event);
 
 			$editor.cerbTextEditor('insertText', '![Image](' + event.url + ')');
 		});
@@ -540,9 +542,39 @@ $(function() {
 		});
 
 		// Snippets
+		$editor_toolbar.on('cerb-editor-toolbar-snippet-inserted', function(event) {
+			if(undefined == event.snippet_id)
+				return;
+
+			// Now we need to read in each snippet as either 'raw' or 'parsed' via Ajax
+			var url = 'c=internal&a=snippetPaste&id='
+				+ encodeURIComponent(event.snippet_id)
+				+ "&context_ids[cerberusweb.contexts.ticket]={$ticket->id}"
+				+ "&context_ids[cerberusweb.contexts.worker]={$active_worker->id}"
+			;
+
+			genericAjaxGet('', url, function (json) {
+				// If the content has placeholders, use that popup instead
+				if (json.has_custom_placeholders) {
+					var $popup_paste = genericAjaxPopup('snippet_paste', 'c=internal&a=snippetPlaceholders&id=' + encodeURIComponent(json.id) + '&context_id=' + encodeURIComponent(json.context_id), null, false, '50%');
+
+					$popup_paste.bind('snippet_paste', function (event) {
+						if (null == event.text)
+							return;
+
+						$editor.cerbTextEditor('insertText', event.text);
+					});
+
+				} else {
+					$editor.cerbTextEditor('insertText', json.text);
+				}
+			});
+		});
+
+		// Snippets
 		var $editor_toolbar_button_snippets = $editor_toolbar.find('.cerb-markdown-editor-toolbar-button--snippets').on('click', function () {
 			var context = 'cerberusweb.contexts.snippet';
-			var chooser_url = 'c=internal&a=chooserOpen&q=' + encodeURIComponent('type:[plaintext,ticket,worker]') + '&single=1&context=' + encodeURIComponent(context);
+			var chooser_url = 'c=internal&a=chooserOpen&qr=' + encodeURIComponent('type:[plaintext,ticket,worker]') + '&single=1&context=' + encodeURIComponent(context);
 
 			var $chooser = genericAjaxPopup(Devblocks.uniqueId(), chooser_url, null, true, '90%');
 
@@ -555,29 +587,9 @@ $(function() {
 				if (null == snippet_id)
 					return;
 
-				// Now we need to read in each snippet as either 'raw' or 'parsed' via Ajax
-				var url = 'c=internal&a=snippetPaste&id='
-					+ encodeURIComponent(snippet_id)
-					+ "&context_ids[cerberusweb.contexts.ticket]={$ticket->id}"
-					+ "&context_ids[cerberusweb.contexts.worker]={$active_worker->id}"
-					;
-
-				genericAjaxGet('', url, function (json) {
-					// If the content has placeholders, use that popup instead
-					if (json.has_custom_placeholders) {
-						var $popup_paste = genericAjaxPopup('snippet_paste', 'c=internal&a=snippetPlaceholders&id=' + encodeURIComponent(json.id) + '&context_id=' + encodeURIComponent(json.context_id), null, false, '50%');
-
-						$popup_paste.bind('snippet_paste', function (event) {
-							if (null == event.text)
-								return;
-
-							$editor.cerbTextEditor('insertText', event.text);
-						});
-
-					} else {
-						$editor.cerbTextEditor('insertText', json.text);
-					}
-				});
+				$editor_toolbar.triggerHandler(new $.Event('cerb-editor-toolbar-snippet-inserted', {
+					'snippet_id': snippet_id
+				}));
 			});
 		});
 
