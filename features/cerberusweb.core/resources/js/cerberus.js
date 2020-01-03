@@ -1691,6 +1691,9 @@ var ajax = new cAjaxCalls();
 
           // Keyboard shortcuts
 		  $editor.bind('keydown', 'ctrl+space', function(e) {
+		  	  if(e.metaKey)
+		  	  	return;
+
 			  e.preventDefault();
 			  e.stopPropagation();
 			  $editor.autocomplete('search');
@@ -1985,7 +1988,13 @@ var ajax = new cAjaxCalls();
 							return response([]);
 
 						return response(results[0].filter(function(mention) {
-							return mention.label.toLowerCase().startsWith(term);
+							if(mention.label.toLowerCase().startsWith(term))
+								return true;
+
+							if(mention.value.toLowerCase().startsWith('@' + term))
+								return true;
+
+							return false;
 						}));
 					});
 				},
@@ -2161,7 +2170,13 @@ var ajax = new cAjaxCalls();
 							return response([]);
 
 						return response(results[0].filter(function(mention) {
-							return mention.label.toLowerCase().startsWith(term);
+							if(mention.label.toLowerCase().startsWith(term))
+								return true;
+
+							if(mention.value.toLowerCase().startsWith('@' + term))
+								return true;
+
+							return false;
 						}));
 					});
 				},
