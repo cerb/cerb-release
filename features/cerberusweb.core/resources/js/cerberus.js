@@ -21,6 +21,7 @@ var cerbAutocompleteSuggestions = {
 		'type:': [
 			'date_range',
 			'picklist',
+			'text',
 			'chooser'
 		]
 	},
@@ -2371,6 +2372,12 @@ var ajax = new cAjaxCalls();
 				if($editor.autocomplete('widget').is(':visible')) {
 					$editor.autocomplete('search');
 				}
+			});
+
+			$editor.bind('keydown', 'ctrl+shift+.', function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				$editor.cerbTextEditor('insertText', '#snippet ');
 			});
 		});
 	}

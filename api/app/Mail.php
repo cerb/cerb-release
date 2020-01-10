@@ -493,6 +493,7 @@ class CerberusMail {
 		'bucket_id'
 		'worker_id'
 		'owner_id'
+		'watcher_ids'
 		'org_id'
 		'to'
 		'cc'
@@ -930,7 +931,7 @@ class CerberusMail {
 		return intval($ticket_id);
 	}
 	
-	static private function _composeTriggerEvents($message, $group) {
+	static private function _composeTriggerEvents($message_id, $group_id) {
 		// Events
 		if(!empty($message_id) && !empty($group_id)) {
 			// After message sent (global)

@@ -147,7 +147,7 @@
 	<div class="cerb-code-editor-toolbar-divider"></div>
 
 	<button type="button" title="Insert #command" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--commands"><span class="glyphicons glyphicons-sampler"></span></button>
-	<button type="button" title="Insert snippet" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--snippets"><span class="glyphicons glyphicons-notes-2"></span></button>
+	<button type="button" title="Insert snippet (Ctrl+Shift+Period)" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--snippets"><span class="glyphicons glyphicons-notes-2"></span></button>
 	{*<button type="button" title="Track time" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--save"><span class="glyphicons glyphicons-stopwatch"></span></button>*}
 	<button type="button" title="Save draft (Ctrl+S)" data-cerb-key-binding="ctrl+s" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--save"><span class="glyphicons glyphicons-floppy-save"></span></button>
 	<div class="cerb-code-editor-toolbar-divider"></div>
@@ -214,103 +214,128 @@
 	</ul>
 </fieldset>
 
-{if $gpg && $gpg->isEnabled()}
-<fieldset class="peek">
-	<legend>{'common.encryption'|devblocks_translate|capitalize}</legend>
-
-	<div>
-		<label style="margin-right:10px;">
-		<input type="checkbox" name="options_gpg_encrypt" value="1" {if $draft->params.options_gpg_encrypt}checked="checked"{/if}>
-		Encrypt message using recipient public keys
-		</label>
-	</div>
-</fieldset>
-{/if}
-	
 <fieldset class="peek">
 	<legend>{'common.properties'|devblocks_translate|capitalize}</legend>
 
 	<table cellpadding="2" cellspacing="0" border="0" id="replyStatus{$message->id}">
 		<tr>
 			<td nowrap="nowrap" valign="top">
-				<div style="margin-bottom:10px;">
+				<div>
+					<b>{'common.status'|devblocks_translate|capitalize}:</b>
+
+					<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+O)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_OPEN}" class="status_open" onclick="toggleDiv('replyOpen{$message->id}','block');toggleDiv('replyClosed{$message->id}','none');" {if (empty($draft) && 'open'==$mail_status_reply) || $draft->params.status_id==Model_Ticket::STATUS_OPEN}checked="checked"{/if}> {'status.open'|devblocks_translate|capitalize}</label>
+					<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+W)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_WAITING}" class="status_waiting" onclick="toggleDiv('replyOpen{$message->id}','block');toggleDiv('replyClosed{$message->id}','block');" {if (empty($draft) && 'waiting'==$mail_status_reply) || $draft->params.status_id==Model_Ticket::STATUS_WAITING}checked="checked"{/if}> {'status.waiting'|devblocks_translate|capitalize}</label>
+					{if $active_worker->hasPriv('core.ticket.actions.close') || ($ticket->status_id == Model_Ticket::STATUS_CLOSED)}<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+C)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_CLOSED}" class="status_closed" onclick="toggleDiv('replyOpen{$message->id}','none');toggleDiv('replyClosed{$message->id}','block');" {if (empty($draft) && 'closed'==$mail_status_reply) || $draft->params.status_id==Model_Ticket::STATUS_CLOSED}checked="checked"{/if}> {'status.closed'|devblocks_translate|capitalize}</label>{/if}
+					<br>
+
+					<div id="replyClosed{$message->id}" style="display:{if (empty($draft) && 'open'==$mail_status_reply) || (!empty($draft) && $draft->params.status_id==Model_Ticket::STATUS_OPEN)}none{else}block{/if};margin:5px 0px 10px 20px;">
+						<div style="display:flex;flex-flow:row wrap;">
+							<div style="flex:1 1 45%;padding-right:10px;">
+								<b>{'display.reply.next.resume'|devblocks_translate}</b>
+							</div>
+							<div style="flex:1 1 45%;">
+								{'display.reply.next.resume_eg'|devblocks_translate}
+							</div>
+						</div>
+
+						<input type="text" name="ticket_reopen" size="55" value="{if !empty($draft)}{$draft->params.ticket_reopen}{elseif !empty($ticket->reopen_at)}{$ticket->reopen_at|devblocks_date}{/if}"><br>
+						{'display.reply.next.resume_blank'|devblocks_translate}<br>
+					</div>
+				</div>
+
+				<div style="margin-top:5px;">
+					<b>{'common.move'|devblocks_translate|capitalize}:</b>
+
+					<select name="group_id">
+						{foreach from=$groups item=group key=group_id}
+						<option value="{$group_id}" {if $active_worker->isGroupMember($group_id)}member="true"{/if} {if $ticket->group_id == $group_id}selected="selected"{/if}>{$group->name}</option>
+						{/foreach}
+					</select>
+					<select class="ticket-reply-bucket-options" style="display:none;">
+						{foreach from=$buckets item=bucket key=bucket_id}
+						<option value="{$bucket_id}" group_id="{$bucket->group_id}">{$bucket->name}</option>
+						{/foreach}
+					</select>
+					<select name="bucket_id">
+						{foreach from=$buckets item=bucket key=bucket_id}
+							{if $bucket->group_id == $ticket->group_id}
+							<option value="{$bucket_id}" {if $ticket->bucket_id == $bucket_id}selected="selected"{/if}>{$bucket->name}</option>
+							{/if}
+						{/foreach}
+					</select>
+				</div>
+
+				<div style="margin-top:5px;">
+					<b>{'common.owner'|devblocks_translate|capitalize}:</b>
+					<button type="button" class="chooser-abstract" data-field-name="owner_id" data-context="{CerberusContexts::CONTEXT_WORKER}" data-single="true" data-query="isDisabled:n" data-autocomplete="" data-autocomplete-if-empty="true"><span class="glyphicons glyphicons-search"></span></button>
+					<ul class="bubbles chooser-container">
+						{$owner = $workers.{$ticket->owner_id}}
+						{if $owner}
+						<li><img class="cerb-avatar" src="{devblocks_url}c=avatars&context=worker&context_id={$owner->id}{/devblocks_url}?v={$owner->updated}"><input type="hidden" name="owner_id" value="{$owner->id}"><a href="javascript:;" class="cerb-peek-trigger no-underline" data-context="{CerberusContexts::CONTEXT_WORKER}" data-context-id="{$owner->id}">{$owner->getName()}</a></li>
+						{/if}
+					</ul>
+				</div>
+
+				<div style="margin-top:5px;">
+					<b>{'common.watchers'|devblocks_translate|capitalize}:</b>
 					<span>
 						{$watchers_btn_domid = uniqid()}
-						{include file="devblocks:cerberusweb.core::internal/watchers/context_follow_button.tpl" object_watchers=$object_watchers context=CerberusContexts::CONTEXT_TICKET context_id=$ticket->id full_label=true watchers_btn_domid=$watchers_btn_domid watchers_group_id=$ticket->group_id watchers_bucket_id=$ticket->bucket_id}
+						{include file="devblocks:cerberusweb.core::internal/watchers/context_follow_button.tpl" object_watchers=$object_watchers context=CerberusContexts::CONTEXT_TICKET context_id=$ticket->id watchers_btn_domid=$watchers_btn_domid watchers_group_id=$ticket->group_id watchers_bucket_id=$ticket->bucket_id}
 					</span>
 				</div>
-
-				<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+O)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_OPEN}" class="status_open" onclick="toggleDiv('replyOpen{$message->id}','block');toggleDiv('replyClosed{$message->id}','none');" {if (empty($draft) && 'open'==$mail_status_reply) || $draft->params.status_id==Model_Ticket::STATUS_OPEN}checked="checked"{/if}> {'status.open'|devblocks_translate|capitalize}</label>
-				<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+W)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_WAITING}" class="status_waiting" onclick="toggleDiv('replyOpen{$message->id}','block');toggleDiv('replyClosed{$message->id}','block');" {if (empty($draft) && 'waiting'==$mail_status_reply) || $draft->params.status_id==Model_Ticket::STATUS_WAITING}checked="checked"{/if}> {'status.waiting'|devblocks_translate|capitalize}</label>
-				{if $active_worker->hasPriv('core.ticket.actions.close') || ($ticket->status_id == Model_Ticket::STATUS_CLOSED)}<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+C)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_CLOSED}" class="status_closed" onclick="toggleDiv('replyOpen{$message->id}','none');toggleDiv('replyClosed{$message->id}','block');" {if (empty($draft) && 'closed'==$mail_status_reply) || $draft->params.status_id==Model_Ticket::STATUS_CLOSED}checked="checked"{/if}> {'status.closed'|devblocks_translate|capitalize}</label>{/if}
-				<br>
-
-				<div id="replyClosed{$message->id}" style="display:{if (empty($draft) && 'open'==$mail_status_reply) || (!empty($draft) && $draft->params.status_id==Model_Ticket::STATUS_OPEN)}none{else}block{/if};margin:5px 0px 0px 20px;">
-
-				<div style="display:flex;flex-flow:row wrap;">
-					<div style="flex:1 1 45%;padding-right:10px;">
-						<b>{'display.reply.next.resume'|devblocks_translate}</b>
-					</div>
-					<div style="flex:1 1 45%;">
-						{'display.reply.next.resume_eg'|devblocks_translate}
-					</div>
-				</div>
-				<input type="text" name="ticket_reopen" size="55" value="{if !empty($draft)}{$draft->params.ticket_reopen}{elseif !empty($ticket->reopen_at)}{$ticket->reopen_at|devblocks_date}{/if}"><br>
-				{'display.reply.next.resume_blank'|devblocks_translate}<br>
-				</div>
-
-				<div style="margin-bottom:10px;"></div>
-
-				<b>{'display.reply.next.move'|devblocks_translate}</b>
-				<br>
-
-				<select name="group_id">
-					{foreach from=$groups item=group key=group_id}
-					<option value="{$group_id}" {if $active_worker->isGroupMember($group_id)}member="true"{/if} {if $ticket->group_id == $group_id}selected="selected"{/if}>{$group->name}</option>
-					{/foreach}
-				</select>
-				<select class="ticket-reply-bucket-options" style="display:none;">
-					{foreach from=$buckets item=bucket key=bucket_id}
-					<option value="{$bucket_id}" group_id="{$bucket->group_id}">{$bucket->name}</option>
-					{/foreach}
-				</select>
-				<select name="bucket_id">
-					{foreach from=$buckets item=bucket key=bucket_id}
-						{if $bucket->group_id == $ticket->group_id}
-						<option value="{$bucket_id}" {if $ticket->bucket_id == $bucket_id}selected="selected"{/if}>{$bucket->name}</option>
-						{/if}
-					{/foreach}
-				</select>
-				<br>
-				<br>
-
-				<b>{'display.reply.next.owner'|devblocks_translate}</b><br>
-				<button type="button" class="chooser-abstract" data-field-name="owner_id" data-context="{CerberusContexts::CONTEXT_WORKER}" data-single="true" data-query="isDisabled:n" data-autocomplete="" data-autocomplete-if-empty="true"><span class="glyphicons glyphicons-search"></span></button>
-				<ul class="bubbles chooser-container">
-					{$owner = $workers.{$ticket->owner_id}}
-					{if $owner}
-					<li><img class="cerb-avatar" src="{devblocks_url}c=avatars&context=worker&context_id={$owner->id}{/devblocks_url}?v={$owner->updated}"><input type="hidden" name="owner_id" value="{$owner->id}"><a href="javascript:;" class="cerb-peek-trigger no-underline" data-context="{CerberusContexts::CONTEXT_WORKER}" data-context-id="{$owner->id}">{$owner->getName()}</a></li>
-					{/if}
-				</ul>
-				<br>
-				<br>
-
-				<div style="margin-bottom:1em;">
-					<b>When should the message be delivered?</b> (leave blank to send immediately)<br>
-					<input type="text" name="send_at" size="55" placeholder="now" value="{if !empty($draft)}{$draft->params.send_at}{/if}">
-				</div>
-
-				{* [TODO] Expand custom field checkboxes *}
-				{if !empty($custom_fields)}
-					<b>{'common.custom_fields'|devblocks_translate|capitalize}:</b><br>
-					{include file="devblocks:cerberusweb.core::internal/custom_fields/bulk/form.tpl" bulk=true custom_fields_expanded=$draft->params.custom_fields}
-				{/if}
 			</td>
 		</tr>
 	</table>
 </fieldset>
 
-{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_TICKET context_id=$ticket->id bulk=true}
+{$custom_fieldsets_available = DAO_CustomFieldset::getUsableByActorByContext($active_worker, CerberusContexts::CONTEXT_TICKET)}
+
+{if $custom_fields || $custom_fields_available}
+<fieldset class="peek" style="{if $custom_fieldsets_available}padding-bottom:0px;{/if}">
+	<legend>
+		<label>
+			{'common.update'|devblocks_translate|capitalize}
+		</label>
+	</legend>
+
+	<div style="padding-bottom:10px;{if $custom_fields}{else}display:none;{/if}">
+	{if !empty($custom_fields)}
+		{include file="devblocks:cerberusweb.core::internal/custom_fields/bulk/form.tpl" bulk=true custom_fields_expanded=$draft->params.custom_fields}
+	{/if}
+	</div>
+
+	{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_TICKET context_id=$ticket->id bulk=true custom_fieldsets_available=$custom_fieldsets_available}
+</fieldset>
+{/if}
+
+{if $gpg && $gpg->isEnabled()}
+<fieldset class="peek">
+	<legend>
+		<label>
+			<input type="checkbox" name="options_gpg_encrypt" value="1" {if $draft->params.options_gpg_encrypt}checked="checked"{/if}>
+			{'common.encrypt'|devblocks_translate|capitalize}
+		</label>
+	</legend>
+
+	<div style="{if $draft->params.options_gpg_encrypt}{else}display:none;{/if}">
+		This message will be encrypted with recipient public keys.
+	</div>
+</fieldset>
+{/if}
+
+<fieldset class="peek">
+	<legend>
+		<label>
+			<input type="checkbox" class="cerb-reply-deliver-later-toggle" value="1" {if $draft->params.send_at}checked="checked"{/if}>
+			Deliver later
+		</label>
+	</legend>
+
+	<div style="{if $draft->params.send_at}{else}display:none;{/if}">
+		<b>When should the message be delivered?</b> (leave blank to send immediately)<br>
+		<input type="text" name="send_at" size="64" style="width:89%;" placeholder="now" value="{if !empty($draft)}{$draft->params.send_at}{/if}">
+	</div>
+</fieldset>
 
 <div id="reply{$message->id}_buttons">
 	<button type="button" class="send split-left" title="{if $pref_keyboard_shortcuts}(Ctrl+Shift+Enter){/if}"><span class="glyphicons glyphicons-send"></span> {if $is_forward}{'display.ui.forward'|devblocks_translate|capitalize}{else}{'display.ui.send_message'|devblocks_translate}{/if}</button><!--
@@ -654,7 +679,34 @@ $(function() {
 			if(0 === $ul.find('li').length)
 				$ul.closest('div').remove();
 		});
-		
+
+		// Encryption
+
+		$frm.find('input[name=options_gpg_encrypt]').on('click', function(e) {
+			e.stopPropagation();
+
+			var $div = $(this).closest('fieldset').find('> div');
+
+			$div
+				.toggle()
+				.focus()
+			;
+		});
+
+		// Deliver later
+
+		$frm.find('.cerb-reply-deliver-later-toggle').on('click', function(e) {
+			e.stopPropagation();
+
+			var $div = $(this).closest('fieldset').find('> div');
+
+			$div
+				.toggle()
+				.find('input:text')
+					.focus()
+			;
+		});
+
 		// Focus
 		
 		{if !$recent_activity}

@@ -894,6 +894,9 @@ class Model_MailQueue {
 		if($this->hasParam('owner_id'))
 			$properties['owner_id'] = $this->getParam('owner_id');
 		
+		if($this->hasParam('watcher_ids'))
+			$properties['watcher_ids'] = $this->getParam('watcher_ids');
+		
 		if($this->hasParam('ticket_reopen'))
 			$properties['ticket_reopen'] = $this->getParam('ticket_reopen');
 		
@@ -1348,6 +1351,12 @@ class Context_Draft extends Extension_DevblocksContext implements IDevblocksCont
 			'params' => [
 				'context' => self::ID,
 			],
+		);
+		
+		$properties['id'] = array(
+			'label' => DevblocksPlatform::translate('common.id'),
+			'type' => Model_CustomField::TYPE_NUMBER,
+			'value' => $model->id,
 		);
 		
 		$properties['queue_fails'] = array(
