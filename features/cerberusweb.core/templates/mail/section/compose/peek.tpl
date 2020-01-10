@@ -98,7 +98,7 @@
 				</div>
 
 				<button type="button" title="Insert #command" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--commands"><span class="glyphicons glyphicons-sampler"></span></button>
-				<button type="button" title="Insert snippet" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--snippets"><span class="glyphicons glyphicons-notes-2"></span></button>
+				<button type="button" title="Insert snippet (Ctrl+Shift+Period)" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--snippets"><span class="glyphicons glyphicons-notes-2"></span></button>
 				{*<button type="button" title="Track time" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--save"><span class="glyphicons glyphicons-stopwatch"></span></button>*}
 				<button type="button" title="Save draft (Ctrl+S)" data-cerb-key-binding="ctrl+s" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--save"><span class="glyphicons glyphicons-floppy-save"></span></button>
 				<div class="cerb-code-editor-toolbar-divider"></div>
@@ -131,35 +131,17 @@
 	</ul>
 </fieldset>
 
-{if $gpg && $gpg->isEnabled()}
-<fieldset class="peek">
-	<legend>{'common.encryption'|devblocks_translate|capitalize}</legend>
-	
-	<div>
-		<label style="margin-right:10px;">
-		<input type="checkbox" name="options_gpg_encrypt" value="1" {if $draft->params.options_gpg_encrypt}checked="checked"{/if}> 
-		Encrypt message using recipient public keys
-		</label>
-	</div>
-</fieldset>
-{/if}
-
 <fieldset class="peek">
 	<legend>{'common.properties'|devblocks_translate|capitalize}</legend>
 	
 	<div>
-		<label>
-		<input type="checkbox" name="options_dont_send" value="1" {if $draft->params.options_dont_send}checked="checked"{/if}> 
-		Start a new conversation without sending a copy of this message to the recipients
-		</label>
-	</div>
-	
-	<div style="margin-top:10px;">
-		<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+O)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_OPEN}" class="status_open" {if (empty($draft) && 'open'==$defaults.status) || (!empty($draft) && $draft->params.status_id==Model_Ticket::STATUS_OPEN)}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','none');"> {'status.open'|devblocks_translate}</label>
-		<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+W)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_WAITING}" class="status_waiting" {if (empty($draft) && 'waiting'==$defaults.status) || (!empty($draft) && $draft->params.status_id==Model_Ticket::STATUS_WAITING)}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','block');"> {'status.waiting'|devblocks_translate}</label>
-		{if $active_worker->hasPriv('core.ticket.actions.close')}<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+C)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_CLOSED}" class="status_closed" {if (empty($draft) && 'closed'==$defaults.status) || (!empty($draft) && $draft->params.status_id==Model_Ticket::STATUS_CLOSED)}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','block');"> {'status.closed'|devblocks_translate}</label>{/if}
+		<b>Status:</b>
 
-		<div id="divComposeClosed{$popup_uniqid}" style="display:{if (empty($draft) && 'open'==$defaults.status) || (!empty($draft) && $draft->params.status_id==Model_Ticket::STATUS_OPEN)}none{else}block{/if};margin:5px 0px 0px 20px;">
+		<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+O)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_OPEN}" class="status_open" {if $defaults.status=='open'}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','none');"> {'status.open'|devblocks_translate}</label>
+		<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+W)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_WAITING}" class="status_waiting" {if $defaults.status=='waiting'}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','block');"> {'status.waiting'|devblocks_translate}</label>
+		{if $active_worker->hasPriv('core.ticket.actions.close')}<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+C)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_CLOSED}" class="status_closed" {if $defaults.status=='closed'}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','block');"> {'status.closed'|devblocks_translate}</label>{/if}
+
+		<div id="divComposeClosed{$popup_uniqid}" style="display:{if $defaults.status=='open'}none{else}block{/if};margin:5px 0px 10px 20px;">
 			<b>{'display.reply.next.resume'|devblocks_translate}</b><br>
 			{'display.reply.next.resume_eg'|devblocks_translate}<br>
 			<input type="text" name="ticket_reopen" size="64" class="input_date" value="{$draft->params.ticket_reopen}"><br>
@@ -167,10 +149,9 @@
 		</div>
 	</div>
 
-	<div style="margin-top:10px;">
-		<b>Who should this be assigned to?</b><br>
+	<div style="margin-top:5px;">
+		<b>{'common.owner'|devblocks_translate|capitalize}:</b>
 
-		<button type="button" class="chooser-abstract" data-context="{CerberusContexts::CONTEXT_WORKER}" data-query="isDisabled:n" data-field-name="owner_id" data-autocomplete="" data-autocomplete-if-empty="true" data-single="true"><span class="glyphicons glyphicons-search"></span></button>
 		<ul class="bubbles chooser-container">
 			{foreach from=$workers item=v key=k}
 				{if !$v->is_disabled && $draft->params.owner_id == $v->id}
@@ -178,26 +159,85 @@
 				{/if}
 			{/foreach}
 		</ul>
+		<button type="button" class="chooser-abstract" data-context="{CerberusContexts::CONTEXT_WORKER}" data-query="isDisabled:n" data-field-name="owner_id" data-autocomplete="isDisabled:n" data-autocomplete-if-empty="true" data-single="true"><span class="glyphicons glyphicons-search"></span></button>
 	</div>
 
-	<div style="margin-top:10px;">
-		<b>When should the message be delivered?</b> (leave blank to send immediately)<br>
-		<input type="text" name="send_at" size="55" placeholder="now" value="{if !empty($draft)}{$draft->params.send_at}{/if}">
-		<br>
+	<div style="margin-top:5px;">
+		<b>{'common.watchers'|devblocks_translate|capitalize}:</b>
+
+		<ul class="bubbles chooser-container">
+			{if is_array($draft->params.watcher_ids)}
+			{foreach from=$workers item=v key=k}
+				{if !$v->is_disabled && in_array($v->id,$draft->params.watcher_ids)}
+					<li><img class="cerb-avatar" src="{devblocks_url}c=avatars&context=worker&context_id={$v->id}{/devblocks_url}?v={$v->updated}"><input type="hidden" name="watcher_ids[]" value="{$v->id}"><a href="javascript:;" class="cerb-peek-trigger no-underline" data-context="{CerberusContexts::CONTEXT_WORKER}" data-context-id="{$v->id}">{$v->getName()}</a></li>
+				{/if}
+			{/foreach}
+			{/if}
+		</ul>
+		<button type="button" class="chooser-abstract" data-context="{CerberusContexts::CONTEXT_WORKER}" data-query="isDisabled:n" data-field-name="watcher_ids[]" data-autocomplete="isDisabled:n"><span class="glyphicons glyphicons-search"></span></button>
 	</div>
 
-	<div style="margin-top:10px;{if empty($custom_fields) && empty($group_fields)}display:none;{/if}">
-		<b>{'common.custom_fields'|devblocks_translate|capitalize}:</b>
+	<div style="margin-top:5px;">
+		<b>{'common.options'|devblocks_translate|capitalize}:</b><br>
 
-		{$custom_field_values = $draft->params.custom_fields}
+		<div style="padding-left:10px;">
+			<label>
+				<input type="checkbox" name="options_dont_send" value="1" {if $draft->params.options_dont_send}checked="checked"{/if}>
+				Start a new conversation without sending a copy of this message to the recipients
+			</label>
+		</div>
+	</div>
+</fieldset>
 
+{$custom_field_values = $draft->params.custom_fields}
+{$custom_fieldsets_available = DAO_CustomFieldset::getUsableByActorByContext($active_worker, CerberusContexts::CONTEXT_TICKET)}
+
+{if $custom_fields || $custom_fieldsets_available}
+<fieldset class="peek" style="{if $custom_fieldsets_available}padding-bottom:0px;{/if}">
+	<legend>
+		<label>
+			{'common.update'|devblocks_translate|capitalize}
+		</label>
+	</legend>
+
+	<div style="{if $custom_fields}{else}display:none;{/if}">
 		{if !empty($custom_fields)}
 			{include file="devblocks:cerberusweb.core::internal/custom_fields/bulk/form.tpl" bulk=false}
 		{/if}
 	</div>
-</fieldset>
 
-{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_TICKET bulk=false}
+	{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_TICKET bulk=false custom_fieldsets_available=$custom_fieldsets_available}
+</fieldset>
+{/if}
+
+{if $gpg && $gpg->isEnabled()}
+<fieldset class="peek">
+	<legend>
+		<label>
+			<input type="checkbox" name="options_gpg_encrypt" value="1" {if $draft->params.options_gpg_encrypt}checked="checked"{/if}>
+			{'common.encrypt'|devblocks_translate|capitalize}
+		</label>
+	</legend>
+
+	<div style="{if $draft->params.options_gpg_encrypt}{else}display:none;{/if}">
+		This message will be encrypted with recipient public keys.
+	</div>
+</fieldset>
+{/if}
+
+<fieldset class="peek">
+	<legend>
+		<label>
+			<input type="checkbox" class="cerb-compose-deliver-later-toggle" value="1" {if $draft->params.send_at}checked="checked"{/if}>
+			Deliver later
+		</label>
+	</legend>
+
+	<div style="{if $draft->params.send_at}{else}display:none;{/if}">
+		<b>When should the message be delivered?</b> (leave blank to send immediately)<br>
+		<input type="text" name="send_at" size="64" style="width:89%;" placeholder="now" value="{if !empty($draft)}{$draft->params.send_at}{/if}">
+	</div>
+</fieldset>
 
 <div class="status"></div>
 
@@ -563,7 +603,34 @@ $(function() {
 			clearTimeout(draftComposeAutoSaveInterval);
 			draftComposeAutoSaveInterval = null;
 		}
-		
+
+		// Encryption
+
+		$frm.find('input[name=options_gpg_encrypt]').on('click', function(e) {
+			e.stopPropagation();
+
+			var $div = $(this).closest('fieldset').find('> div');
+
+			$div
+				.toggle()
+				.focus()
+			;
+		});
+
+		// Deliver later
+
+		$frm.find('.cerb-compose-deliver-later-toggle').on('click', function(e) {
+			e.stopPropagation();
+
+			var $div = $(this).closest('fieldset').find('> div');
+
+			$div
+				.toggle()
+				.find('input:text')
+				.focus()
+			;
+		});
+
 		draftComposeAutoSaveInterval = setInterval(function() {
 			$editor_toolbar_button_save_draft.click();
 		}, 30000); // and every 30 sec
