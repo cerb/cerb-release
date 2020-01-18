@@ -517,7 +517,6 @@ class CerberusMail {
 		@$group_id = $properties['group_id'];
 		@$bucket_id = intval($properties['bucket_id']);
 		@$worker_id = $properties['worker_id'];
-		@$send_at = strtotime($properties['send_at'] ?? 0);
 		
 		$worker = null;
 		
@@ -539,9 +538,17 @@ class CerberusMail {
 		$from_replyto = $group->getReplyTo($bucket->id);
 		$personal = $group->getReplyPersonal($bucket->id, $worker);
 		
+		// Changing the outgoing message through a VA (global)
+		Event_MailBeforeSent::trigger($properties, null, null, $group_id);
+		
+		// Changing the outgoing message through a VA (group)
+		Event_MailBeforeSentByGroup::trigger($properties, null, null, $group_id);
+		
+		@$send_at = strtotime($properties['send_at'] ?? 0);
+		
 		if($send_at && $send_at >= time()) {
 			// If we're not resuming a draft from the UI, generate a draft
-			if (!$draft_id || false == (DAO_MailQueue::get($draft_id))) {
+			if (false == ($draft = DAO_MailQueue::get($draft_id))) {
 				$change_fields = DAO_MailQueue::getFieldsFromMessageProperties($properties);
 				$change_fields[DAO_MailQueue::TYPE] = Model_MailQueue::TYPE_COMPOSE;
 				$change_fields[DAO_MailQueue::IS_QUEUED] = 1;
@@ -554,23 +561,22 @@ class CerberusMail {
 				}
 				
 			} else {
-				DAO_MailQueue::update($draft_id, [
+				$draft->params['send_at'] = date('r', $send_at);
+				
+				$draft_fields = [
 					DAO_MailQueue::IS_QUEUED => 1,
 					DAO_MailQueue::QUEUE_FAILS => 0,
 					DAO_MailQueue::QUEUE_DELIVERY_DATE => $send_at,
-				]);
+					DAO_MailQueue::PARAMS_JSON => json_encode($draft->params),
+				];
+				
+				DAO_MailQueue::update($draft->id, $draft_fields);
 			}
 			
 			return true;
 		}
 		
 		$mask = CerberusApplication::generateTicketMask();
-		
-		// Changing the outgoing message through a VA (global)
-		Event_MailBeforeSent::trigger($properties, null, null, $group_id);
-		
-		// Changing the outgoing message through a VA (group)
-		Event_MailBeforeSentByGroup::trigger($properties, null, null, $group_id);
 		
 		$hash_commands = [];
 		
@@ -1022,7 +1028,7 @@ class CerberusMail {
 			
 			if($send_at && $send_at >= time()) {
 				// If we're not resuming a draft from the UI, generate a draft
-				if(!$draft_id || false == (DAO_MailQueue::get($draft_id))) {
+				if(false == ($draft = DAO_MailQueue::get($draft_id))) {
 					if (!array_key_exists('subject', $properties))
 						$properties['subject'] = $ticket->subject;
 					
@@ -1045,11 +1051,17 @@ class CerberusMail {
 					}
 					
 				} else {
-					DAO_MailQueue::update($draft_id, [
+					// Update the draft sending date
+					$draft->params['send_at'] = date('r', $send_at);
+					
+					$draft_fields = [
 						DAO_MailQueue::IS_QUEUED => 1,
 						DAO_MailQueue::QUEUE_FAILS => 0,
 						DAO_MailQueue::QUEUE_DELIVERY_DATE => $send_at,
-					]);
+						DAO_MailQueue::PARAMS_JSON => json_encode($draft->params),
+					];
+					
+					DAO_MailQueue::update($draft->id, $draft_fields);
 				}
 				
 				return true;
@@ -1641,7 +1653,11 @@ class CerberusMail {
 								break;
 							
 							default:
-								$line = $group->getReplySignature($bucket->id, $worker, false);
+								if($group instanceof Model_Group) {
+									$line = $group->getReplySignature($bucket->id, $worker, false);
+								} else {
+									$line = null;
+								}
 								break;
 						}
 						break;
@@ -1731,7 +1747,11 @@ class CerberusMail {
 								break;
 							
 							default:
-								$line = $group->getReplySignature($bucket_id, $worker, false);
+								if($group instanceof Model_Group) {
+									$line = $group->getReplySignature($bucket_id, $worker, false);
+								} else {
+									$line = null;
+								}
 								break;
 						}
 						break;
@@ -1861,10 +1881,11 @@ class CerberusMail {
 								break;
 							
 							default:
-								if($group instanceof Model_Group)
+								if($group instanceof Model_Group) {
 									$line = $group->getReplySignature($bucket_id, $worker, false);
-								else
-									$line = '';
+								} else {
+									$line = null;
+								}
 								break;
 						}
 						break;
