@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2020012801);
-define("APP_VERSION", '9.4.9');
+define("APP_BUILD", 2020013101);
+define("APP_VERSION", '9.4.10');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -1763,9 +1763,12 @@ class CerberusContexts {
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		$url_writer = DevblocksPlatform::services()->url();
 		$translate = DevblocksPlatform::getTranslationService();
+		
+		if(!is_array($entry)) {
+			return '';
+		}
 
 		// Load the translated version of the message
-
 		$entry['message'] = $translate->_($entry['message']);
 
 		// Scrub desired tokens
