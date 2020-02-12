@@ -299,8 +299,10 @@ class DAO_Address extends Cerb_ORMHelper {
 					}
 			}
 		}
+		
+		CerberusContexts::checkpointChanges(CerberusContexts::CONTEXT_ADDRESS, $ids);
 	
-		DAO_Address::update($ids, $change_fields);
+		DAO_Address::update($ids, $change_fields, false);
 		
 		// Custom Fields
 		C4_AbstractView::_doBulkSetCustomFields(CerberusContexts::CONTEXT_ADDRESS, $custom_fields, $ids);
@@ -312,6 +314,8 @@ class DAO_Address extends Cerb_ORMHelper {
 		// Broadcast
 		if(isset($do['broadcast']))
 			C4_AbstractView::_doBulkBroadcast(CerberusContexts::CONTEXT_ADDRESS, $do['broadcast'], $ids);
+		
+		DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_ADDRESS, $ids);
 		
 		$update->markCompleted();
 		return true;
@@ -883,6 +887,16 @@ class DAO_Address extends Cerb_ORMHelper {
 			
 			$params = [
 				SearchFields_Address::EMAIL => new DevblocksSearchCriteria(SearchFields_Address::EMAIL, DevblocksSearchCriteria::OPER_LIKE, $q),
+				SearchFields_Address::IS_BANNED => new DevblocksSearchCriteria(SearchFields_Address::IS_BANNED, DevblocksSearchCriteria::OPER_EQ, 0),
+				SearchFields_Address::IS_DEFUNCT => new DevblocksSearchCriteria(SearchFields_Address::IS_DEFUNCT, DevblocksSearchCriteria::OPER_EQ, 0),
+			];
+			
+			$view->addParams($params);
+			
+		// Does it start with a number?
+		} else if (is_numeric(substr($term,0,1))) {
+			$params = [
+				SearchFields_Address::EMAIL => new DevblocksSearchCriteria(SearchFields_Address::EMAIL, DevblocksSearchCriteria::OPER_LIKE, $term.'*'),
 				SearchFields_Address::IS_BANNED => new DevblocksSearchCriteria(SearchFields_Address::IS_BANNED, DevblocksSearchCriteria::OPER_EQ, 0),
 				SearchFields_Address::IS_DEFUNCT => new DevblocksSearchCriteria(SearchFields_Address::IS_DEFUNCT, DevblocksSearchCriteria::OPER_EQ, 0),
 			];
@@ -2309,6 +2323,7 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 			'address' => $prefix.$translate->_('address.address'),
 			'created_at' => $prefix.$translate->_('common.created'),
 			'full_name' => $prefix.$translate->_('common.name.full'),
+			'host' => $prefix.$translate->_('common.host'),
 			'is_banned' => $prefix.$translate->_('address.is_banned'),
 			'is_contact' => $prefix.$translate->_('address.is_contact'),
 			'is_defunct' => $prefix.$translate->_('address.is_defunct'),
@@ -2325,6 +2340,7 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 			'address' => Model_CustomField::TYPE_SINGLE_LINE,
 			'created_at' => Model_CustomField::TYPE_DATE,
 			'full_name' => Model_CustomField::TYPE_SINGLE_LINE,
+			'host' => Model_CustomField::TYPE_SINGLE_LINE,
 			'is_banned' => Model_CustomField::TYPE_CHECKBOX,
 			'is_contact' => Model_CustomField::TYPE_CHECKBOX,
 			'is_defunct' => Model_CustomField::TYPE_CHECKBOX,

@@ -2453,6 +2453,8 @@ abstract class C4_AbstractView {
 						foreach($query_field['examples'] as $example) {
 							$suggestions[$suggestion_key][] = $example;
 						}
+					} else {
+						$suggestions[$suggestion_key] = [];
 					}
 					break;
 					
@@ -3704,14 +3706,19 @@ abstract class C4_AbstractView {
 	public static function _doBulkSetCustomFields($context, $custom_fields, $ids) {
 		$fields = DAO_CustomField::getAll();
 		
-		if(!empty($custom_fields))
+		$custom_fieldset_ids = array_unique(array_column(array_intersect_key($fields, $custom_fields), 'custom_fieldset_id'));
+		
+		// Link any custom fieldsets we bulk update
+		if($custom_fieldset_ids) {
+			DAO_CustomFieldset::addToContext($custom_fieldset_ids, $context, $ids);
+		}
+		
+		if(is_array($custom_fields))
 		foreach($custom_fields as $cf_id => $params) {
-			if(!is_array($params) || !isset($params['value']))
+			if(!is_array($params) || !array_key_exists('value', $params))
 				continue;
 			
-			@$cf_field = $fields[$cf_id];
-			
-			if(empty($cf_field))
+			if(false == ($cf_field = @$fields[$cf_id]))
 				continue;
 			
 			$cf_val = $params['value'];
@@ -3726,31 +3733,44 @@ abstract class C4_AbstractView {
 					$cf_val = (0==strlen($cf_val)) ? '' : intval($cf_val);
 					break;
 			}
-
-			// If multi-selection types, handle delta changes
-			if(Model_CustomField::hasMultipleValues($cf_field->type)) {
-				if(is_array($cf_val))
-				foreach($cf_val as $val) {
-					$op = substr($val,0,1);
-					$val = substr($val,1);
+			
+			
+			if(false != ($cf_type = $cf_field->getTypeExtension())) {
+				if(is_array($ids))
+				foreach($ids as $id)
+					$cf_type->setFieldValue($cf_field, $context, $id, $cf_val);
 				
+			} else {
+				// If multi-selection types, handle delta changes
+				if(Model_CustomField::hasMultipleValues($cf_field->type)) {
+					if(is_array($cf_val))
+					foreach($cf_val as $val) {
+						if(DevblocksPlatform::strStartsWith($val,'+-')) {
+							$op = substr($val,0,1);
+							$val = substr($val,1);
+						} else {
+							$op = '+';
+						}
+					
+						if(is_array($ids))
+						foreach($ids as $id) {
+							if($op=='-') {
+								DAO_CustomFieldValue::unsetFieldValue($context, $id, $cf_id, $val);
+							} else {
+								DAO_CustomFieldValue::setFieldValue($context, $id, $cf_id, $val, true);
+							}
+						}
+					}
+					
+				// Otherwise, set/unset as a single field
+				} else {
 					if(is_array($ids))
 					foreach($ids as $id) {
-						if($op=='+')
-							DAO_CustomFieldValue::setFieldValue($context,$id,$cf_id,$val,true);
-						elseif($op=='-')
-							DAO_CustomFieldValue::unsetFieldValue($context,$id,$cf_id,$val);
+						if(0 != strlen($cf_val))
+							DAO_CustomFieldValue::setFieldValue($context,$id,$cf_id,$cf_val);
+						else
+							DAO_CustomFieldValue::unsetFieldValue($context,$id,$cf_id);
 					}
-				}
-					
-			// Otherwise, set/unset as a single field
-			} else {
-				if(is_array($ids))
-				foreach($ids as $id) {
-					if(0 != strlen($cf_val))
-						DAO_CustomFieldValue::setFieldValue($context,$id,$cf_id,$cf_val);
-					else
-						DAO_CustomFieldValue::unsetFieldValue($context,$id,$cf_id);
 				}
 			}
 		}

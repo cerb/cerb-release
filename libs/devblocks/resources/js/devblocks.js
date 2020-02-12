@@ -323,7 +323,7 @@ function DevblocksClass() {
 		
 		var $button = $(e.target);
 		var $popup = genericAjaxPopupFind($button);
-		var $frm = $popup.find('form').first();
+		var $frm = $button.closest('form');
 		var options = e.data;
 		var is_delete = (options && options.mode == 'delete');
 		var is_create = (options && (options.mode == 'create' || options.mode == 'create_continue'));
@@ -585,7 +585,7 @@ function DevblocksClass() {
 				return callback(false);
 			
 			resources.js.forEach(function(url) {
-				if(url.substring(0,1) == '/')
+				if(url.substring(0,1) === '/')
 					url = DevblocksWebPath + url.substring(1);
 				
 				jobs.push(async.apply($instance.loadScript.bind($instance), url));
@@ -603,15 +603,35 @@ function DevblocksClass() {
 	this.cerbCodeEditor = {
 		insertMatchAndAutocomplete: function(editor, data) {
 			delete data.completer;
-			editor.completer.insertMatch(data);
-			
+
+			var pos = editor.getCursorPosition();
+			var token = editor.session.getTokenAt(pos.row, pos.column);
+
+			var suggestion = data;
+
+			// If the suggestion and the current token start with a quote
+			if(token && (token.type === 'text' || token.type === 'string')
+				&& token.value.substr(0,1) === '"'
+				&& data.value.substr(0,1) === '"'
+				) {
+				suggestion = JSON.parse(JSON.stringify(suggestion));
+
+				// If the suggestion and token both end with a quote, only keep one
+				var end = (data.value.substr(-1,1) === '"' && token.value.substr(-1,1) === '"') ? 2 : 1;
+
+				// Strip the leading quote
+				suggestion.value = suggestion.value.substr(1, suggestion.value.length-end);
+			}
+
+			editor.completer.insertMatch(suggestion);
+
 			if(data.suppress_autocomplete)
 				return;
 			
 			// If we're inserting a field, trigger autocompletion
 			if(
-				(data.value && -1 != data.value.indexOf(':'))
-				|| (data.snippet && -1 != data.snippet.indexOf(':'))
+				(data.value && -1 !== data.value.indexOf(':'))
+				|| (data.snippet && -1 !== data.snippet.indexOf(':'))
 			) {
 				setTimeout(function() {
 					editor.commands.byName.startAutocomplete.exec(editor);

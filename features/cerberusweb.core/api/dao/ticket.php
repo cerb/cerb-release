@@ -1167,10 +1167,12 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			}
 		}
 		
+		DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_TICKET, $ids);
+		
 		// Fields
 		if(!empty($change_fields) || !empty($custom_fields)) {
 			$change_fields[DAO_Ticket::UPDATED_DATE] = time();
-			DAO_Ticket::update($ids, $change_fields);
+			DAO_Ticket::update($ids, $change_fields, false);
 		}
 		
 		// Custom Fields
@@ -1253,6 +1255,8 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				
 			}
 		}
+		
+		CerberusContexts::checkpointChanges(CerberusContexts::CONTEXT_TICKET, $ids);
 
 		$update->markCompleted();
 		return true;
@@ -5131,6 +5135,11 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			'type' => 'Records',
 		];
 		
+		$lazy_keys['participants'] = [
+			'label' => 'Participants',
+			'type' => 'Records',
+		];
+
 		$lazy_keys['requester_emails'] = [
 			'label' => 'Requester emails (comma-separated)',
 			'type' => 'Text',
@@ -5175,7 +5184,17 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		}
 		
 		switch($token) {
-			// [TODO] Add an entry for 'participants' and deprecate this (set both)
+			case 'participants':
+				$values['participants'] = [];
+				$reqs = DAO_Ticket::getRequestersByTicket($context_id);
+				
+				if(is_array($reqs)) {
+					$models = DAO_Address::getIds(array_keys($reqs));
+					$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_ADDRESS, ['contact_']);
+					$values['participants'] = array_values($dicts);
+				}
+				break;
+
 			case 'requester_emails':
 				if(!isset($dictionary['requesters'])) {
 					$result = $this->lazyLoadContextValues('requesters', $dictionary);

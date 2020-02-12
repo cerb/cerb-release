@@ -217,13 +217,17 @@ class DAO_Snippet extends Cerb_ORMHelper {
 			}
 		}
 		
+		DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_SNIPPET, $ids);
+		
 		// Fields
 		if(!empty($change_fields))
-			DAO_Snippet::update($ids, $change_fields);
+			DAO_Snippet::update($ids, $change_fields, false);
 
 		// Custom Fields
 		if(!empty($custom_fields))
 			C4_AbstractView::_doBulkSetCustomFields(CerberusContexts::CONTEXT_SNIPPET, $custom_fields, $ids);
+		
+		CerberusContexts::checkpointChanges(CerberusContexts::CONTEXT_SNIPPET, $ids);
 		
 		$update->markCompleted();
 		return true;
@@ -1119,7 +1123,7 @@ class View_Snippet extends C4_AbstractView implements IAbstractView_Subtotals, I
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Snippet::VIRTUAL_USABLE_BY),
 					'examples' => [
-						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+						'me',
 					]
 				),
 		);
@@ -1204,6 +1208,12 @@ class View_Snippet extends C4_AbstractView implements IAbstractView_Subtotals, I
 				$oper = $value = null;
 				CerbQuickSearchLexer::getOperStringFromTokens($tokens, $oper, $value);
 				$worker_id = intval($value);
+				
+				if(in_array(DevblocksPlatform::strLower($value),['me','self'])) {
+					if(false != ($active_worker = CerberusApplication::getActiveWorker())) {
+						$worker_id = $active_worker->id;
+					}
+				}
 				
 				return new DevblocksSearchCriteria(
 					SearchFields_Snippet::VIRTUAL_USABLE_BY,
