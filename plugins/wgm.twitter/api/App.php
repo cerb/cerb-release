@@ -39,10 +39,10 @@ class WgmTwitter_MessageProfileSection extends Extension_PageSection {
 	}
 	
 	function savePeekPopupAction() {
-		@$id = DevblocksPlatform::importGPC($_REQUEST['id'], 'integer', 0);
-		@$do_reply = DevblocksPlatform::importGPC($_REQUEST['do_reply'], 'integer', 0);
-		@$reply = DevblocksPlatform::importGPC($_REQUEST['reply'], 'string', '');
-		@$is_closed = DevblocksPlatform::importGPC($_REQUEST['is_closed'], 'integer', 0);
+		@$id = DevblocksPlatform::importGPC($_POST['id'], 'integer', 0);
+		@$do_reply = DevblocksPlatform::importGPC($_POST['do_reply'], 'integer', 0);
+		@$reply = DevblocksPlatform::importGPC($_POST['reply'], 'string', '');
+		@$is_closed = DevblocksPlatform::importGPC($_POST['is_closed'], 'integer', 0);
 
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -149,11 +149,11 @@ class WgmTwitter_MessageProfileSection extends Extension_PageSection {
 	
 	function startBulkUpdateJsonAction() {
 		// Filter: whole list or check
-		@$filter = DevblocksPlatform::importGPC($_REQUEST['filter'],'string','');
+		@$filter = DevblocksPlatform::importGPC($_POST['filter'],'string','');
 		$ids = array();
 		
 		// View
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		$view = C4_AbstractViewLoader::getView($view_id);
 		$view->setAutoPersist(false);
 		
@@ -177,12 +177,12 @@ class WgmTwitter_MessageProfileSection extends Extension_PageSection {
 		switch($filter) {
 			// Checked rows
 			case 'checks':
-				@$ids_str = DevblocksPlatform::importGPC($_REQUEST['ids'],'string');
+				@$ids_str = DevblocksPlatform::importGPC($_POST['ids'],'string');
 				$ids = DevblocksPlatform::parseCsvString($ids_str);
 				break;
 				
 			case 'sample':
-				@$sample_size = min(DevblocksPlatform::importGPC($_REQUEST['filter_sample_size'],'integer',0),9999);
+				@$sample_size = min(DevblocksPlatform::importGPC($_POST['filter_sample_size'],'integer',0),9999);
 				$filter = 'checks';
 				$ids = $view->getDataSample($sample_size);
 				break;

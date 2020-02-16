@@ -811,22 +811,22 @@ class View_<?php echo $class_name; ?> extends C4_AbstractView implements IAbstra
 				break;
 				
 			case 'placeholder_bool':
-				@$bool = DevblocksPlatform::importGPC($_REQUEST['bool'],'integer',1);
+				@$bool = DevblocksPlatform::importGPC($_POST['bool'],'integer',1);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$bool);
 				break;
 				
 			case SearchFields_<?php echo $class_name; ?>::VIRTUAL_CONTEXT_LINK:
-				@$context_links = DevblocksPlatform::importGPC($_REQUEST['context_link'],'array',[]);
+				@$context_links = DevblocksPlatform::importGPC($_POST['context_link'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$context_links);
 				break;
 				
 			case SearchFields_<?php echo $class_name; ?>::VIRTUAL_HAS_FIELDSET:
-				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',[]);
+				@$options = DevblocksPlatform::importGPC($_POST['options'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$options);
 				break;
 				
 			case SearchFields_<?php echo $class_name; ?>::VIRTUAL_WATCHERS:
-				@$worker_ids = DevblocksPlatform::importGPC($_REQUEST['worker_id'],'array',[]);
+				@$worker_ids = DevblocksPlatform::importGPC($_POST['worker_id'],'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$worker_ids);
 				break;
 				
@@ -1633,7 +1633,7 @@ class PageSection_Profiles<?php echo $class_name; ?> extends Extension_PageSecti
 	}
 	
 	function viewExploreAction() {
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
@@ -1646,7 +1646,7 @@ class PageSection_Profiles<?php echo $class_name; ?> extends Extension_PageSecti
 		$view->setAutoPersist(false);
 
 		// Page start
-		@$explore_from = DevblocksPlatform::importGPC($_REQUEST['explore_from'],'integer',0);
+		@$explore_from = DevblocksPlatform::importGPC($_POST['explore_from'],'integer',0);
 		if(empty($explore_from)) {
 			$orig_pos = 1+($view->renderPage * $view->renderLimit);
 		} else {

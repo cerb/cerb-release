@@ -2108,12 +2108,15 @@ class ChInternalController extends DevblocksControllerExtension {
 	}
 
 	function startNotificationsBulkUpdateJsonAction() {
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(403);
+		
 		// Filter: whole list or check
-		@$filter = DevblocksPlatform::importGPC($_REQUEST['filter'],'string','');
+		@$filter = DevblocksPlatform::importGPC($_POST['filter'],'string','');
 		$ids = array();
 
 		// View
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		$view = C4_AbstractViewLoader::getView($view_id);
 		$view->setAutoPersist(false);
 
@@ -2129,12 +2132,12 @@ class ChInternalController extends DevblocksControllerExtension {
 		switch($filter) {
 			// Checked rows
 			case 'checks':
-				@$ids_str = DevblocksPlatform::importGPC($_REQUEST['ids'],'string');
+				@$ids_str = DevblocksPlatform::importGPC($_POST['ids'],'string');
 				$ids = DevblocksPlatform::parseCsvString($ids_str);
 				break;
 				
 			case 'sample':
-				@$sample_size = min(DevblocksPlatform::importGPC($_REQUEST['filter_sample_size'],'integer',0),9999);
+				@$sample_size = min(DevblocksPlatform::importGPC($_POST['filter_sample_size'],'integer',0),9999);
 				$filter = 'checks';
 				$ids = $view->getDataSample($sample_size);
 				break;
@@ -2196,7 +2199,7 @@ class ChInternalController extends DevblocksControllerExtension {
 	}
 	
 	function viewNotificationsExploreAction() {
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
@@ -2209,7 +2212,7 @@ class ChInternalController extends DevblocksControllerExtension {
 		$view->setAutoPersist(false);
 
 		// Page start
-		@$explore_from = DevblocksPlatform::importGPC($_REQUEST['explore_from'],'integer',0);
+		@$explore_from = DevblocksPlatform::importGPC($_POST['explore_from'],'integer',0);
 		if(empty($explore_from)) {
 			$orig_pos = 1+($view->renderPage * $view->renderLimit);
 		} else {
@@ -2635,12 +2638,15 @@ class ChInternalController extends DevblocksControllerExtension {
 	}
 	
 	function startSnippetBulkUpdateJsonAction() {
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(403);
+		
 		// Filter: whole list or check
-		@$filter = DevblocksPlatform::importGPC($_REQUEST['filter'],'string','');
+		@$filter = DevblocksPlatform::importGPC($_POST['filter'],'string','');
 		$ids = [];
 		
 		// View
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		$view = C4_AbstractViewLoader::getView($view_id);
 		$view->setAutoPersist(false);
 		
@@ -2663,12 +2669,12 @@ class ChInternalController extends DevblocksControllerExtension {
 		switch($filter) {
 			// Checked rows
 			case 'checks':
-				@$ids_str = DevblocksPlatform::importGPC($_REQUEST['ids'],'string');
+				@$ids_str = DevblocksPlatform::importGPC($_POST['ids'],'string');
 				$ids = DevblocksPlatform::parseCsvString($ids_str);
 				break;
 				
 			case 'sample':
-				@$sample_size = min(DevblocksPlatform::importGPC($_REQUEST['filter_sample_size'],'integer',0),9999);
+				@$sample_size = min(DevblocksPlatform::importGPC($_POST['filter_sample_size'],'integer',0),9999);
 				$filter = 'checks';
 				$ids = $view->getDataSample($sample_size);
 				break;
@@ -2735,17 +2741,17 @@ class ChInternalController extends DevblocksControllerExtension {
 	}
 
 	function viewAddFilterAction() {
-		@$id = DevblocksPlatform::importGPC($_REQUEST['id']);
-		@$is_custom = DevblocksPlatform::importGPC($_REQUEST['is_custom'],'integer',0);
+		@$id = DevblocksPlatform::importGPC($_POST['id']);
+		@$is_custom = DevblocksPlatform::importGPC($_POST['is_custom'],'integer',0);
 
-		@$add_mode = DevblocksPlatform::importGPC($_REQUEST['add_mode'], 'string', null);
-		@$query = DevblocksPlatform::importGPC($_REQUEST['query'], 'string', null);
+		@$add_mode = DevblocksPlatform::importGPC($_POST['add_mode'], 'string', null);
+		@$query = DevblocksPlatform::importGPC($_POST['query'], 'string', null);
 		
-		@$field = DevblocksPlatform::importGPC($_REQUEST['field'], 'string', null);
-		@$oper = DevblocksPlatform::importGPC($_REQUEST['oper'], 'string', null);
-		@$value = DevblocksPlatform::importGPC($_REQUEST['value']);
-		@$replace = DevblocksPlatform::importGPC($_REQUEST['replace'], 'string', '');
-		@$field_deletes = DevblocksPlatform::importGPC($_REQUEST['field_deletes'],'array',[]);
+		@$field = DevblocksPlatform::importGPC($_POST['field'], 'string', null);
+		@$oper = DevblocksPlatform::importGPC($_POST['oper'], 'string', null);
+		@$value = DevblocksPlatform::importGPC($_POST['value']);
+		@$replace = DevblocksPlatform::importGPC($_POST['replace'], 'string', '');
+		@$field_deletes = DevblocksPlatform::importGPC($_POST['field_deletes'],'array',[]);
 		
 		if(null == ($view = C4_AbstractViewLoader::getView($id)))
 			return;
@@ -2968,7 +2974,7 @@ class ChInternalController extends DevblocksControllerExtension {
 	}
 	
 	function viewBulkUpdateNextCursorJsonAction() {
-		@$cursor = DevblocksPlatform::importGPC($_REQUEST['cursor'], 'string', '');
+		@$cursor = DevblocksPlatform::importGPC($_POST['cursor'], 'string', '');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -3014,7 +3020,7 @@ class ChInternalController extends DevblocksControllerExtension {
 	}
 	
 	function viewBroadcastTestAction() {
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
@@ -3038,16 +3044,16 @@ class ChInternalController extends DevblocksControllerExtension {
 		
 		$search_class = $context_ext->getSearchClass();
 		
-		@$broadcast_to = DevblocksPlatform::importGPC($_REQUEST['broadcast_to'],'array',[]);
-		@$broadcast_subject = DevblocksPlatform::importGPC($_REQUEST['broadcast_subject'],'string',null);
-		@$broadcast_message = DevblocksPlatform::importGPC($_REQUEST['broadcast_message'],'string',null);
-		@$broadcast_format = DevblocksPlatform::importGPC($_REQUEST['broadcast_format'],'string',null);
-		@$broadcast_html_template_id = DevblocksPlatform::importGPC($_REQUEST['broadcast_html_template_id'],'integer',0);
-		@$broadcast_group_id = DevblocksPlatform::importGPC($_REQUEST['broadcast_group_id'],'integer',0);
-		@$broadcast_bucket_id = DevblocksPlatform::importGPC($_REQUEST['broadcast_bucket_id'],'integer',0);
+		@$broadcast_to = DevblocksPlatform::importGPC($_POST['broadcast_to'],'array',[]);
+		@$broadcast_subject = DevblocksPlatform::importGPC($_POST['broadcast_subject'],'string',null);
+		@$broadcast_message = DevblocksPlatform::importGPC($_POST['broadcast_message'],'string',null);
+		@$broadcast_format = DevblocksPlatform::importGPC($_POST['broadcast_format'],'string',null);
+		@$broadcast_html_template_id = DevblocksPlatform::importGPC($_POST['broadcast_html_template_id'],'integer',0);
+		@$broadcast_group_id = DevblocksPlatform::importGPC($_POST['broadcast_group_id'],'integer',0);
+		@$broadcast_bucket_id = DevblocksPlatform::importGPC($_POST['broadcast_bucket_id'],'integer',0);
 		
-		@$filter = DevblocksPlatform::importGPC($_REQUEST['filter'],'string','');
-		@$ids = DevblocksPlatform::importGPC($_REQUEST['ids'],'string','');
+		@$filter = DevblocksPlatform::importGPC($_POST['filter'],'string','');
+		@$ids = DevblocksPlatform::importGPC($_POST['ids'],'string','');
 		
 		// Filter to checked
 		if('checks' == $filter && !empty($ids)) {
@@ -4987,10 +4993,10 @@ class ChInternalController extends DevblocksControllerExtension {
 	}
 	
 	function saveTemplatePeekAction() {
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string','');
-		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer',0);
-		@$content = DevblocksPlatform::importGPC($_REQUEST['content'],'string','');
-		@$do_delete = DevblocksPlatform::importGPC($_REQUEST['do_delete'],'integer',0);
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string','');
+		@$id = DevblocksPlatform::importGPC($_POST['id'],'integer',0);
+		@$content = DevblocksPlatform::importGPC($_POST['content'],'string','');
+		@$do_delete = DevblocksPlatform::importGPC($_POST['do_delete'],'integer',0);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -5046,8 +5052,8 @@ class ChInternalController extends DevblocksControllerExtension {
 	}
 	
 	function saveImportTemplatesPeekAction() {
-		@$portal_id = DevblocksPlatform::importGPC($_REQUEST['portal_id'],'integer',0);
-		@$file_id = DevblocksPlatform::importGPC($_REQUEST['file_id'],'integer',0);
+		@$portal_id = DevblocksPlatform::importGPC($_POST['portal_id'],'integer',0);
+		@$file_id = DevblocksPlatform::importGPC($_POST['file_id'],'integer',0);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -5099,12 +5105,15 @@ class ChInternalController extends DevblocksControllerExtension {
 	
 	function saveExportTemplatesPeekAction() {
 		if(null == ($active_worker = CerberusApplication::getActiveWorker()) || !$active_worker->is_superuser)
-			exit;
+			DevblocksPlatform::dieWithHttpError(403);
 		
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string','');
-		@$filename = DevblocksPlatform::importGPC($_REQUEST['filename'],'string','');
-		@$author = DevblocksPlatform::importGPC($_REQUEST['author'],'string','');
-		@$email = DevblocksPlatform::importGPC($_REQUEST['email'],'string','');
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(403);
+		
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string','');
+		@$filename = DevblocksPlatform::importGPC($_POST['filename'],'string','');
+		@$author = DevblocksPlatform::importGPC($_POST['author'],'string','');
+		@$email = DevblocksPlatform::importGPC($_POST['email'],'string','');
 		
 		// Build XML file
 		$xml = simplexml_load_string(

@@ -166,8 +166,8 @@ class PageSection_ProfilesClassifier extends Extension_PageSection {
 	}
 	
 	function saveImportPopupJsonAction() {
-		@$classifier_id = DevblocksPlatform::importGPC($_REQUEST['classifier_id'], 'integer', 0);
-		@$examples_csv = DevblocksPlatform::importGPC($_REQUEST['examples_csv'], 'string', null);
+		@$classifier_id = DevblocksPlatform::importGPC($_POST['classifier_id'], 'integer', 0);
+		@$examples_csv = DevblocksPlatform::importGPC($_POST['examples_csv'], 'string', null);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		$bayes = DevblocksPlatform::services()->bayesClassifier();
@@ -263,7 +263,7 @@ class PageSection_ProfilesClassifier extends Extension_PageSection {
 	}
 	
 	function viewExploreAction() {
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
@@ -276,7 +276,7 @@ class PageSection_ProfilesClassifier extends Extension_PageSection {
 		$view->setAutoPersist(false);
 
 		// Page start
-		@$explore_from = DevblocksPlatform::importGPC($_REQUEST['explore_from'],'integer',0);
+		@$explore_from = DevblocksPlatform::importGPC($_POST['explore_from'],'integer',0);
 		if(empty($explore_from)) {
 			$orig_pos = 1+($view->renderPage * $view->renderLimit);
 		} else {
@@ -335,8 +335,8 @@ class PageSection_ProfilesClassifier extends Extension_PageSection {
 	}
 	
 	function predictAction() {
-		@$classifier_id = DevblocksPlatform::importGPC($_REQUEST['classifier_id'], 'integer', 0);
-		@$text = DevblocksPlatform::importGPC($_REQUEST['text'], 'string', '');
+		@$classifier_id = DevblocksPlatform::importGPC($_POST['classifier_id'], 'integer', 0);
+		@$text = DevblocksPlatform::importGPC($_POST['text'], 'string', '');
 		
 		$bayes = DevblocksPlatform::services()->bayesClassifier();
 		$tpl = DevblocksPlatform::services()->template();

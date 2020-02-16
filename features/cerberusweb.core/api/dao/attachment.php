@@ -989,9 +989,9 @@ class Storage_Attachments extends Extension_DevblocksStorageSchema {
 	}
 	
 	function saveConfig() {
-		@$active_storage_profile = DevblocksPlatform::importGPC($_REQUEST['active_storage_profile'],'string','');
-		@$archive_storage_profile = DevblocksPlatform::importGPC($_REQUEST['archive_storage_profile'],'string','');
-		@$archive_after_days = DevblocksPlatform::importGPC($_REQUEST['archive_after_days'],'integer',0);
+		@$active_storage_profile = DevblocksPlatform::importGPC($_POST['active_storage_profile'],'string','');
+		@$archive_storage_profile = DevblocksPlatform::importGPC($_POST['archive_storage_profile'],'string','');
+		@$archive_after_days = DevblocksPlatform::importGPC($_POST['archive_after_days'],'integer',0);
 		
 		if(!empty($active_storage_profile))
 			$this->setParam('active_storage_profile', $active_storage_profile);
@@ -1637,12 +1637,12 @@ class View_Attachment extends C4_AbstractView implements IAbstractView_Subtotals
 				break;
 				
 			case SearchFields_Attachment::VIRTUAL_CONTEXT_LINK:
-				@$context_links = DevblocksPlatform::importGPC($_REQUEST['context_link'],'array',array());
+				@$context_links = DevblocksPlatform::importGPC($_POST['context_link'],'array',array());
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$context_links);
 				break;
 				
 			case SearchFields_Attachment::VIRTUAL_HAS_FIELDSET:
-				@$options = DevblocksPlatform::importGPC($_REQUEST['options'],'array',array());
+				@$options = DevblocksPlatform::importGPC($_POST['options'],'array',array());
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$options);
 				break;
 				

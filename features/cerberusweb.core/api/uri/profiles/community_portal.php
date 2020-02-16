@@ -134,7 +134,7 @@ class PageSection_ProfilesCommunityPortal extends Extension_PageSection {
 	}
 	
 	function viewExploreAction() {
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'],'string');
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
@@ -147,7 +147,7 @@ class PageSection_ProfilesCommunityPortal extends Extension_PageSection {
 		$view->setAutoPersist(false);
 
 		// Page start
-		@$explore_from = DevblocksPlatform::importGPC($_REQUEST['explore_from'],'integer',0);
+		@$explore_from = DevblocksPlatform::importGPC($_POST['explore_from'],'integer',0);
 		if(empty($explore_from)) {
 			$orig_pos = 1+($view->renderPage * $view->renderLimit);
 		} else {
@@ -215,8 +215,24 @@ class PageSection_ProfilesCommunityPortal extends Extension_PageSection {
 		if(false == ($extension = $portal->getExtension()))
 			return;
 		
-		if($extension instanceof Extension_CommunityPortal && method_exists($extension, $tab_action.'Action')) {
-			call_user_func(array($extension, $tab_action.'Action'));
+		if(!($extension instanceof Extension_CommunityPortal))
+			return;
+		
+		$action = sprintf("%sAction",
+			$tab_action
+		);
+		
+		if(method_exists($extension, $action)) {
+			call_user_func(array($extension, $action));
+			
+		} else {
+			trigger_error(
+				sprintf("Unknown controller action `%s.%s`",
+					get_class($extension),
+					$action
+				),
+				E_USER_WARNING
+			);
 		}
 	}
 };
