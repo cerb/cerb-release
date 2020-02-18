@@ -129,6 +129,8 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 				DevblocksPlatform::markContextChanged($context, $batch_ids);
 			}
 		}
+		
+		self::clearCache();
 	}
 	
 	static function updateWhere($fields, $where) {
@@ -200,6 +202,29 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 	}
 	
 	/**
+	 * @param $context
+	 * @return Model_ProfileWidget[]
+	 */
+	static function getByContext($context) {
+		$cache = DevblocksPlatform::services()->cache();
+		$cache_key = sprintf('profile_widgets:' . $context);
+		
+		if(false == ($widgets = $cache->load($cache_key))) {
+			$widgets = self::getWhere(
+				sprintf("profile_tab_id IN (SELECT id FROM profile_tab WHERE context = %s)",
+					Cerb_ORMHelper::qstr($context)
+				),
+				'pos',
+				true
+			);
+			
+			$cache->save($widgets, $cache_key, ['schema_profile_widgets'], 86400);
+		}
+		
+		return $widgets;
+	}
+	
+	/**
 	 *
 	 * @param bool $nocache
 	 * @return Model_ProfileWidget[]
@@ -242,14 +267,24 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 		
 		return $objects;
 	}
-
+	
 	/**
 	 * @param integer $id
+	 * @param string $context_hint
 	 * @return Model_ProfileWidget
 	 */
-	static function get($id) {
-		if(empty($id))
+	static function get($id, $context_hint=null) {
+		if(!$id)
 			return null;
+		
+		if($context_hint) {
+			$widgets = DAO_ProfileWidget::getByContext($context_hint);
+			
+			if(array_key_exists($id, $widgets))
+				return $widgets[$id];
+			
+			return null;
+		}
 		
 		$objects = self::getWhere(sprintf("%s = %d",
 			self::ID,
@@ -307,6 +342,11 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 		return self::_getRandom('profile_widget');
 	}
 	
+	static function clearCache() {
+		$cache = DevblocksPlatform::services()->cache();
+		$cache->removeByTags(['schema_profile_widgets']);
+	}
+	
 	static function delete($ids) {
 		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
@@ -329,6 +369,8 @@ class DAO_ProfileWidget extends Cerb_ORMHelper {
 				)
 			)
 		);
+		
+		self::clearCache();
 		
 		return true;
 	}
@@ -1278,18 +1320,26 @@ class Context_ProfileWidget extends Extension_DevblocksContext implements IDevbl
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
 		$tpl = DevblocksPlatform::services()->template();
+		$active_worker = CerberusApplication::getActiveWorker();
+		$context = CerberusContexts::CONTEXT_PROFILE_WIDGET;
+		
 		$tpl->assign('view_id', $view_id);
 		
-		$context = CerberusContexts::CONTEXT_PROFILE_WIDGET;
 		$model = null;
 		
-		if(!empty($context_id)) {
-			$model = DAO_ProfileWidget::get($context_id);
+		if($context_id) {
+			if(false == ($model = DAO_ProfileWidget::get($context_id)))
+				DevblocksPlatform::dieWithHttpError(null, 404);
 		}
 		
 		if(empty($context_id) || $edit) {
-			if(empty($context_id))
+			if($model) {
+				if(!Context_ProfileWidget::isWriteableByActor($model, $active_worker))
+					DevblocksPlatform::dieWithHttpError(null, 403);
+				
+			} else {
 				$model = new Model_ProfileWidget();
+			}
 			
 			if(!empty($edit)) {
 				$tokens = explode(' ', trim($edit));

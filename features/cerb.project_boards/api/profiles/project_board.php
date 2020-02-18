@@ -36,7 +36,7 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(403);
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
@@ -201,30 +201,42 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 	}
 	
 	function moveCardAction() {
-		@$card_context = DevblocksPlatform::importGPC($_REQUEST['context'],'string','');
-		@$card_id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer',0);
-		@$from_column_id = DevblocksPlatform::importGPC($_REQUEST['from'],'integer',0);
-		@$to_column_id = DevblocksPlatform::importGPC($_REQUEST['to'],'integer',0);
+		@$card_context = DevblocksPlatform::importGPC($_POST['context'],'string','');
+		@$card_id = DevblocksPlatform::importGPC($_POST['id'],'integer',0);
+		@$from_column_id = DevblocksPlatform::importGPC($_POST['from'],'integer',0);
+		@$to_column_id = DevblocksPlatform::importGPC($_POST['to'],'integer',0);
 		
-		// [TODO] Validate everything (context/id/privs)
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
-		if(false == (DAO_ProjectBoardColumn::get($to_column_id)))
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(false == ($to_column = DAO_ProjectBoardColumn::get($to_column_id)))
 			return;
+		
+		if(!Context_ProjectBoardColumn::isWriteableByActor($to_column, $active_worker))
+			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('error.core.no_acl.edit'), 403);
 		
 		DAO_ContextLink::deleteLink(Context_ProjectBoardColumn::ID, $from_column_id, $card_context, $card_id);
 		DAO_ContextLink::setLink(Context_ProjectBoardColumn::ID, $to_column_id, $card_context, $card_id);
 	}
 	
 	function refreshColumnAction() {
-		@$column_id = DevblocksPlatform::importGPC($_REQUEST['column_id'],'integer',0);
+		@$column_id = DevblocksPlatform::importGPC($_POST['column_id'],'integer',0);
 		
-		// [TODO] Validate everything (context/id/privs)
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
+		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if(false == ($column = DAO_ProjectBoardColumn::get($column_id)))
 			return;
 		
 		if(false == ($board = $column->getProjectBoard()))
 			return;
+		
+		if(!Context_ProjectBoard::isReadableByActor($board, $active_worker))
+			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('error.core.no_acl.edit'), 403);
 		
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('board', $board);
@@ -234,13 +246,14 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 	}
 	
 	function refreshCardAction() {
-		@$board_id = DevblocksPlatform::importGPC($_REQUEST['board_id'],'integer',0);
-		@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string',null);
-		@$id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer',0);
+		@$board_id = DevblocksPlatform::importGPC($_POST['board_id'],'integer',0);
+		@$context = DevblocksPlatform::importGPC($_POST['context'],'string',null);
+		@$id = DevblocksPlatform::importGPC($_POST['id'],'integer',0);
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		$tpl = DevblocksPlatform::services()->template();
-		
-		// [TODO] Validate everything (context/id/privs)
 		
 		if(false == ($board = DAO_ProjectBoard::get($board_id)))
 			return;
@@ -269,8 +282,11 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 	}
 	
 	function reorderBoardAction() {
-		@$board_id = DevblocksPlatform::importGPC($_REQUEST['id'],'integer',0);
-		@$columns = DevblocksPlatform::importGPC($_REQUEST['columns'],'string','');
+		@$board_id = DevblocksPlatform::importGPC($_POST['id'],'integer',0);
+		@$columns = DevblocksPlatform::importGPC($_POST['columns'],'string','');
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -287,8 +303,11 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 	}
 	
 	function reorderColumnAction() {
-		@$column_id = DevblocksPlatform::importGPC($_REQUEST['column_id'],'integer',0);
-		@$cards = DevblocksPlatform::importGPC($_REQUEST['cards'],'array',[]);
+		@$column_id = DevblocksPlatform::importGPC($_POST['column_id'],'integer',0);
+		@$cards = DevblocksPlatform::importGPC($_POST['cards'],'array',[]);
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -302,8 +321,6 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 		if(!Context_ProjectBoard::isWriteableByActor($board, $active_worker))
 			return;
 		
-		// [TODO] Validate $cards
-		
 		DAO_ProjectBoardColumn::update($column_id, [
 			DAO_ProjectBoardColumn::CARDS_JSON => json_encode($cards),
 		]);
@@ -311,6 +328,9 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 	
 	function viewExploreAction() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
@@ -346,7 +366,6 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 				$model->params = array(
 					'title' => $view->name,
 					'created' => time(),
-//					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=project_board', true),
 				);

@@ -37,7 +37,7 @@ class PageSection_ProfilesKbArticle extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(403);
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
@@ -140,7 +140,7 @@ class PageSection_ProfilesKbArticle extends Extension_PageSection {
 	}
 	
 	function previewAction() {
-		@$content = DevblocksPlatform::importGPC($_REQUEST['content'],'string');
+		@$content = DevblocksPlatform::importGPC($_POST['content'],'string');
 		
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();

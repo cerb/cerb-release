@@ -166,10 +166,10 @@ class UmScHistoryController extends Extension_UmScController {
 	
 	// [TODO] JSON
 	function saveTicketPropertiesAction() {
-		@$mask = DevblocksPlatform::importGPC($_REQUEST['mask'],'string','');
-		@$subject = DevblocksPlatform::importGPC($_REQUEST['subject'],'string','');
-		@$participants = DevblocksPlatform::importGPC($_REQUEST['participants'],'string','');
-		@$is_closed = DevblocksPlatform::importGPC($_REQUEST['is_closed'],'integer','0');
+		@$mask = DevblocksPlatform::importGPC($_POST['mask'],'string','');
+		@$subject = DevblocksPlatform::importGPC($_POST['subject'],'string','');
+		@$participants = DevblocksPlatform::importGPC($_POST['participants'],'string','');
+		@$is_closed = DevblocksPlatform::importGPC($_POST['is_closed'],'integer','0');
 		
 		$umsession = ChPortalHelper::getSession();
 		$active_contact = $umsession->getProperty('sc_login', null);
@@ -226,9 +226,9 @@ class UmScHistoryController extends Extension_UmScController {
 	}
 	
 	function doReplyAction() {
-		@$from = DevblocksPlatform::importGPC($_REQUEST['from'],'string','');
-		@$mask = DevblocksPlatform::importGPC($_REQUEST['mask'],'string','');
-		@$content = DevblocksPlatform::importGPC($_REQUEST['content'],'string','');
+		@$from = DevblocksPlatform::importGPC($_POST['from'],'string','');
+		@$mask = DevblocksPlatform::importGPC($_POST['mask'],'string','');
+		@$content = DevblocksPlatform::importGPC($_POST['content'],'string','');
 		
 		$umsession = ChPortalHelper::getSession();
 		if(false == ($active_contact = $umsession->getProperty('sc_login', null)))

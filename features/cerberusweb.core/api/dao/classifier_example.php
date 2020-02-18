@@ -1193,17 +1193,24 @@ class Context_ClassifierExample extends Extension_DevblocksContext implements ID
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
 		$tpl = DevblocksPlatform::services()->template();
+		$active_worker = CerberusApplication::getActiveWorker();
+		$context = CerberusContexts::CONTEXT_CLASSIFIER_EXAMPLE;
+		
 		$tpl->assign('view_id', $view_id);
 		
-		$context = CerberusContexts::CONTEXT_CLASSIFIER_EXAMPLE;
 		$model = null;
 		
-		if(!empty($context_id)) {
-			$model = DAO_ClassifierExample::get($context_id);
+		if($context_id) {
+			if(false == ($model = DAO_ClassifierExample::get($context_id)))
+				DevblocksPlatform::dieWithHttpError(null, 404);
 		}
 		
 		if(empty($context_id) || $edit) {
-			if(!isset($model)) {
+			if($model) {
+				if(!Context_ClassifierExample::isWriteableByActor($model, $active_worker))
+					DevblocksPlatform::dieWithHttpError(null, 403);
+				
+			} else {
 				$model = new Model_ClassifierExample();
 				
 				if(false != ($view = C4_AbstractViewLoader::getView($view_id))) {
@@ -1289,59 +1296,4 @@ class Context_ClassifierExample extends Extension_DevblocksContext implements ID
 		}
 	}	
 	
-	/*
-	function importGetKeys() {
-		// [TODO] Translate
-	
-		$keys = array(
-			'name' => array(
-				'label' => 'Name',
-				'type' => Model_CustomField::TYPE_SINGLE_LINE,
-				'param' => SearchFields_ClassifierExample::NAME,
-				'required' => true,
-			),
-			'updated_at' => array(
-				'label' => 'Updated Date',
-				'type' => Model_CustomField::TYPE_DATE,
-				'param' => SearchFields_ClassifierExample::UPDATED_AT,
-			),
-		);
-	
-		$fields = SearchFields_ClassifierExample::getFields();
-		self::_getImportCustomFields($fields, $keys);
-	
-		DevblocksPlatform::sortObjects($keys, '[label]', true);
-	
-		return $keys;
-	}
-	
-	function importKeyValue($key, $value) {
-		switch($key) {
-		}
-	
-		return $value;
-	}
-	
-	function importSaveObject(array $fields, array $custom_fields, array $meta) {
-		// If new...
-		if(!isset($meta['object_id']) || empty($meta['object_id'])) {
-			// Make sure we have a name
-			if(!isset($fields[DAO_ClassifierExample::NAME])) {
-				$fields[DAO_ClassifierExample::NAME] = 'New ' . $this->manifest->name;
-			}
-	
-			// Create
-			$meta['object_id'] = DAO_ClassifierExample::create($fields);
-	
-		} else {
-			// Update
-			DAO_ClassifierExample::update($meta['object_id'], $fields);
-		}
-	
-		// Custom fields
-		if(!empty($custom_fields) && !empty($meta['object_id'])) {
-			DAO_CustomFieldValue::formatAndSetFieldValues($this->manifest->id, $meta['object_id'], $custom_fields, false, true, true); //$is_blank_unset (4th)
-		}
-	}
-	*/
 };

@@ -23,7 +23,7 @@
 	</div>
 {/if}
 
-<form id="reply{$message->id}_form" onsubmit="return false;">
+<form id="reply{$message->id}_form" onsubmit="return false;" method="post">
 <input type="hidden" name="c" value="display">
 <input type="hidden" name="a" value="sendReply">
 <input type="hidden" name="id" value="{$message->id}">
@@ -355,7 +355,7 @@
 $(function() {
 	if(draftAutoSaveInterval == undefined)
 		var draftAutoSaveInterval = null;
-	
+
 	var $frm = $('#reply{$message->id}_form');
 	var $reply = $frm.closest('div.reply_frame');
 	
@@ -520,11 +520,16 @@ $(function() {
 
 				$this.attr('disabled','disabled');
 
-				genericAjaxPost('reply{$message->id}_form',null,'c=display&a=saveDraftReply&is_ajax=1',
+				var formData = new FormData($frm[0]);
+				formData.set('c', 'display');
+				formData.set('a', 'saveDraftReply');
+				formData.append('is_ajax', '1');
+
+				genericAjaxPost(formData,null,'',
 					function(obj) {
 						if(null != obj.html && null != obj.draft_id) {
 							$('#divDraftStatus{$message->id}').html(obj.html);
-							$('#reply{$message->id}_form input[name=draft_id]').val(obj.draft_id);
+							$frm.find('input[name=draft_id]').val(obj.draft_id);
 						}
 
 						$this.removeAttr('disabled');
@@ -755,16 +760,18 @@ $(function() {
 				}
 				
 				var draft_id = $frm.find('input:hidden[name=draft_id]').val();
-				
-				genericAjaxGet(
-					'',
-					'c=profiles&a=handleSectionAction&section=draft&action=deleteDraft&draft_id=' + encodeURIComponent(draft_id),
-					function(o) { 
-						$('#draft'+encodeURIComponent(draft_id)).remove();
-						
-						$reply.triggerHandler('cerb-reply--close');
-					}
-				);
+
+				var formData = new FormData();
+				formData.append('c', 'profiles');
+				formData.append('a', 'handleSectionAction');
+				formData.append('section', 'draft');
+				formData.append('action', 'deleteDraft');
+				formData.append('draft_id', draft_id);
+
+				genericAjaxPost(formData, '', '', function(o) {
+					$('#draft'+encodeURIComponent(draft_id)).remove();
+					$reply.triggerHandler('cerb-reply--close');
+				});
 			}
 		});
 		
@@ -777,9 +784,13 @@ $(function() {
 			Devblocks.clearAlerts();
 			showLoadingPanel();
 			$button.closest('td').hide();
-			
+
+			var formData = new FormData($frm[0]);
+			formData.set('c', 'display');
+			formData.set('a', 'validateReplyJson');
+
 			// Validate via Ajax before sending
-			genericAjaxPost($frm, '', 'c=display&a=validateReplyJson', function(json) {
+			genericAjaxPost(formData, '', '', function(json) {
 				if(json && json.status) {
 					if(null != draftAutoSaveInterval) {
 						clearTimeout(draftAutoSaveInterval);

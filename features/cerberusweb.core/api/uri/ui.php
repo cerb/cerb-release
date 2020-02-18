@@ -169,38 +169,24 @@ class Controller_UI extends DevblocksControllerExtension {
 		$request = DevblocksPlatform::getHttpRequest();
 		$stack = $request->path;
 		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
+		
 		array_shift($stack); // ui
 		array_shift($stack); // behavior
 		@$behavior_uri = array_shift($stack);
 		
-		if(!$behavior_uri || false == ($behavior = DAO_TriggerEvent::getByUri($behavior_uri))) {
-			http_response_code(503);
-			echo "<h1>503: Temporarily unavailable</h1>";
-			return;
-		}
+		if(!$behavior_uri || false == ($behavior = DAO_TriggerEvent::getByUri($behavior_uri)))
+			return DevblocksPlatform::dieWithHttpError('Temporarily unavailable', 503);
 		
 		$this->_runBehavior($behavior);
 	}
 	
-	function ajaxBotBehaviorAction() {
-		@$behavior_id = DevblocksPlatform::importGPC($_REQUEST['behavior_id'], 'integer', 0);
-		
-		if(!$behavior_id || false == ($behavior = DAO_TriggerEvent::get($behavior_id))) {
-			http_response_code(503);
-			echo "<h1>503: Temporarily unavailable</h1>";
-			return;
-		}
-		
-		$this->_runBehavior($behavior);
-	}
-
 	private function _runBehavior(Model_TriggerEvent $behavior) {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if(false == ($bot = $behavior->getBot())) {
-			http_response_code(503);
-			echo "<h1>503: Temporarily unavailable</h1>";
-			return;
+			return DevblocksPlatform::dieWithHttpError('Temporarily unavailable', 503);
 		}
 		
 		$event = $behavior->getEvent();
@@ -208,15 +194,11 @@ class Controller_UI extends DevblocksControllerExtension {
 		// Validate event
 		
 		if(!($event instanceof Event_AjaxHttpRequest)) {
-			http_response_code(503);
-			echo "<h1>503: Temporarily unavailable</h1>";
-			return;
+			return DevblocksPlatform::dieWithHttpError('Forbidden', 403);
 		}
 		
 		if($behavior->is_disabled || $bot->is_disabled) {
-			http_response_code(503);
-			echo "<h1>503: Temporarily unavailable</h1>";
-			return;
+			return DevblocksPlatform::dieWithHttpError('Temporarily unavailable', 503);
 		}
 		
 		$variables = [];
@@ -232,18 +214,14 @@ class Controller_UI extends DevblocksControllerExtension {
 		
 		// Can this worker run this bot behavior?
 		if(!Context_TriggerEvent::isReadableByActor($behavior, $active_worker)) {
-			http_response_code(403);
-			echo "<h1>403: Access denied</h1>";
-			return;
+			return DevblocksPlatform::dieWithHttpError('Forbidden', 403);
 		}
 		
 		$dicts = Event_AjaxHttpRequest::trigger($behavior->id, $http_request, $active_worker, $variables);
 		$dict = $dicts[$behavior->id];
 		
 		if(!($dict instanceof DevblocksDictionaryDelegate)) {
-			http_response_code(503);
-			echo "<h1>503: Temporarily unavailable</h1>";
-			return;
+			return DevblocksPlatform::dieWithHttpError('Temporarily unavailable', 503);
 		}
 		
 		// HTTP status code
@@ -453,9 +431,9 @@ class Controller_UI extends DevblocksControllerExtension {
 	}
 	
 	function sheetAction() {
-		@$data_query = DevblocksPlatform::importGPC($_REQUEST['data_query'], 'string', '');
-		@$sheet_yaml = DevblocksPlatform::importGPC($_REQUEST['sheet_yaml'], 'string', '');
-		@$types = DevblocksPlatform::importGPC($_REQUEST['types'], 'array', []);
+		@$data_query = DevblocksPlatform::importGPC($_POST['data_query'], 'string', '');
+		@$sheet_yaml = DevblocksPlatform::importGPC($_POST['sheet_yaml'], 'string', '');
+		@$types = DevblocksPlatform::importGPC($_POST['types'], 'array', []);
 		
 		$tpl = DevblocksPlatform::services()->template();
 		$data = DevblocksPlatform::services()->data();

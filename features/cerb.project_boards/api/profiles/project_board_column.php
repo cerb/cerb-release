@@ -37,13 +37,19 @@ class PageSection_ProfilesProjectBoardColumn extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(403);
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", Context_ProjectBoardColumn::ID)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				if(false == ($project_board_column = DAO_ProjectBoardColumn::get($id)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				if(!Context_ProjectBoardColumn::isWriteableByActor($project_board_column, $active_worker))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 				
 				DAO_ProjectBoardColumn::delete($id);
@@ -197,7 +203,6 @@ class PageSection_ProfilesProjectBoardColumn extends Extension_PageSection {
 				$model->params = array(
 					'title' => $view->name,
 					'created' => time(),
-//					'worker_id' => $active_worker->id,
 					'total' => $total,
 					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=project_board_column', true),
 				);

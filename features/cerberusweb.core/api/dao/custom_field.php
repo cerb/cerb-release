@@ -1220,7 +1220,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 				case Model_CustomField::TYPE_FILES:
 				case Model_CustomField::TYPE_MULTI_CHECKBOX:
 				case Model_CustomField::TYPE_LIST:
-					@$field_value = DevblocksPlatform::importGPC($_REQUEST['field_'.$field_id],'array',[]);
+					@$field_value = DevblocksPlatform::importGPC($_POST['field_'.$field_id],'array',[]);
 					break;
 					
 				case Model_CustomField::TYPE_CHECKBOX:
@@ -1235,7 +1235,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 				case Model_CustomField::TYPE_SINGLE_LINE:
 				case Model_CustomField::TYPE_URL:
 				case Model_CustomField::TYPE_WORKER:
-					@$field_value = DevblocksPlatform::importGPC($_REQUEST['field_'.$field_id],'string','');
+					@$field_value = DevblocksPlatform::importGPC($_POST['field_'.$field_id],'string','');
 					break;
 					
 				default:
@@ -1243,7 +1243,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 						$field_value = $field_ext->parseFormPost($fields[$field_id]);
 						
 					} else {
-						@$field_value = DevblocksPlatform::importGPC($_REQUEST['field_'.$field_id],'string','');
+						@$field_value = DevblocksPlatform::importGPC($_POST['field_'.$field_id],'string','');
 					}
 					break;
 			}
@@ -2375,18 +2375,28 @@ class Context_CustomField extends Extension_DevblocksContext implements IDevbloc
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
 		$tpl = DevblocksPlatform::services()->template();
-		$tpl->assign('view_id', $view_id);
-		
+		$active_worker = CerberusApplication::getActiveWorker();
 		$context = CerberusContexts::CONTEXT_CUSTOM_FIELD;
 		
-		if(!empty($context_id)) {
-			$model = DAO_CustomField::get($context_id);
+		$tpl->assign('view_id', $view_id);
+		
+		$model = null;
+		
+		if($context_id) {
+			if(false == ($model = DAO_CustomField::get($context_id)))
+				DevblocksPlatform::dieWithHttpError(null, 404);
+			
 		} else {
 			$model = new Model_CustomField();
 			$model->pos = 50;
 		}
 		
-		if(empty($context_id) || $edit) {
+		if(!$context_id || $edit) {
+			if($model && $model->id) {
+				if(!Context_CustomField::isWriteableByActor($model, $active_worker))
+					DevblocksPlatform::dieWithHttpError(null, 403);
+			}
+			
 			$types = Model_CustomField::getTypes();
 			$tpl->assign('types', $types);
 			

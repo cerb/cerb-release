@@ -72,7 +72,6 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 		$validation
 			->addField(self::RENDER_LIMIT)
 			->uint(2)
-			->setRequired(true)
 			->setMin(1)
 			->setMax(250)
 			;
@@ -1410,18 +1409,25 @@ class Context_WorkspaceList extends Extension_DevblocksContext implements IDevbl
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {
 		$tpl = DevblocksPlatform::services()->template();
+		$active_worker = CerberusApplication::getActiveWorker();
+		$context = CerberusContexts::CONTEXT_WORKSPACE_WORKLIST;
+		
 		$tpl->assign('view_id', $view_id);
 		
-		$context = CerberusContexts::CONTEXT_WORKSPACE_WORKLIST;
-		$model = new Model_WorkspaceList();
-		
-		if(!empty($context_id)) {
-			$model = DAO_WorkspaceList::get($context_id);
+		if($context_id) {
+			if(false == ($model = DAO_WorkspaceList::get($context_id)))
+				DevblocksPlatform::dieWithHttpError(null, 404);
+		} else {
+			$model = new Model_WorkspaceList();
 		}
 		
 		if(empty($context_id) || $edit) {
-			if(isset($model))
-				$tpl->assign('model', $model);
+			if($model && $model->id) {
+				if(!Context_WorkspaceList::isWriteableByActor($model, $active_worker))
+					DevblocksPlatform::dieWithHttpError(null, 403);
+			}
+			
+			$tpl->assign('model', $model);
 			
 			// Contexts
 			$contexts = array_map(

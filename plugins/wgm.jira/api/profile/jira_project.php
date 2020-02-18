@@ -28,7 +28,7 @@ class PageSection_ProfilesJiraProject extends Extension_PageSection {
 		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
-		function savePeekJsonAction() {
+	function savePeekJsonAction() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'], 'string', '');
 		
 		@$id = DevblocksPlatform::importGPC($_POST['id'], 'integer', 0);
@@ -37,7 +37,7 @@ class PageSection_ProfilesJiraProject extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(403);
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
@@ -206,45 +206,5 @@ class PageSection_ProfilesJiraProject extends Extension_PageSection {
 		} while(!empty($results));
 		
 		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('explore',$hash,$orig_pos)));
-	}
-	
-	function showIssuesTabAction() {
-		//@$context = DevblocksPlatform::importGPC($_REQUEST['context'],'string','');
-		@$context_id = DevblocksPlatform::importGPC($_REQUEST['context_id'],'integer',0);
-		
-		$tpl = DevblocksPlatform::services()->template();
-		$translate = DevblocksPlatform::getTranslationService();
-		
-		if(empty($context_id))
-			return;
-		
-		if(false == ($project = DAO_JiraProject::get($context_id)))
-			return;
-
-		// Issue worklist with project filter
-		
-		$view_id = sprintf("jira_project_profile_issues_%d", $project->id);
-		
-		if(null == ($view = C4_AbstractViewLoader::getView($view_id))) {
-			$context_ext = Extension_DevblocksContext::get(Context_JiraIssue::ID);
-			$view = $context_ext->getSearchView($view_id);
-		}
-
-		if(empty($view))
-			return;
-		
-		$view->name = mb_convert_case($translate->_('wgm.jira.common.issues'), MB_CASE_TITLE);
-		$view->is_ephemeral = true;
-		
-		$view->addParamsRequired(
-			array(
-				SearchFields_JiraIssue::PROJECT_ID => new DevblocksSearchCriteria(SearchFields_JiraIssue::PROJECT_ID, '=', $project->jira_id),
-			),
-			true
-		);
-		
-		$tpl->assign('view', $view);
-		
-		$tpl->display('devblocks:cerberusweb.core::internal/views/search_and_view.tpl');
 	}
 };

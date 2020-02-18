@@ -37,7 +37,7 @@ class PageSection_ProfilesCommunityPortal extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(403);
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
@@ -223,7 +223,7 @@ class PageSection_ProfilesCommunityPortal extends Extension_PageSection {
 	function saveConfigTabJsonAction() {
 		header('Content-Type: application/json; charset=utf-8');
 		
-		@$portal_id = DevblocksPlatform::importGPC($_REQUEST['portal_id'], 'integer', 0);
+		@$portal_id = DevblocksPlatform::importGPC($_POST['portal_id'], 'integer', 0);
 		
 		if(false == ($active_worker = CerberusApplication::getActiveWorker()))
 			DevblocksPlatform::dieWithHttpError(null, 403);
