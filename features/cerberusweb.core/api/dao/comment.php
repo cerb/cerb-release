@@ -878,11 +878,17 @@ class Model_Comment {
 	
 	public function getContent() {
 		if($this->is_markdown) {
-			return DevblocksPlatform::purifyHTML(
+			$filter = new Cerb_HTMLPurifier_URIFilter_Email(true);
+			
+			$clean_html =  DevblocksPlatform::purifyHTML(
 				DevblocksPlatform::parseMarkdown($this->comment),
 				true,
-				true
+				true,
+				[$filter]
 			);
+			
+			return $clean_html;
+			
 		} else {
 			return $this->comment;
 		}
@@ -1381,6 +1387,10 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 		} else {
 			return current($results);
 		}
+	}
+	
+	static function isDeletableByActor($models, $actor) {
+		return self::isWriteableByActor($models, $actor);
 	}
 	
 	function getRandom() {

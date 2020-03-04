@@ -228,6 +228,8 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 			
 			DevblocksPlatform::markContextChanged(CerberusContexts::CONTEXT_DRAFT, $ids);
 		} else {
+			CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_DRAFT, $ids);
+			
 			DAO_MailQueue::delete($ids);
 		}
 		
@@ -775,7 +777,10 @@ class Model_MailQueue {
 		if('parsedown' == $message_properties['content_format']) {
 			$output = $message_properties['content'];
 			$output = DevblocksPlatform::parseMarkdown($output);
-			$output = DevblocksPlatform::purifyHTML($output, true, true);
+			
+			$filter = new Cerb_HTMLPurifier_URIFilter_Email(true);
+			
+			$output = DevblocksPlatform::purifyHTML($output, true, true, [$filter]);
 			return $output;
 		
 		} else {
@@ -1321,6 +1326,10 @@ class Context_Draft extends Extension_DevblocksContext implements IDevblocksCont
 		} else {
 			return array_shift($results);
 		}
+	}
+	
+	static function isDeletableByActor($models, $actor) {
+		return self::isWriteableByActor($models, $actor);
 	}
 	
 	function getDaoClass() {

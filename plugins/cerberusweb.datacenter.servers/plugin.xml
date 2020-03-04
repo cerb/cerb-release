@@ -11,7 +11,7 @@
 	<!-- Requirements -->
 
 	<requires>
-		<app_version min="9.4" max="9.4.99" />
+		<app_version min="9.5" max="9.5.99" />
 	</requires>
 
 	<!-- Plugin Dependencies -->
@@ -160,21 +160,6 @@
 						<data key="*" />
 					</value>
 				</param>
-			</params>
-		</extension>
-
-		<!-- Pages -->
-		
-		<extension point="cerberusweb.page">
-			<id>cerberusweb.datacenter.page</id>
-			<name>Datacenter Page</name>
-			<class>
-				<file>api/App.php</file>
-				<name>Page_Datacenter</name>
-			</class>
-			<params>
-				<param key="uri" value="datacenter" />
-				<param key="menutitle" value="" />
 			</params>
 		</extension>
 

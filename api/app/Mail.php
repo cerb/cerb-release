@@ -46,7 +46,11 @@
  */
 class Cerb_SwiftPlugin_GPGSigner implements Swift_Signers_BodySigner {
 	protected $micalg = 'SHA256';
-	protected $encrypt = true;
+	private $_properties = [];
+	
+	function __construct(array $properties=[]) {
+		$this->_properties = $properties;
+	}
 	
 	protected function createMessage(Swift_Message $message) {
 		$mimeEntity = new Swift_Message('', $message->getBody(), $message->getContentType(), $message->getCharset());
@@ -64,15 +68,26 @@ class Cerb_SwiftPlugin_GPGSigner implements Swift_Signers_BodySigner {
 	}
 	
 	protected function getSignKey(Swift_Message $message) {
-		if(false == ($gpg = DevblocksPlatform::services()->gpg()))
-			return false;
+		$gpg = DevblocksPlatform::services()->gpg();
+		
+		// Check for group/bucket overrides
+		
+		@$bucket_id = $this->_properties['bucket_id'];
+		
+		if($bucket_id && false != ($bucket = DAO_Bucket::get($bucket_id))) {
+			if(false != ($reply_signing_key = $bucket->getReplySigningKey())) {
+				return $reply_signing_key->fingerprint;
+			}
+		}
+		
+		// Check for private keys that cover the 'From:' address
 		
 		if(false == ($from = $message->getFrom()) || !is_array($from))
 			return false;
 		
 		$email = key($from);
 		
-		if(false != ($keys = $gpg->keyinfo(sprintf("<%s>", $email))) && is_array($keys)) {
+		if(false != ($keys = $gpg->keyinfoPrivate(sprintf("<%s>", $email))) && is_array($keys)) {
 			foreach($keys as $key) {
 				if($this->isValidKey($key, 'sign'))
 				foreach($key['subkeys'] as $subkey) {
@@ -102,7 +117,7 @@ class Cerb_SwiftPlugin_GPGSigner implements Swift_Signers_BodySigner {
 			$gpg = DevblocksPlatform::services()->gpg();
 			$found = false;
 
-			if(false != ($keys = $gpg->keyinfo(sprintf("<%s>", $email))) && is_array($keys)) {
+			if(false != ($keys = $gpg->keyinfoPublic(sprintf("<%s>", $email))) && is_array($keys)) {
 				foreach($keys as $key) {
 					if($this->isValidKey($key, 'encrypt'))
 					foreach($key['subkeys'] as $subkey) {
@@ -161,18 +176,19 @@ class Cerb_SwiftPlugin_GPGSigner implements Swift_Signers_BodySigner {
 	 * @param Swift_Message $message
 	 *
 	 * @return self
+	 * @throws Swift_SwiftException
 	 */
 	public function signMessage(Swift_Message $message) {
 		$sign_key = $this->getSignKey($message);
-		
-		if(false == ($recipient_keys = $this->getRecipientKeys($message)))
-			throw new Swift_SwiftException('Error: No recipient GPG public keys for encryption.');
 		
 		$originalMessage = $this->createMessage($message);
 		$message->setChildren([]);
 		$message->setEncoder(Swift_DependencyContainer::getInstance()->lookup('mime.rawcontentencoder'));
 		
-		if($sign_key) {
+		if(@$this->_properties['gpg_sign']) {
+			if(!$sign_key)
+				throw new Swift_SwiftException('Error: No PGP signing keys are configured for this group/bucket.');
+			
 			$type = $message->getHeaders()->get('Content-Type');
 			$type->setValue('multipart/signed');
 			$type->setParameters([
@@ -182,14 +198,6 @@ class Cerb_SwiftPlugin_GPGSigner implements Swift_Signers_BodySigner {
 			]);
 			
 			$signed_body = $originalMessage->toString();
-			
-			$lines = DevblocksPlatform::parseCrlfString(rtrim($signed_body), true);
-			
-			array_walk($lines, function(&$line) {
-				$line = rtrim($line) . "\r\n";
-			});
-			
-			$signed_body = rtrim(implode('', $lines) . "\r\n");
 			
 			$signature = $this->signWithPGP($signed_body, $sign_key);
 			
@@ -215,7 +223,10 @@ EOD;
 		
 		$message->setBody($body);
 		
-		if($this->encrypt) {
+		if(@$this->_properties['gpg_encrypt']) {
+			if(false == ($recipient_keys = $this->getRecipientKeys($message)))
+				throw new Swift_SwiftException('Error: No recipient GPG public keys for encryption.');
+			
 			if($sign_key) {
 				$content = sprintf("%s\r\n%s", $message->getHeaders()->get('Content-Type')->toString(), $body);
 			} else {
@@ -508,8 +519,8 @@ class CerberusMail {
 		'ticket_reopen'
 		'dont_send'
 		'draft_id'
-		'gpg_sign'
 		'gpg_encrypt'
+		'gpg_sign'
 		'send_at'
 		 */
 		
@@ -722,9 +733,9 @@ class CerberusMail {
 			$outgoing_mail_headers = $email->getHeaders()->toString();
 			$outgoing_message_id = $email->getHeaders()->get('message-id')->getFieldBody();
 			
-			// Encryption
-			if(isset($properties['gpg_encrypt']) && $properties['gpg_encrypt']) {
-				$signer = new Cerb_SwiftPlugin_GPGSigner();
+			// Encryption and signing
+			if(@$properties['gpg_sign'] || @$properties['gpg_encrypt']) {
+				$signer = new Cerb_SwiftPlugin_GPGSigner($properties);
 				$email->attachSigner($signer);
 			}
 			
@@ -844,6 +855,13 @@ class CerberusMail {
 			DAO_Message::WAS_ENCRYPTED => !empty(@$properties['gpg_encrypt']) ? 1 : 0,
 			DAO_Message::HTML_ATTACHMENT_ID => $html_body_id,
 		);
+		
+		if(@$properties['gpg_sign']) {
+			$fields[DAO_Message::SIGNED_AT] = time();
+			// [TODO]
+			//$fields[DAO_Message::SIGNED_KEY_FINGERPRINT] = null;
+		}
+		
 		$message_id = DAO_Message::create($fields);
 		
 		// Content
@@ -1109,7 +1127,7 @@ class CerberusMail {
 				&& !empty($worker_id)) {
 				CerberusBayes::markTicketAsNotSpam($ticket->id);
 			}
-				
+			
 			// Headers
 			if(!empty($from_personal)) {
 				$mail->setFrom($from_replyto->email, $from_personal);
@@ -1158,131 +1176,132 @@ class CerberusMail {
 				$requesters = DAO_Ticket::getRequestersByTicket($ticket->id);
 				
 				if(is_array($requesters))
-				foreach($requesters as $requester) { /* @var $requester Model_Address */
-					$first_email = DevblocksPlatform::strLower($requester->email);
-					$first_split = explode('@', $first_email);
-			
-					if(!is_array($first_split) || count($first_split) != 2)
-						continue;
-			
-					// Ourselves?
-					if(DAO_Address::isLocalAddressId($requester->id))
-						continue;
-
-					if($is_autoreply) {
-						// If return-path is blank
-						if(isset($message_headers['return-path']) && $message_headers['return-path'] == '<>')
+					foreach ($requesters as $requester) {
+						/* @var $requester Model_Address */
+						$first_email = DevblocksPlatform::strLower($requester->email);
+						$first_split = explode('@', $first_email);
+						
+						if (!is_array($first_split) || count($first_split) != 2)
 							continue;
 						
-						// Ignore autoresponses to autoresponses
-						if(isset($message_headers['auto-submitted']) && $message_headers['auto-submitted'] != 'no')
+						// Ourselves?
+						if (DAO_Address::isLocalAddressId($requester->id))
 							continue;
-	
-						// Bulk mail?
-						if(isset($message_headers['precedence']) &&
-							($message_headers['precedence'] == 'list' || $message_headers['precedence'] == 'junk' || $message_headers['precedence'] == 'bulk'))
+						
+						if ($is_autoreply) {
+							// If return-path is blank
+							if (isset($message_headers['return-path']) && $message_headers['return-path'] == '<>')
+								continue;
+							
+							// Ignore autoresponses to autoresponses
+							if (isset($message_headers['auto-submitted']) && $message_headers['auto-submitted'] != 'no')
+								continue;
+							
+							// Bulk mail?
+							if (isset($message_headers['precedence']) &&
+								($message_headers['precedence'] == 'list' || $message_headers['precedence'] == 'junk' || $message_headers['precedence'] == 'bulk'))
+								continue;
+						}
+						
+						// Ignore bounces
+						if ($first_split[0] == "postmaster" || $first_split[0] == "mailer-daemon")
 							continue;
+						
+						// Auto-reply just to the initial requester
+						$mail->addTo($requester->email);
 					}
-						
-					// Ignore bounces
-					if($first_split[0] == "postmaster" || $first_split[0] == "mailer-daemon")
-						continue;
-						
-					// Auto-reply just to the initial requester
-					$mail->addTo($requester->email);
-				}
 				
-			// Forward or overload
-			} elseif(!empty($properties['to'])) {
+				// Forward or overload
+			} elseif (!empty($properties['to'])) {
 				// To
 				$aTo = CerberusMail::parseRfcAddresses($properties['to']);
-				if(is_array($aTo))
-				foreach($aTo as $k => $v) {
-					if(!empty($v['personal'])) {
-						$mail->addTo($k, $v['personal']);
-					} else {
-						$mail->addTo($k);
+				if (is_array($aTo))
+					foreach ($aTo as $k => $v) {
+						if (!empty($v['personal'])) {
+							$mail->addTo($k, $v['personal']);
+						} else {
+							$mail->addTo($k);
+						}
 					}
-				}
 			}
 			
 			// Ccs
-			if(!empty($properties['cc'])) {
+			if (!empty($properties['cc'])) {
 				$aCc = CerberusMail::parseRfcAddresses($properties['cc']);
-				if(is_array($aCc))
-				foreach($aCc as $k => $v) {
-					if(!empty($v['personal'])) {
-						$mail->addCc($k, $v['personal']);
-					} else {
-						$mail->addCc($k);
+				if (is_array($aCc))
+					foreach ($aCc as $k => $v) {
+						if (!empty($v['personal'])) {
+							$mail->addCc($k, $v['personal']);
+						} else {
+							$mail->addCc($k);
+						}
 					}
-				}
 			}
 			
 			// Bccs
-			if(!empty($properties['bcc'])) {
+			if (!empty($properties['bcc'])) {
 				$aBcc = CerberusMail::parseRfcAddresses($properties['bcc']);
-				if(is_array($aBcc))
-				foreach($aBcc as $k => $v) {
-					if(!empty($v['personal'])) {
-						$mail->addBcc($k, $v['personal']);
-					} else {
-						$mail->addBcc($k);
+				if (is_array($aBcc))
+					foreach ($aBcc as $k => $v) {
+						if (!empty($v['personal'])) {
+							$mail->addBcc($k, $v['personal']);
+						} else {
+							$mail->addBcc($k);
+						}
 					}
-				}
 			}
 			
 			// Custom headers
 			
-			if(isset($properties['headers']) && is_array($properties['headers']))
-			foreach($properties['headers'] as $header_key => $header_val) {
-				if(!empty($header_key) && is_string($header_key) && is_string($header_val)) {
-					
-					// Overrides
-					switch(strtolower(trim($header_key))) {
-						case 'to':
-							if(false != ($addresses = CerberusMail::parseRfcAddresses($header_val)))
-								foreach(array_keys($addresses) as $address)
-									$mail->addTo($address);
-							unset($properties['headers'][$header_key]);
-							break;
+			if (isset($properties['headers']) && is_array($properties['headers']))
+				foreach ($properties['headers'] as $header_key => $header_val) {
+					if (!empty($header_key) && is_string($header_key) && is_string($header_val)) {
 						
-						case 'cc':
-							if(false != ($addresses = CerberusMail::parseRfcAddresses($header_val)))
-								foreach(array_keys($addresses) as $address)
-									$mail->addCc($address);
-							unset($properties['headers'][$header_key]);
-							break;
-						
-						case 'bcc':
-							if(false != ($addresses = CerberusMail::parseRfcAddresses($header_val)))
-								foreach(array_keys($addresses) as $address)
-									$mail->addBcc($address);
-							unset($properties['headers'][$header_key]);
-							break;
+						// Overrides
+						switch (strtolower(trim($header_key))) {
+							case 'to':
+								if (false != ($addresses = CerberusMail::parseRfcAddresses($header_val)))
+									foreach (array_keys($addresses) as $address)
+										$mail->addTo($address);
+								unset($properties['headers'][$header_key]);
+								break;
 							
-						default:
-							if(NULL == ($header = $headers->get($header_key))) {
-								$headers->addTextHeader($header_key, $header_val);
-								
-							} else {
-								if($header instanceof Swift_Mime_Headers_IdentificationHeader)
-									continue 2;
-								
-								$header->setValue($header_val);
-							}
-							break;
+							case 'cc':
+								if (false != ($addresses = CerberusMail::parseRfcAddresses($header_val)))
+									foreach (array_keys($addresses) as $address)
+										$mail->addCc($address);
+								unset($properties['headers'][$header_key]);
+								break;
+							
+							case 'bcc':
+								if (false != ($addresses = CerberusMail::parseRfcAddresses($header_val)))
+									foreach (array_keys($addresses) as $address)
+										$mail->addBcc($address);
+								unset($properties['headers'][$header_key]);
+								break;
+							
+							default:
+								if (NULL == ($header = $headers->get($header_key))) {
+									$headers->addTextHeader($header_key, $header_val);
+									
+								} else {
+									if ($header instanceof Swift_Mime_Headers_IdentificationHeader)
+										continue 2;
+									
+									$header->setValue($header_val);
+								}
+								break;
+						}
 					}
 				}
-			}
 			
 			// Body
 			
-			switch($content_format) {
+			switch ($content_format) {
 				case 'parsedown':
 					$embedded_files = self::_generateMailBodyMarkdown($mail, $content_sent, $ticket->group_id, $ticket->bucket_id, $html_template_id);
 					break;
-					
+				
 				default:
 					$mail->setBody($content_sent);
 					break;
@@ -1290,22 +1309,22 @@ class CerberusMail {
 			
 			// Mime Attachments
 			if (is_array($files) && !empty($files)) {
-				if(isset($files['tmp_name']))
-				foreach($files['tmp_name'] as $idx => $file) {
-					if(empty($file) || empty($files['name'][$idx]))
-						continue;
-	
-					$mail->attach(Swift_Attachment::fromPath($file)->setFilename($files['name'][$idx]));
-				}
+				if (isset($files['tmp_name']))
+					foreach ($files['tmp_name'] as $idx => $file) {
+						if (empty($file) || empty($files['name'][$idx]))
+							continue;
+						
+						$mail->attach(Swift_Attachment::fromPath($file)->setFilename($files['name'][$idx]));
+					}
 			}
-	
+			
 			// Forward Attachments
-			if(!empty($forward_files) && is_array($forward_files)) {
-				foreach($forward_files as $file_id) {
+			if (!empty($forward_files) && is_array($forward_files)) {
+				foreach ($forward_files as $file_id) {
 					// Attach the file
-					if(false != ($attachment = DAO_Attachment::get($file_id))) {
-						if(false !== ($fp = DevblocksPlatform::getTempFile())) {
-							if(false !== $attachment->getFileContents($fp)) {
+					if (false != ($attachment = DAO_Attachment::get($file_id))) {
+						if (false !== ($fp = DevblocksPlatform::getTempFile())) {
+							if (false !== $attachment->getFileContents($fp)) {
 								$attach = Swift_Attachment::fromPath(DevblocksPlatform::getTempFileInfo($fp), $attachment->mime_type);
 								$attach->setFilename($attachment->name);
 								$mail->attach($attach);
@@ -1316,12 +1335,12 @@ class CerberusMail {
 				}
 			}
 			
-			// Encryption
-			if(isset($properties['gpg_encrypt']) && $properties['gpg_encrypt']) {
-				$signer = new Cerb_SwiftPlugin_GPGSigner();
+			// Encryption and signing
+			if(@$properties['gpg_sign'] || @$properties['gpg_encrypt']) {
+				$signer = new Cerb_SwiftPlugin_GPGSigner($properties);
 				$mail->attachSigner($signer);
 			}
-
+			
 			// Send
 			$recipients = $mail->getTo();
 			$outgoing_mail_headers = $mail->getHeaders()->toString();
@@ -1476,6 +1495,14 @@ class CerberusMail {
 				DAO_Message::WAS_ENCRYPTED => !empty(@$properties['gpg_encrypt']) ? 1 : 0,
 				DAO_Message::HTML_ATTACHMENT_ID => $html_body_id,
 			);
+			
+			// Did we sign it?
+			// [TODO] We may need to sort out the signing key ahead of time to log this
+			if(!empty(@$properties['gpg_sign'])) {
+				$fields[DAO_Message::SIGNED_AT] = time();
+				//$fields[DAO_Message::SIGNED_KEY_FINGERPRINT] = null;
+			}
+			
 			$message_id = DAO_Message::create($fields);
 			
 			// Store ticket.last_message_id

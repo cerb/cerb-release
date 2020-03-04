@@ -585,7 +585,9 @@ class Model_PackageLibrary {
 	
 	function getInstructionsAsHtml() {
 		$html = DevblocksPlatform::parseMarkdown($this->getInstructions());
-		return DevblocksPlatform::purifyHTML($html, true, true);
+		$filter = new Cerb_HTMLPurifier_URIFilter_Email(true);
+		
+		return DevblocksPlatform::purifyHTML($html, true, true, [$filter]);
 	}
 	
 	function getPackageJson() {
@@ -912,7 +914,11 @@ class Context_PackageLibrary extends Extension_DevblocksContext implements IDevb
 		
 		return CerberusContexts::denyEverything($models);
 	}
-
+	
+	static function isDeletableByActor($models, $actor) {
+		return self::isWriteableByActor($models, $actor);
+	}
+	
 	function getRandom() {
 		return DAO_PackageLibrary::random();
 	}

@@ -11,9 +11,9 @@ class ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723
         'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
         'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
+        'decc78cc4436b1292c6c0d151b19445c' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/bootstrap.php',
         'da5f6548f070d3d306f90eee42dd5de6' => __DIR__ . '/..' . '/donatj/phpuseragentparser/src/UserAgentParser.php',
         '2cffec82183ee1cea088009cef9a6fc3' => __DIR__ . '/..' . '/ezyang/htmlpurifier/library/HTMLPurifier.composer.php',
-        'decc78cc4436b1292c6c0d151b19445c' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/bootstrap.php',
         'f084d01b0a599f67676cffef638aa95b' => __DIR__ . '/..' . '/smarty/smarty/libs/bootstrap.php',
         '2c102faa651ef8ea5874edb585946bce' => __DIR__ . '/..' . '/swiftmailer/swiftmailer/lib/swift_required.php',
     );
@@ -22,10 +22,6 @@ class ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723
         'p' => 
         array (
             'phpseclib\\' => 10,
-        ),
-        'l' => 
-        array (
-            'libphonenumber\\' => 15,
         ),
         'T' => 
         array (
@@ -59,7 +55,6 @@ class ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723
             'GuzzleHttp\\Psr7\\' => 16,
             'GuzzleHttp\\Promise\\' => 19,
             'GuzzleHttp\\' => 11,
-            'Giggsey\\Locale\\' => 15,
         ),
         'D' => 
         array (
@@ -75,10 +70,6 @@ class ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723
         'phpseclib\\' => 
         array (
             0 => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib',
-        ),
-        'libphonenumber\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/giggsey/libphonenumber-for-php/src',
         ),
         'TijsVerkoyen\\CssToInlineStyles\\' => 
         array (
@@ -128,17 +119,13 @@ class ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/guzzle/src',
         ),
-        'Giggsey\\Locale\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/giggsey/locale/src',
-        ),
         'Defuse\\Crypto\\' => 
         array (
             0 => __DIR__ . '/..' . '/defuse/php-encryption/src',
         ),
         'Cron\\' => 
         array (
-            0 => __DIR__ . '/..' . '/mtdowling/cron-expression/src/Cron',
+            0 => __DIR__ . '/..' . '/dragonmantank/cron-expression/src/Cron',
         ),
     );
 
@@ -164,22 +151,56 @@ class ComposerStaticInit05ef6e2a2af0a1a25cc94ae13b42a723
     );
 
     public static $classMap = array (
-        'SebastianBergmann\\Diff\\Chunk' => __DIR__ . '/..' . '/sebastian/diff/src/Chunk.php',
-        'SebastianBergmann\\Diff\\ConfigurationException' => __DIR__ . '/..' . '/sebastian/diff/src/Exception/ConfigurationException.php',
-        'SebastianBergmann\\Diff\\Diff' => __DIR__ . '/..' . '/sebastian/diff/src/Diff.php',
-        'SebastianBergmann\\Diff\\Differ' => __DIR__ . '/..' . '/sebastian/diff/src/Differ.php',
-        'SebastianBergmann\\Diff\\Exception' => __DIR__ . '/..' . '/sebastian/diff/src/Exception/Exception.php',
-        'SebastianBergmann\\Diff\\InvalidArgumentException' => __DIR__ . '/..' . '/sebastian/diff/src/Exception/InvalidArgumentException.php',
-        'SebastianBergmann\\Diff\\Line' => __DIR__ . '/..' . '/sebastian/diff/src/Line.php',
-        'SebastianBergmann\\Diff\\LongestCommonSubsequenceCalculator' => __DIR__ . '/..' . '/sebastian/diff/src/LongestCommonSubsequenceCalculator.php',
-        'SebastianBergmann\\Diff\\MemoryEfficientLongestCommonSubsequenceCalculator' => __DIR__ . '/..' . '/sebastian/diff/src/MemoryEfficientLongestCommonSubsequenceCalculator.php',
-        'SebastianBergmann\\Diff\\Output\\AbstractChunkOutputBuilder' => __DIR__ . '/..' . '/sebastian/diff/src/Output/AbstractChunkOutputBuilder.php',
-        'SebastianBergmann\\Diff\\Output\\DiffOnlyOutputBuilder' => __DIR__ . '/..' . '/sebastian/diff/src/Output/DiffOnlyOutputBuilder.php',
-        'SebastianBergmann\\Diff\\Output\\DiffOutputBuilderInterface' => __DIR__ . '/..' . '/sebastian/diff/src/Output/DiffOutputBuilderInterface.php',
-        'SebastianBergmann\\Diff\\Output\\StrictUnifiedDiffOutputBuilder' => __DIR__ . '/..' . '/sebastian/diff/src/Output/StrictUnifiedDiffOutputBuilder.php',
-        'SebastianBergmann\\Diff\\Output\\UnifiedDiffOutputBuilder' => __DIR__ . '/..' . '/sebastian/diff/src/Output/UnifiedDiffOutputBuilder.php',
-        'SebastianBergmann\\Diff\\Parser' => __DIR__ . '/..' . '/sebastian/diff/src/Parser.php',
-        'SebastianBergmann\\Diff\\TimeEfficientLongestCommonSubsequenceCalculator' => __DIR__ . '/..' . '/sebastian/diff/src/TimeEfficientLongestCommonSubsequenceCalculator.php',
+        'MCryptWrapper' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp_mcrypt_wrapper.php',
+        'OpenPGP' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_AsymmetricSessionKeyPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_CompressedDataPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_Crypt_RSA' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp_crypt_rsa.php',
+        'OpenPGP_Crypt_Symmetric' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp_crypt_symmetric.php',
+        'OpenPGP_EncryptedDataPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_ExperimentalPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_IntegrityProtectedDataPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_LiteralDataPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_MarkerPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_Message' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_ModificationDetectionCodePacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_OnePassSignaturePacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_Packet' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_PublicKeyPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_PublicSubkeyPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_S2K' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SecretKeyPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SecretSubkeyPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_EmbeddedSignaturePacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_ExportableCertificationPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_FeaturesPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_IssuerPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_KeyExpirationTimePacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_KeyFlagsPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_KeyServerPreferencesPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_NotationDataPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_PolicyURIPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_PreferredCompressionAlgorithmsPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_PreferredHashAlgorithmsPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_PreferredKeyServerPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_PreferredSymmetricAlgorithmsPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_PrimaryUserIDPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_ReasonforRevocationPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_RegularExpressionPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_RevocablePacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_RevocationKeyPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_SignatureCreationTimePacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_SignatureExpirationTimePacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_SignatureTargetPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_SignersUserIDPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_Subpacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SignaturePacket_TrustSignaturePacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_SymmetricSessionKeyPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_TrustPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_UserAttributePacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenPGP_UserIDPacket' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp.php',
+        'OpenSSLWrapper' => __DIR__ . '/..' . '/singpolyma/openpgp-php/lib/openpgp_openssl_wrapper.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

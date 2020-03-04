@@ -3,6 +3,7 @@ class DAO_GpgPublicKey extends Cerb_ORMHelper {
 	const EXPIRES_AT = 'expires_at';
 	const FINGERPRINT = 'fingerprint';
 	const ID = 'id';
+	const KEY_TEXT = 'key_text';
 	const NAME = 'name';
 	const UPDATED_AT = 'updated_at';
 	
@@ -18,12 +19,19 @@ class DAO_GpgPublicKey extends Cerb_ORMHelper {
 		$validation
 			->addField(self::FINGERPRINT)
 			->string()
+			->setUnique('DAO_GpgPublicKey')
 			->setRequired(true)
 			;
 		$validation
 			->addField(self::ID)
 			->id()
 			->setEditable(false)
+			;
+		$validation
+			->addField(self::KEY_TEXT)
+			->string()
+			->setMaxLength('16 bits')
+			->setRequired(true)
 			;
 		$validation
 			->addField(self::NAME)
@@ -65,6 +73,7 @@ class DAO_GpgPublicKey extends Cerb_ORMHelper {
 			$ids = array($ids);
 		
 		$context = CerberusContexts::CONTEXT_GPG_PUBLIC_KEY;
+		
 		self::_updateAbstract($context, $ids, $fields);
 		
 		// Make a diff for the requested objects in batches
@@ -118,7 +127,7 @@ class DAO_GpgPublicKey extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
 		// SQL
-		$sql = "SELECT id, name, fingerprint, expires_at, updated_at ".
+		$sql = "SELECT id, name, fingerprint, expires_at, key_text, updated_at ".
 			"FROM gpg_public_key ".
 			$where_sql.
 			$sort_sql.
@@ -138,18 +147,16 @@ class DAO_GpgPublicKey extends Cerb_ORMHelper {
 	 * 
 	 * @param string $fingerprint
 	 * @return Model_GpgPublicKey
+	 *
 	 */
 	static function getByFingerprint($fingerprint) {
-		$objects = self::getWhere(
-			sprintf("%s = %s",
-				self::escape(self::FINGERPRINT),
-				self::qstr($fingerprint)
-			),
-			DAO_GpgPublicKey::NAME, 
-			true, 
-			null 
-		);
+		if(16 == strlen($fingerprint)) {
+			$objects = DAO_GpgKeyPart::getPublicKeysByPart('fingerprint16', $fingerprint);
+		} else {
+			$objects = DAO_GpgKeyPart::getPublicKeysByPart('fingerprint', $fingerprint);
+		}
 		
+		// [TODO] This could return multiple matches
 		if(!empty($objects))
 			return array_shift($objects);
 		
@@ -210,6 +217,7 @@ class DAO_GpgPublicKey extends Cerb_ORMHelper {
 			$object->name = $row['name'];
 			$object->fingerprint = $row['fingerprint'];
 			$object->expires_at = $row['expires_at'];
+			$object->key_text = $row['key_text'];
 			$object->updated_at = $row['updated_at'];
 			$objects[$object->id] = $object;
 		}
@@ -241,7 +249,7 @@ class DAO_GpgPublicKey extends Cerb_ORMHelper {
 		if(is_array($results))
 		foreach($results as $result) {
 			if(isset($result['fingerprint']) && $result['fingerprint'])
-				$gpg->deleteKey($result['fingerprint']);
+				$gpg->deletePublicKey($result['fingerprint']);
 		}
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM gpg_public_key WHERE id IN (%s)", $ids_list));
@@ -369,6 +377,10 @@ class SearchFields_GpgPublicKey extends DevblocksSearchFields {
 	const EXPIRES_AT = 'g_expires_at';
 	const UPDATED_AT = 'g_updated_at';
 
+	const VIRTUAL_UID = '*_uid';
+	const VIRTUAL_UID_NAME = '*_uid_name';
+	const VIRTUAL_UID_EMAIL = '*_uid_email';
+	
 	const VIRTUAL_CONTEXT_LINK = '*_context_link';
 	const VIRTUAL_HAS_FIELDSET = '*_has_fieldset';
 	const VIRTUAL_WATCHERS = '*_workers';
@@ -387,6 +399,95 @@ class SearchFields_GpgPublicKey extends DevblocksSearchFields {
 	
 	static function getWhereSQL(DevblocksSearchCriteria $param) {
 		switch($param->field) {
+			case self::FINGERPRINT:
+				// Optimize lookups on id16
+				if($param->operator == DevblocksSearchCriteria::OPER_EQ && 16 == strlen($param->value)) {
+					return sprintf("id IN (SELECT key_id FROM gpg_key_part WHERE key_context = %s AND part_name = %s AND part_value = %s)",
+						Cerb_ORMHelper::qstr(Context_GpgPublicKey::ID),
+						Cerb_ORMHelper::qstr('fingerprint16'),
+						Cerb_ORMHelper::qstr($param->value)
+					);
+				} else {
+					return sprintf("id IN (SELECT key_id FROM gpg_key_part WHERE key_context = %s AND part_name = %s AND part_value = %s)",
+						Cerb_ORMHelper::qstr(Context_GpgPublicKey::ID),
+						Cerb_ORMHelper::qstr('fingerprint'),
+						Cerb_ORMHelper::qstr($param->value)
+					);
+				}
+				break;
+				
+			case self::VIRTUAL_UID:
+				$oper = in_array($param->operator,
+					[
+						DevblocksSearchCriteria::OPER_EQ,
+						DevblocksSearchCriteria::OPER_NEQ,
+						DevblocksSearchCriteria::OPER_LIKE,
+						DevblocksSearchCriteria::OPER_NOT_LIKE,
+					])
+					? $param->operator
+					: DevblocksSearchCriteria::OPER_EQ
+				;
+				$value = $param->value;
+				
+				if(in_array($oper, [DevblocksSearchCriteria::OPER_LIKE, DevblocksSearchCriteria::OPER_NOT_LIKE]))
+					$value = str_replace('*', '%', $value);
+				
+				return sprintf("id IN (SELECT key_id FROM gpg_key_part WHERE key_context = %s AND part_name = %s AND part_value %s %s)",
+					Cerb_ORMHelper::qstr(Context_GpgPublicKey::ID),
+					Cerb_ORMHelper::qstr('uid'),
+					$oper,
+					Cerb_ORMHelper::qstr($value)
+				);
+				break;
+				
+			case self::VIRTUAL_UID_NAME:
+				$oper = in_array($param->operator,
+					[
+						DevblocksSearchCriteria::OPER_EQ,
+						DevblocksSearchCriteria::OPER_NEQ,
+						DevblocksSearchCriteria::OPER_LIKE,
+						DevblocksSearchCriteria::OPER_NOT_LIKE,
+					])
+					? $param->operator
+					: DevblocksSearchCriteria::OPER_EQ
+				;
+				$value = $param->value;
+				
+				if(in_array($oper, [DevblocksSearchCriteria::OPER_LIKE, DevblocksSearchCriteria::OPER_NOT_LIKE]))
+					$value = str_replace('*', '%', $value);
+				
+				return sprintf("id IN (SELECT key_id FROM gpg_key_part WHERE key_context = %s AND part_name = %s AND part_value %s %s)",
+					Cerb_ORMHelper::qstr(Context_GpgPublicKey::ID),
+					Cerb_ORMHelper::qstr('name'),
+					$oper,
+					Cerb_ORMHelper::qstr($value)
+				);
+				break;
+				
+			case self::VIRTUAL_UID_EMAIL:
+				$oper = in_array($param->operator,
+					[
+						DevblocksSearchCriteria::OPER_EQ,
+						DevblocksSearchCriteria::OPER_NEQ,
+						DevblocksSearchCriteria::OPER_LIKE,
+						DevblocksSearchCriteria::OPER_NOT_LIKE,
+					])
+					? $param->operator
+					: DevblocksSearchCriteria::OPER_EQ
+				;
+				$value = $param->value;
+				
+				if(in_array($oper, [DevblocksSearchCriteria::OPER_LIKE, DevblocksSearchCriteria::OPER_NOT_LIKE]))
+					$value = str_replace('*', '%', $value);
+				
+				return sprintf("id IN (SELECT key_id FROM gpg_key_part WHERE key_context = %s AND part_name = %s AND part_value %s %s)",
+					Cerb_ORMHelper::qstr(Context_GpgPublicKey::ID),
+					Cerb_ORMHelper::qstr('email'),
+					$oper,
+					Cerb_ORMHelper::qstr($value)
+				);
+				break;
+				
 			case self::VIRTUAL_CONTEXT_LINK:
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, self::getPrimaryKey());
 				break;
@@ -442,10 +543,14 @@ class SearchFields_GpgPublicKey extends DevblocksSearchFields {
 		$columns = array(
 			self::ID => new DevblocksSearchField(self::ID, 'gpg_public_key', 'id', $translate->_('common.id'), null, true),
 			self::NAME => new DevblocksSearchField(self::NAME, 'gpg_public_key', 'name', $translate->_('common.name'), null, true),
-			self::FINGERPRINT => new DevblocksSearchField(self::FINGERPRINT, 'gpg_public_key', 'fingerprint', $translate->_('dao.gpg_public_key.fingerprint'), null, true),
+			self::FINGERPRINT => new DevblocksSearchField(self::FINGERPRINT, 'gpg_public_key', 'fingerprint', $translate->_('common.fingerprint'), null, true),
 			self::EXPIRES_AT => new DevblocksSearchField(self::EXPIRES_AT, 'gpg_public_key', 'expires_at', $translate->_('common.expires'), null, true),
 			self::UPDATED_AT => new DevblocksSearchField(self::UPDATED_AT, 'gpg_public_key', 'updated_at', $translate->_('common.updated'), null, true),
 
+			self::VIRTUAL_UID => new DevblocksSearchField(self::VIRTUAL_UID, '*', 'uid', $translate->_('uid'), null, false),
+			self::VIRTUAL_UID_NAME => new DevblocksSearchField(self::VIRTUAL_UID_NAME, '*', 'uid_name', $translate->_('uid.name'), null, false),
+			self::VIRTUAL_UID_EMAIL => new DevblocksSearchField(self::VIRTUAL_UID_EMAIL, '*', 'uid_email', $translate->_('uid.email'), null, false),
+			
 			self::VIRTUAL_CONTEXT_LINK => new DevblocksSearchField(self::VIRTUAL_CONTEXT_LINK, '*', 'context_link', $translate->_('common.links'), null, false),
 			self::VIRTUAL_HAS_FIELDSET => new DevblocksSearchField(self::VIRTUAL_HAS_FIELDSET, '*', 'has_fieldset', $translate->_('common.fieldset'), null, false),
 			self::VIRTUAL_WATCHERS => new DevblocksSearchField(self::VIRTUAL_WATCHERS, '*', 'workers', $translate->_('common.watchers'), 'WS', false),
@@ -468,6 +573,7 @@ class Model_GpgPublicKey {
 	public $id;
 	public $name;
 	public $fingerprint;
+	public $key_text;
 	public $expires_at;
 	public $updated_at;
 };
@@ -477,7 +583,7 @@ class View_GpgPublicKey extends C4_AbstractView implements IAbstractView_Subtota
 
 	function __construct() {
 		$this->id = self::DEFAULT_ID;
-		$this->name = DevblocksPlatform::translateCapitalized('GPG Public Keys');
+		$this->name = DevblocksPlatform::translateCapitalized('PGP Public Keys');
 		$this->renderLimit = 25;
 		$this->renderSortBy = SearchFields_GpgPublicKey::ID;
 		$this->renderSortAsc = true;
@@ -617,10 +723,10 @@ class View_GpgPublicKey extends C4_AbstractView implements IAbstractView_Subtota
 				),
 			'fingerprint' => 
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_TEXT,
-					'options' => array('param_key' => SearchFields_GpgPublicKey::FINGERPRINT, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX),
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_GpgPublicKey::FINGERPRINT),
 				),
-			'id' => 
+			'id' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
 					'options' => array('param_key' => SearchFields_GpgPublicKey::ID),
@@ -633,7 +739,22 @@ class View_GpgPublicKey extends C4_AbstractView implements IAbstractView_Subtota
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_GpgPublicKey::NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
 				),
-			'updated' => 
+			'uid' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_GpgPublicKey::VIRTUAL_UID, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'uid.name' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_GpgPublicKey::VIRTUAL_UID_NAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'uid.email' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_GpgPublicKey::VIRTUAL_UID_EMAIL, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'updated' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
 					'options' => array('param_key' => SearchFields_GpgPublicKey::UPDATED_AT),
@@ -660,6 +781,22 @@ class View_GpgPublicKey extends C4_AbstractView implements IAbstractView_Subtota
 	
 	function getParamFromQuickSearchFieldTokens($field, $tokens) {
 		switch($field) {
+			case 'fingerprint':
+				return DevblocksSearchCriteria::getTextParamFromTokens(SearchFields_GpgPublicKey::FINGERPRINT, $tokens);
+				break;
+				
+			case 'uid':
+				return DevblocksSearchCriteria::getTextParamFromTokens(SearchFields_GpgPublicKey::VIRTUAL_UID, $tokens);
+				break;
+				
+			case 'uid.name':
+				return DevblocksSearchCriteria::getTextParamFromTokens(SearchFields_GpgPublicKey::VIRTUAL_UID_NAME, $tokens);
+				break;
+				
+			case 'uid.email':
+				return DevblocksSearchCriteria::getTextParamFromTokens(SearchFields_GpgPublicKey::VIRTUAL_UID_EMAIL, $tokens);
+				break;
+				
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
 				break;
@@ -705,6 +842,21 @@ class View_GpgPublicKey extends C4_AbstractView implements IAbstractView_Subtota
 		$key = $param->field;
 		
 		switch($key) {
+			case SearchFields_GpgPublicKey::VIRTUAL_UID:
+				echo DevblocksPlatform::strEscapeHtml('uid ');
+				$this->_renderCriteriaParamString($param,[]);
+				break;
+				
+			case SearchFields_GpgPublicKey::VIRTUAL_UID_NAME:
+				echo DevblocksPlatform::strEscapeHtml('uid.name ');
+				$this->_renderCriteriaParamString($param,[]);
+				break;
+				
+			case SearchFields_GpgPublicKey::VIRTUAL_UID_EMAIL:
+				echo DevblocksPlatform::strEscapeHtml('uid.email ');
+				$this->_renderCriteriaParamString($param,[]);
+				break;
+				
 			case SearchFields_GpgPublicKey::VIRTUAL_CONTEXT_LINK:
 				$this->_renderVirtualContextLinks($param);
 				break;
@@ -783,7 +935,11 @@ class Context_GpgPublicKey extends Extension_DevblocksContext implements IDevblo
 		// Everyone can modify
 		return CerberusContexts::allowEverything($models);
 	}
-
+	
+	static function isDeletableByActor($models, $actor) {
+		return self::isWriteableByActor($models, $actor);
+	}
+	
 	function getRandom() {
 		return DAO_GpgPublicKey::random();
 	}
@@ -820,7 +976,7 @@ class Context_GpgPublicKey extends Extension_DevblocksContext implements IDevblo
 		);
 		
 		$properties['fingerprint'] = array(
-			'label' => mb_ucfirst($translate->_('dao.gpg_public_key.fingerprint')),
+			'label' => mb_ucfirst($translate->_('common.fingerprint')),
 			'type' => Model_CustomField::TYPE_SINGLE_LINE,
 			'value' => $model->fingerprint,
 		);
@@ -881,8 +1037,9 @@ class Context_GpgPublicKey extends Extension_DevblocksContext implements IDevblo
 		$token_labels = array(
 			'_label' => $prefix,
 			'expires_at' => $prefix.$translate->_('common.expires'),
-			'fingerprint' => $prefix.$translate->_('dao.gpg_public_key.fingerprint'),
+			'fingerprint' => $prefix.$translate->_('common.fingerprint'),
 			'id' => $prefix.$translate->_('common.id'),
+			'key_text' => $prefix.$translate->_('common.key'),
 			'name' => $prefix.$translate->_('common.name'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
@@ -894,6 +1051,7 @@ class Context_GpgPublicKey extends Extension_DevblocksContext implements IDevblo
 			'expires_at' => Model_CustomField::TYPE_DATE,
 			'fingerprint' => Model_CustomField::TYPE_SINGLE_LINE,
 			'id' => Model_CustomField::TYPE_NUMBER,
+			'key' => Model_CustomField::TYPE_MULTI_LINE,
 			'name' => Model_CustomField::TYPE_SINGLE_LINE,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 			'record_url' => Model_CustomField::TYPE_URL,
@@ -919,6 +1077,7 @@ class Context_GpgPublicKey extends Extension_DevblocksContext implements IDevblo
 			$token_values['expires_at'] = $gpg_public_key->expires_at;
 			$token_values['fingerprint'] = $gpg_public_key->fingerprint;
 			$token_values['id'] = $gpg_public_key->id;
+			$token_values['key_text'] = $gpg_public_key->key_text;
 			$token_values['name'] = $gpg_public_key->name;
 			$token_values['updated_at'] = $gpg_public_key->updated_at;
 			
@@ -938,6 +1097,7 @@ class Context_GpgPublicKey extends Extension_DevblocksContext implements IDevblo
 			'expires_at' => DAO_GpgPublicKey::EXPIRES_AT,
 			'fingerprint' => DAO_GpgPublicKey::FINGERPRINT,
 			'id' => DAO_GpgPublicKey::ID,
+			'key_text' => DAO_GpgPublicKey::KEY_TEXT,
 			'links' => '_links',
 			'name' => DAO_GpgPublicKey::NAME,
 			'updated_at' => DAO_GpgPublicKey::UPDATED_AT,

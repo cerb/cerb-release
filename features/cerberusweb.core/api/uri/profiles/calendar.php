@@ -28,7 +28,19 @@ class PageSection_ProfilesCalendar extends Extension_PageSection {
 		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
-	function savePeekJsonAction() {
+	function handleActionForPage(string $action, string $scope=null) {
+		if('profileAction' == $scope) {
+			switch ($action) {
+				case 'savePeekJson':
+					return $this->_profileAction_savePeekJson();
+				case 'viewExplore':
+					return $this->_profileAction_viewExplore();
+			}
+		}
+		return false;
+	}
+	
+	private function _profileAction_savePeekJson() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'], 'string', '');
 		
 		@$id = DevblocksPlatform::importGPC($_POST['id'], 'integer', 0);
@@ -40,7 +52,7 @@ class PageSection_ProfilesCalendar extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(null, 403);
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
@@ -48,6 +60,14 @@ class PageSection_ProfilesCalendar extends Extension_PageSection {
 			if(!empty($id) && !empty($do_delete)) { // Delete
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_CALENDAR)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				if(false == ($model = DAO_Calendar::get($id)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.record.not_found'));
+				
+				if(!Context_Calendar::isDeletableByActor($model, $active_worker))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_CALENDAR, $model->id, $model->name);
 				
 				DAO_Calendar::delete($id);
 				
@@ -229,5 +249,79 @@ class PageSection_ProfilesCalendar extends Extension_PageSection {
 			));
 			return;
 		}
+	}
+	
+	private function _profileAction_viewExplore() {
+		$active_worker = CerberusApplication::getActiveWorker();
+		$url_writer = DevblocksPlatform::services()->url();
+		
+		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
+		
+		// Generate hash
+		$hash = md5($view_id.$active_worker->id.time());
+		
+		// Loop through view and get IDs
+		$view = C4_AbstractViewLoader::getView($view_id);
+		$view->setAutoPersist(false);
+		
+		// Page start
+		@$explore_from = DevblocksPlatform::importGPC($_POST['explore_from'],'integer',0);
+		if(empty($explore_from)) {
+			$orig_pos = 1+($view->renderPage * $view->renderLimit);
+		} else {
+			$orig_pos = 1;
+		}
+		
+		$view->renderPage = 0;
+		$view->renderLimit = 250;
+		$pos = 0;
+		
+		do {
+			$models = array();
+			list($results, $total) = $view->getData();
+			
+			// Summary row
+			if(0==$view->renderPage) {
+				$model = new Model_ExplorerSet();
+				$model->hash = $hash;
+				$model->pos = $pos++;
+				$model->params = array(
+					'title' => $view->name,
+					'created' => time(),
+					'total' => $total,
+					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=calendar', true),
+				);
+				$models[] = $model;
+				
+				$view->renderTotal = false; // speed up subsequent pages
+			}
+			
+			if(is_array($results))
+				foreach($results as $row_id => $row) {
+					if($row_id==$explore_from)
+						$orig_pos = $pos;
+					
+					$url = $url_writer->writeNoProxy(sprintf("c=profiles&type=calendar&id=%d-%s", $row[SearchFields_Calendar::ID], DevblocksPlatform::strToPermalink($row[SearchFields_Calendar::NAME])), true);
+					
+					$model = new Model_ExplorerSet();
+					$model->hash = $hash;
+					$model->pos = $pos++;
+					$model->params = array(
+						'id' => $row[SearchFields_Calendar::ID],
+						'url' => $url,
+					);
+					$models[] = $model;
+				}
+			
+			DAO_ExplorerSet::createFromModels($models);
+			
+			$view->renderPage++;
+			
+		} while(!empty($results));
+		
+		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('explore',$hash,$orig_pos)));
 	}
 };

@@ -79,6 +79,11 @@
 				<seg>Mailbox {{target}} has failed to download mail on {{count}} consecutive attempts: {{error}}</seg>
 			</tuv>
 		</tu>
+		<tu tuid="activities.record.delete">
+			<tuv xml:lang="en_US">
+				<seg>{{actor}} deleted {{record_type}} `{{record_label}}` (#{{record_id}})</seg>
+			</tuv>
+		</tu>
 		<tu tuid="activities.record.merge">
 			<tuv xml:lang="en_US">
 				<seg>{{actor}} merged {{context_label}} {{source}} into {{context_label}} {{target}}</seg>
@@ -1105,9 +1110,24 @@
 				<seg>encrypt</seg>
 			</tuv>
 		</tu>
+		<tu tuid="common.encrypt.sign">
+			<tuv xml:lang="en_US">
+				<seg>sign</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.encrypt.signing.key">
+			<tuv xml:lang="en_US">
+				<seg>signing key</seg>
+			</tuv>
+		</tu>
 		<tu tuid="common.encrypted">
 			<tuv xml:lang="en_US">
 				<seg>encrypted</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.encrypted.verified">
+			<tuv xml:lang="en_US">
+				<seg>verified</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.encryption">
@@ -1283,6 +1303,11 @@
 		<tu tuid="common.filters">
 			<tuv xml:lang="en_US">
 				<seg>filters</seg>
+			</tuv>
+		</tu>
+		<tu tuid='common.fingerprint'>
+			<tuv xml:lang="en_US">
+				<seg>fingerprint</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.for">
@@ -1971,6 +1996,11 @@
 		<tu tuid="common.participants">
 			<tuv xml:lang="en_US">
 				<seg>participants</seg>
+			</tuv>
+		</tu>
+		<tu tuid="common.passphrase">
+			<tuv xml:lang="en_US">
+				<seg>passphrase</seg>
 			</tuv>
 		</tu>
 		<tu tuid="common.password">
@@ -3171,9 +3201,9 @@
 
 		<!-- DevblocksSession -->
 		
-		<tu tuid="dao.devblocks_session.session_key">
+		<tu tuid="dao.devblocks_session.session_token">
 			<tuv xml:lang="en_US">
-				<seg>Session Key</seg>
+				<seg>Session Token</seg>
 			</tuv>
 		</tu>
 		<tu tuid="dao.devblocks_session.session_data">
@@ -3190,13 +3220,6 @@
 			<tuv xml:lang="en_US">
 				<seg>User Agent</seg>
 			</tuv>
-		</tu>
-		
-		<!-- GpgPublicKey -->
-		
-		<tu tuid='dao.gpg_public_key.fingerprint'>
-			<tuv xml:lang="en_US">
-			<seg>Fingerprint</seg></tuv>
 		</tu>
 		
 		<!-- Mailbox -->
@@ -3435,6 +3458,11 @@
 		<tu tuid="address.is_defunct">
 			<tuv xml:lang="en_US">
 				<seg>Is Defunct</seg>
+			</tuv>
+		</tu>
+		<tu tuid="address.is_trusted">
+			<tuv xml:lang="en_US">
+				<seg>Is Trusted</seg>
 			</tuv>
 		</tu>
 		<tu tuid="address.contact_org_id">
@@ -4404,6 +4432,16 @@
 		<tu tuid="message.is_signed">
 			<tuv xml:lang="en_US">
 				<seg>Is Signed</seg>
+			</tuv>
+		</tu>
+		<tu tuid="message.signed_at">
+			<tuv xml:lang="en_US">
+				<seg>Signed At</seg>
+			</tuv>
+		</tu>
+		<tu tuid="message.signed_key_fingerprint">
+			<tuv xml:lang="en_US">
+				<seg>Signed By</seg>
 			</tuv>
 		</tu>
 		<tu tuid="message.storage_size">

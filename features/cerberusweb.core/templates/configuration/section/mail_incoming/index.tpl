@@ -3,19 +3,20 @@
 <div id="tabsSetupMailIncoming">
 	<ul>
 		<li data-alias="settings"><a href="#tabsSetupMailIncomingSettings">{'common.settings'|devblocks_translate|capitalize}</a></li>
-		<li data-alias="mailboxes"><a href="{devblocks_url}ajax.php?c=config&a=handleSectionAction&section=mail_incoming&action=renderTabMailboxes{/devblocks_url}">{'common.mailboxes'|devblocks_translate|capitalize}</a></li>
-		<li data-alias="routing"><a href="{devblocks_url}ajax.php?c=config&a=handleSectionAction&section=mail_incoming&action=renderTabMailRouting{/devblocks_url}">{'common.mail.routing'|devblocks_translate|capitalize}</a></li>
-		<li data-alias="filtering"><a href="{devblocks_url}ajax.php?c=config&a=handleSectionAction&section=mail_incoming&action=renderTabMailFiltering{/devblocks_url}">{'common.mail.filtering'|devblocks_translate|capitalize}</a></li>
-		<li data-alias="import"><a href="{devblocks_url}ajax.php?c=config&a=handleSectionAction&section=mail_incoming&action=renderTabMailImport{/devblocks_url}">{'common.import'|devblocks_translate|capitalize}</a></li>
-		<li data-alias="failed"><a href="{devblocks_url}ajax.php?c=config&a=handleSectionAction&section=mail_incoming&action=renderTabMailFailed{/devblocks_url}">Failed Messages</a></li>
-		<li data-alias="relay"><a href="{devblocks_url}ajax.php?c=config&a=handleSectionAction&section=mail_incoming&action=renderTabMailRelay{/devblocks_url}">External Relay</a></li>
+		<li data-alias="mailboxes"><a href="{devblocks_url}ajax.php?c=config&a=invoke&module=mail_incoming&action=renderTabMailboxes{/devblocks_url}">{'common.mailboxes'|devblocks_translate|capitalize}</a></li>
+		<li data-alias="filtering"><a href="{devblocks_url}ajax.php?c=config&a=invoke&module=mail_incoming&action=renderTabMailFiltering{/devblocks_url}">{'common.mail.filtering'|devblocks_translate|capitalize}</a></li>
+		<li data-alias="routing"><a href="{devblocks_url}ajax.php?c=config&a=invoke&module=mail_incoming&action=renderTabMailRouting{/devblocks_url}">{'common.mail.routing'|devblocks_translate|capitalize}</a></li>
+		<li data-alias="html"><a href="{devblocks_url}ajax.php?c=config&a=invoke&module=mail_incoming&action=renderTabMailHtml{/devblocks_url}">HTML</a></li>
+		<li data-alias="import"><a href="{devblocks_url}ajax.php?c=config&a=invoke&module=mail_incoming&action=renderTabMailImport{/devblocks_url}">{'common.import'|devblocks_translate|capitalize}</a></li>
+		<li data-alias="failed"><a href="{devblocks_url}ajax.php?c=config&a=invoke&module=mail_incoming&action=renderTabMailFailed{/devblocks_url}">Failed Messages</a></li>
+		<li data-alias="relay"><a href="{devblocks_url}ajax.php?c=config&a=invoke&module=mail_incoming&action=renderTabMailRelay{/devblocks_url}">External Relay</a></li>
 	</ul>
 	
 	<div id="tabsSetupMailIncomingSettings">
 		<form id="frmSetupMailIncoming" action="{devblocks_url}{/devblocks_url}" method="post" onsubmit="return false;">
 		<input type="hidden" name="c" value="config">
-		<input type="hidden" name="a" value="handleSectionAction">
-		<input type="hidden" name="section" value="mail_incoming">
+		<input type="hidden" name="a" value="invoke">
+		<input type="hidden" name="module" value="mail_incoming">
 		<input type="hidden" name="action" value="saveSettingsJson">
 		<input type="hidden" name="_csrf_token" value="{$session.csrf_token}">
 		
@@ -132,8 +133,14 @@ $(function() {
 	$('#tabsSetupMailIncomingSettings BUTTON.tester')
 		.click(function(e) {
 			var $button = $(this);
-			
-			genericAjaxPost($frm,'','c=config&a=handleSectionAction&section=mail_incoming&action=testMask', function(json) {
+
+			var formData = new FormData($frm[0]);
+			formData.set('c', 'config');
+			formData.set('a', 'invoke');
+			formData.set('module', 'mail_incoming');
+			formData.set('action', 'testMask');
+
+			genericAjaxPost(formData, null, null, function(json) {
 				Devblocks.handleAjaxFormResponse($frm, json);
 				$button.show();
 			});

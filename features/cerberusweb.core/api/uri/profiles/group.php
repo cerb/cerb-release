@@ -1,4 +1,6 @@
-<?php
+<?php /** @noinspection DuplicatedCode */
+/** @noinspection PhpUnused */
+
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
@@ -28,7 +30,23 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
-	function savePeekJsonAction() {
+	function handleActionForPage(string $action, string $scope=null) {
+		if('profileAction' == $scope) {
+			switch ($action) {
+				case 'savePeekJson':
+					return $this->_profileAction_savePeekJson();
+				case 'showBulkPopup':
+					return $this->_profileAction_showBulkPopup();
+				case 'startBulkUpdateJson':
+					return $this->_profileAction_startBulkUpdateJson();
+				case 'viewExplore':
+					return $this->_profileAction_viewExplore();
+			}
+		}
+		return false;
+	}
+	
+	private function _profileAction_savePeekJson() {
 		@$group_id = DevblocksPlatform::importGPC($_POST['id'],'integer',0);
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string','');
 		@$do_delete = DevblocksPlatform::importGPC($_POST['do_delete'],'integer',0);
@@ -36,7 +54,7 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(null, 403);
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
@@ -45,14 +63,17 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 				throw new Exception_DevblocksAjaxValidationError("You do not have access to modify this group.");
 		
 			if($do_delete) {
-				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_GROUP)))
-					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
-				
 				@$move_deleted_buckets = DevblocksPlatform::importGPC($_POST['move_deleted_buckets'],'array',array());
 				$buckets = DAO_Bucket::getAll();
 				
-				if(false == ($deleted_group = DAO_Group::get($group_id)))
-					throw new Exception_DevblocksAjaxValidationError("The group you are attempting to delete doesn't exist.");
+				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_GROUP)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				if(false == ($model = DAO_Group::get($group_id)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.record.not_found'));
+				
+				if(!Context_Group::isDeletableByActor($model, $active_worker))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 				
 				// Handle preferred bucket relocation
 				
@@ -64,7 +85,9 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 					DAO_Ticket::updateWhere(array(DAO_Ticket::GROUP_ID => $buckets[$to_bucket_id]->group_id, DAO_Ticket::BUCKET_ID => $to_bucket_id), sprintf("%s = %d", DAO_Ticket::BUCKET_ID, $from_bucket_id));
 				}
 				
-				DAO_Group::delete($deleted_group->id);
+				CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_GROUP, $model->id, $model->name);
+				
+				DAO_Group::delete($model->id);
 				
 				echo json_encode(array(
 					'status' => true,
@@ -82,14 +105,15 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 				@$reply_signature_id = DevblocksPlatform::importGPC($_POST['reply_signature_id'],'integer',0);
 				@$reply_signing_key_id = DevblocksPlatform::importGPC($_POST['reply_signing_key_id'],'integer',0);
 			
-				$fields = array(
+				$fields = [
 					DAO_Group::NAME => $name,
 					DAO_Group::IS_PRIVATE => $is_private,
 					DAO_Group::REPLY_ADDRESS_ID => $reply_address_id,
 					DAO_Group::REPLY_HTML_TEMPLATE_ID => $reply_html_template_id,
 					DAO_Group::REPLY_PERSONAL => $reply_personal,
 					DAO_Group::REPLY_SIGNATURE_ID => $reply_signature_id,
-				);
+					DAO_Group::REPLY_SIGNING_KEY_ID => $reply_signing_key_id,
+				];
 				
 				if(empty($group_id)) { // new
 					if(!DAO_Group::validate($fields, $error))
@@ -107,7 +131,7 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 						DAO_Bucket::IS_DEFAULT => 1,
 						DAO_Bucket::UPDATED_AT => time(),
 					);
-					$bucket_id = DAO_Bucket::create($bucket_fields);
+					DAO_Bucket::create($bucket_fields);
 					
 					// View marquee
 					if(!empty($group_id) && !empty($view_id)) {
@@ -206,11 +230,14 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 		
 	}
 	
-	function viewExploreAction() {
+	private function _profileAction_viewExplore() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());
@@ -276,14 +303,14 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('explore',$hash,$orig_pos)));
 	}
 	
-	function showBulkPopupAction() {
-		@$ids = DevblocksPlatform::importGPC($_REQUEST['ids']);
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id']);
-
+	private function _profileAction_showBulkPopup() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
+		@$ids = DevblocksPlatform::importGPC($_REQUEST['ids']);
+		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id']);
+		
 		if(!$active_worker->is_superuser)
-			return;
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
@@ -299,11 +326,11 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 		$tpl->display('devblocks:cerberusweb.core::groups/bulk.tpl');
 	}
 	
-	function startBulkUpdateJsonAction() {
+	private function _profileAction_startBulkUpdateJson() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if(!$active_worker->is_superuser)
-			return;
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		@$filter = DevblocksPlatform::importGPC($_POST['filter'],'string','');
 		$ids = [];
@@ -316,6 +343,7 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 		@$send_from_id = DevblocksPlatform::importGPC($_POST['send_from_id'],'string',null);
 		@$signature_id = DevblocksPlatform::importGPC($_POST['signature_id'],'string',null);
 		@$email_template_id = DevblocksPlatform::importGPC($_POST['email_template_id'],'string',null);
+		@$signing_key_id = DevblocksPlatform::importGPC($_POST['signing_key_id'],'string',null);
 		@$is_private = DevblocksPlatform::importGPC($_POST['is_private'],'string',null);
 
 		// Scheduled behavior
@@ -348,6 +376,11 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 			&& false !== DAO_EmailSignature::get($signature_id))
 				$do['signature_id'] = $signature_id;
 		
+		// Do: Signing key
+		if(0 != strlen($signing_key_id)
+			&& false !== DAO_GpgPrivateKey::get($signing_key_id))
+				$do['signing_key_id'] = $signing_key_id;
+		
 		// Do: Scheduled Behavior
 		if(0 != strlen($behavior_id)) {
 			$do['behavior'] = array(
@@ -369,7 +402,6 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 				
 			case 'sample':
 				@$sample_size = min(DevblocksPlatform::importGPC($_POST['filter_sample_size'],'integer',0),9999);
-				$filter = 'checks';
 				$ids = $view->getDataSample($sample_size);
 				break;
 				
@@ -395,4 +427,4 @@ class PageSection_ProfilesGroup extends Extension_PageSection {
 		
 		return;
 	}
-};
+}

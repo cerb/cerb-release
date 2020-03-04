@@ -498,7 +498,10 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 			$object->bot_id = $row['bot_id'];
 			$object->updated_at = intval($row['updated_at']);
 			$object->event_params = @json_decode($row['event_params_json'], true);
-			$object->variables = @json_decode($row['variables_json'], true);
+			
+			$variables = @json_decode($row['variables_json'], true);
+			$object->variables = is_array($variables) ? $variables : [];
+			
 			$objects[$object->id] = $object;
 		}
 		
@@ -2026,6 +2029,10 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 	
 	static function isWriteableByActor($models, $actor, $ignore_admins=false) {
 		return CerberusContexts::isWriteableByDelegateOwner($actor, CerberusContexts::CONTEXT_BEHAVIOR, $models, 'bot_owner_', $ignore_admins);
+	}
+	
+	static function isDeletableByActor($models, $actor, $ignore_admins=false) {
+		return self::isWriteableByActor($models, $actor, $ignore_admins);
 	}
 	
 	function autocomplete($term, $query=null) {

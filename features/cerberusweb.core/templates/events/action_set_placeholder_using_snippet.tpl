@@ -41,8 +41,9 @@
 
 <script type="text/javascript">
 $(function(e) {
+	e.stopPropagation();
+
 	var $action = $('#{$namePrefix}_{$nonce}');
-	var $on = $action.find('select:first');
 	var $snippet_preview = $action.find('div.snippet-preview');
 	
 	// Snippet insert menu
@@ -54,8 +55,6 @@ $(function(e) {
 			var $this = $(this);
 			var $ul = $this.siblings('ul.chooser-container');
 			
-			var context = $action.find('select:first option:selected').attr('context');
-			
 			// Find the snippet_id
 			var snippet_id = $ul.find('input:hidden').val();
 			
@@ -64,8 +63,8 @@ $(function(e) {
 				return;
 			}
 			
-			genericAjaxGet('','c=internal&a=showSnippetPlaceholders&name_prefix={$namePrefix}&id=' + snippet_id, function(html) {
-				if(null == html || html.length == 0) {
+			genericAjaxGet('','c=profiles&a=invoke&module=snippet&action=getSnippetPlaceholders&name_prefix={$namePrefix}&id=' + snippet_id, function(html) {
+				if(null == html || html.length === 0) {
 					$snippet_preview.html('').hide();
 					return;
 				}

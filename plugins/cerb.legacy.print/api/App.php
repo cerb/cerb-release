@@ -51,14 +51,17 @@ class Controller_Print extends DevblocksControllerExtension {
 			case 'ticket':
 				@$id = array_shift($stack);
 				@$ticket = is_numeric($id) ? DAO_Ticket::get($id) : DAO_Ticket::getTicketByMask($id);
+				
+				if(false == ($ticket))
+					DevblocksPlatform::dieWithHttpError(null, 404);
 
 				if(false == ($ticket->getGroup()))
-					break;
+					DevblocksPlatform::dieWithHttpError(null, 404);
 				
 				// Make sure we're allowed to view this ticket or message
 				if(!Context_Ticket::isReadableByActor($ticket, $active_worker)) {
 					echo "<H1>" . $translate->_('common.access_denied') . "</H1>";
-					return;
+					DevblocksPlatform::dieWithHttpError(null, 403);
 				}
 				
 				$convo_timeline = array();
@@ -106,16 +109,20 @@ class Controller_Print extends DevblocksControllerExtension {
 				
 			case 'message':
 				@$id = array_shift($stack);
-				@$message = DAO_Message::get($id);
-				@$ticket = DAO_Ticket::get($message->ticket_id);
+				
+				if(false == ($message = DAO_Message::get($id)))
+					DevblocksPlatform::dieWithHttpError(null, 404);
+				
+				if(false == ($ticket = DAO_Ticket::get($message->ticket_id)))
+					DevblocksPlatform::dieWithHttpError(null, 404);
 				
 				if(false == ($ticket->getGroup()))
-					break;
+					DevblocksPlatform::dieWithHttpError(null, 404);
 				
 				// Make sure we're allowed to view this ticket or message
 				if(!Context_Ticket::isReadableByActor($ticket, $active_worker)) {
 					echo "<H1>" . $translate->_('common.access_denied') . "</H1>";
-					return;
+					DevblocksPlatform::dieWithHttpError(null, 403);
 				}
 				
 				// Message Notes
@@ -136,6 +143,7 @@ class Controller_Print extends DevblocksControllerExtension {
 				$tpl->assign('context_watchers', $context_watchers);
 				
 				$tpl->assign('message', $message);
+				$tpl->assign('sender', $message->getSender());
 				$tpl->assign('ticket', $ticket);
 				
 				$tpl->display('devblocks:cerb.legacy.print::print/message.tpl');

@@ -1,7 +1,7 @@
 <form action="{devblocks_url}{/devblocks_url}" method="POST" id="formBatchUpdate" name="formBatchUpdate" onsubmit="return false;">
 <input type="hidden" name="c" value="profiles">
-<input type="hidden" name="a" value="handleSectionAction">
-<input type="hidden" name="section" value="group">
+<input type="hidden" name="a" value="invoke">
+<input type="hidden" name="module" value="group">
 <input type="hidden" name="action" value="startBulkUpdateJson">
 <input type="hidden" name="view_id" value="{$view_id}">
 <input type="hidden" name="ids" value="{$ids}">
@@ -40,6 +40,13 @@
 			<td width="0%" nowrap="nowrap" align="right" valign="top">{'common.email_template'|devblocks_translate|capitalize}:</td>
 			<td width="100%">
 				<button type="button" class="chooser-abstract" data-field-name="email_template_id" data-context="{CerberusContexts::CONTEXT_MAIL_HTML_TEMPLATE}" data-single="true" data-query="" data-query-required="" data-autocomplete="" data-autocomplete-if-empty="true" data-create="if-null"><span class="glyphicons glyphicons-search"></span></button>
+				<ul class="bubbles chooser-container"></ul>
+			</td>
+		</tr>
+		<tr>
+			<td width="0%" nowrap="nowrap" align="right" valign="top">{'common.encrypt.signing.key'|devblocks_translate|capitalize}:</td>
+			<td width="100%">
+				<button type="button" class="chooser-abstract" data-field-name="signing_key_id" data-context="{Context_GpgPrivateKey::ID}" data-single="true" data-query="" data-query-required="" data-autocomplete="" data-autocomplete-if-empty="true" data-create="if-null"><span class="glyphicons glyphicons-search"></span></button>
 				<ul class="bubbles chooser-container"></ul>
 			</td>
 		</tr>
@@ -90,8 +97,17 @@ $(function() {
 				if(json.cursor) {
 					// Pull the cursor
 					var $tips = $('#{$view_id}_tips').html('');
-					var $spinner = $('<span class="cerb-ajax-spinner"/>').appendTo($tips);
-					genericAjaxGet($tips, 'c=internal&a=viewBulkUpdateWithCursor&view_id={$view_id}&cursor=' + json.cursor);
+					$('<span class="cerb-ajax-spinner"/>').appendTo($tips);
+
+					var formData = new FormData();
+					formData.set('c', 'internal');
+					formData.set('a', 'invoke');
+					formData.set('module', 'worklists');
+					formData.set('action', 'viewBulkUpdateWithCursor');
+					formData.set('view_id', '{$view_id}');
+					formData.set('cursor', json.cursor);
+
+					genericAjaxPost(formData, $tips, null);
 				}
 				
 				genericAjaxPopupClose($popup);

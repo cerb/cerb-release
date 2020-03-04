@@ -1,4 +1,5 @@
-<?php
+<?php /** @noinspection PhpUnused */
+
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
@@ -19,6 +20,10 @@ class PageSection_SetupAuth extends Extension_PageSection {
 	function render() {
 		$tpl = DevblocksPlatform::services()->template();
 		$visit = CerberusApplication::getVisit();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!$active_worker->is_superuser)
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		$visit->set(ChConfigurationPage::ID, 'auth');
 		
@@ -35,6 +40,7 @@ class PageSection_SetupAuth extends Extension_PageSection {
 		$sso_services_enabled = array_intersect_key($sso_services_available, array_flip($sso_services_enabled_ids));
 		
 		// Sort enabled services first by dragged rank, disabled lexicographically
+		/** @noinspection DuplicatedCode */
 		usort($sso_services_available, function($a, $b) use ($sso_services_enabled_ids) {
 			/* @var $a Model_ConnectedService */
 			/* @var $b Model_ConnectedService */
@@ -73,21 +79,32 @@ class PageSection_SetupAuth extends Extension_PageSection {
 		$tpl->display('devblocks:cerberusweb.core::configuration/section/auth/index.tpl');
 	}
 	
-	function saveJsonAction() {
+	function handleActionForPage(string $action, string $scope=null) {
+		if('configAction' == $scope) {
+			switch ($action) {
+				case 'saveJson':
+					return $this->_configAction_saveJson();
+			}
+		}
+		return false;
+	}
+	
+	private function _configAction_saveJson() {
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!$active_worker || !$active_worker->is_superuser)
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
+		
 		header('Content-Type: application/json; charset=utf-8');
 		
 		try {
-			if('POST' != DevblocksPlatform::getHttpMethod())
-				throw new Exception_DevblocksValidationError(DevblocksPlatform::translate('common.access_denied'));
-			
 			@$params = DevblocksPlatform::importGPC($_POST['params'], 'array', []);
 			
-			$worker = CerberusApplication::getActiveWorker();
 			$validation = DevblocksPlatform::services()->validation();
 			$error = null;
-			
-			if(!$worker || !$worker->is_superuser)
-				throw new Exception_DevblocksValidationError(DevblocksPlatform::translate('error.core.no_acl.admin'));
 			
 			$validation
 				->addField('auth_sso_service_ids', 'SSO Services')
@@ -145,4 +162,4 @@ class PageSection_SetupAuth extends Extension_PageSection {
 			return;
 		}
 	}
-};
+}

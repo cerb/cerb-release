@@ -20,6 +20,14 @@ class Page_Login extends CerberusPageExtension {
 		return true;
 	}
 	
+	public function invoke(string $action) {
+		switch($action) {
+			case 'signout':
+				return $this->_loginAction_signout();
+		}
+		return false;
+	}
+	
 	static function getErrorMessage($code) {
 		$error_messages = [
 			'account.disabled' => "Your account is disabled.",
@@ -76,6 +84,11 @@ class Page_Login extends CerberusPageExtension {
 		
 		$response = DevblocksPlatform::getHttpResponse();
 		$tpl = DevblocksPlatform::services()->template();
+		
+		$tpl->clearAllAssign();
+		
+		@$csrf_token = $_SESSION['csrf_token'];
+		$tpl->assign('csrf_token', $csrf_token);
 		
 		if(!empty($error))
 			$tpl->assign('error', $error);
@@ -469,7 +482,6 @@ class Page_Login extends CerberusPageExtension {
 		$cache = DevblocksPlatform::services()->cache();
 		$login_state = CerbLoginWorkerAuthState::getInstance();
 		
-		
 		switch($uri) {
 			default:
 				@$email = DevblocksPlatform::importGPC($_REQUEST['email'], 'string', '');
@@ -758,11 +770,6 @@ class Page_Login extends CerberusPageExtension {
 		}
 	}
 	
-	
-	function showAction() {
-		DevblocksPlatform::setHttpResponse(new DevblocksHttpResponse(array('login')));
-	}
-	
 	// Please be honest
 	private function _checkSeats($current_worker) {
 		$honesty = CerberusLicense::getInstance();
@@ -793,12 +800,15 @@ class Page_Login extends CerberusPageExtension {
 		$login_state = CerbLoginWorkerAuthState::getInstance();
 		$session = DevblocksPlatform::services()->session();
 		
+		// Generate a new session cookie after login
+		session_regenerate_id(true);
+		
 		$visit = new CerberusVisit();
 		$visit->setWorker($authenticated_worker);
 		
 		$session->setVisit($visit);
 		
-		// Generate a CSRF token for the session
+		// Generate a new CSRF token for the session
 		$_SESSION['csrf_token'] = CerberusApplication::generatePassword(128);
 		
 		// Flush views
@@ -829,7 +839,6 @@ class Page_Login extends CerberusPageExtension {
 		];
 		CerberusContexts::logActivity('worker.logged_in', null, null, $entry);
 		
-		$redirect_path = [];
 		$login_post_url = $login_state->popRedirectUri();
 		$login_state->destroy();
 		
@@ -866,7 +875,7 @@ class Page_Login extends CerberusPageExtension {
 		}
 	}
 	
-	function signoutAction() {
+	private function _loginAction_signout() {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError('', 403);
 		

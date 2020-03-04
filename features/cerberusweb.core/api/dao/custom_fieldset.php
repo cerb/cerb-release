@@ -969,6 +969,10 @@ class Context_CustomFieldset extends Extension_DevblocksContext implements IDevb
 		return CerberusContexts::isWriteableByDelegateOwner($actor, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, $models, 'owner_', $ignore_admins);
 	}
 	
+	static function isDeletableByActor($models, $actor, $ignore_admins=false) {
+		return self::isWriteableByActor($models, $actor, $ignore_admins);
+	}
+	
 	function getRandom() {
 		return DAO_CustomFieldset::random();
 	}
@@ -1259,20 +1263,6 @@ class Context_CustomFieldset extends Extension_DevblocksContext implements IDevb
 		
 		$view->renderTemplate = 'context';
 		return $view;
-	}
-	
-	function showCustomFieldsetPeekAction() {
-		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id'], 'string', '');
-		@$layer = DevblocksPlatform::importGPC($_REQUEST['layer'], 'string', '');
-		
-		$tpl = DevblocksPlatform::services()->template();
-		
-		$tpl->assign('view_id', $view_id);
-		$tpl->assign('layer', $layer);
-		
-		// Template
-		
-		$tpl->display('devblocks:cerberusweb.core::internal/custom_fieldsets/peek_edit.tpl');
 	}
 	
 	function renderPeekPopup($context_id=0, $view_id='', $edit=false) {

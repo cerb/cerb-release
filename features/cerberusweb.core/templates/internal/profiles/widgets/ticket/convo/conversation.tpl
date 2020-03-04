@@ -144,35 +144,35 @@ $(function() {
 		if(0 === e.draft_id) {
 			var $div = $('#reply' + msgid);
 
-			if (0 == $div.length)
+			if (0 === $div.length)
 				return;
 		}
 		
-		var is_forward = (null == e.is_forward || 0 == e.is_forward) ? 0 : 1;
+		var is_forward = (null == e.is_forward || 0 === e.is_forward) ? 0 : 1;
 		var draft_id = (null == e.draft_id) ? 0 : parseInt(e.draft_id);
 		var reply_mode = (null == e.reply_mode) ? 0 : parseInt(e.reply_mode);
-		var is_confirmed = (null == e.is_confirmed || 0 == e.is_confirmed) ? 0 : 1;
+		var is_confirmed = (null == e.is_confirmed || 0 === e.is_confirmed) ? 0 : 1;
 		
 		{* Inline reply form *}
 		{if $mail_reply_format == 'inline'}
 			var $reply = $('#reply' + msgid);
 			
 			// Prevent the reply form from rendering twice
-			if(0 == $reply.children().length) {
-				var params = {
-					'c': 'display',
-					'a': 'reply',
-					'forward': is_forward,
-					'draft_id': draft_id,
-					'reply_mode': reply_mode,
-					'reply_format': 'inline',
-					'is_confirmed': is_confirmed,
-					'timestamp': {time()},
-					'id': msgid
-				};
-				var url = $.param(params);
-				
-				genericAjaxGet(null, url, function(html) {
+			if(0 === $reply.children().length) {
+				var formData = new FormData();
+				formData.set('c', 'profiles');
+				formData.set('a', 'invoke');
+				formData.set('module', 'ticket');
+				formData.set('action', 'reply');
+				formData.set('forward', String(is_forward));
+				formData.set('draft_id', String(draft_id));
+				formData.set('reply_mode', String(reply_mode));
+				formData.set('reply_format', 'inline');
+				formData.set('is_confirmed', String(is_confirmed));
+				formData.set('timestamp', '{time()}');
+				formData.set('id', String(msgid));
+
+				genericAjaxPost(formData, '', '', function(html) {
 					$reply.html(html);
 					$reply[0].scrollIntoView();
 					
@@ -193,19 +193,19 @@ $(function() {
 			
 			// If this popup isn't already open
 			if(null == $popup) {
-				var params = {
-					'c': 'display',
-					'a': 'reply',
-					'forward': is_forward,
-					'draft_id': draft_id,
-					'reply_mode': reply_mode,
-					'is_confirmed': is_confirmed,
-					'timestamp': {time()},
-					'id': msgid
-				};
-				var url = $.param(params);
-				
-				var $popup = genericAjaxPopup('reply' + msgid, url, null, false, '70%');
+				var formData = new FormData();
+				formData.set('c', 'profiles');
+				formData.set('a', 'invoke');
+				formData.set('module', 'ticket');
+				formData.set('action', 'reply');
+				formData.set('forward', String(is_forward));
+				formData.set('draft_id', String(draft_id));
+				formData.set('reply_mode', String(reply_mode));
+				formData.set('is_confirmed', String(is_confirmed));
+				formData.set('timestamp', '{time()}');
+				formData.set('id', String(msgid));
+
+				$popup = genericAjaxPopup('reply' + msgid, formData, null, false, '70%');
 				
 				$popup.on('cerb-reply-sent cerb-reply-saved cerb-reply-draft', function(e) {
 					// Profile reload
@@ -221,7 +221,7 @@ $(function() {
 
 	var anchor = window.location.hash.substr(1);
 	
-	if('message' == anchor.substr(0,7) || 'comment' == anchor.substr(0,7) || 'draft' == anchor.substr(0,5)) {
+	if('message' === anchor.substr(0,7) || 'comment' === anchor.substr(0,7) || 'draft' === anchor.substr(0,5)) {
 		var $anchor = $('#' + anchor);
 		
 		if($anchor.length > 0) {

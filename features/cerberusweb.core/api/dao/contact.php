@@ -292,6 +292,8 @@ class DAO_Contact extends Cerb_ORMHelper {
 		}
 		
 		if($deleted) {
+			CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_CONTACT, $ids);
+			
 			DAO_Contact::delete($ids);
 			
 		} else {
@@ -1745,6 +1747,10 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 	static function isWriteableByActor($models, $actor) {
 		// Everyone can modify
 		return CerberusContexts::allowEverything($models);
+	}
+	
+	static function isDeletableByActor($models, $actor) {
+		return self::isWriteableByActor($models, $actor);
 	}
 	
 	function getRandom() {

@@ -1,5 +1,14 @@
 <?php
 class WorkspaceWidget_CustomHTML extends Extension_WorkspaceWidget {
+	public function invoke(string $action, Model_WorkspaceWidget $model) {
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!Context_WorkspaceWidget::isReadableByActor($model, $active_worker))
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
+		return false;
+	}
+
 	function render(Model_WorkspaceWidget $widget) {
 		if(false == ($widget->getWorkspacePage()))
 			return;
@@ -52,7 +61,7 @@ class WorkspaceWidget_CustomHTML extends Extension_WorkspaceWidget {
 	
 	private function _getHtml($widget) {
 		$active_worker = CerberusApplication::getActiveWorker();
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder()->newInstance(true);
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder()->newInstance('html');
 		
 		if(empty($active_worker) || !Context_WorkspaceWidget::isReadableByActor($widget, $active_worker))
 			return;
@@ -68,6 +77,7 @@ class WorkspaceWidget_CustomHTML extends Extension_WorkspaceWidget {
 		
 		$html = $tpl_builder->build($content, $dict);
 		
-		return DevblocksPlatform::purifyHTML($html, false, true);
+		$filter = new Cerb_HTMLPurifier_URIFilter_Email(true);
+		return DevblocksPlatform::purifyHTML($html, false, true, [$filter]);
 	}
 };

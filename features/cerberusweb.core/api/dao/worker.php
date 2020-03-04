@@ -323,7 +323,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 					// Clear all the sessions for this worker
 					foreach($sessions as $object) {
 						if($object['user_id'] == $worker_id) {
-							$session->clear($object['session_key']);
+							$session->clear($object['session_id']);
 						}
 					}
 					
@@ -3173,6 +3173,10 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			return CerberusContexts::allowEverything($models);
 		
 		return CerberusContexts::denyEverything($models);
+	}
+	
+	static function isDeletableByActor($models, $actor) {
+		return self::isWriteableByActor($models, $actor);
 	}
 	
 	function profileGetUrl($context_id) {

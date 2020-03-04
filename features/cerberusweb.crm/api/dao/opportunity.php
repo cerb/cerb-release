@@ -259,6 +259,7 @@ class DAO_CrmOpportunity extends Cerb_ORMHelper {
 			CerberusContexts::checkpointChanges(CerberusContexts::CONTEXT_OPPORTUNITY, $ids);
 			
 		} else {
+			CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_OPPORTUNITY, $ids);
 			DAO_CrmOpportunity::delete($ids);
 		}
 		
@@ -1187,6 +1188,10 @@ class Context_Opportunity extends Extension_DevblocksContext implements IDevbloc
 	static function isWriteableByActor($models, $actor) {
 		// Everyone can modify
 		return CerberusContexts::allowEverything($models);
+	}
+	
+	static function isDeletableByActor($models, $actor) {
+		return self::isWriteableByActor($models, $actor);
 	}
 	
 	function getDaoClass() {

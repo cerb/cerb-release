@@ -28,7 +28,21 @@ class PageSection_ProfilesEmailSignature extends Extension_PageSection {
 		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
-	function savePeekJsonAction() {
+	function handleActionForPage(string $action, string $scope=null) {
+		if('profileAction' == $scope) {
+			switch ($action) {
+				case 'savePeekJson':
+					return $this->_profileAction_savePeekJson();
+				case 'preview':
+					return $this->_profileAction_preview();
+				case 'viewExplore':
+					return $this->_profileAction_viewExplore();
+			}
+		}
+		return false;
+	}
+	
+	private function _profileAction_savePeekJson() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'], 'string', '');
 		
 		@$id = DevblocksPlatform::importGPC($_POST['id'], 'integer', 0);
@@ -37,7 +51,7 @@ class PageSection_ProfilesEmailSignature extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(null, 403);
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
@@ -45,6 +59,14 @@ class PageSection_ProfilesEmailSignature extends Extension_PageSection {
 			if(!empty($id) && !empty($do_delete)) { // Delete
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_EMAIL_SIGNATURE)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				if(false == ($model = DAO_EmailSignature::get($id)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.record.not_found'));
+				
+				if(!Context_EmailSignature::isDeletableByActor($model, $active_worker))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_EMAIL_SIGNATURE, $model->id, $model->name);
 				
 				DAO_EmailSignature::delete($id);
 				
@@ -152,13 +174,13 @@ class PageSection_ProfilesEmailSignature extends Extension_PageSection {
 		}
 	}
 	
-	function previewAction() {
-		@$signature = DevblocksPlatform::importGPC($_REQUEST['signature'],'string');
-		@$format = DevblocksPlatform::importGPC($_REQUEST['format'],'string');
-		
+	private function _profileAction_preview() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		$tpl = DevblocksPlatform::services()->template();
+		
+		@$signature = DevblocksPlatform::importGPC($_REQUEST['signature'],'string');
+		@$format = DevblocksPlatform::importGPC($_REQUEST['format'],'string');
 		
 		$dict = DevblocksDictionaryDelegate::instance([
 			'_context' => CerberusContexts::CONTEXT_WORKER,
@@ -166,13 +188,14 @@ class PageSection_ProfilesEmailSignature extends Extension_PageSection {
 		]);
 		
 		if(false === ($signature = $tpl_builder->build($signature, $dict))) {
-			// [TODO] Show error popup
 			return;
 		}
 		
 		if('markdown' == $format) {
 			$signature = DevblocksPlatform::parseMarkdown($signature);
-			$signature = DevblocksPlatform::purifyHTML($signature, true, true);
+			
+			$filter = new Cerb_HTMLPurifier_URIFilter_Email(true);
+			$signature = DevblocksPlatform::purifyHTML($signature, true, true, [$filter]);
 			
 		} else {
 			$signature = DevblocksPlatform::strEscapeHtml($signature);
@@ -180,15 +203,17 @@ class PageSection_ProfilesEmailSignature extends Extension_PageSection {
 		}
 		
 		$tpl->assign('content', $signature);
-		
 		$tpl->display('devblocks:cerberusweb.core::internal/editors/preview_popup.tpl');
 	}
 	
-	function viewExploreAction() {
+	private function _profileAction_viewExplore() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());

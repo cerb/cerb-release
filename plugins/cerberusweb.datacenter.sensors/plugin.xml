@@ -11,7 +11,7 @@
 	<!-- Requirements -->
 
 	<requires>
-		<app_version min="9.4" max="9.4.99" />
+		<app_version min="9.5" max="9.5.99" />
 		<php_extension name="curl" />
 	</requires>
 
@@ -164,21 +164,6 @@
 			</params>
 		</extension>
 
-		<!-- Pages -->
-
-		<extension point="cerberusweb.page">
-			<id>cerberusweb.datacenter.sensors.page</id>
-			<name>Sensors Page</name>
-			<class>
-				<file>api/App.php</file>
-				<name>Page_Sensors</name>
-			</class>
-			<params>
-				<param key="uri" value="datacenter.sensors" />
-				<param key="menutitle" value="" />
-			</params>
-		</extension>
-		
 		<!-- Profile Page Sections -->
 		
 		<extension point="cerberusweb.ui.page.section">

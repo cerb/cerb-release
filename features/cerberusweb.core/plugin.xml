@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>9.4.0</version>
+	<version>9.5.0</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -72,6 +72,7 @@
 		<patch version="9.2.0" revision="1333" file="patches/9.x/9.2.0.php" />
 		<patch version="9.3.0" revision="1342" file="patches/9.x/9.3.0.php" />
 		<patch version="9.4.0" revision="1363" file="patches/9.x/9.4.0.php" />
+		<patch version="9.5.0" revision="1368" file="patches/9.x/9.5.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -431,7 +432,19 @@
 			<class name="SearchFields_FileBundle" />
 			<class name="View_FileBundle" />
 		</file>
-		
+
+		<file path="api/dao/gpg_key_part.php">
+			<class name="DAO_GpgKeyPart" />
+		</file>
+
+		<file path="api/dao/gpg_private_key.php">
+			<class name="Context_GpgPrivateKey" />
+			<class name="DAO_GpgPrivateKey" />
+			<class name="Model_GpgPrivateKey" />
+			<class name="SearchFields_GpgPrivateKey" />
+			<class name="View_GpgPrivateKey" />
+		</file>
+
 		<file path="api/dao/gpg_public_key.php">
 			<class name="Context_GpgPublicKey" />
 			<class name="DAO_GpgPublicKey" />
@@ -956,6 +969,11 @@
 		<activity point="mailbox.check.error">
 			<param key="label_key" value="Mailbox Error" />
 			<param key="string_key" value="activities.mailbox.check.error" />
+			<param key="options" value="" />
+		</activity>
+		<activity point="record.delete">
+			<param key="label_key" value="Record Deleted" />
+			<param key="string_key" value="activities.record.delete" />
 			<param key="options" value="" />
 		</activity>
 		<activity point="record.merge">
@@ -2479,10 +2497,54 @@
 				</param>
 			</params>
 		</extension>
-		
+
+		<extension point="devblocks.context">
+			<id>cerb.contexts.gpg.private.key</id>
+			<name>PGP Private Key</name>
+			<class>
+				<file>api/dao/gpg_private_key.php</file>
+				<name>Context_GpgPrivateKey</name>
+			</class>
+			<params>
+				<param key="names">
+					<value>
+						<data key="pgp private key" value="singular" />
+						<data key="pgp private keys" value="plural" />
+						<data key="private key" value="singular short" />
+						<data key="private keys" value="plural short" />
+					</value>
+				</param>
+				<param key="alias" value="gpg_private_key" />
+				<param key="dao_class" value="DAO_GpgPrivateKey" />
+				<param key="view_class" value="View_GpgPrivateKey" />
+				<param key="options">
+					<value>
+						<data key="cards" />
+						<data key="comments" />
+						<data key="custom_fields" />
+						<data key="links" />
+						<data key="search" />
+						<data key="snippets" />
+						<data key="va_variable" />
+						<data key="watchers" />
+						<data key="workspace" />
+					</value>
+				</param>
+				<param key="acl">
+					<value>
+						<data key="comment" />
+						<data key="create" />
+						<data key="delete" />
+						<data key="export" />
+						<data key="update" />
+					</value>
+				</param>
+			</params>
+		</extension>
+
 		<extension point="devblocks.context">
 			<id>cerberusweb.contexts.gpg_public_key</id>
-			<name>Public Key</name>
+			<name>PGP Public Key</name>
 			<class>
 				<file>api/dao/gpg_public_key.php</file>
 				<name>Context_GpgPublicKey</name>
@@ -2490,10 +2552,10 @@
 			<params>
 				<param key="names">
 					<value>
-						<data key="public key" value="singular" />
-						<data key="public keys" value="plural" />
-						<data key="key" value="singular short" />
-						<data key="keys" value="plural short" />
+						<data key="pgp public key" value="singular" />
+						<data key="pgp public keys" value="plural" />
+						<data key="public key" value="singular short" />
+						<data key="public keys" value="plural short" />
 					</value>
 				</param>
 				<param key="alias" value="gpg_public_key" />
@@ -5000,7 +5062,7 @@
 		</extension>
 
 			<!-- Internal Page Sections -->
-			
+
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.internal.section.calendars</id>
 				<name>Internal Section Calendars</name>
@@ -5013,17 +5075,43 @@
 					<param key="uri" value="calendars" />
 				</params>
 			</extension>
-			
+
 			<extension point="cerberusweb.ui.page.section">
-				<id>core.internal.section.custom_fieldsets</id>
-				<name>Internal Section Custom Fieldsets</name>
+				<id>core.internal.section.notifications</id>
+				<name>Internal Section Notifications</name>
 				<class>
-					<file>api/uri/internal/custom_fieldsets.php</file>
-					<name>PageSection_InternalCustomFieldsets</name>
+					<file>api/uri/internal/notifications.php</file>
+					<name>PageSection_InternalNotifications</name>
 				</class>
 				<params>
 					<param key="page_id" value="core.controller.internal" />
-					<param key="uri" value="custom_fieldsets" />
+					<param key="uri" value="notifications" />
+				</params>
+			</extension>
+
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.internal.section.portals</id>
+				<name>Internal Section Portals</name>
+				<class>
+					<file>api/uri/internal/portals.php</file>
+					<name>PageSection_InternalPortals</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.controller.internal" />
+					<param key="uri" value="portals" />
+				</params>
+			</extension>
+
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.internal.section.records</id>
+				<name>Internal Section Records</name>
+				<class>
+					<file>api/uri/internal/records.php</file>
+					<name>PageSection_InternalRecords</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.controller.internal" />
+					<param key="uri" value="records" />
 				</params>
 			</extension>
 
@@ -5039,20 +5127,20 @@
 					<param key="uri" value="watchers" />
 				</params>
 			</extension>
-			
+
 			<extension point="cerberusweb.ui.page.section">
-				<id>core.internal.section.workspaces</id>
-				<name>Internal Section Workspaces</name>
+				<id>core.internal.section.worklists</id>
+				<name>Internal Section Worklists</name>
 				<class>
-					<file>api/uri/internal/workspaces.php</file>
-					<name>PageSection_InternalWorkspaces</name>
+					<file>api/uri/internal/worklists.php</file>
+					<name>PageSection_InternalWorklists</name>
 				</class>
 				<params>
 					<param key="page_id" value="core.controller.internal" />
-					<param key="uri" value="workspaces" />
+					<param key="uri" value="worklists" />
 				</params>
 			</extension>
-		
+
 		<extension point="devblocks.controller">
 			<id>core.controller.avatars</id>
 			<name>Avatars Controller</name>
@@ -5159,7 +5247,19 @@
 				<param key="uri" value="resource" />
 			</params>
 		</extension>
-		
+
+		<extension point="devblocks.controller">
+			<id>core.controller.security</id>
+			<name>Security Controller</name>
+			<class>
+				<file>api/uri/security.php</file>
+				<name>Controller_Security</name>
+			</class>
+			<params>
+				<param key="uri" value="security" />
+			</params>
+		</extension>
+
 		<extension point="devblocks.controller">
 			<id>controller.sso</id>
 			<name>SSO Controller</name>
@@ -5373,48 +5473,6 @@
 			</params>
 		</extension>
 		
-		<!-- [TODO] Phase this out -->
-		<extension point="cerberusweb.page">
-			<id>core.page.tickets</id>
-			<name>Tickets Page</name>
-			<class>
-				<file>api/uri/tickets.php</file>
-				<name>ChTicketsPage</name>
-			</class>
-			<params>
-				<param key="uri" value="tickets" />
-				<param key="menutitle" value="" />
-			</params>
-		</extension>
-		
-		<!-- [TODO] Phase this out -->
-		<extension point="cerberusweb.page">
-			<id>core.page.contacts</id>
-			<name>Contacts Page</name>
-			<class>
-				<file>api/uri/contacts.php</file>
-				<name>ChContactsPage</name>
-			</class>
-			<params>
-				<param key="uri" value="contacts" />
-				<param key="menutitle" value="" />
-			</params>
-		</extension>
-
-		<!-- [TODO] Phase this out -->
-		<extension point="cerberusweb.page">
-			<id>core.page.display</id>
-			<name>Display Ticket Page</name>
-			<class>
-				<file>api/uri/display.php</file>
-				<name>ChDisplayPage</name>
-			</class>
-			<params>
-				<param key="uri" value="display" />
-				<param key="menutitle" value="" />
-			</params>
-		</extension>
-
 		<extension point="cerberusweb.page">
 			<id>core.page.signin</id>
 			<name>Signin Page</name>
@@ -6159,7 +6217,20 @@
 					<param key="uri" value="file_bundle" />
 				</params>
 			</extension>
-		
+
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.gpg_private_key</id>
+				<name>PGP Private Key Section</name>
+				<class>
+					<file>api/uri/profiles/gpg_private_key.php</file>
+					<name>PageSection_ProfilesGpgPrivateKey</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="gpg_private_key" />
+				</params>
+			</extension>
+
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.profiles.gpg_public_key</id>
 				<name>Gpg Public Key Section</name>
@@ -6224,7 +6295,20 @@
 					<param key="uri" value="mail_transport" />
 				</params>
 			</extension>
-			
+
+			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.profiles.message</id>
+				<name>Message Section</name>
+				<class>
+					<file>api/uri/profiles/message.php</file>
+					<name>PageSection_ProfilesMessage</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.profiles" />
+					<param key="uri" value="message" />
+				</params>
+			</extension>
+
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.profiles.oauth_app</id>
 				<name>OAuth App Section</name>

@@ -12,6 +12,10 @@ class Context_Domain extends Extension_DevblocksContext implements IDevblocksCon
 		return CerberusContexts::allowEverything($models);
 	}
 	
+	static function isDeletableByActor($models, $actor) {
+		return self::isWriteableByActor($models, $actor);
+	}
+	
 	function getRandom() {
 		return DAO_Domain::random();
 	}
@@ -719,6 +723,8 @@ class DAO_Domain extends Cerb_ORMHelper {
 			CerberusContexts::checkpointChanges(CerberusContexts::CONTEXT_DOMAIN, $ids);
 			
 		} else {
+			CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_DOMAIN, $ids);
+			
 			DAO_Domain::delete($ids);
 		}
 		

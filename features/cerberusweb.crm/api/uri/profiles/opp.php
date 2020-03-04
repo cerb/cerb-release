@@ -29,7 +29,23 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
-	function savePeekJsonAction() {
+	function handleActionForPage(string $action, string $scope=null) {
+		if('profileAction' == $scope) {
+			switch ($action) {
+				case 'savePeekJson':
+					return $this->_profileAction_savePeekJson();
+				case 'showBulkPopup':
+					return $this->_profileAction_showBulkPopup();
+				case 'startBulkUpdateJson':
+					return $this->_profileAction_startBulkUpdateJson();
+				case 'viewExplore':
+					return $this->_profileAction_viewExplore();
+			}
+		}
+		return false;
+	}
+	
+	private function _profileAction_savePeekJson() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string','');
 		
 		@$id = DevblocksPlatform::importGPC($_POST['opp_id'],'integer',0);
@@ -56,7 +72,7 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(null, 403);
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		header('Content-Type: application/json; charset=utf-8');
 
@@ -65,8 +81,13 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_OPPORTUNITY)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 				
-				if(false == ($opp = DAO_CrmOpportunity::get($id)))
-					throw new Exception_DevblocksAjaxValidationError("Failed to delete the record.");
+				if(false == ($model = DAO_CrmOpportunity::get($id)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.record.not_found'));
+				
+				if(!Context_Opportunity::isDeletableByActor($model, $active_worker))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_OPPORTUNITY, $model->id, $model->name);
 				
 				DAO_CrmOpportunity::delete($id);
 				
@@ -159,11 +180,14 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		
 	}
 	
-	function viewExploreAction() {
+	private function _profileAction_viewExplore() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());
@@ -229,11 +253,17 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('explore',$hash,$orig_pos)));
 	}
 	
-	function showBulkPopupAction() {
+	private function _profileAction_showBulkPopup() {
+		$tpl = DevblocksPlatform::services()->template();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		// Permissions
+		if(!$active_worker->hasPriv(sprintf('contexts.%s.update.bulk', Context_Opportunity::ID)))
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
 		@$ids = DevblocksPlatform::importGPC($_REQUEST['ids']);
 		@$view_id = DevblocksPlatform::importGPC($_REQUEST['view_id']);
 
-		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('view_id', $view_id);
 
 		if(!empty($ids)) {
@@ -264,7 +294,7 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 			return [];
 		
 		/* @var $context_ext IDevblocksContextBroadcast */
-			
+		
 		// Recipient fields
 		$recipient_fields = $context_ext->broadcastRecipientFieldsGet();
 		$tpl->assign('broadcast_recipient_fields', $recipient_fields);
@@ -277,10 +307,18 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		$tpl->assign('placeholders', $placeholders);
 		
 		$tpl->display('devblocks:cerberusweb.crm::crm/opps/bulk.tpl');
+		return true;
 	}
 	
-	function startBulkUpdateJsonAction() {
+	private function _profileAction_startBulkUpdateJson() {
 		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
+		
+		// Permissions
+		if(!$active_worker->hasPriv(sprintf('contexts.%s.update.bulk', Context_Opportunity::ID)))
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		// Filter: whole list or check
 		@$filter = DevblocksPlatform::importGPC($_POST['filter'],'string','');
@@ -302,7 +340,7 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		@$behavior_when = DevblocksPlatform::importGPC($_POST['behavior_when'],'string','');
 		@$behavior_params = DevblocksPlatform::importGPC($_POST['behavior_params'],'array',array());
 		
-		$do = array();
+		$do = [];
 		
 		// Do: Status
 		if(0 != strlen($status)) {
@@ -331,7 +369,7 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		}
 		
 		// Watchers
-		$watcher_params = array();
+		$watcher_params = [];
 		
 		@$watcher_add_ids = DevblocksPlatform::importGPC($_POST['do_watcher_add_ids'],'array',array());
 		if(!empty($watcher_add_ids))
@@ -413,4 +451,4 @@ class PageSection_ProfilesOpportunity extends Extension_PageSection {
 		
 		return;
 	}
-};
+}

@@ -6,10 +6,19 @@ class ProfileWidget_CustomHtml extends Extension_ProfileWidget {
 		parent::__construct($manifest);
 	}
 	
+	function invoke(string $action, Model_ProfileWidget $model) {
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!Context_ProfileWidget::isReadableByActor($model, $active_worker))
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
+		return false;
+	}
+	
 	function render(Model_ProfileWidget $model, $context, $context_id) {
 		@$template = $model->extension_params['template'];
 		
-		$tpl_builder = DevblocksPlatform::services()->templateBuilder()->newInstance(true);
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder()->newInstance('html');
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if(empty($template))

@@ -41,7 +41,7 @@ $(function() {
 		var $progress = $('<p/>').appendTo($uploads);
 		
 		if(xhr.upload) {
-			xhr.open('POST', DevblocksAppPath + 'ajax.php?c=internal&a=chooserOpenFileAjaxUpload', true);
+			xhr.open('POST', DevblocksAppPath + 'ajax.php?c=internal&a=invoke&module=records&action=chooserOpenFileAjaxUpload', true);
 			xhr.setRequestHeader('X-File-Name', encodeURIComponent(f.name));
 			xhr.setRequestHeader('X-File-Type', f.type);
 			xhr.setRequestHeader('X-File-Size', f.size);
@@ -54,9 +54,9 @@ $(function() {
 			});
 			
 			xhr.onreadystatechange = function(e) {
-				if(xhr.readyState == 4) {
+				if(xhr.readyState === 4) {
 					var json = {};
-					if(xhr.status == 200) {
+					if(xhr.status === 200) {
 						$progress
 							.text(file.name)
 							.addClass('success')
@@ -82,7 +82,7 @@ $(function() {
 	};
 	
 	var loadBundleFunc = function(bundle_id, labels, values, callback) {
-		genericAjaxGet('', 'c=internal&a=chooserOpenFileLoadBundle&bundle_id=' + encodeURIComponent(bundle_id), function(json) {
+		genericAjaxGet('', 'c=internal&a=invoke&module=records&action=chooserOpenFileLoadBundle&bundle_id=' + encodeURIComponent(bundle_id), function(json) {
 			if(!$.isArray(json)) {
 				callback();
 				return;

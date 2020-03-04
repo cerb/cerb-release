@@ -28,7 +28,19 @@ class PageSection_ProfilesGpgPublicKey extends Extension_PageSection {
 		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
-	function savePeekJsonAction() {
+	function handleActionForPage(string $action, string $scope=null) {
+		if('profileAction' == $scope) {
+			switch ($action) {
+				case 'savePeekJson':
+					return $this->_profileAction_savePeekJson();
+				case 'viewExplore':
+					return $this->_profileAction_viewExplore();
+			}
+		}
+		return false;
+	}
+	
+	private function _profileAction_savePeekJson() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'], 'string', '');
 		
 		@$id = DevblocksPlatform::importGPC($_POST['id'], 'integer', 0);
@@ -38,17 +50,22 @@ class PageSection_ProfilesGpgPublicKey extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(null, 403);
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
 		try {
-			if(!$gpg || !$gpg->isEnabled())
-				throw new Exception_DevblocksAjaxValidationError("The 'gnupg' PHP extension is not enabled.");
-			
 			if(!empty($id) && !empty($do_delete)) { // Delete
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_GPG_PUBLIC_KEY)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				if(false == ($model = DAO_GpgPublicKey::get($id)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.record.not_found'));
+				
+				if(!Context_GpgPublicKey::isDeletableByActor($model, $active_worker))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $model->id, $model->name);
 				
 				DAO_GpgPublicKey::delete($id);
 				
@@ -63,63 +80,56 @@ class PageSection_ProfilesGpgPublicKey extends Extension_PageSection {
 				@$name = DevblocksPlatform::importGPC($_POST['name'], 'string', '');
 				@$key_text = DevblocksPlatform::importGPC($_POST['key_text'], 'string', '');
 				
+				$keyinfo = [];
+				$expires_at = 0;
+				
+				if($key_text) {
+					if (false == ($keyinfo = $gpg->importPublicKey($key_text)))
+						throw new Exception_DevblocksAjaxValidationError("Failed to decrypt the given public key.", 'key_text');
+					
+					if (!is_array($keyinfo))
+						throw new Exception_DevblocksAjaxValidationError("Failed to retrieve public key info.", 'key_text');
+					
+					if (!isset($keyinfo['uids']) || !is_array($keyinfo['uids']) || empty($keyinfo['uids']))
+						throw new Exception_DevblocksAjaxValidationError("Failed to retrieve public key UID info.", 'key_text');
+					
+					if (!$keyinfo['can_sign'] || $keyinfo['is_secret'])
+						throw new Exception_DevblocksAjaxValidationError("This is not a valid public key.", "key_text");
+					
+					@$key = $keyinfo['subkeys'][0];
+					
+					if (empty($key))
+						throw new Exception_DevblocksAjaxValidationError("Failed to retrieve public key subkey info.", "key_text");
+					
+					if ($key['expired'] || $key['disabled'] || $key['revoked'])
+						throw new Exception_DevblocksAjaxValidationError("This public key is expired, revoked, or disabled.", "key_text");
+					
+					if (empty($name))
+						@$name = $keyinfo['uids'][0]['uid'];
+					
+					$expires_at = $key['expires'];
+				}
+				
+				// If this fingerprint already exists, return the existing key info
+				if(!$id && false != ($record = DAO_GpgPublicKey::getByFingerprint($keyinfo['subkeys'][0]['fingerprint']))) {
+					$id = $record->id;
+					C4_AbstractView::setMarqueeContextCreated($view_id, CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $id);
+				}
+				
 				if(empty($id)) { // New
 					if(!$active_worker->hasPriv(sprintf("contexts.%s.create", CerberusContexts::CONTEXT_GPG_PUBLIC_KEY)))
 						throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.create'));
 					
-					if(empty($public_key))
-						throw new Exception_DevblocksAjaxValidationError("The 'Key' field is required.", 'public_key');
+					if(!$key_text || !$keyinfo)
+						throw new Exception_DevblocksAjaxValidationError("The 'Key' field is required.", 'key_text');
 					
-					if(false == ($import_info = $gpg->importKey($public_key)) || !isset($import_info['fingerprint']))
-						throw new Exception_DevblocksAjaxValidationError("Failed to decrypt the given public key.", 'public_key');
-					
-					$results = $gpg->keyinfo($import_info['fingerprint']);
-					
-					if(false == $results || !is_array($results) || empty($results) || false == ($keyinfo = array_shift($results)))
-						throw new Exception_DevblocksAjaxValidationError("Failed to retrieve public key info.", 'public_key');
-					
-					if(!isset($keyinfo['uids']) || !is_array($keyinfo['uids']) || empty($keyinfo['uids']))
-						throw new Exception_DevblocksAjaxValidationError("Failed to retrieve public key UID info.", 'public_key');
-					
-					if(!$keyinfo['can_sign'] || !$keyinfo['can_encrypt'] || $keyinfo['is_secret'])
-						throw new Exception_DevblocksAjaxValidationError("This is not a valid public key.", "public_key");
-					
-					$key = null;
-					
-					foreach($keyinfo['subkeys'] as $idx => $subkey) {
-						if(0 == strcasecmp($subkey['fingerprint'], $import_info['fingerprint'])) {
-							$key = $subkey;
-							break;
-						}
-					}
-					
-					if(empty($key))
-						throw new Exception_DevblocksAjaxValidationError("Failed to retrieve public key subkey info.", "public_key");
-					
-					if($key['expired'] || $key['disabled'] || $key['revoked'])
-						throw new Exception_DevblocksAjaxValidationError("This public key is expired, revoked, or disabled.", "public_key");
-						
-					if(empty($name))
-						@$name = $keyinfo['uids'][0]['uid'];
-					
-					$fields = array(
+					$fields = [
 						DAO_GpgPublicKey::NAME => $name,
-						DAO_GpgPublicKey::FINGERPRINT => $import_info['fingerprint'],
-						DAO_GpgPublicKey::EXPIRES_AT => $key['expires'],
+						DAO_GpgPublicKey::FINGERPRINT => $keyinfo['subkeys'][0]['fingerprint'],
+						DAO_GpgPublicKey::EXPIRES_AT => $expires_at,
+						DAO_GpgPublicKey::KEY_TEXT => $key_text,
 						DAO_GpgPublicKey::UPDATED_AT => time(),
-					);
-					
-					// If this fingerprint already exists, return the existing key info
-					if(false != ($record = DAO_GpgPublicKey::getByFingerprint($import_info['fingerprint']))) {
-						echo json_encode(array(
-							'status' => true,
-							'id' => $record->id,
-							'label' => $record->name,
-							'view_id' => $view_id,
-						));
-						C4_AbstractView::setMarqueeContextCreated($view_id, CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $record->id);
-						return;
-					}
+					];
 					
 					if(!DAO_GpgPublicKey::validate($fields, $error))
 						throw new Exception_DevblocksAjaxValidationError($error);
@@ -132,43 +142,26 @@ class PageSection_ProfilesGpgPublicKey extends Extension_PageSection {
 							C4_AbstractView::setMarqueeContextCreated($view_id, CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $id);
 					}
 					
-					DAO_GpgPublicKey::onUpdateByActor($active_worker, $fields, $id);
+					DAO_GpgKeyPart::upsert(Context_GpgPublicKey::ID, $id, $keyinfo);
 					
-					if($id) {
-						// Links
-						$uid_emails = [];
-						
-						foreach($keyinfo['uids'] as $idx => $uid) {
-							if(!isset($uid['email']))
-								continue;
-							
-							$uid_emails[DevblocksPlatform::strLower($uid['email'])] = true;
-						}
-						
-						$email_addys = DAO_Address::lookupAddresses(array_keys($uid_emails), true);
-						
-						if(is_array($email_addys))
-						foreach($email_addys as $email_addy) {
-							DAO_ContextLink::setLink(CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $id, CerberusContexts::CONTEXT_ADDRESS, $email_addy->id);
-							
-							// Has contact
-							if($email_addy->contact_id)
-								DAO_ContextLink::setLink(CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $id, CerberusContexts::CONTEXT_CONTACT, $email_addy->contact_id);
-							
-							// Has bare org
-							if($email_addy->contact_org_id && !$email_addy->contact_id)
-								DAO_ContextLink::setLink(CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $id, CerberusContexts::CONTEXT_ORG, $email_addy->contact_org_id);
-						}
-					}
+					DAO_GpgPublicKey::onUpdateByActor($active_worker, $fields, $id);
 					
 				} else { // Edit
 					if(!$active_worker->hasPriv(sprintf("contexts.%s.update", CerberusContexts::CONTEXT_GPG_PUBLIC_KEY)))
 						throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.edit'));
 					
-					$fields = array(
+					$fields = [
 						DAO_GpgPublicKey::NAME => $name,
 						DAO_GpgPublicKey::UPDATED_AT => time(),
-					);
+					];
+					
+					if($keyinfo) {
+						$fields[DAO_GpgPublicKey::FINGERPRINT] = $keyinfo['subkeys'][0]['fingerprint'];
+						$fields[DAO_GpgPublicKey::KEY_TEXT] = $key_text;
+						$fields[DAO_GpgPublicKey::EXPIRES_AT] = $expires_at;
+						
+						DAO_GpgKeyPart::upsert(Context_GpgPublicKey::ID, $id, $keyinfo);
+					}
 					
 					if(!DAO_GpgPublicKey::validate($fields, $error, $id))
 						throw new Exception_DevblocksAjaxValidationError($error);
@@ -185,6 +178,35 @@ class PageSection_ProfilesGpgPublicKey extends Extension_PageSection {
 					@$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'], 'array', []);
 					if(!DAO_CustomFieldValue::handleFormPost(CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $id, $field_ids, $error))
 						throw new Exception_DevblocksAjaxValidationError($error);
+					
+					// Key links
+					if($keyinfo) {
+						// Links
+						$uid_emails = [];
+						
+						foreach($keyinfo['uids'] as $idx => $uid) {
+							if (!isset($uid['email']))
+								continue;
+							
+							$uid_emails[DevblocksPlatform::strLower($uid['email'])] = true;
+						}
+						
+						$email_addys = DAO_Address::lookupAddresses(array_keys($uid_emails), true);
+						
+						if (is_array($email_addys)) {
+							foreach ($email_addys as $email_addy) {
+								DAO_ContextLink::setLink(CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $id, CerberusContexts::CONTEXT_ADDRESS, $email_addy->id);
+								
+								// Has contact
+								if ($email_addy->contact_id)
+									DAO_ContextLink::setLink(CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $id, CerberusContexts::CONTEXT_CONTACT, $email_addy->contact_id);
+								
+								// Has bare org
+								if ($email_addy->contact_org_id && !$email_addy->contact_id)
+									DAO_ContextLink::setLink(CerberusContexts::CONTEXT_GPG_PUBLIC_KEY, $id, CerberusContexts::CONTEXT_ORG, $email_addy->contact_org_id);
+							}
+						}
+					}
 				}
 				
 				echo json_encode(array(
@@ -215,11 +237,14 @@ class PageSection_ProfilesGpgPublicKey extends Extension_PageSection {
 	
 	}
 	
-	function viewExploreAction() {
+	private function _profileAction_viewExplore() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());
@@ -286,4 +311,4 @@ class PageSection_ProfilesGpgPublicKey extends Extension_PageSection {
 		
 		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('explore',$hash,$orig_pos)));
 	}
-};
+}

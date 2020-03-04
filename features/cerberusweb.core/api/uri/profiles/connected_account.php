@@ -28,7 +28,21 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 		Page_Profiles::renderProfile($context, $context_id, $stack);
 	}
 	
-	function savePeekJsonAction() {
+	function handleActionForPage(string $action, string $scope=null) {
+		if('profileAction' == $scope) {
+			switch ($action) {
+				case 'savePeekJson':
+					return $this->_profileAction_savePeekJson();
+				case 'auth':
+					return $this->_profileAction_auth();
+				case 'viewExplore':
+					return $this->_profileAction_viewExplore();
+			}
+		}
+		return false;
+	}
+	
+	private function _profileAction_savePeekJson() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'], 'string', '');
 		
 		@$id = DevblocksPlatform::importGPC($_POST['id'], 'integer', 0);
@@ -37,7 +51,7 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(null, 403);
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		header('Content-Type: application/json; charset=utf-8');
 		
@@ -45,6 +59,14 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 			if(!empty($id) && !empty($do_delete)) { // Delete
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_CONNECTED_ACCOUNT)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				if(false == ($model = DAO_ConnectedAccount::get($id)))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.record.not_found'));
+				
+				if(!Context_ConnectedAccount::isDeletableByActor($model, $active_worker))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
+				
+				CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_CONNECTED_ACCOUNT, $model->id, $model->name);
 				
 				DAO_ConnectedAccount::delete($id);
 				
@@ -212,11 +234,14 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 		}
 	}
 	
-	function viewExploreAction() {
+	private function _profileAction_viewExplore() {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'],'string');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		$url_writer = DevblocksPlatform::services()->url();
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
 		// Generate hash
 		$hash = md5($view_id.$active_worker->id.time());
@@ -284,13 +309,33 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('explore',$hash,$orig_pos)));
 	}
 	
-	function authAction() {
+
+	private function _profileAction_auth() {
+		$validation = DevblocksPlatform::services()->validation();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		@$account_id = DevblocksPlatform::importGPC(@$_REQUEST['id'], 'integer', 0);
+		@$service_id = DevblocksPlatform::importGPC(@$_REQUEST['service_id'], 'integer', 0);
+		
+		if(false == ($service = DAO_ConnectedService::get($service_id)))
+			DevblocksPlatform::dieWithHttpError("Invalid service provider.");
+		
+		if(!Context_ConnectedService::isReadableByActor($service, $active_worker))
+			DevblocksPlatform::dieWithHttpError("Access denied to connected service.");
+		
+		$account = null;
+		
+		if($account_id && false == ($account = DAO_ConnectedAccount::get($account_id)))
+			DevblocksPlatform::dieWithHttpError("Invalid connected account.");
+		
+		if($account && !Context_ConnectedAccount::isWriteableByActor($account, $active_worker))
+			DevblocksPlatform::dieWithHttpError("Access denied to connected service.");
+		
 		$edit_params = [
-			'id' => DevblocksPlatform::importGPC(@$_REQUEST['id'], 'integer', 0), 
-			'service_id' => DevblocksPlatform::importGPC(@$_REQUEST['service_id'], 'integer', 0), 
+			'id' => $account_id,
+			'service_id' => $service_id,
 		];
 		
-		$validation = DevblocksPlatform::services()->validation();
 		$error = null;
 		
 		$validation
@@ -307,9 +352,6 @@ class PageSection_ProfilesConnectedAccount extends Extension_PageSection {
 		
 		if(false === $validation->validateAll($edit_params, $error))
 			DevblocksPlatform::dieWithHttpError($error);
-		
-		if(false == ($service = DAO_ConnectedService::get($edit_params['service_id'])))
-			DevblocksPlatform::dieWithHttpError("Invalid service provider.");
 		
 		if(false == ($ext = $service->getExtension()))
 			DevblocksPlatform::dieWithHttpError("Invalid service provider extension.");

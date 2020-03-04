@@ -489,6 +489,8 @@ class DAO_Attachment extends Cerb_ORMHelper {
 		}
 	
 		if($deleted) {
+			CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_ATTACHMENT, $ids);
+			
 			DAO_Attachment::delete($ids);
 			
 		} else {
@@ -1678,6 +1680,10 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 			return CerberusContexts::allowEverything($models);
 			
 		return CerberusContexts::denyEverything($models);
+	}
+	
+	static function isDeletableByActor($models, $actor) {
+		return self::isWriteableByActor($models, $actor);
 	}
 	
 	static function isDownloadableByActor($models, $actor) {

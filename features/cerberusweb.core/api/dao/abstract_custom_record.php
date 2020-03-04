@@ -345,6 +345,8 @@ class DAO_AbstractCustomRecord extends Cerb_ORMHelper {
 			DevblocksPlatform::markContextChanged($context, $ids);
 			
 		} else {
+			CerberusContexts::logActivityRecordDelete($context, $ids);
+			
 			self::delete($ids);
 		}
 		
@@ -1119,6 +1121,10 @@ class Context_AbstractCustomRecord extends Extension_DevblocksContext implements
 	
 	static function isWriteableByActor($models, $actor) {
 		return CerberusContexts::isWriteableByDelegateOwner($actor, self::_getContextName(), $models, 'owner_', false, true);
+	}
+	
+	static function isDeletableByActor($models, $actor) {
+		return self::isWriteableByActor($models, $actor);
 	}
 	
 	function getRandom() {

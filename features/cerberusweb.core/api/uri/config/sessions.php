@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpUnused */
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
@@ -19,6 +19,10 @@ class PageSection_SetupSessions extends Extension_PageSection {
 	function render() {
 		$tpl = DevblocksPlatform::services()->template();
 		$visit = CerberusApplication::getVisit();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!$active_worker || !$active_worker->is_superuser)
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		$visit->set(ChConfigurationPage::ID, 'sessions');
 
@@ -33,16 +37,30 @@ class PageSection_SetupSessions extends Extension_PageSection {
 		$tpl->display('devblocks:cerberusweb.core::configuration/section/sessions/index.tpl');
 	}
 	
-	function viewDeleteAction() {
-		@$session_ids = DevblocksPlatform::importGPC($_POST['row_id'],' array', []);
+	function handleActionForPage(string $action, string $scope=null) {
+		if('configAction' == $scope) {
+			switch ($action) {
+				case 'viewDelete':
+					return $this->_configAction_viewDelete();
+			}
+		}
+		return false;
+	}
+	
+	private function _configAction_viewDelete() {
+		$session = DevblocksPlatform::services()->session();
+		$active_worker = CerberusApplication::getActiveWorker();
 		
-		if('POST' != DevblocksPlatform::getHttpMethod())
+		if(!$active_worker || !$active_worker->is_superuser)
 			DevblocksPlatform::dieWithHttpError(null, 403);
 		
-		$session = DevblocksPlatform::services()->session();
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		if(is_array($session_ids))
-		foreach($session_ids as $session_id)
-			$session->clear($session_id);
+		@$row_ids = DevblocksPlatform::importGPC($_POST['row_id'],' array', []);
+		
+		if(is_array($row_ids))
+		foreach($row_ids as $row_id)
+			$session->clear($row_id);
 	}
-};
+}

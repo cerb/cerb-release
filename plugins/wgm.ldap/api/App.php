@@ -1,6 +1,14 @@
 <?php
 if(class_exists('Extension_ScLoginAuthenticator',true)):
 class ScLdapLoginAuthenticator extends Extension_ScLoginAuthenticator {
+	public function invoke(string $action) {
+		switch($action) {
+			case 'authenticate':
+				return $this->_scLoginAction_authenticate();
+		}
+		return false;
+	}
+	
 	function writeResponse(DevblocksHttpResponse $response) {
 		$tpl = DevblocksPlatform::services()->templateSandbox();
 		
@@ -38,10 +46,13 @@ class ScLdapLoginAuthenticator extends Extension_ScLoginAuthenticator {
 		return true;
 	}
 	
-	function authenticateAction() {
+	private function _scLoginAction_authenticate() {
 		$umsession = ChPortalHelper::getSession();
 		$tpl = DevblocksPlatform::services()->template();
-
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
+		
 		// Clear the past session
 		$umsession->logout();
 		

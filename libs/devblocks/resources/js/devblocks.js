@@ -391,7 +391,7 @@ function DevblocksClass() {
 				
 				// Reload the associated view (underlying helper)
 				if(e.view_id)
-					genericAjaxGet('view'+e.view_id, 'c=internal&a=viewRefresh&id=' + e.view_id);
+					genericAjaxGet('view'+e.view_id, 'c=internal&a=invoke&module=worklists&action=refresh&id=' + e.view_id);
 				
 				if(is_continue) {
 					Devblocks.createAlert('Saved!', 'note');
@@ -1023,9 +1023,11 @@ function showLoadingPanel() {
 }
 
 function hideLoadingPanel() {
-	loadingPanel.unbind();
-	loadingPanel.dialog('destroy');
-	loadingPanel = null;
+	if(loadingPanel) {
+		loadingPanel.unbind();
+		loadingPanel.dialog('destroy');
+		loadingPanel = null;
+	}
 }
 
 function genericAjaxPopupFind($sel) {
@@ -1319,7 +1321,7 @@ function genericAjaxPopupPostCloseReloadView($layer, frm, view_id, has_output, $
 				if(html.length > 0)
 					$('#view'+view_id).html(html);
 			} else if (has_view && !has_output) { // Reload from view_id
-				genericAjaxGet('view'+view_id, 'c=internal&a=viewRefresh&id=' + view_id);
+				genericAjaxGet('view'+view_id, 'c=internal&a=invoke&module=worklists&action=refresh&id=' + view_id);
 			}
 
 			if(has_view)
@@ -1373,8 +1375,6 @@ function genericAjaxGet(divRef,args,cb,options) {
 	if(null == options.headers)
 		options.headers = {};
 		
-	options.headers['X-CSRF-Token'] = $('meta[name="_csrf_token"]').attr('content');
-	
 	var $ajax = $.ajax(options);
 	
 	if(typeof cb == 'function') {
@@ -1383,7 +1383,6 @@ function genericAjaxGet(divRef,args,cb,options) {
 }
 
 function genericAjaxPost(formRef,divRef,args,cb,options) {
-	var frm = null;
 	var div = null;
 	
 	// Polymorph div
@@ -1395,30 +1394,79 @@ function genericAjaxPost(formRef,divRef,args,cb,options) {
 	// Allow custom options
 	if(null == options)
 		options = { };
-	
-	options.type = 'POST';
-	options.url = DevblocksAppPath+'ajax.php'+(null!=args?('?'+args):''),
-	options.cache = false;
-	
-	// Handle formData
+
+	// Polymorph to FormData
 	if(formRef instanceof FormData) {
-		options.processData = false;
-		options.contentType = false;
-		options.data = formRef;
-		
+		// It's what we want
+
+	} else if(formRef instanceof jQuery) {
+		formRef = new FormData($(formRef)[0]);
+
+	} else if(typeof formRef=="object") {
+		var formData = new FormData();
+		Devblocks.objectToFormData(formRef, formData);
+		formRef = formData;
+
+	} else if(typeof formRef=="string" && formRef.length > 0) {
+		var $ref = $('#' + formRef);
+
+		if(0 === $ref.length) {
+			formData = null;
+		} else {
+			formRef = new FormData($ref[0]);
+		}
 	} else {
-		// Polymorph form
-		if(formRef instanceof jQuery)
-			frm = formRef;
-		else if(typeof formRef=="string" && formRef.length > 0)
-			frm = $('#'+formRef);
-		
-		if(null == frm)
-			return;
-		
-		options.data = $(frm).serialize();
+		formRef = null;
 	}
-	
+
+	// If we couldn't make a FormData object, bail out
+	if(!(formRef instanceof FormData)) {
+		Devblocks.createAlertError('There was an issue sending your request to the server.');
+		return false;
+	}
+
+	options.processData = false;
+	options.contentType = false;
+	options.data = formRef;
+
+	var url = DevblocksAppPath+'ajax.php';
+
+	if(formRef.has && formRef.get) {
+		if (formRef.has('_log')) {
+			url += '?_log=' + encodeURIComponent(formRef.get('_log').toString());
+			formRef.delete('_log');
+
+		} else {
+			if (formRef.has('c')) {
+				url += '?_log=' + encodeURIComponent(formRef.get('c').toString());
+
+				if (formRef.has('a')) {
+					url += '.' + encodeURIComponent(formRef.get('a').toString());
+
+					if ('invoke' === formRef.get('a')) {
+						url += '.' + encodeURIComponent(formRef.get('module').toString());
+						url += '.' + encodeURIComponent(formRef.get('action').toString());
+
+						if (formRef.has('id')) {
+							url += '.' + encodeURIComponent(formRef.get('id').toString());
+						}
+					} else if ('invokeTab' === formRef.get('a')) {
+						url += '.' + encodeURIComponent(formRef.get('tab_id').toString());
+						url += '.' + encodeURIComponent(formRef.get('action').toString());
+
+						if (formRef.has('id')) {
+							url += '.' + encodeURIComponent(formRef.get('id').toString());
+						}
+					}
+				}
+			}
+		}
+	}
+
+	options.type = 'POST';
+	options.url = url;
+	options.cache = false;
+
 	if(null != div) {
 		div.fadeTo("fast", 0.2);
 		
@@ -1446,22 +1494,25 @@ function genericAjaxPost(formRef,divRef,args,cb,options) {
 }
 
 function devblocksAjaxDateChooser(field, div, options) {
+	var $sel_field;
+	var $sel_div;
+
 	if(typeof field == 'object') {
 		if(field.selector)
-			var $sel_field = field;
+			$sel_field = field;
 		else
-			var $sel_field = $(field);
+			$sel_field = $(field);
 	} else {
-		var $sel_field = $(field);
+		$sel_field = $(field);
 	}
 	
 	if(typeof div == 'object') {
 		if(div.selector)
-			var $sel_div = div;
+			$sel_div = div;
 		else
-			var $sel_div = $(div);
+			$sel_div = $(div);
 	} else {
-		var $sel_div = $(div);
+		$sel_div = $(div);
 	}
 	
 	if(null == options)
@@ -1472,9 +1523,9 @@ function devblocksAjaxDateChooser(field, div, options) {
 	
 	if(null == options.dateFormat)
 		options.dateFormat = 'DD, d MM yy';
-			
+
 	if(null == $sel_div) {
-		var chooser = $sel_field.datepicker(options);
+		$sel_field.datepicker(options);
 		
 	} else {
 		if(null == options.onSelect)
@@ -1482,6 +1533,6 @@ function devblocksAjaxDateChooser(field, div, options) {
 				$sel_field.val(dateText);
 				chooser.datepicker('destroy');
 			};
-		var chooser = $sel_div.datepicker(options);
+		$sel_div.datepicker(options);
 	}
 }

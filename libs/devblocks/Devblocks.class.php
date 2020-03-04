@@ -104,7 +104,7 @@ class _DevblocksServices {
 	
 	/**
 	 * 
-	 * @return _DevblocksGPGService
+	 * @return Extension_DevblocksGpgEngine
 	 */
 	function gpg() {
 		return _DevblocksGPGService::getInstance();
@@ -1828,12 +1828,6 @@ class DevblocksPlatform extends DevblocksEngine {
 		
 		$config = self::purifyHTMLOptions($inline_css, $is_untrusted);
 		
-		if($is_untrusted && !$filters) {
-			$filters = [
-				new Cerb_HTMLPurifier_URIFilter_Email()
-			];
-		}
-		
 		if($filters) {
 			foreach ($filters as $filter) {
 				$config->getURIDefinition()->addFilter($filter, $config);
@@ -1842,7 +1836,7 @@ class DevblocksPlatform extends DevblocksEngine {
 		
 		$purifier = new HTMLPurifier($config);
 		
-		$dirty_html = $purifier->purify($dirty_html);
+		$dirty_html = @$purifier->purify($dirty_html);
 		
 		return $dirty_html;
 	}
@@ -2600,7 +2594,6 @@ class DevblocksPlatform extends DevblocksEngine {
 	
 	static function getDatabaseTables($nocache=false) {
 		$cache = DevblocksPlatform::services()->cache();
-		$tables = array();
 		
 		if($nocache || null === ($tables = $cache->load(self::CACHE_TABLES))) {
 			// Make sure the database connection is valid or error out.
@@ -3709,7 +3702,7 @@ class DevblocksPlatform extends DevblocksEngine {
 		if($wait_secs)
 			sleep($wait_secs);
 			
-		exit;
+		DevblocksPlatform::exit(302);
 	}
 	
 	static function redirectURL($url, $wait_secs=0) {
@@ -3723,11 +3716,17 @@ class DevblocksPlatform extends DevblocksEngine {
 		if($wait_secs)
 			sleep($wait_secs);
 		
+		DevblocksPlatform::exit(302);
+	}
+	
+	static function exit(int $status_code=200) {
+		if($status_code && php_sapi_name() != 'cli')
+			http_response_code($status_code);
+		
 		exit;
 	}
 	
 	static function dieWithHttpError($message, $status_code=500) {
-		
 		if(php_sapi_name() != 'cli')
 		switch($status_code) {
 			case 403: // Forbidden
@@ -3767,11 +3766,3 @@ function devblocks_autoload($className) {
 
 // Register Devblocks class loader
 spl_autoload_register('devblocks_autoload');
-
-/*
- * Twig Extensions
- * This must come after devblocks_autoload
- */
-if(class_exists('Twig_Autoloader', true) && method_exists('Twig_Autoloader','register')) {
-	Twig_Autoloader::register();
-}
