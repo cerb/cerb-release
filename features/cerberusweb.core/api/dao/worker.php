@@ -55,6 +55,19 @@ class DAO_Worker extends Cerb_ORMHelper {
 			->setMaxLength(64)
 			->setUnique(get_class())
 			->setNotEmpty(false)
+			->addValidator(function($string, &$error=null) {
+				if(0 != strcasecmp($string, DevblocksPlatform::strAlphaNum($string, '-._'))) {
+					$error = "may only contain letters, numbers, dashes, and dots";
+					return false;
+				}
+				
+				if(strlen($string) > 64) {
+					$error = "must be shorter than 64 characters.";
+					return false;
+				}
+				
+				return true;
+			})
 			;
 		// int(10) unsigned
 		$validation
@@ -426,7 +439,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 	
 	static function getByAtMentions($at_mentions, $with_searches=true) {
 		if(!is_array($at_mentions) && is_string($at_mentions))
-			$at_mentions = array($at_mentions);
+			$at_mentions = [$at_mentions];
 		
 		$workers = [];
 		$all_workers = DAO_Worker::getAllActive();
@@ -446,7 +459,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 			}
 			
 			// Then check saved searches
-			if(false != ($search = DAO_ContextSavedSearch::getByTag($at_mention))) {
+			if($with_searches && false != ($search = DAO_ContextSavedSearch::getByTag($at_mention))) {
 				if(false == ($results = $search->getResults()))
 					continue;
 				
