@@ -969,8 +969,10 @@ class View_ContextScheduledBehavior extends C4_AbstractView implements IAbstract
 				),
 			'behavior' => 
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_TEXT,
-					'options' => array('param_key' => SearchFields_ContextScheduledBehavior::VIRTUAL_BEHAVIOR_SEARCH),
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => [
+						'param_key' => SearchFields_ContextScheduledBehavior::VIRTUAL_BEHAVIOR_SEARCH,
+					],
 					'examples' => [
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_BEHAVIOR, 'q' => ''],
 					]
@@ -1072,8 +1074,17 @@ class View_ContextScheduledBehavior extends C4_AbstractView implements IAbstract
 
 	function renderCriteriaParam($param) {
 		$field = $param->field;
-		$values = !is_array($param->value) ? array($param->value) : $param->value;
-
+		
+		if(is_array($param->value)) {
+			$values = $param->value;
+		} else {
+			if(is_null($param->value)) {
+				$values = [];
+			} else {
+				$values = [$param->value];
+			}
+		}
+		
 		switch($field) {
 			case SearchFields_ContextScheduledBehavior::BEHAVIOR_ID:
 				$label_map = SearchFields_ContextScheduledBehavior::getLabelsForKeyValues($field, $values);
