@@ -1190,6 +1190,8 @@ var ajax = new cAjaxCalls();
 						editor.completer.insertMatch(data);
 					},
 					getCompletions: function(editor, session, pos, prefix, callback) {
+						editor.completer.autoSelect = false;
+
 						var token = session.getTokenAt(pos.row, pos.column);
 						
 						if(null == token)
@@ -1532,8 +1534,7 @@ var ajax = new cAjaxCalls();
 
 		getSelection: function() {
 			var bounds = this.getSelectionBounds();
-			var selectedText = this.editor.value.substring(bounds.start,bounds.end);
-			return selectedText;
+			return this.editor.value.substring(bounds.start,bounds.end);
 		},
 
 		setSelection: function(start, end) {
@@ -1566,6 +1567,9 @@ var ajax = new cAjaxCalls();
 
 		replaceSelection: function(replaceWith) {
 			var bounds = this.getSelectionBounds();
+
+			// Normalize line endings
+			replaceWith = replaceWith.replace(/\r/g, '');
 
 			var newValue =
 				this.editor.value.substring(0,bounds.start)
@@ -1940,6 +1944,8 @@ var ajax = new cAjaxCalls();
 					});
 				},
 				getCompletions: function(editor, session, pos, prefix, callback) {
+					editor.completer.autoSelect = false;
+
 					var token_path = Devblocks.cerbCodeEditor.getYamlTokenPath(pos, editor);
 
 					// Normalize path (remove namespaces)
@@ -2881,8 +2887,11 @@ var ajax = new cAjaxCalls();
 					});
 				}
 			}
-			
-			if('Return' !== e.command.name && (!e.editor.completer.activated || e.editor.completer.isDynamic)) {
+
+			if ('Return' === e.command.name) {
+				e.editor.completer.getPopup().hide();
+
+			} else if((!e.editor.completer.activated || e.editor.completer.isDynamic)) {
 				if(e.args && 1 === e.args.length) {
 					e.editor.completer.showPopup(e.editor);
 				}
@@ -2930,6 +2939,8 @@ var ajax = new cAjaxCalls();
 					});
 				},
 				getCompletions: function(editor, session, pos, prefix, callback) {
+					editor.completer.autoSelect = false;
+
 					var token = session.getTokenAt(pos);
 					
 					// Don't give suggestions inside Twig elements
@@ -3907,15 +3918,19 @@ var ajax = new cAjaxCalls();
 			var context = $trigger.attr('data-context');
 			
 			// [TODO] If $ul is null, create it
-			
-			$trigger.click(function() {
+
+			$trigger.on('click', function() {
 				var field_name = $trigger.attr('data-field-name');
 				var context = $trigger.attr('data-context');
-				
+				var worklist_columns = $trigger.attr('data-worklist-columns');
+
 				var query = $trigger.attr('data-query');
 				var query_req = $trigger.attr('data-query-required');
 				var chooser_url = 'c=internal&a=invoke&module=records&action=chooserOpen&context=' + encodeURIComponent(context);
 				
+				if(worklist_columns)
+					chooser_url += '&worklist[columns]=' + encodeURIComponent(worklist_columns);
+
 				if($trigger.attr('data-single'))
 					chooser_url += '&single=1';
 				

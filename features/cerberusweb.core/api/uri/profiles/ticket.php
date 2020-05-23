@@ -557,6 +557,9 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		$buckets = DAO_Bucket::getAll();
 		$tpl->assign('buckets', $buckets);
 		
+		$html_templates = DAO_MailHtmlTemplate::getAll();
+		$tpl->assign('html_templates', $html_templates);
+		
 		if(null != $active_worker) {
 			// Signatures
 			@$ticket_group = $groups[$ticket->group_id]; /* @var $ticket_group Model_Group */
@@ -751,15 +754,17 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		@$group_id = DevblocksPlatform::importGPC($_REQUEST['group_id'],'integer',0);
-		@$bucket_id = DevblocksPlatform::importGPC($_REQUEST['bucket_id'],'integer',0);
-		@$content = DevblocksPlatform::importGPC($_REQUEST['content'],'string','');
-		@$format = DevblocksPlatform::importGPC($_REQUEST['format'],'string','');
+		@$group_id = DevblocksPlatform::importGPC($_POST['group_id'],'integer',0);
+		@$bucket_id = DevblocksPlatform::importGPC($_POST['bucket_id'],'integer',0);
+		@$content = DevblocksPlatform::importGPC($_POST['content'],'string','');
+		@$format = DevblocksPlatform::importGPC($_POST['format'],'string','');
+		@$html_template_id = DevblocksPlatform::importGPC($_POST['html_template_id'],'integer',0);
 		
 		if(false == ($group = DAO_Group::get($group_id)))
 			DevblocksPlatform::dieWithHttpError(null, 404);
 		
-		$html_template = $group->getReplyHtmlTemplate($bucket_id);
+		if(!$html_template_id || false == ($html_template = DAO_MailHtmlTemplate::get($html_template_id)))
+			$html_template = $group->getReplyHtmlTemplate($bucket_id);
 		
 		// Parse #commands
 		
