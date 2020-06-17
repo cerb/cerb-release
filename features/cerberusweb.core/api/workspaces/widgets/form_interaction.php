@@ -84,6 +84,13 @@ class WorkspaceWidget_FormInteraction extends Extension_WorkspaceWidget {
 		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/form_interaction/interaction_chooser.tpl');
 	}
 	
+	private function _resetState($state_key) {
+		if(false != ($state_id = DevblocksPlatform::getRegistryKey($state_key, DevblocksRegistryEntry::TYPE_STRING, null)))
+			DAO_BotSession::delete($state_id);
+		
+		DevblocksPlatform::services()->registry()->delete($state_key);
+	}
+	
 	function renderForm(Model_WorkspaceWidget $widget, $is_submit=false) {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -94,10 +101,7 @@ class WorkspaceWidget_FormInteraction extends Extension_WorkspaceWidget {
 		
 		// If we're resetting the scope, delete the session and state key
 		if(array_key_exists('reset', $_POST)) {
-			if(false != ($state_id = DevblocksPlatform::getRegistryKey($state_key, DevblocksRegistryEntry::TYPE_STRING, null)))
-				DAO_BotSession::delete($state_id);
-			
-			DevblocksPlatform::services()->registry()->delete($state_key);
+			$this->_resetState($state_key);
 		}
 		
 		$dict = DevblocksDictionaryDelegate::instance([
@@ -271,6 +275,21 @@ class WorkspaceWidget_FormInteraction extends Extension_WorkspaceWidget {
 						}, $prompt_value);
 						break;
 					
+					case 'prompt.compose':
+						$prompt_value = intval($prompt_value);
+						
+						if(!$prompt_value) {
+							$validation_errors[] = 'You must compose a message before continuing.';
+						} else {
+							$ticket_dict = DevblocksDictionaryDelegate::instance([
+								'_context' => CerberusContexts::CONTEXT_TICKET,
+								'id' => $prompt_value,
+							]);
+							
+							$prompt_value = $ticket_dict;
+						}
+						break;
+					
 					case 'prompt.files':
 						if(is_null($prompt_value)) {
 							$prompt_value = [];
@@ -418,6 +437,10 @@ class WorkspaceWidget_FormInteraction extends Extension_WorkspaceWidget {
 		
 		foreach($actions as $params) {
 			switch(@$params['_action']) {
+				case 'interaction.end':
+					$this->_resetState($state_key);
+					break;
+					
 				case 'prompt.captcha':
 					$captcha = DevblocksPlatform::services()->captcha();
 					
@@ -477,6 +500,17 @@ class WorkspaceWidget_FormInteraction extends Extension_WorkspaceWidget {
 					$tpl->assign('records', $records);
 					$tpl->assign('dict', $behavior_dict);
 					$tpl->display('devblocks:cerberusweb.core::events/form_interaction/worker/prompts/prompt_chooser.tpl');
+					break;
+				
+				case 'prompt.compose':
+					@$draft_id = $params['draft_id'];
+					@$var = $params['_prompt']['var'];
+					
+					$tpl->assign('draft_id', $draft_id);
+					$tpl->assign('var', $var);
+					$tpl->assign('params', $params);
+					$tpl->assign('dict', $behavior_dict);
+					$tpl->display('devblocks:cerberusweb.core::events/form_interaction/worker/prompts/prompt_compose.tpl');
 					break;
 				
 				case 'prompt.files':

@@ -198,6 +198,11 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 	function getActionExtensions(Model_TriggerEvent $trigger) {
 		$actions =
 			[
+				'interaction_end' => [
+					'label' => 'Interaction end',
+					'notes' => '',
+					'params' => [],
+				],
 				'prompt_captcha' => [
 					'label' => 'Prompt with CAPTCHA challenge',
 					'notes' => '',
@@ -244,6 +249,21 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 							'type' => 'text',
 							'required' => true,
 							'notes' => 'The label for the set of choices',
+						],
+					],
+				],
+				'prompt_compose' => [
+					'label' => 'Prompt with compose email editor',
+					'notes' => '',
+					'params' => [
+						'draft_id' => [
+							'type' => 'text',
+							'notes' => 'The optional [draft](/docs/records/types/draft/#params-mailcompose) record ID to resume',
+						],
+						'var' => [
+							'type' => 'placeholder',
+							'required' => true,
+							'notes' => "The placeholder to set with the user's choices",
 						],
 					],
 				],
@@ -408,6 +428,10 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 		$tpl->assign('token_labels', $labels);
 			
 		switch($token) {
+			case 'interaction_end':
+				$tpl->display('devblocks:cerberusweb.core::events/form_interaction/_common/action_end.tpl');
+				break;
+				
 			case 'prompt_captcha':
 				$tpl->display('devblocks:cerberusweb.core::events/form_interaction/_common/prompts/action_prompt_captcha.tpl');
 				break;
@@ -421,6 +445,10 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 				$tpl->assign('record_contexts', $record_contexts);
 				
 				$tpl->display('devblocks:cerberusweb.core::events/form_interaction/_common/prompts/action_prompt_chooser.tpl');
+				break;
+				
+			case 'prompt_compose':
+				$tpl->display('devblocks:cerberusweb.core::events/form_interaction/_common/prompts/action_prompt_compose.tpl');
 				break;
 				
 			case 'prompt_files':
@@ -467,6 +495,9 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 		$out = '';
 		
 		switch($token) {
+			case 'interaction_end':
+				break;
+			
 			case 'prompt_captcha':
 				$out = ">>> Prompting with CAPTCHA challenge\n";
 				break;
@@ -490,6 +521,15 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 				$out = sprintf(">>> Prompting with record chooser\nLabel: %s\nOptions: %s\n",
 					$label,
 					$options
+				);
+				break;
+				
+			case 'prompt_compose':
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				$draft_id = $tpl_builder->build($params['draft_id'], $dict);
+				
+				$out = sprintf(">>> Prompting with compose popup\nDraft ID: %d\n",
+					$draft_id
 				);
 				break;
 				
@@ -553,6 +593,15 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 	
 	function runActionExtension($token, $trigger, $params, DevblocksDictionaryDelegate $dict) {
 		switch($token) {
+			case 'interaction_end':
+				$actions =& $dict->_actions;
+				
+				$actions[] = [
+					'_action' => 'interaction.end',
+					'_trigger_id' => $trigger->id,
+				];
+				break;
+				
 			case 'prompt_captcha':
 				$actions =& $dict->_actions;
 				
@@ -632,6 +681,24 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 					'record_type' => $record_type,
 					'record_query' => $record_query,
 					'record_query_required' => $record_query_required,
+				];
+				break;
+				
+			case 'prompt_compose':
+				$actions =& $dict->_actions;
+				
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				
+				@$draft_id = $tpl_builder->build($params['draft_id'], $dict);
+				@$var = $params['var'];
+				
+				$actions[] = [
+					'_action' => 'prompt.compose',
+					'_trigger_id' => $trigger->id,
+					'_prompt' => [
+						'var' => $var,
+					],
+					'draft_id' => $draft_id,
 				];
 				break;
 				
