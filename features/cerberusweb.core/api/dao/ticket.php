@@ -903,7 +903,8 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		// If we were given a group but not a bucket, use the default bucket
 		if(isset($fields[self::GROUP_ID]) && (!isset($fields[self::BUCKET_ID]) || !$fields[self::BUCKET_ID])) {
 			if(false !== ($dest_group = DAO_Group::get($fields[self::GROUP_ID]))) {
-				$fields[self::BUCKET_ID] = $dest_group->getDefaultBucket()->id;
+				if(false != ($dest_bucket = $dest_group->getDefaultBucket()))
+					$fields[self::BUCKET_ID] = $dest_bucket->id;
 			}
 		}
 		
@@ -1061,34 +1062,40 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		
 		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
 			return false;
+
+		@$group_id = $fields[self::GROUP_ID];
+		@$bucket_id = $fields[self::BUCKET_ID];
 		
-		if(!$id && !isset($fields[self::GROUP_ID])) {
+		if(!$id && !$group_id) {
 			$error = "A 'group_id' is required.";
 			return false;
 		}
 		
-		if(isset($fields[self::GROUP_ID])) {
-			@$group_id = $fields[self::GROUP_ID];
-			
-			if(!$group_id || false == DAO_Group::get($group_id)) {
+		if($group_id) {
+			if(false == DAO_Group::get($group_id)) {
 				$error = "Invalid 'group_id' value.";
 				return false;
 			}
-		}
-		
-		// If we have only a bucket_id and no group_id then figure it out
-		
-		if(isset($fields[self::BUCKET_ID])) {
-			@$group_id = $fields[self::GROUP_ID];
-			@$bucket_id = $fields[self::BUCKET_ID];
 			
-			if(!$bucket_id || false == ($bucket = DAO_Bucket::get($bucket_id))) {
+			// Find the default bucket for this group
+			if(!$bucket_id) {
+				if(false != ($default_bucket = DAO_Bucket::getDefaultForGroup($fields[self::GROUP_ID]))) {
+					$bucket_id = $default_bucket->id;
+					$fields[self::BUCKET_ID] = $bucket_id;
+				}
+			}
+			
+		// If we have only a bucket_id and no group_id then figure it out
+		} else if (!$group_id && $bucket_id) {
+			
+			if(false == ($bucket = DAO_Bucket::get($bucket_id))) {
 				$error = "Invalid 'bucket_id' value.";
 				return false;
 			}
 			
 			if(!$group_id) {
-				$fields[self::GROUP_ID] = $bucket->group_id;
+				$bucket_id = $bucket->group_id;
+				$fields[self::GROUP_ID] = $bucket_id;
 			}
 		}
 		
