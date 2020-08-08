@@ -76,6 +76,13 @@
 				<a href="{devblocks_url}c=profiles&type=html_template&id={$result.m_id}-{$result.m_name|devblocks_permalink}{/devblocks_url}" class="subject">{$result.m_name}</a>
 				<button type="button" class="peek cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_MAIL_HTML_TEMPLATE}" data-context-id="{$result.m_id}"><span class="glyphicons glyphicons-new-window-alt" style="margin-left:2px" title="{$translate->_('views.peek')}"></span></button>
 			</td>
+			{elseif $column == "m_signature_id"}
+				{$email_signature = $email_signatures.{$result.$column}}
+				<td data-column="{$column}">
+					{if $email_signature}
+						<a href="javascript:;" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_EMAIL_SIGNATURE}" data-context-id="{$result.$column}">{$email_signature->name}</a>
+					{/if}
+				</td>
 			{elseif $column == "m_updated_at"}
 				<td data-column="{$column}" title="{$result.$column|devblocks_date}">
 					{if !empty($result.$column)}
@@ -91,6 +98,7 @@
 	{/foreach}
 </table>
 
+{if $total >= 0}
 <div style="padding-top:5px;">
 	<div style="float:right;">
 		{math assign=fromRow equation="(x*y)+1" x=$view->renderPage y=$view->renderLimit}
@@ -114,12 +122,11 @@
 		{/if}
 	</div>
 	
-	{if $total}
 	<div style="float:left;" id="{$view->id}_actions">
 		<button type="button" class="action-always-show action-explore" onclick="this.form.explore_from.value=$(this).closest('form').find('tbody input:checkbox:checked:first').val();this.form.action.value='viewExplore';this.form.submit();"><span class="glyphicons glyphicons-play-button"></span> {'common.explore'|devblocks_translate|lower}</button>
 	</div>
-	{/if}
 </div>
+{/if}
 
 <div style="clear:both;"></div>
 

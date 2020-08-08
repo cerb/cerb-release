@@ -25,7 +25,29 @@ class _DevblocksSheetService {
 		$this->_type_funcs = new _DevblocksSheetServiceTypes();
 	}
 	
-	function parseYaml($yaml, &$error=null) {
+	function parse($kata, &$error=null) {
+		// Deprecated
+		if(DevblocksPlatform::strStartsWith(trim($kata), '---')) {
+			if(false === ($sheet = $this->_parseYaml($kata, $error)))
+				return false;
+			
+		} else {
+			if(false === ($sheet = DevblocksPlatform::services()->kata()->parse($kata, $error)))
+				return false;
+			
+			$sheet = DevblocksPlatform::services()->kata()->formatTree($sheet);
+		}
+		
+		return $sheet;
+	}
+	
+	/**
+	 * @param string $yaml
+	 * @param string $error
+	 * @return array|false
+	 * @deprecated
+	 */
+	private function _parseYaml($yaml, &$error=null) {
 		if(false === ($sheet = DevblocksPlatform::services()->string()->yamlParse($yaml, 0, $error)))
 			return false;
 		
@@ -47,17 +69,25 @@ class _DevblocksSheetService {
 	function getLayout(array $sheet) {
 		$layout = [
 			'style' => 'table',
-			'headings' => true,
-			'paging' => true,
+			'headings' => 'yes',
+			'paging' => 'yes',
 			'title_column' => '',
 		];
 		
 		if(array_key_exists('layout', $sheet) && is_array($sheet['layout'])) {
-			if(array_key_exists('headings', $sheet['layout']))
-				$layout['headings'] = $sheet['layout']['headings'];
+			if(array_key_exists('headings', $sheet['layout'])) {
+				if(is_bool($sheet['layout']['headings']))
+					$sheet['layout']['headings'] = $sheet['layout']['headings'] ? 'yes' : 'no';
+					
+				$layout['headings'] = in_array($sheet['layout']['headings'], [false,'no','n','false','0']) ? false: true;
+			}
 			
-			if(array_key_exists('paging', $sheet['layout']))
-				$layout['paging'] = $sheet['layout']['paging'];
+			if(array_key_exists('paging', $sheet['layout'])) {
+				if(is_bool($sheet['layout']['paging']))
+					$sheet['layout']['paging'] = $sheet['layout']['paging'] ? 'yes' : 'no';
+				
+				$layout['paging'] = in_array($sheet['layout']['paging'], [false,'no','n','false','0']) ? false: true;
+			}
 			
 			if(array_key_exists('style', $sheet['layout']))
 				$layout['style'] = $sheet['layout']['style'];
@@ -68,6 +98,10 @@ class _DevblocksSheetService {
 				if(array_key_exists($sheet['layout']['title_column'], $columns))
 					$layout['title_column'] = $sheet['layout']['title_column'];
 			}
+			
+			if(array_key_exists('selection', $sheet['layout'])) {
+				$layout['selection'] = $sheet['layout']['selection'];
+			}
 		}
 		
 		return $layout;
@@ -77,30 +111,41 @@ class _DevblocksSheetService {
 		if(!array_key_exists('columns', $sheet))
 			return [];
 		
-		$columns = $sheet['columns'];
+		$columns = [];
 		$column_keys = [];
 		
-		foreach($columns as $column_idx => $column) {
+		if(array_key_exists('columns', $sheet) && is_array($sheet['columns']))
+		foreach($sheet['columns'] as $column_idx => $column) {
 			if(!is_array($column)) {
 				unset($columns[$column_idx]);
 				continue;
 			}
-			
-			$column_type = key($column);
-			$column = current($column);
-			
-			if(!is_array($column)) {
-				unset($columns[$column_idx]);
-				continue;
+		
+			if(is_numeric($column_idx)) {
+				$column_type = key($column);
+				$column = current($column);
+				
+				if(!is_array($column)) {
+					unset($columns[$column_idx]);
+					continue;
+				}
+				
+				$column['_type'] = $column_type;
+				
+			} else if(is_string($column_idx)) {
+				list($column_type, $column_key) = explode('/', $column_idx, 2);
+				
+				$column['_type'] = $column_type;
+				
+				if(!array_key_exists('key', $column))
+					$column['key'] = $column_key;
 			}
-			
-			$column_keys[] = $column['key'];
-			$column['_type'] = $column_type;
 			
 			if(!array_key_exists('label', $column))
 				$column['label'] = DevblocksPlatform::strTitleCase(trim(str_replace('_', ' ', $column['key'])));
 			
-			$columns[$column_idx] = $column;
+			$column_keys[] = $column['key'];
+			$columns[] = $column;
 		}
 		
 		return array_combine($column_keys, $columns);
@@ -112,8 +157,24 @@ class _DevblocksSheetService {
 		
 		$rows = [];
 		
+		$layout = $this->getLayout($sheet);
+		
 		foreach($sheet_dicts as $sheet_dict_id => $sheet_dict) {
 			$row = [];
+			
+			if(!($sheet_dict instanceof DevblocksDictionaryDelegate))
+				$sheet_dict = DevblocksDictionaryDelegate::instance($sheet_dict);
+			
+			if(array_key_exists('selection', $layout)) {
+				if(!array_key_exists('text', $this->_types))
+					continue;
+				
+				$column = [
+					'params' => $layout['selection'],
+				];
+				
+				$row['_selection'] = $this->_types['text']($column, $sheet_dict);
+			}
 			
 			foreach($columns as $column) {
 				if(false == (@$column_key = $column['key']))
@@ -124,9 +185,6 @@ class _DevblocksSheetService {
 				
 				if(!array_key_exists($column_type, $this->_types))
 					continue;
-				
-				if(!($sheet_dict instanceof DevblocksDictionaryDelegate))
-					$sheet_dict = DevblocksDictionaryDelegate::instance($sheet_dict);
 				
 				$row[$column_key] = $this->_types[$column_type]($column, $sheet_dict);
 			}
@@ -166,6 +224,7 @@ class _DevblocksSheetServiceTypes {
 			}
 			
 			$value = '';
+			$card_label_is_escaped = false;
 			
 			if(array_key_exists('label', $column_params) && $column_params['label']) {
 				$card_label = $column_params['label'];
@@ -174,6 +233,7 @@ class _DevblocksSheetServiceTypes {
 			} else if(array_key_exists('label_template', $column_params)) {
 				$card_label = $tpl_builder->build($column_params['label_template'], $sheet_dict);
 				$card_label = DevblocksPlatform::purifyHTML($card_label, false, true, [$filter]);
+				$card_label_is_escaped = true;
 			} else {
 				$card_label = $sheet_dict->get($default_card_label_key);
 			}
@@ -207,11 +267,13 @@ class _DevblocksSheetServiceTypes {
 			}
 			
 			if($card_context && $card_id && $card_label) {
+				$avatar_value = '';
+				
 				// Avatar image?
 				if(array_key_exists('image', $column_params) && $column_params['image']) {
 					$avatar_size = '1.5em';
 					
-					$value .= sprintf('<img src="%s?v=%s" style="width:%s;border-radius:%s;margin-right:0.25em;vertical-align:middle;">',
+					$avatar_value .= sprintf('<img src="%s?v=%s" style="width:%s;border-radius:%s;margin-right:0.25em;vertical-align:middle;">',
 						$url_writer->write(sprintf("c=avatars&ctx=%s&id=%d",
 							DevblocksPlatform::strEscapeHtml($card_context),
 							$card_id
@@ -223,11 +285,12 @@ class _DevblocksSheetServiceTypes {
 				}
 				
 				// Card link
-				$value .= sprintf('<span class="cerb-peek-trigger" data-context="%s" data-context-id="%d" style="text-decoration:%s;cursor:pointer;">%s</span>',
+				$value .= sprintf('<div class="cerb-peek-trigger" data-context="%s" data-context-id="%d" style="text-decoration:%s;display:inline-block;cursor:pointer;">%s%s</div>',
 					DevblocksPlatform::strEscapeHtml($card_context),
 					$card_id,
-					$is_underlined ? 'underline' : false,
-					DevblocksPlatform::strEscapeHtml($card_label)
+					$is_underlined ? 'underline' : 'normal',
+					$avatar_value,
+					$card_label_is_escaped ? $card_label : DevblocksPlatform::strEscapeHtml($card_label)
 				);
 				
 			} else {

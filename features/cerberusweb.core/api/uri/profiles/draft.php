@@ -207,24 +207,38 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 	}
 	
 	private function _profileAction_saveDraftReply() {
+		$tpl = DevblocksPlatform::services()->template();
+		
 		@$is_ajax = DevblocksPlatform::importGPC($_POST['is_ajax'],'integer',0);
+		
+		$error = null;
+		
+		if($is_ajax)
+			header('Content-Type: application/json;');
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		if(false === ($results = $this->saveDraftReply()))
+		if(false === ($results = $this->saveDraftReply($error))) {
+			if($is_ajax) {
+				$tpl->assign('success', false);
+				$tpl->assign('output', $error);
+				
+				echo json_encode([
+					'error' => $tpl->fetch('devblocks:cerberusweb.core::internal/renderers/test_results.tpl'),
+				]);
+			}
+			
 			return;
+		}
 		
 		$draft_id = $results['draft_id'];
 		$ticket = $results['ticket'];
 		
 		if($is_ajax) {
 			// Template
-			$tpl = DevblocksPlatform::services()->template();
 			$tpl->assign('timestamp', time());
 			$html = $tpl->fetch('devblocks:cerberusweb.core::mail/queue/saved.tpl');
-			
-			header('Content-Type: application/json;');
 			
 			// Response
 			echo json_encode(array('draft_id'=>$draft_id, 'html'=>$html));
@@ -234,10 +248,10 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 		}
 	}
 	
-	function saveDraftCompose() {
+	function saveDraftCompose(&$error=null) {
 		$active_worker = CerberusApplication::getActiveWorker();
+		
 		@$draft_id = DevblocksPlatform::importGPC($_POST['draft_id'],'integer',0);
-
 		@$to = DevblocksPlatform::importGPC($_POST['to'],'string','');
 		@$subject = DevblocksPlatform::importGPC($_POST['subject'],'string','');
 
@@ -304,6 +318,9 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 				$draft_id = null;
 		}
 		
+		if(false === DAO_MailQueue::validate($fields, $error, $draft_id))
+			return false;
+		
 		if(empty($draft_id)) {
 			$draft_id = DAO_MailQueue::create($fields);
 		} else {
@@ -317,7 +334,7 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 		return $draft_id;
 	}
 	
-	function saveDraftReply() {
+	function saveDraftReply(&$error=null) {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		@$ticket_id = DevblocksPlatform::importGPC($_POST['ticket_id'],'integer',0);
@@ -440,9 +457,15 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 			$fields[DAO_MailQueue::TICKET_ID] = $ticket_id;
 			$fields[DAO_MailQueue::WORKER_ID] = $active_worker->id;
 			
+			if(false === DAO_MailQueue::validate($fields, $error, null))
+				return false;
+			
 			$draft_id = DAO_MailQueue::create($fields);
 			
 		} else {
+			if(false === DAO_MailQueue::validate($fields, $error, $draft_id))
+				return false;
+			
 			DAO_MailQueue::update($draft_id, $fields);
 		}
 		
@@ -457,12 +480,20 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 	}
 	
 	private function _profileAction_saveDraftCompose() {
-		if(false == ($draft_id = $this->saveDraftCompose())) {
-			echo json_encode([]);
+		$tpl = DevblocksPlatform::services()->template();
+		
+		$error = null;
+		
+		if(false == ($draft_id = $this->saveDraftCompose($error))) {
+			$tpl->assign('success', false);
+			$tpl->assign('output', $error);
+			
+			echo json_encode([
+				'error' => $tpl->fetch('devblocks:cerberusweb.core::internal/renderers/test_results.tpl'),
+			]);
 			return;
 		}
 		
-		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('timestamp', time());
 		$html = $tpl->fetch('devblocks:cerberusweb.core::mail/queue/saved.tpl');
 		
@@ -487,10 +518,12 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 			
 			$drafts_ext = DevblocksPlatform::getExtension('core.page.profiles.draft', true);
 			
+			$error = null;
+			
 			/* @var $drafts_ext PageSection_ProfilesDraft */
-			if(false === $drafts_ext->saveDraftCompose()) {
+			if(false === $drafts_ext->saveDraftCompose($error)) {
 				DAO_MailQueue::delete($draft_id);
-				throw new Exception_DevblocksAjaxValidationError("Failed to save draft.");
+				throw new Exception_DevblocksAjaxValidationError("Failed to save draft: " . $error);
 			}
 			
 			if(false == ($draft = DAO_MailQueue::get($draft_id)))
@@ -500,6 +533,9 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 			
 			if(!array_key_exists('subject', $properties) || !$properties['subject'])
 				throw new Exception_DevblocksAjaxValidationError("A 'Subject:' is required.");
+			
+			if(strlen($properties['subject']) > 255)
+				throw new Exception_DevblocksAjaxValidationError("The `Subject:` must be shorter than 255 characters.");
 			
 			@$to = $properties['to'];
 			@$cc = $properties['cc'];
@@ -587,12 +623,14 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 		@$view_id = DevblocksPlatform::importGPC($_POST['view_id'], 'string', null);
 		
 		if(!$active_worker->hasPriv('contexts.cerberusweb.contexts.ticket.create'))
-			return;
+			return false;
 		
-		$drafts_ext = DevblocksPlatform::getExtension('core.page.profiles.draft', true, true);
+		$drafts_ext = DevblocksPlatform::getExtension('core.page.profiles.draft', true);
+		
+		$error = null;
 		
 		/* @var $drafts_ext PageSection_ProfilesDraft */
-		if(false == ($draft_id = $drafts_ext->saveDraftCompose())) {
+		if(false == ($draft_id = $drafts_ext->saveDraftCompose($error))) {
 			DAO_MailQueue::delete($draft_id);
 			return false;
 		}

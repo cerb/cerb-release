@@ -1,30 +1,4 @@
 var cerbAutocompleteSuggestions = {
-	yamlDashboardFilters: {
-		'': [
-			'placeholder:',
-			'label:',
-			'type:',
-			'default:',
-			{
-				caption: '#chooser',
-				snippet: '---\nplaceholder: ${1:input_placeholder}\nlabel: ${2:Label}\ntype: chooser\ndefault: ~\nparams:\n  context: ${3:group}\n  single: ${4:false}\n'
-			},
-			{
-				caption: '#date_range',
-				snippet: '---\nplaceholder: ${1:input_placeholder}\nlabel: ${2:Label}\ntype: date_range\ndefault: ${3:first day of this month -12 months}\n'
-			},
-			{
-				caption: '#picklist',
-				snippet: '---\nplaceholder: ${1:input_placeholder}\nlabel: "${2:By:}"\ntype: picklist\ndefault: ${3:month}\nparams:\n  options:\n  - ${4:day}\n  - week\n  - month\n  - year\n'
-			},
-		],
-		'type:': [
-			'date_range',
-			'picklist',
-			'text',
-			'chooser'
-		]
-	},
 	yamlSheetSchema: {
 		'': [
 			{
@@ -1043,10 +1017,32 @@ var ajax = new cAjaxCalls();
 			$editor.on('cerb.insertAtCursor', function(e) {
 				if(e.replace)
 					editor.session.setValue('');
+
 				editor.insertSnippet(e.content);
+
+				var cursor_pos = editor.getCursorPosition();
+				cursor_pos.row += 5;
+				editor.renderer.scrollCursorIntoView(cursor_pos);
+
 				editor.focus();
 			});
-			
+
+			$editor.on('cerb.appendText', function(e) {
+				var value = editor.getValue();
+
+				if(value.length > 0 && value.substr(-1) !== "\n")
+					editor.setValue(value + "\n\n");
+
+				editor.navigateFileEnd();
+				editor.insertSnippet(e.content);
+
+				var cursor_pos = editor.getCursorPosition();
+				cursor_pos.row += 5;
+				editor.renderer.scrollCursorIntoView(cursor_pos);
+
+				editor.focus();
+			});
+
 			editor.session.on('change', function() {
 				$editor.trigger('cerb.update');
 			});
@@ -2158,6 +2154,11 @@ var ajax = new cAjaxCalls();
 							description: 'Remove remaining quoted text from this line'
 						},
 						{
+							label: '#original_message',
+							value: '#original_message',
+							description: 'Insert the full original message placeholder'
+						},
+						{
 							label: '#signature',
 							value: '#signature\n',
 							description: 'Insert the signature placeholder'
@@ -2500,7 +2501,7 @@ var ajax = new cAjaxCalls();
 		
 		var doCerbLiveAutocomplete = function(e) {
 			e.stopPropagation();
-			
+
 			if(!e.editor.completer) {
 				var Autocomplete = require('ace/autocomplete').Autocomplete;
 				e.editor.completer = new Autocomplete();
@@ -2511,9 +2512,9 @@ var ajax = new cAjaxCalls();
 				return;
 			}
 
-			if('insertstring' == e.command.name) {
+			if('insertstring' === e.command.name) {
 				if(!e.editor.completer.activated || e.editor.completer.isDynamic) {
-					if(1 == e.args.length) {
+					if(1 === e.args.length) {
 						e.editor.completer.showPopup(e.editor);
 					}
 				}
@@ -2690,7 +2691,7 @@ var ajax = new cAjaxCalls();
 								}
 							}
 							
-							if('' == expand_context) {
+							if('' === expand_context) {
 								callback(null, []);
 								return;
 							}
@@ -2702,12 +2703,12 @@ var ajax = new cAjaxCalls();
 									return;
 								}
 								
-								for(path_key in json) {
-									if(path_key == '_contexts') {
+								for(var path_key in json) {
+									if(path_key === '_contexts') {
 										if(!autocomplete_suggestions['_contexts'])
 											autocomplete_suggestions['_contexts'] = {};
 										
-										for(context_key in json[path_key]) {
+										for(var context_key in json[path_key]) {
 											autocomplete_suggestions['_contexts'][expand_prefix + context_key] = json[path_key][context_key];
 										}
 										
@@ -2759,16 +2760,16 @@ var ajax = new cAjaxCalls();
 		
 		var doCerbLiveAutocomplete = function(e) {
 			e.stopPropagation();
-			
-			if(!(
+
+			if (!(
 				'insertstring' === e.command.name
 				|| 'paste' === e.command.name
 				|| 'Return' === e.command.name
 				|| 'backspace' === e.command.name)) {
 				return;
 			}
-			
-			if(!e.editor.completer) {
+
+			if (!e.editor.completer) {
 				e.editor.completer = new Autocomplete();
 			}
 
@@ -2776,90 +2777,90 @@ var ajax = new cAjaxCalls();
 			var pos = e.editor.getCursorPosition();
 			var current_field = Devblocks.cerbCodeEditor.getQueryTokenPath(pos, e.editor, 1);
 			var is_dirty = false;
-			
+
 			// If we're in the middle of typing a dynamic series alias, ignore it
-			if(1 === current_field.scope.length
+			if (1 === current_field.scope.length
 				&& 0 === current_field.nodes.length
-				&& -1 !== ['series.','values.'].indexOf(current_field.scope[0].substr(0,7))
-				) {
+				&& -1 !== ['series.', 'values.'].indexOf(current_field.scope[0].substr(0, 7))
+			) {
 				return;
 			}
-			
-			if(0 === value.length) {
+
+			if (0 === value.length) {
 				autocomplete_suggestions = {};
 				autocomplete_scope.type = '';
 				autocomplete_scope.of = '';
 				is_dirty = true;
-				
+
 			// If we pasted content, rediscover the scope
-			} else if('paste' === e.command.name) {
+			} else if ('paste' === e.command.name) {
 				autocomplete_suggestions = {};
 				autocomplete_scope.type = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(e.editor, 'type:') || '';
 				autocomplete_scope.of = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(e.editor, 'of:') || '';
 				is_dirty = true;
-				
+
 			// If we're typing
-			} else if(current_field.hasOwnProperty('scope')) {
+			} else if (current_field.hasOwnProperty('scope')) {
 				var current_field_name = current_field.scope.slice(-1)[0];
-				
-				if(current_field_name === 'type:' && current_field.nodes[0]) {
+
+				if (current_field_name === 'type:' && current_field.nodes[0]) {
 					var token_path = Devblocks.cerbCodeEditor.getQueryTokenPath(pos, e.editor);
-					
-					if(1 === token_path.scope.length) {
+
+					if (1 === token_path.scope.length) {
 						var type = current_field.nodes[0].value;
-						
-						if(autocomplete_scope.type !== type) {
+
+						if (autocomplete_scope.type !== type) {
 							autocomplete_scope.type = type;
 							autocomplete_scope.of = Devblocks.cerbCodeEditor.getQueryTokenValueByPath(e.editor, 'of:') || '';
 							is_dirty = true;
 						}
 					}
-					
-				} else if(current_field_name === 'of:' && current_field.nodes[0]) {
+
+				} else if (current_field_name === 'of:' && current_field.nodes[0]) {
 					var token_path = Devblocks.cerbCodeEditor.getQueryTokenPath(pos, e.editor);
-					
-					if(1 === token_path.scope.length) {
+
+					if (1 === token_path.scope.length) {
 						var of = current_field.nodes[0].value;
-						
-						if(autocomplete_scope.of !== of) {
+
+						if (autocomplete_scope.of !== of) {
 							autocomplete_scope.of = of;
-							
+
 							// If it's not a known context, ignore
-							if(-1 !== autocomplete_contexts.indexOf(of)) {
+							if (-1 !== autocomplete_contexts.indexOf(of)) {
 								is_dirty = true;
 							}
 						}
-					
-					} else if(-1 !== ['series.','values.'].indexOf(token_path.scope[0].substr(0,7))) {
+
+					} else if (-1 !== ['series.', 'values.'].indexOf(token_path.scope[0].substr(0, 7))) {
 						var series_key = token_path.scope[0];
 						var series_of = token_path.nodes[0].value;
-						
-						if(autocomplete_scope[series_key + 'of:'] !== series_of) {
+
+						if (autocomplete_scope[series_key + 'of:'] !== series_of) {
 							autocomplete_scope[series_key + 'of:'] = series_of;
 							
 							for(key in autocomplete_suggestions._contexts) {
 								if(series_key === key.substr(0,series_key.length))
 									autocomplete_suggestions._contexts[key] = null;
 							}
-							
-							for(key in autocomplete_suggestions) {
-								if(series_key === key.substr(0,series_key.length))
+
+							for (var key in autocomplete_suggestions) {
+								if (series_key === key.substr(0, series_key.length))
 									autocomplete_suggestions[key] = null;
 							}
-							
-							if(-1 !== autocomplete_contexts.indexOf(series_of)) {
+
+							if (-1 !== autocomplete_contexts.indexOf(series_of)) {
 								autocomplete_scope[series_key + 'x:'] = {
 									'_type': 'series_of_field'
 								};
-								
+
 								autocomplete_scope[series_key + 'y:'] = {
 									'_type': 'series_of_field'
 								};
-								
+
 								autocomplete_scope[series_key + 'query:'] = {
 									'_type': 'series_of_query'
 								};
-								
+
 								autocomplete_scope[series_key + 'query.required:'] = {
 									'_type': 'series_of_query'
 								};
@@ -2868,18 +2869,18 @@ var ajax = new cAjaxCalls();
 					}
 				}
 			}
-			
-			if(is_dirty) {
+
+			if (is_dirty) {
 				var type = autocomplete_scope.type;
 				var of = autocomplete_scope.of;
-				
+
 				// If type: is invalid
-				if('' === type || -1 === autocomplete_suggestions_types['type:'].indexOf(type)) {
+				if ('' === type || -1 === autocomplete_suggestions_types['type:'].indexOf(type)) {
 					autocomplete_suggestions = autocomplete_suggestions_types;
-					
+
 				} else {
-					genericAjaxGet('', 'c=ui&a=dataQuerySuggestions&type=' + encodeURIComponent(type) + '&of=' + encodeURIComponent(of), function(json) {
-						if('object' == typeof json) {
+					genericAjaxGet('', 'c=ui&a=dataQuerySuggestions&type=' + encodeURIComponent(type) + '&of=' + encodeURIComponent(of), function (json) {
+						if ('object' == typeof json) {
 							autocomplete_suggestions = json;
 						} else {
 							autocomplete_suggestions = autocomplete_suggestions_types;
@@ -3129,27 +3130,27 @@ var ajax = new cAjaxCalls();
 									
 									if(autocomplete_suggestions[scope_key]) {
 										editor.completer.showPopup(editor);
-										
+
 									} else {
 										callback(null, []);
 									}
 									return;
 								});
-								
+
 								editor.completer.showPopup(editor);
 								return;
-								
+
 							} else if(1 === token_path.scope.length) {
 								editor.completer.showPopup(editor);
 								return;
 							}
 						}
-						
+
 						(function() {
 							var expand = '';
 							var expand_prefix = '';
 							var expand_context = '';
-							
+
 							if(autocomplete_suggestions[scope_key]) {
 								editor.completer.showPopup(editor);
 								return;
@@ -3200,7 +3201,6 @@ var ajax = new cAjaxCalls();
 								
 								if(autocomplete_suggestions[scope_key]) {
 									editor.completer.showPopup(editor);
-									
 								} else {
 									callback(null, []);
 								}
@@ -3288,37 +3288,11 @@ var ajax = new cAjaxCalls();
 			$trigger.on('click', function(e) {
 				e.stopPropagation();
 				
+				var interaction_uri = $trigger.attr('data-interaction-uri');
 				var interaction = $trigger.attr('data-interaction');
 				var interaction_params = $trigger.attr('data-interaction-params');
 				var behavior_id = $trigger.attr('data-behavior-id');
-				
-				var data = {
-					"interaction": interaction,
-					"browser": {
-						"url": window.location.href,
-					},
-					"params": {}
-				};
-				
-				if(interaction_params && interaction_params.length > 0) {
-					var parts = interaction_params.split('&');
-					for(var idx in parts) {
-						var keyval = parts[idx].split('=');
-						data.params[keyval[0]] = decodeURIComponent(keyval[1]);
-					}
-				}
-				
-				if(null != behavior_id) {
-					data.behavior_id = behavior_id;
-				}
-				
-				// @deprecated
-				$.each(this.attributes, function() {
-					if('data-interaction-param-' == this.name.substring(0,23)) {
-						data.params[this.name.substring(23)] = this.value;
-					}
-				});
-				
+
 				var layer = Devblocks.uniqueId();
 
 				var formData = new FormData();
@@ -3327,9 +3301,80 @@ var ajax = new cAjaxCalls();
 				formData.set('module', 'bot');
 				formData.set('action', 'startInteraction');
 
-				Devblocks.objectToFormData(data, formData);
+				formData.set('interaction', interaction);
+				formData.set('browser[url]', window.location.href);
 
-				genericAjaxPopup(layer,formData, null, false, '300');
+				if(null != interaction_uri)
+					formData.set('interaction_uri', interaction_uri);
+
+				if(null != behavior_id)
+					formData.set('behavior_id', behavior_id);
+
+				if(interaction_params && interaction_params.length > 0) {
+					var parts = new URLSearchParams(interaction_params);
+
+					for(var pair of parts.entries()) {
+						if('[]' === pair[0].substr(-2)) {
+							formData.append('params[' + pair[0].slice(0,-2) + '][]', pair[1]);
+						} else {
+							formData.set('params[' + pair[0] + ']', pair[1]);
+						}
+					}
+				}
+
+				// @deprecated
+				$.each(this.attributes, function() {
+					if('data-interaction-param-' === this.name.substring(0,23)) {
+						formData.append('params[' + this.name.substring(23) + ']', this.value);
+					}
+				});
+
+				// Do we start the interaction inline or in a popup?
+
+				if(options && options.container) {
+					formData.set('interaction_style', 'inline');
+					genericAjaxPost(formData, null, null, function(html) {
+						var $html = $('<div/>')
+							.on('cerb-interaction-reset', function(e) {
+								e.stopPropagation();
+								if(options && options.reset && 'function' == typeof options.reset) {
+									options.reset($.Event(e));
+								}
+							})
+							.on('cerb-interaction-done', function(e) {
+								e.stopPropagation();
+								if(options && options.done && 'function' == typeof options.done) {
+									options.done($.Event('cerb-interaction-done', { trigger: $trigger }));
+								}
+							})
+							.html(html)
+						;
+						options.container.html($html);
+					});
+
+				} else {
+					// [TODO] If mobile, use 100% width
+					var $popup = genericAjaxPopup(layer, formData, null, false, '50%');
+
+					$popup
+						.on('cerb-interaction-reset', function(e) {
+							e.stopPropagation();
+
+							if(options && options.reset && 'function' == typeof options.reset) {
+								options.reset($.Event(e));
+							}
+						})
+						.on('cerb-interaction-done', function(e) {
+							e.stopPropagation();
+
+							if(options && options.done && 'function' == typeof options.done) {
+								options.done($.Event('cerb-interaction-done', { trigger: $trigger }));
+							}
+
+							genericAjaxPopupClose($popup);
+						})
+					;
+				}
 			});
 		});
 	}
@@ -3440,7 +3485,7 @@ var ajax = new cAjaxCalls();
 		return this.each(function() {
 			var $trigger = $(this);
 			
-			$trigger.click(function(evt) {
+			$trigger.on('click', function(evt) {
 				evt.preventDefault();
 				evt.stopPropagation();
 				
@@ -3493,10 +3538,11 @@ var ajax = new cAjaxCalls();
 				peek_open_event.popup_ref = $peek;
 				$trigger.trigger(peek_open_event);
 				
-				$peek.on('peek_saved', function(e) {
-					e.type = 'cerb-peek-saved';
-					e.context = context;
-					$trigger.trigger(e);
+				$peek.on('peek_saved cerb-peek-saved', function(e) {
+					var save_event = $.Event(e.type, e);
+					save_event.type = 'cerb-peek-saved';
+					save_event.context = context;
+					$trigger.trigger(save_event);
 					
 					if(e.is_new) {
 						var new_event = $.Event(e.type, e);
@@ -3505,7 +3551,7 @@ var ajax = new cAjaxCalls();
 					}
 				});
 				
-				$peek.on('peek_deleted', function(e) {
+				$peek.on('peek_deleted cerb-peek-deleted', function(e) {
 					e.type = 'cerb-peek-deleted';
 					e.context = context;
 					$trigger.trigger(e);
@@ -3590,8 +3636,8 @@ var ajax = new cAjaxCalls();
 					var xhr = new XMLHttpRequest();
 
 					if(xhr.upload) {
-						var $spinner = $('<span class="cerb-ajax-spinner"/>')
-							.css('zoom', '0.5')
+						var $spinner = Devblocks.getSpinner()
+							.css('max-width', '16px')
 							.css('margin-right', '5px')
 						;
 
@@ -3708,8 +3754,8 @@ var ajax = new cAjaxCalls();
 					var xhr = new XMLHttpRequest();
 
 					if(xhr.upload) {
-						var $spinner = $('<span class="cerb-ajax-spinner"/>')
-							.css('zoom', '0.5')
+						var $spinner = Devblocks.getSpinner()
+							.css('max-width', '16px')
 							.css('margin-right', '5px')
 						;
 
@@ -3833,7 +3879,7 @@ var ajax = new cAjaxCalls();
 				e.preventDefault();
 				e.stopPropagation();
 				
-				var $spinner = $('<span class="cerb-ajax-spinner"/>').appendTo($attachments);
+				Devblocks.getSpinner().appendTo($attachments);
 				
 				$attachments.css('border', '');
 				
@@ -3883,7 +3929,7 @@ var ajax = new cAjaxCalls();
 				
 				async.series(jobs, function(err, json) {
 					var $ul = $attachments.find('ul.chooser-container');
-					$attachments.find('span.cerb-ajax-spinner').first().remove();
+					$attachments.find('.cerb-spinner').first().remove();
 					
 					for(var i = 0; i < json.length; i++) {
 						if(0 == $ul.find('input:hidden[value="' + json[i].id + '"]').length) {
@@ -3916,7 +3962,7 @@ var ajax = new cAjaxCalls();
 			
 			var field_name = $trigger.attr('data-field-name');
 			var context = $trigger.attr('data-context');
-			
+
 			// [TODO] If $ul is null, create it
 
 			$trigger.on('click', function() {
@@ -3933,7 +3979,7 @@ var ajax = new cAjaxCalls();
 
 				if($trigger.attr('data-single'))
 					chooser_url += '&single=1';
-				
+
 				if(typeof query == 'string' && query.length > 0) {
 					chooser_url += '&q=' + encodeURIComponent(query);
 				}
@@ -4075,7 +4121,7 @@ var ajax = new cAjaxCalls();
 				var autocomplete_placeholders = $trigger.attr('data-autocomplete-placeholders');
 				var shortcuts = null == $trigger.attr('data-shortcuts') || 'false' != $trigger.attr('data-shortcuts');
 				
-				var $autocomplete = $('<input type="search" size="32">');
+				var $autocomplete = $('<input type="text" size="32" autofocus="autofocus">');
 				
 				if(placeholder)
 					$autocomplete.attr('placeholder', placeholder);

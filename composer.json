@@ -3,29 +3,37 @@
 	"description" : "Cerb boosts team productivity with bot-powered email and workflow automation.",
 	"type" : "project",
 	"license" : "Devblocks Public License <https://cerb.ai/license/>",
-	"authors" : [{
+	"authors" : [
+		{
 			"name" : "Webgroup Media LLC",
 			"email" : "team@cerb.ai",
 			"homepage" : "https://cerb.ai/",
 			"role" : "Developer / Publisher"
 		}, {
 			"name" : "Jeff Standen",
-			"email" : "jeff@webgroupmedia.com",
+			"email" : "jeff@cerb.ai",
 			"homepage" : "https://cerb.ai/",
 			"role" : "Software Architect"
 		}
 	],
+	"repositories": [
+		{
+			"type": "pear",
+			"url": "https://pear.horde.org"
+		}
+	],
 	"require" : {
 		"ext-curl": "*",
+		"ext-dom": "*",
 		"ext-gd": "*",
-		"ext-imap": "*",
 		"ext-json": "*",
-      	"ext-mailparse": "*",
+		"ext-mailparse": "*",
 		"ext-mbstring": "*",
 		"ext-mysqli": "*",
-      	"ext-simplexml": "*",
-		"smarty/smarty" : "3.1.31",
-		"swiftmailer/swiftmailer" : "5.4.9",
+		"ext-simplexml": "*",
+		"ext-yaml": "*",
+		"smarty/smarty" : "^3.1",
+		"swiftmailer/swiftmailer" : "^5.4",
 		"dragonmantank/cron-expression": "^2.3",
 		"onelogin/php-saml" : "^3.0",
 		"defuse/php-encryption" : "^2.1",
@@ -38,6 +46,7 @@
 		"erusev/parsedown": "^1.7",
 		"erusev/parsedown-extra": "^0.7.1",
 		"donatj/phpuseragentparser": "^0.14.0",
+		"pear-pear.horde.org/horde_imap_client": "*",
 		"singpolyma/openpgp-php": "^0.4.0"
 	},
 	"require-dev" : {

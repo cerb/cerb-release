@@ -310,7 +310,7 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 				$limit
 			);
 			
-			$results = $db->GetArraySlave($sql);
+			$results = $db->GetArrayReader($sql);
 			
 			$values = array_column($results, $by['key_select']);
 			
@@ -383,7 +383,7 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 				$sql = $outer_sql;
 			}
 			
-			if(false == ($rows = $db->GetArraySlave($sql)))
+			if(false == ($rows = $db->GetArrayReader($sql)))
 				$rows = [];
 			
 		} else {
@@ -575,8 +575,6 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 		
 		// [TODO] Sort by label/metric?
 		// [TODO] Handle currency/decimal fields
-		
-		$sort_children = null;
 		
 		$sort_children = function(&$children) use (&$sort_children) {
 			usort($children, function($a, $b) {
@@ -787,7 +785,6 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 		}
 		
 		$rows = [];
-		$recurse = null;
 		
 		// Build a table recursively from the tree
 		$recurse = function($node, $depth=0, $parents=[]) use (&$recurse, $chart_model, &$rows) {
@@ -1042,7 +1039,6 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 		}
 		
 		$rows = [];
-		$recurse = null;
 		
 		// Build a table recursively from the tree
 		$recurse = function($node, $depth=0, $parents=[]) use (&$recurse, $chart_model, &$rows) {

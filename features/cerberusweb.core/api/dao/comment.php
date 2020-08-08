@@ -216,7 +216,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 			$sort_sql.
 			$limit_sql
 		;
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		return self::_getObjectsFromResult($rs);
 	}
@@ -235,7 +235,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 			$db->qstr($context),
 			implode(',', $ids)
 		);
-		$rows = $db->GetArraySlave($sql);
+		$rows = $db->GetArrayReader($sql);
 		
 		$ids = array();
 		
@@ -319,7 +319,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 	
 	static public function count($from_context, $from_context_id) {
 		$db = DevblocksPlatform::services()->database();
-		return $db->GetOneSlave(sprintf("SELECT count(*) FROM comment ".
+		return $db->GetOneReader(sprintf("SELECT count(*) FROM comment ".
 			"WHERE context = %s AND context_id = %d",
 			$db->qstr($from_context),
 			$from_context_id
@@ -437,10 +437,9 @@ class DAO_Comment extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -449,47 +448,16 @@ class DAO_Comment extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-			
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		$results = array();
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_Comment::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(comment.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_Comment::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 
 	static function maint() {
@@ -989,9 +957,13 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_Comment::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_Comment::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -1000,6 +972,10 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_Comment');
 		
@@ -1402,8 +1378,7 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 			return '';
 	
 		$url_writer = DevblocksPlatform::services()->url();
-		$url = $url_writer->writeNoProxy('c=profiles&type=comment&id='.$context_id, true);
-		return $url;
+		return $url_writer->writeNoProxy('c=profiles&type=comment&id='.$context_id, true);
 	}
 	
 	function profileGetFields($model=null) {
@@ -1456,9 +1431,11 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 		
 		$url = $this->profileGetUrl($context_id);
 		
+		$actor = $comment->getActorDictionary();
+		
 		return array(
 			'id' => $comment->id,
-			'name' => '',
+			'name' => sprintf("%s's comment", $actor->get('_label')),
 			'permalink' => $url,
 			'updated' => $comment->created,
 		);
@@ -1598,6 +1575,17 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 		}
 		
 		switch($token) {
+			case 'record_url':
+				$dict = DevblocksDictionaryDelegate::instance($dictionary);
+				
+				if(CerberusContexts::CONTEXT_COMMENT == $dict->get('target__context')) {
+					$values['record_url'] = $dict->get('target_target_record_url') . '#comment' . $dict->get('id');
+					
+				} else {
+					$values['record_url'] = $dict->get('target_record_url');
+				}
+				break;
+				
 			default:
 				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
 				$values = array_merge($values, $defaults);

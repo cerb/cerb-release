@@ -103,8 +103,8 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 			->setUnique(get_class())
 			->setNotEmpty(false)
 			->addValidator(function($string, &$error=null) {
-				if(0 != strcmp($string, DevblocksPlatform::strAlphaNum(DevblocksPlatform::strLower($string), '_'))) {
-					$error = "may only contain lowercase letters, numbers, and underscores";
+				if(0 != strcmp($string, DevblocksPlatform::strAlphaNum($string, '_'))) {
+					$error = "may only contain letters, numbers, and underscores";
 					return false;
 				}
 				
@@ -479,7 +479,7 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 		
 		return self::_getObjectsFromResult($rs);
@@ -539,7 +539,7 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 	
 	static public function countByBot($bot_id) {
 		$db = DevblocksPlatform::services()->database();
-		return $db->GetOneSlave(sprintf("SELECT count(*) FROM trigger_event ".
+		return $db->GetOneReader(sprintf("SELECT count(*) FROM trigger_event ".
 			"WHERE bot_id = %d",
 			$bot_id
 		));
@@ -638,10 +638,9 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -650,47 +649,16 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-			
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		$results = [];
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_TriggerEvent::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(trigger_event.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_TriggerEvent::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 
 	static public function clearCache() {
@@ -1629,9 +1597,13 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_TriggerEvent::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_TriggerEvent::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -1640,6 +1612,10 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_TriggerEvent');
 		

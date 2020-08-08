@@ -34,6 +34,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 	const PHONE = 'phone';
 	const TIMEZONE = 'timezone';
 	const TIME_FORMAT = 'time_format';
+	const TIMEOUT_IDLE_SECS = 'timeout_idle_secs';
 	const TITLE = 'title';
 	const UPDATED = 'updated';
 	
@@ -192,6 +193,13 @@ class DAO_Worker extends Cerb_ORMHelper {
 			->string()
 			->setMaxLength(64)
 			;
+		// int(10) unsigned
+		$validation
+			->addField(self::TIMEOUT_IDLE_SECS)
+			->number()
+			->setMin(60)
+			->setMax(2678400)
+			;
 		// varchar(255)
 		$validation
 			->addField(self::TITLE)
@@ -244,6 +252,9 @@ class DAO_Worker extends Cerb_ORMHelper {
 			return false;
 		
 		$id = $db->LastInsertId();
+		
+		if(!array_key_exists(DAO_Worker::TIMEOUT_IDLE_SECS, $fields))
+			$fields[DAO_Worker::TIMEOUT_IDLE_SECS] = 600;
 
 		self::update($id, $fields);
 		
@@ -292,80 +303,75 @@ class DAO_Worker extends Cerb_ORMHelper {
 		});
 	}
 	
-	/**
-	 * @return Model_Worker[]
-	 */
-	static function getAllOnline($idle_limit=600, $idle_kick_limit=0) {
-		$session = DevblocksPlatform::services()->session();
-
-		$sessions = Cerb_DevblocksSessionHandler::getAllLoggedIn();
-		$workers = DAO_Worker::getAll();
+	static function getOnlineAndMostIdle($max=1) {
+		$db = DevblocksPlatform::services()->database();
 		
-		if(!is_array($sessions) || empty($sessions))
+		$sql = "SELECT devblocks_session.user_id, MAX(devblocks_session.updated+worker.timeout_idle_secs) as idle_after ".
+			"FROM devblocks_session ".
+			"INNER JOIN worker ON (worker.id=devblocks_session.user_id) ".
+			"WHERE user_id > 0 ".
+			"GROUP BY user_id ".
+			"HAVING idle_after < unix_timestamp() ".
+			"ORDER BY idle_after asc ".
+			($max ? sprintf("LIMIT %d", $max) : '')
+		;
+		$results = $db->GetArrayMaster($sql);
+		
+		if(false == $results)
 			return [];
 		
-		// Least idle sessions first
-		DevblocksPlatform::sortObjects($sessions, '[updated]', false);
-
-		$workers_by_last_activity = [];
+		return array_column($results, 'idle_after', 'user_id');
+	}
+	
+	static private function _getOnline() {
+		$db = DevblocksPlatform::services()->database();
 		
-		foreach($sessions as $object) {
-			// If we've already seen this worker, their first session was the least idle
-			if(isset($workers_by_last_activity[$object['user_id']]))
-				continue;
-			
-			$workers_by_last_activity[$object['user_id']] = $object['updated'];
-		}
+		$sql = "SELECT user_id ".
+			"FROM devblocks_session ".
+			"WHERE user_id > 0 ".
+			"GROUP BY user_id "
+		;
+		$results = $db->GetArrayMaster($sql);
 		
-		// Most idle workers first
-		asort($workers_by_last_activity);
+		if(false == $results)
+			return [];
 		
-		foreach($workers_by_last_activity as $worker_id => $last_activity) {
-			if(!isset($workers[$worker_id]))
-				continue;
+		return DAO_Worker::getIds(array_column($results, 'user_id'));
+	}
+	
+	/**
+	 * @param int $idle_kick_limit
+	 * @return Model_Worker[]
+	 */
+	static function getAllOnline($idle_kick_limit=0) {
+		// Do we need to try and make room?
+		if($idle_kick_limit) {
+			$idle_workers = self::getOnlineAndMostIdle($idle_kick_limit);
 			
-			$worker = $workers[$worker_id];
-			$worker_idle_time = time() - $last_activity;
+			if($idle_workers) {
+				DAO_DevblocksSession::deleteByUserIds(array_keys($idle_workers));
+			}
 			
-			if($worker_idle_time > $idle_limit) {
-				unset($workers_by_last_activity[$worker_id]);
+			foreach($idle_workers as $idle_worker_id => $idle_worker_after) {
+				$idle_worker = DAO_Worker::get($idle_worker_id);
 				
-				// If we're still clearing seats
-				if($idle_kick_limit > 0) {
-					
-					// Clear all the sessions for this worker
-					foreach($sessions as $object) {
-						if($object['user_id'] == $worker_id) {
-							$session->clear($object['session_id']);
-						}
-					}
-					
-					// One more seat freed up
-					$idle_kick_limit--;
-					
-					// Add the session kick to the worker's activity log
-					$entry = array(
-						//{{actor}} logged {{target}} out to free up a license seat.
-						'message' => 'activities.worker.seat_expired',
-						'variables' => array(
-								'target' => $worker->getName(),
-								'idle_time' => $worker_idle_time,
-							),
-						'urls' => array(
-								'target' => sprintf("ctx://cerberusweb.contexts.worker:%d/%s", $worker->id, DevblocksPlatform::strToPermalink($worker->getName())),
-							)
-					);
-					CerberusContexts::logActivity('worker.seat_expired', CerberusContexts::CONTEXT_WORKER, $worker->id, $entry, CerberusContexts::CONTEXT_APPLICATION, 0);
-				}
+				// Add the session kick to the worker's activity log
+				$entry = array(
+					//{{actor}} logged {{target}} out to free up a license seat.
+					'message' => 'activities.worker.seat_expired',
+					'variables' => array(
+							'target' => $idle_worker->getName(),
+							'idle_time' => time()-($idle_worker_after-$idle_worker->timeout_idle_secs),
+						),
+					'urls' => array(
+							'target' => sprintf("ctx://cerberusweb.contexts.worker:%d/%s", $idle_worker->id, DevblocksPlatform::strToPermalink($idle_worker->getName())),
+						)
+				);
+				CerberusContexts::logActivity('worker.seat_expired', CerberusContexts::CONTEXT_WORKER, $idle_worker->id, $entry, CerberusContexts::CONTEXT_APPLICATION, 0);
 			}
 		}
 		
-		// Least idle workers first
-		arsort($workers_by_last_activity);
-		
-		$active_workers = array_intersect_key($workers, $workers_by_last_activity);
-		
-		return $active_workers;
+		return self::_getOnline();
 	}
 	
 	/**
@@ -411,7 +417,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
-		$sql = "SELECT id, first_name, last_name, email_id, title, is_superuser, is_disabled, is_password_disabled, is_mfa_required, at_mention_name, timezone, time_format, language, calendar_id, gender, dob, location, phone, mobile, updated ".
+		$sql = "SELECT id, first_name, last_name, email_id, title, is_superuser, is_disabled, is_password_disabled, is_mfa_required, at_mention_name, timezone, time_format, timeout_idle_secs, language, calendar_id, gender, dob, location, phone, mobile, updated ".
 			"FROM worker ".
 			$where_sql.
 			$sort_sql.
@@ -421,7 +427,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 		
 		return self::_createObjectsFromResultSet($rs);
@@ -478,7 +484,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		$responsibilities = [];
 		
-		$results = $db->GetArraySlave(sprintf("SELECT worker_id, bucket_id, responsibility_level FROM worker_to_bucket WHERE worker_id = %d",
+		$results = $db->GetArrayReader(sprintf("SELECT worker_id, bucket_id, responsibility_level FROM worker_to_bucket WHERE worker_id = %d",
 			$worker_id
 		));
 		
@@ -560,6 +566,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 			$object->phone = $row['phone'];
 			$object->time_format = $row['time_format'];
 			$object->timezone = $row['timezone'];
+			$object->timeout_idle_secs = intval($row['timeout_idle_secs']);
 			$object->title = $row['title'];
 			$object->updated = intval($row['updated']);
 			$objects[$object->id] = $object;
@@ -689,7 +696,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 			"SELECT 'cerberusweb.contexts.notification' AS context, worker_id, COUNT(id) AS hits FROM notification WHERE is_read = 0 GROUP BY worker_id ".
 			""
 			;
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		foreach($results as $result) {
 			$context = $result['context'];
@@ -993,7 +1000,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(worker_id) FROM worker_to_group WHERE group_id = %d",
 			$group_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function delete($id) {
@@ -1088,7 +1095,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 	
 	static function hasAuth($worker_id) {
 		$db = DevblocksPlatform::services()->database();
-		$worker_auth = $db->GetRowSlave(sprintf("SELECT pass_hash, pass_salt, method FROM worker_auth_hash WHERE worker_id = %d", $worker_id));
+		$worker_auth = $db->GetRowReader(sprintf("SELECT pass_hash, pass_salt, method FROM worker_auth_hash WHERE worker_id = %d", $worker_id));
 		return (is_array($worker_auth) && isset($worker_auth['pass_hash']));
 	}
 	
@@ -1127,7 +1134,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 		if($worker->is_password_disabled)
 			return null;
 		
-		$worker_auth = $db->GetRowSlave(sprintf("SELECT pass_hash, pass_salt, method FROM worker_auth_hash WHERE worker_id = %d", $worker->id));
+		$worker_auth = $db->GetRowReader(sprintf("SELECT pass_hash, pass_salt, method FROM worker_auth_hash WHERE worker_id = %d", $worker->id));
 		
 		if(!isset($worker_auth['pass_hash']))
 			return null;
@@ -1195,7 +1202,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 	
 	public static function random() {
 		$db = DevblocksPlatform::services()->database();
-		return $db->GetOneSlave("SELECT id FROM worker WHERE is_disabled=0 ORDER BY rand() LIMIT 1");
+		return $db->GetOneReader("SELECT id FROM worker WHERE is_disabled=0 ORDER BY rand() LIMIT 1");
 	}
 	
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
@@ -1215,6 +1222,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 			"w.at_mention_name as %s, ".
 			"w.timezone as %s, ".
 			"w.time_format as %s, ".
+			"w.timeout_idle_secs as %s, ".
 			"w.language as %s, ".
 			"w.calendar_id as %s, ".
 			"w.gender as %s, ".
@@ -1235,6 +1243,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 				SearchFields_Worker::AT_MENTION_NAME,
 				SearchFields_Worker::TIMEZONE,
 				SearchFields_Worker::TIME_FORMAT,
+				SearchFields_Worker::TIMEOUT_IDLE_SECS,
 				SearchFields_Worker::LANGUAGE,
 				SearchFields_Worker::CALENDAR_ID,
 				SearchFields_Worker::GENDER,
@@ -1297,7 +1306,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 			'LIMIT 25 '
 			;
 		
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		if(is_array($results))
 		foreach($results as $row) {
@@ -1322,6 +1331,7 @@ class DAO_Worker extends Cerb_ORMHelper {
 	
 	/**
 	 *
+	 * @param array $columns
 	 * @param DevblocksSearchCriteria[] $params
 	 * @param integer $limit
 	 * @param integer $page
@@ -1329,10 +1339,9 @@ class DAO_Worker extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 		
@@ -1341,47 +1350,16 @@ class DAO_Worker extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		$results = [];
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_Worker::ID]);
-			$results[$object_id] = $row;
-		}
-		
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(w.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_Worker::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 };
 
@@ -1409,6 +1387,7 @@ class SearchFields_Worker extends DevblocksSearchFields {
 	const PHONE = 'w_phone';
 	const TIMEZONE = 'w_timezone';
 	const TIME_FORMAT = 'w_time_format';
+	const TIMEOUT_IDLE_SECS = 'w_timeout_idle_secs';
 	const TITLE = 'w_title';
 	const UPDATED = 'w_updated';
 	
@@ -1561,7 +1540,7 @@ class SearchFields_Worker extends DevblocksSearchFields {
 				$db = DevblocksPlatform::services()->database();
 				$workspace_page_sql = self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_WORKSPACE_PAGE, '%s');
 				
-				if(false == ($rows = $workspace_page_ids = $db->GetArraySlave($workspace_page_sql)))
+				if(false == ($rows = $workspace_page_ids = $db->GetArrayReader($workspace_page_sql)))
 					return '0';
 				
 				if(false == ($worker_ids = DAO_WorkspacePage::getUsers(array_column($rows, 'id'))))
@@ -1679,6 +1658,7 @@ class SearchFields_Worker extends DevblocksSearchFields {
 			self::PHONE => new DevblocksSearchField(self::PHONE, 'w', 'phone', $translate->_('common.phone'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::TIME_FORMAT => new DevblocksSearchField(self::TIME_FORMAT, 'w', 'time_format', $translate->_('worker.time_format'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::TIMEZONE => new DevblocksSearchField(self::TIMEZONE, 'w', 'timezone', $translate->_('common.timezone'), Model_CustomField::TYPE_SINGLE_LINE, true),
+			self::TIMEOUT_IDLE_SECS => new DevblocksSearchField(self::TIMEOUT_IDLE_SECS, 'w', 'timeout_idle_secs', $translate->_('worker.timeout_idle_secs'), Model_CustomField::TYPE_NUMBER, true),
 			self::TITLE => new DevblocksSearchField(self::TITLE, 'w', 'title', $translate->_('worker.title'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::UPDATED => new DevblocksSearchField(self::UPDATED, 'w', 'updated', $translate->_('common.updated'), Model_CustomField::TYPE_DATE, true),
 			
@@ -1896,6 +1876,7 @@ class Model_Worker {
 	public $phone;
 	public $time_format;
 	public $timezone;
+	public $timeout_idle_secs;
 	public $title;
 	public $updated;
 	
@@ -2247,9 +2228,13 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_Worker::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_Worker::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -2258,12 +2243,16 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_Worker');
 		
 		return $objects;
 	}
-
+	
 	function getDataAsObjects($ids=null) {
 		return $this->_getDataAsObjects('DAO_Worker', $ids);
 	}
@@ -2405,7 +2394,7 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		
 		$counts = [];
 		
-		if(false == ($results = $db->GetArraySlave($sql)))
+		if(false == ($results = $db->GetArrayReader($sql)))
 			return $counts;
 		
 		if(is_callable($label_map)) {
@@ -2980,6 +2969,7 @@ class View_Worker extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			case SearchFields_Worker::PHONE:
 			case SearchFields_Worker::TIME_FORMAT:
 			case SearchFields_Worker::TIMEZONE:
+			case SearchFields_Worker::TIMEOUT_IDLE_SECS:
 			case SearchFields_Worker::TITLE:
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
@@ -3149,7 +3139,7 @@ class DAO_WorkerPref extends Cerb_ORMHelper {
 			$db = DevblocksPlatform::services()->database();
 			$sql = sprintf("SELECT setting, value FROM worker_pref WHERE worker_id = %d", $worker_id);
 			
-			if(false === ($rs = $db->ExecuteSlave($sql)))
+			if(false === ($rs = $db->QueryReader($sql)))
 				return false;
 			
 			$objects = [];
@@ -3439,6 +3429,7 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			'mobile' => $prefix.$translate->_('common.mobile'),
 			'phone' => $prefix.$translate->_('common.phone'),
 			'time_format' => $prefix.$translate->_('worker.time_format'),
+			'timeout_idle_secs' => $prefix.$translate->_('worker.timeout_idle_secs'),
 			'timezone' => $prefix.$translate->_('common.timezone'),
 			'title' => $prefix.$translate->_('worker.title'),
 			'updated' => $prefix.$translate->_('common.updated'),
@@ -3463,6 +3454,7 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			'phone' => 'phone',
 			'time_format' => Model_CustomField::TYPE_SINGLE_LINE,
 			'timezone' => Model_CustomField::TYPE_SINGLE_LINE,
+			'timeout_idle_secs' => Model_CustomField::TYPE_NUMBER,
 			'title' => Model_CustomField::TYPE_SINGLE_LINE,
 			'updated' => Model_CustomField::TYPE_DATE,
 			'record_url' => Model_CustomField::TYPE_URL,
@@ -3504,6 +3496,7 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			$token_values['phone'] = $worker->phone;
 			$token_values['time_format'] = $worker->time_format;
 			$token_values['timezone'] = $worker->timezone;
+			$token_values['timeout_idle_secs'] = $worker->timeout_idle_secs;
 			$token_values['title'] = $worker->title;
 			$token_values['updated'] = $worker->updated;
 
@@ -3573,6 +3566,7 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			'phone' => DAO_Worker::PHONE,
 			'time_format' => DAO_Worker::TIME_FORMAT,
 			'timezone' => DAO_Worker::TIMEZONE,
+			'timeout_idle_secs' => DAO_Worker::TIMEOUT_IDLE_SECS,
 			'title' => DAO_Worker::TITLE,
 			'updated' => DAO_Worker::UPDATED,
 		];
@@ -3597,6 +3591,7 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 		$keys['mobile']['notes'] = "Mobile number";
 		$keys['time_format']['notes'] = "Preference for displaying timestamps, `strftime()` syntax";
 		$keys['timezone']['notes'] = "IANA tz/zoneinfo timezone; `America/Los_Angeles`";
+		$keys['timeout_idle_secs']['notes'] = "Consider a session idle after this many seconds of inactivity";
 		$keys['title']['notes'] = "Job title / Position";
 		
 		$keys['email'] = [
@@ -3765,6 +3760,7 @@ class Context_Worker extends Extension_DevblocksContext implements IDevblocksCon
 			$worker->timezone = $active_worker->timezone;
 			$worker->time_format = $active_worker->time_format;
 			$worker->language = $active_worker->language;
+			$worker->timeout_idle_secs = 600;
 			$worker->is_password_disabled = DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::AUTH_DEFAULT_WORKER_DISABLE_PASSWORD, 0);
 			$worker->is_mfa_required = DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::AUTH_DEFAULT_WORKER_REQUIRE_MFA, 0);
 		}

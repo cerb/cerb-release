@@ -209,7 +209,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		if(empty($participant_ids) || empty($message_ids))
 			return false;
 		
-		$result = $db->GetOneSlave(sprintf("SELECT COUNT(t.id) from message m inner join ticket t on (t.id=m.ticket_id) inner join requester r on (r.ticket_id=t.id) where r.address_id in (%s) and m.id in (%s)",
+		$result = $db->GetOneReader(sprintf("SELECT COUNT(t.id) from message m inner join ticket t on (t.id=m.ticket_id) inner join requester r on (r.ticket_id=t.id) where r.address_id in (%s) and m.id in (%s)",
 			implode(',', DevblocksPlatform::sanitizeArray($participant_ids, 'int')),
 			implode(',', DevblocksPlatform::sanitizeArray($message_ids, 'int'))
 		));
@@ -250,7 +250,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT t.id FROM ticket t WHERE t.mask = %s",
 			$db->qstr($mask)
 		);
-		$ticket_id = $db->GetOneSlave($sql);
+		$ticket_id = $db->GetOneReader($sql);
 
 		// If we found a hit on a ticket record, return the ID
 		if(!empty($ticket_id)) {
@@ -261,7 +261,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			$sql = sprintf("SELECT new_ticket_id FROM ticket_mask_forward WHERE old_mask = %s",
 				$db->qstr($mask)
 			);
-			$ticket_id = $db->GetOneSlave($sql);
+			$ticket_id = $db->GetOneReader($sql);
 			
 			if(!empty($ticket_id))
 				return intval($ticket_id);
@@ -278,7 +278,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			$db->qstr($old_mask)
 		);
 		
-		$new_mask = $db->GetOneSlave($sql);
+		$new_mask = $db->GetOneReader($sql);
 		
 		if(empty($new_mask))
 			return null;
@@ -328,7 +328,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			$db->qstr(sha1($raw_message_id))
 		);
 		
-		if(false == ($row = $db->GetRowSlave($sql)) || empty($row))
+		if(false == ($row = $db->GetRowReader($sql)) || empty($row))
 			return false;
 		
 		$ticket_id = intval($row['ticket_id']);
@@ -351,7 +351,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			$db->qstr(CerberusContexts::CONTEXT_WORKER),
 			$ticket_id
 		);
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		return $results;
 	}
@@ -375,7 +375,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			);
 		}
 		
-		$rows = $db->GetArraySlave($sql);
+		$rows = $db->GetArrayReader($sql);
 		
 		foreach($rows as $row) {
 			$ticket_id = $row['ticket_id'];
@@ -415,7 +415,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				"GROUP BY ticket.status_id",
 			$contact_id
 		);
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		if(is_array($results))
 		foreach($results as $result) {
@@ -455,7 +455,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				"GROUP BY ticket.status_id",
 			$bucket_id
 		);
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		if(is_array($results))
 		foreach($results as $result) {
@@ -495,7 +495,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				"GROUP BY ticket.status_id",
 			$group_id
 		);
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		if(is_array($results))
 		foreach($results as $result) {
@@ -535,7 +535,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				"GROUP BY ticket.status_id",
 			$worker_id
 		);
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		if(is_array($results))
 		foreach($results as $result) {
@@ -576,7 +576,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				"GROUP BY ticket.status_id",
 			$address_id
 		);
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		if(is_array($results))
 		foreach($results as $result) {
@@ -616,7 +616,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				"GROUP BY status_id",
 			$org_id
 		);
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		if(is_array($results))
 		foreach($results as $result) {
@@ -794,7 +794,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			$sort_sql.
 			$limit_sql
 		;
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		return self::_createObjectsFromResultSet($rs);
 	}
@@ -1504,7 +1504,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			"ORDER BY a.email ASC ",
 			$ticket_id
 		);
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 
 		if(is_array($results))
 		foreach($results as $result) {
@@ -1534,32 +1534,34 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		@$excludes = DevblocksPlatform::parseCrlfString($exclude_list);
 		
 		if(is_array($addys))
-		foreach($addys as $addy => $addy_data) {
+		foreach($addys as $addy_data) {
+			$addy_data['email'] = DevblocksPlatform::strLower($addy_data['email']);
+			
 			try {
 				// Filter out our own addresses
-				if(DAO_Address::isLocalAddress($addy))
+				if(DAO_Address::isLocalAddress($addy_data['email']))
 					continue;
 				
 				// Filter explicit excludes
 				if(is_array($excludes) && !empty($excludes))
 				foreach($excludes as $excl_pattern) {
-					if(@preg_match(DevblocksPlatform::parseStringAsRegExp($excl_pattern), $addy)) {
+					if(@preg_match(DevblocksPlatform::parseStringAsRegExp($excl_pattern), $addy_data['email'])) {
 						throw new Exception();
 					}
 				}
 				
 				// If we aren't given a personal name, attempt to look them up
 				if(empty($addy_data['personal'])) {
-					if(null != ($addy_lookup = DAO_Address::lookupAddress($addy))) {
+					if(null != ($addy_lookup = DAO_Address::lookupAddress($addy_data['email']))) {
 						$addy_fullname = $addy_lookup->getName();
 						if(!empty($addy_fullname)) {
 							$addy_data['personal'] = $addy_fullname;
-							$addy_data['full_email'] = imap_rfc822_write_address($addy_data['mailbox'], $addy_data['host'], $addy_fullname);
+							$addy_data['full_email'] = CerberusMail::writeRfcAddress($addy_data['email'], $addy_fullname);
 						}
 					}
 				}
 				
-				$results[$addy] = $addy_data;
+				$results[$addy_data['email']] = $addy_data;
 				
 			} catch(Exception $e) {
 			}
@@ -1866,7 +1868,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		$objects = [];
 		
-		$results = $db->GetArraySlave(sprintf("SELECT id ".
+		$results = $db->GetArrayReader(sprintf("SELECT id ".
 			"FROM ticket ".
 			"WHERE ticket.status_id != 3 ".
 			"AND (".
@@ -2095,10 +2097,19 @@ class DAO_Ticket extends Cerb_ORMHelper {
 
 		return true;
 	}
-
+	
+	/**
+	 * @param $columns
+	 * @param $params
+	 * @param int $limit
+	 * @param int $page
+	 * @param null $sortBy
+	 * @param null $sortAsc
+	 * @param bool $withCounts
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		$fulltext_params = [];
 		
 		foreach($params as $param_key => $param) {
@@ -2132,7 +2143,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 					$sort_by = 't.created_date';
 				}
 				
-				$prefetch_sql = 
+				$prefetch_sql =
 					sprintf('SELECT message.id FROM message INNER JOIN (SELECT t.id %s%s ORDER BY %s DESC LIMIT 20000) AS search ON (search.id=message.ticket_id)',
 						$join_sql,
 						$where_sql,
@@ -2152,43 +2163,17 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			}
 		}
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-		
-		if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-			return false;
-		
-		$results = [];
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$id = intval($row[SearchFields_Ticket::TICKET_ID]);
-			$results[$id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(t.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results, $total);
+		return self::_searchWithTimeout(
+			SearchFields_Ticket::TICKET_ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
-	
 };
 
 class SearchFields_Ticket extends DevblocksSearchFields {
@@ -2798,8 +2783,7 @@ class Model_Ticket {
 	}
 	
 	function getMessages() {
-		$messages = DAO_Message::getMessagesByTicket($this->id);
-		return $messages;
+		return DAO_Message::getMessagesByTicket($this->id);
 	}
 	
 	function getTimeline($is_ascending=true, $target_context=null, $target_context_id=null, &$start_at=0) {
@@ -3005,10 +2989,13 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		// [TODO] Only return IDs here
-		$objects = DAO_Ticket::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_Ticket::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -3017,12 +3004,16 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_Ticket');
 		
 		return $objects;
 	}
-
+	
 	function getDataAsObjects($ids=null) {
 		return $this->_getDataAsObjects('DAO_Ticket', $ids);
 	}
@@ -3198,7 +3189,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			"ORDER BY hits DESC "
 		;
 		
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 
 		return $results;
 	}
@@ -3332,7 +3323,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			' GROUP BY t.status_id'
 		;
 		
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		return $results;
 	}
@@ -3931,7 +3922,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		$tpl->assign('id', $this->id);
 		$tpl->assign('view', $this);
 
-		$results = self::getData();
+		$results = $this->getData();
 		$tpl->assign('results', $results);
 		
 		$this->_checkFulltextMarquee();

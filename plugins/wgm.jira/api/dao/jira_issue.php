@@ -212,7 +212,7 @@ class DAO_JiraIssue extends Cerb_ORMHelper {
 			$sort_sql.
 			$limit_sql
 		;
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		return self::_getObjectsFromResult($rs);
 	}
@@ -243,10 +243,10 @@ class DAO_JiraIssue extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		
 		// With a specific issue ID?
-		if($issue_id && false != ($comment_id = $db->GetOneSlave(sprintf("SELECT id FROM jira_issue_comment WHERE issue_id = %d ORDER BY RAND() LIMIT 1", $issue_id))))
+		if($issue_id && false != ($comment_id = $db->GetOneReader(sprintf("SELECT id FROM jira_issue_comment WHERE issue_id = %d ORDER BY RAND() LIMIT 1", $issue_id))))
 			return $comment_id;
 		
-		return $db->GetOneSlave("SELECT id FROM jira_issue_comment ORDER BY RAND() LIMIT 1");
+		return $db->GetOneReader("SELECT id FROM jira_issue_comment ORDER BY RAND() LIMIT 1");
 	}
 	
 	static function getByJiraId($remote_id) {
@@ -265,7 +265,7 @@ class DAO_JiraIssue extends Cerb_ORMHelper {
 			$remote_id,
 			$account_id
 		);
-		$local_id = $db->GetOneSlave($sql);
+		$local_id = $db->GetOneReader($sql);
 		
 		if(empty($local_id))
 			return NULL;
@@ -322,7 +322,7 @@ class DAO_JiraIssue extends Cerb_ORMHelper {
 	static function getCommentsByIssueId($issue_id) {
 		$db = DevblocksPlatform::services()->database();
 
-		$results = $db->GetArraySlave(sprintf("SELECT jira_comment_id, jira_issue_id, created, jira_author, body ".
+		$results = $db->GetArrayReader(sprintf("SELECT jira_comment_id, jira_issue_id, created, jira_author, body ".
 			"FROM jira_issue_comment ".
 			"WHERE issue_id = %d ".
 			"ORDER BY created DESC",
@@ -335,7 +335,7 @@ class DAO_JiraIssue extends Cerb_ORMHelper {
 	static function getComment($comment_id) {
 		$db = DevblocksPlatform::services()->database();
 
-		$results = $db->GetRowSlave(sprintf("SELECT id, issue_id, jira_comment_id, jira_issue_id, created, jira_author, body ".
+		$results = $db->GetRowReader(sprintf("SELECT id, issue_id, jira_comment_id, jira_issue_id, created, jira_author, body ".
 			"FROM jira_issue_comment ".
 			"WHERE id = %d ".
 			"ORDER BY created DESC",
@@ -464,10 +464,9 @@ class DAO_JiraIssue extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -476,47 +475,16 @@ class DAO_JiraIssue extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-			
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		$results = [];
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_JiraIssue::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(jira_issue.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_JiraIssue::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 
 };
@@ -862,9 +830,13 @@ class View_JiraIssue extends C4_AbstractView implements IAbstractView_Subtotals,
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_JiraIssue::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_JiraIssue::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -873,6 +845,10 @@ class View_JiraIssue extends C4_AbstractView implements IAbstractView_Subtotals,
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_JiraIssue');
 		

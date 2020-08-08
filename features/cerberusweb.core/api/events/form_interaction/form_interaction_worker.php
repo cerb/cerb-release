@@ -253,7 +253,7 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 					],
 				],
 				'prompt_compose' => [
-					'label' => 'Prompt with compose email editor',
+					'label' => 'Prompt with email compose',
 					'notes' => '',
 					'params' => [
 						'draft_id' => [
@@ -263,7 +263,7 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 						'var' => [
 							'type' => 'placeholder',
 							'required' => true,
-							'notes' => "The placeholder to set with the user's choices",
+							'notes' => "The placeholder to set with the new ticket dictionary",
 						],
 					],
 				],
@@ -327,6 +327,61 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 						],
 					],
 				],
+				'prompt_reply' => [
+					'label' => 'Prompt with email reply',
+					'notes' => '',
+					'params' => [
+						'draft_id' => [
+							'type' => 'text',
+							'notes' => 'The optional [draft](/docs/records/types/draft/#params-ticketreply) record ID to resume',
+						],
+						'var' => [
+							'type' => 'placeholder',
+							'required' => true,
+							'notes' => "The placeholder to set with the new message dictionary",
+						],
+					],
+				],
+				'prompt_sheet' => [
+					'label' => 'Prompt with sheet',
+					'notes' => '',
+					'params' => [
+						'label' => [
+							'type' => 'text',
+							'required' => true,
+							'notes' => 'The label for the sheet input',
+						],
+						'data' => [
+							'type' => 'text',
+							'notes' => 'The data to display as rows in the sheet',
+						],
+						'schema' => [
+							'type' => 'text',
+							'notes' => 'The sheet schema',
+						],
+						'mode' => [
+							'type' => 'text',
+							'notes' => '`multiple` (multiple row selection), or omit for single selection',
+						],
+						'selection_key' => [
+							'type' => 'text',
+							'notes' => 'The key from `data` rows to return when a row is selected',
+						],
+						'var' => [
+							'type' => 'placeholder',
+							'required' => true,
+							'notes' => "The placeholder to set with the user's input",
+						],
+						'var_format' => [
+							'type' => 'text',
+							'notes' => "A template for formatting this prompt",
+						],
+						'var_validate' => [
+							'type' => 'text',
+							'notes' => "A template for validating this prompt",
+						],
+					],
+				],
 				'prompt_text' => [
 					'label' => 'Prompt with text',
 					'notes' => '',
@@ -377,12 +432,12 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 							'required' => true,
 							'notes' => "The [data query](/docs/data-queries/) to run",
 						],
-						'placeholder_simulator_yaml' => [
+						'placeholder_simulator_kata' => [
 							'type' => 'yaml',
 							'notes' => "The test placeholder values when using the simulator",
 						],
-						'sheet_yaml' => [
-							'type' => 'yaml',
+						'sheet_kata' => [
+							'type' => 'kata',
 							'required' => true,
 							'notes' => "The [sheet](/docs/sheets/) schema to display",
 						],
@@ -458,6 +513,14 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 			case 'prompt_radios':
 				$tpl->display('devblocks:cerberusweb.core::events/form_interaction/_common/prompts/action_prompt_radios.tpl');
 				break;
+			
+			case 'prompt_reply':
+				$tpl->display('devblocks:cerberusweb.core::events/form_interaction/_common/prompts/action_prompt_reply.tpl');
+				break;
+			
+			case 'prompt_sheet':
+				$tpl->display('devblocks:cerberusweb.core::events/form_interaction/_common/prompts/action_prompt_sheet.tpl');
+				break;
 				
 			case 'prompt_text':
 				$tpl->display('devblocks:cerberusweb.core::events/form_interaction/_common/prompts/action_prompt_text.tpl');
@@ -475,11 +538,11 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 				if(!array_key_exists('data_query', $params))
 					$params['data_query'] = "type:worklist.records\nof:tickets\nquery.required:(\n)\nquery:(\n)\nexpand:[custom_]\nformat:dictionaries";
 					
-				if(!array_key_exists('placeholder_simulator_yaml', $params))
-					$params['placeholder_simulator_yaml'] = "# key: value\n";
+				if(!array_key_exists('placeholder_simulator_kata', $params))
+					$params['placeholder_simulator_kata'] = "#key: value\n";
 				
-				if(!array_key_exists('sheet_yaml', $params))
-					$params['sheet_yaml'] = "layout:\n  style: table # [table,fieldsets]\n  headings: true\n  paging: true\n  #title_column: _label\ncolumns:\n- card:\n    key: _label\n    label: Name";
+				if(!array_key_exists('sheet_kata', $params))
+					$params['sheet_kata'] = "layout:\n  style: table\n  headings@bool: yes\n  paging@bool: yes\n  #title_column: _label\n\ncolumns:\n  card/_label:\n    label: Name";
 				
 				$tpl->assign('params', $params);
 				$tpl->display('devblocks:cerberusweb.core::events/form_interaction/_common/responses/action_respond_sheet.tpl');
@@ -496,6 +559,7 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 		
 		switch($token) {
 			case 'interaction_end':
+				$out = ">>> Interaction end\n";
 				break;
 			
 			case 'prompt_captcha':
@@ -554,6 +618,32 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 					$options
 				);
 				break;
+			
+			case 'prompt_reply':
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				$draft_id = $tpl_builder->build($params['draft_id'], $dict);
+				
+				$out = sprintf(">>> Prompting with reply popup\nDraft ID: %d\n",
+					$draft_id
+				);
+				break;
+
+			case 'prompt_sheet':
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				$label = $tpl_builder->build($params['label'], $dict);
+				$data = $tpl_builder->build($params['data'], $dict);
+				$schema = $tpl_builder->build($params['schema'], $dict);
+				$mode = $params['mode'];
+				$selection_key = $params['selection_key'];
+				
+				$out = sprintf(">>> Prompting with sheet\nLabel: %s\nSelection: %s\nSelection Key: %s\nData: %s\nSchema: %s\n",
+					$label,
+					$mode ? 'multiple' : 'single',
+					$selection_key,
+					$data,
+					$schema
+				);
+				break;
 				
 			case 'prompt_text':
 				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
@@ -604,8 +694,6 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 				
 			case 'prompt_captcha':
 				$actions =& $dict->_actions;
-				
-				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 				
 				@$var = $params['var'];
 				
@@ -755,7 +843,73 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 					'default' => $default,
 				];
 				break;
+			
+			case 'prompt_reply':
+				$actions =& $dict->_actions;
 				
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				
+				@$draft_id = $tpl_builder->build($params['draft_id'], $dict);
+				@$var = $params['var'];
+				
+				$actions[] = [
+					'_action' => 'prompt.reply',
+					'_trigger_id' => $trigger->id,
+					'_prompt' => [
+						'var' => $var,
+					],
+					'draft_id' => $draft_id,
+				];
+				break;
+			
+			case 'prompt_reply':
+				$actions =& $dict->_actions;
+				
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				
+				@$draft_id = $tpl_builder->build($params['draft_id'], $dict);
+				@$var = $params['var'];
+				
+				$actions[] = [
+					'_action' => 'prompt.reply',
+					'_trigger_id' => $trigger->id,
+					'_prompt' => [
+						'var' => $var,
+					],
+					'draft_id' => $draft_id,
+				];
+				break;
+			
+			case 'prompt_sheet':
+				$actions =& $dict->_actions;
+				
+				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+				
+				@$label = $tpl_builder->build($params['label'], $dict);
+				@$data = $tpl_builder->build($params['data'], $dict);
+				@$schema = $tpl_builder->build($params['schema'], $dict);
+				@$mode = $params['mode'];
+				@$selection_key = $params['selection_key'];
+				@$var = $params['var'];
+				@$var_format = $params['var_format'];
+				@$var_validate = $params['var_validate'];
+				
+				$actions[] = [
+					'_action' => 'prompt.sheet',
+					'_trigger_id' => $trigger->id,
+					'_prompt' => [
+						'var' => $var,
+						'format' => $var_format,
+						'validate' => $var_validate,
+					],
+					'label' => $label,
+					'data' => $data,
+					'schema' => $schema,
+					'mode' => $mode,
+					'selection_key' => $selection_key,
+				];
+				break;
+			
 			case 'prompt_text':
 				$actions =& $dict->_actions;
 				
@@ -830,13 +984,13 @@ class Event_FormInteractionWorker extends Extension_DevblocksEvent {
 				$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 				$data_query = $tpl_builder->build($params['data_query'], $dict);
 				
-				$sheet_yaml = $params['sheet_yaml'];
+				$sheet_kata = $params['sheet_kata'];
 				
 				$actions[] = array(
 					'_action' => 'respond.sheet',
 					'_trigger_id' => $trigger->id,
 					'data_query' => $data_query,
-					'sheet_yaml' => $sheet_yaml,
+					'sheet_kata' => $sheet_kata,
 				);
 				break;
 		}

@@ -210,7 +210,7 @@ class DAO_WorkerRole extends Cerb_ORMHelper {
 			
 			$sql = sprintf("SELECT role_id, is_member, is_editable, is_readable FROM worker_to_role WHERE worker_id = %d", $worker_id);
 			
-			$role_data = $db->GetArraySlave($sql);
+			$role_data = $db->GetArrayReader($sql);
 			
 			if(!is_array($role_data))
 				return [];
@@ -273,7 +273,7 @@ class DAO_WorkerRole extends Cerb_ORMHelper {
 		// Build a map of distinct queries and their results
 		foreach(array_keys($query_cache) as $query) {
 			$view->addParamsWithQuickSearch($query, true);
-			$view->renderLimit = -1;
+			$view->renderLimit = 0;
 			$view->renderTotal = false;
 			$view->renderSubtotals = null;
 			
@@ -394,7 +394,7 @@ class DAO_WorkerRole extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 		
 		return self::_getObjectsFromResult($rs);
@@ -553,10 +553,9 @@ class DAO_WorkerRole extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -565,47 +564,16 @@ class DAO_WorkerRole extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-			
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		$results = [];
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_WorkerRole::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(worker_role.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_WorkerRole::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 };
 
@@ -624,7 +592,7 @@ class Model_WorkerRole {
 		if(is_null($this->_privs)) {
 			$db = DevblocksPlatform::services()->database();
 			
-			$privs_json = $db->GetOneSlave(sprintf("SELECT privs_json FROM worker_role WHERE id = %d", $this->id));
+			$privs_json = $db->GetOneReader(sprintf("SELECT privs_json FROM worker_role WHERE id = %d", $this->id));
 			
 			if(false == ($privs = json_decode($privs_json, true)))
 				return [];
@@ -799,9 +767,13 @@ class View_WorkerRole extends C4_AbstractView implements IAbstractView_Subtotals
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_WorkerRole::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_WorkerRole::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -810,6 +782,10 @@ class View_WorkerRole extends C4_AbstractView implements IAbstractView_Subtotals
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_WorkerRole');
 		

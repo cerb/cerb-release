@@ -16,8 +16,8 @@
  ***********************************************************************/
 
 class DAO_Mailbox extends Cerb_ORMHelper {
-	const AUTH_DISABLE_PLAIN = 'auth_disable_plain';
 	const CHECKED_AT = 'checked_at';
+	const CONNECTED_ACCOUNT_ID = 'connected_account_id';
 	const DELAY_UNTIL = 'delay_until';
 	const ENABLED = 'enabled';
 	const HOST = 'host';
@@ -28,7 +28,6 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 	const PASSWORD = 'password';
 	const PORT = 'port';
 	const PROTOCOL = 'protocol';
-	const SSL_IGNORE_VALIDATION = 'ssl_ignore_validation';
 	const TIMEOUT_SECS = 'timeout_secs';
 	const UPDATED_AT = 'updated_at';
 	const USERNAME = 'username';
@@ -38,15 +37,16 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 	static function getFields() {
 		$validation = DevblocksPlatform::services()->validation();
 
-		// tinyint(3) unsigned
-		$validation
-			->addField(self::AUTH_DISABLE_PLAIN)
-			->bit()
-			;
 		// int(10) unsigned
 		$validation
 			->addField(self::CHECKED_AT)
 			->timestamp()
+			;
+		// int(10) unsigned
+		$validation
+			->addField(self::CONNECTED_ACCOUNT_ID)
+			->id()
+			->addValidator($validation->validators()->contextId(Context_ConnectedAccount::ID, true))
 			;
 		// int(10) unsigned
 		$validation
@@ -93,7 +93,6 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 			->addField(self::PASSWORD)
 			->string()
 			->setMaxLength(128)
-			->setRequired(true)
 			;
 		// smallint(5) unsigned
 		$validation
@@ -105,11 +104,6 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 			->addField(self::PROTOCOL)
 			->string()
 			->setMaxLength(32)
-			;
-		// tinyint(3) unsigned
-		$validation
-			->addField(self::SSL_IGNORE_VALIDATION)
-			->bit()
 			;
 		// mediumint(8) unsigned
 		$validation
@@ -229,7 +223,7 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 
 		// SQL
-		$sql = "SELECT id, enabled, name, protocol, host, username, password, port, num_fails, delay_until, timeout_secs, max_msg_size_kb, ssl_ignore_validation, auth_disable_plain, updated_at, checked_at ".
+		$sql = "SELECT id, enabled, name, protocol, host, username, password, port, num_fails, delay_until, timeout_secs, max_msg_size_kb, updated_at, checked_at, connected_account_id ".
 			"FROM mailbox ".
 			$where_sql.
 			$sort_sql.
@@ -239,7 +233,7 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 
 		return self::_getObjectsFromResult($rs);
@@ -307,10 +301,9 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 			$object->delay_until = intval($row['delay_until']);
 			$object->timeout_secs = intval($row['timeout_secs']);
 			$object->max_msg_size_kb = intval($row['max_msg_size_kb']);
-			$object->ssl_ignore_validation = $row['ssl_ignore_validation'] ? 1 : 0;
-			$object->auth_disable_plain = $row['auth_disable_plain'] ? 1 : 0;
 			$object->updated_at = intval($row['updated_at']);
 			$object->checked_at = intval($row['checked_at']);
+			$object->connected_account_id = intval($row['connected_account_id']);
 			$objects[$object->id] = $object;
 		}
 
@@ -374,9 +367,8 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 			"mailbox.delay_until as %s, ".
 			"mailbox.timeout_secs as %s, ".
 			"mailbox.max_msg_size_kb as %s, ".
-			"mailbox.ssl_ignore_validation as %s, ".
-			"mailbox.auth_disable_plain as %s, ".
 			"mailbox.updated_at as %s, ".
+			"mailbox.connected_account_id as %s, ".
 			"mailbox.checked_at as %s ",
 				SearchFields_Mailbox::ID,
 				SearchFields_Mailbox::ENABLED,
@@ -390,9 +382,8 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 				SearchFields_Mailbox::DELAY_UNTIL,
 				SearchFields_Mailbox::TIMEOUT_SECS,
 				SearchFields_Mailbox::MAX_MSG_SIZE_KB,
-				SearchFields_Mailbox::SSL_IGNORE_VALIDATION,
-				SearchFields_Mailbox::AUTH_DISABLE_PLAIN,
 				SearchFields_Mailbox::UPDATED_AT,
+				SearchFields_Mailbox::CONNECTED_ACCOUNT_ID,
 				SearchFields_Mailbox::CHECKED_AT
 			);
 
@@ -422,10 +413,9 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -433,55 +423,24 @@ class DAO_Mailbox extends Cerb_ORMHelper {
 		$join_sql = $query_parts['join'];
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
-
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-
-		$results = [];
-
-		if(!($rs instanceof mysqli_result))
-			return false;
-
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_Mailbox::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(mailbox.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-
-		mysqli_free_result($rs);
-
-		return array($results,$total);
+		
+		return self::_searchWithTimeout(
+			SearchFields_Mailbox::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 
 };
 
 class Model_Mailbox {
-	public $auth_disable_plain = 0;
 	public $checked_at = 0;
+	public $connected_account_id = 0;
 	public $delay_until = 0;
 	public $enabled=1;
 	public $host;
@@ -492,54 +451,106 @@ class Model_Mailbox {
 	public $password;
 	public $port=110;
 	public $protocol='pop3';
-	public $ssl_ignore_validation = 0;
 	public $timeout_secs = 30;
 	public $updated_at = 0;
 	public $username;
-
-	function getImapConnectString() {
-		$connect = null;
-
-		switch($this->protocol) {
-			default:
-			case 'pop3': // 110
-				$connect = sprintf("{%s:%d/pop3/notls}INBOX",
-					$this->host,
-					$this->port
-				);
-				break;
-
-			case 'pop3-ssl': // 995
-				$connect = sprintf("{%s:%d/pop3/ssl%s}INBOX",
-					$this->host,
-					$this->port,
-					$this->ssl_ignore_validation ? '/novalidate-cert' : ''
-				);
-				break;
-
-			case 'imap': // 143
-				$connect = sprintf("{%s:%d/notls}INBOX",
-					$this->host,
-					$this->port
-				);
-				break;
-
-			case 'imap-ssl': // 993
-				$connect = sprintf("{%s:%d/imap/ssl%s}INBOX",
-					$this->host,
-					$this->port,
-					$this->ssl_ignore_validation ? '/novalidate-cert' : ''
-				);
-				break;
+	
+	/**
+	 * @param string $error
+	 * @return Horde_Imap_Client_Base|false
+	 */
+	public function getClient(&$error=null) {
+		try {
+			$imap_timeout = $this->timeout_secs ?? 30;
+			
+			$options = [
+				'username' => $this->username,
+				'password' => $this->password,
+				'hostspec' => $this->host,
+				'port' => $this->port,
+				'timeout' => $imap_timeout,
+				'secure' =>  false,
+			];
+			
+			if(in_array($this->protocol, ['imap-ssl','pop3-ssl'])) {
+				$options['secure'] = 'tlsv1';
+			} else if(in_array($this->protocol, ['imap-starttls','pop3-starttls'])) {
+				$options['secure'] = 'tls';
+			}
+			
+			// Are we using a connected account for XOAUTH2?
+			if($this->connected_account_id) {
+				if(false == ($connected_account = DAO_ConnectedAccount::get($this->connected_account_id))) {
+					$error = "Failed to load the connected account";
+					return false;
+				}
+				
+				if(false == ($service = $connected_account->getService())) {
+					$error = "Failed to load the connected service";
+					return false;
+				}
+				
+				if(false == ($service_extension = $service->getExtension())) {
+					$error = "Failed to load the connected service extension";
+					return false;
+				}
+				
+				if(!($service_extension instanceof ServiceProvider_OAuth2)) {
+					$error = "The connected account is not an OAuth2 provider";
+					return false;
+				}
+				
+				/** @var $service_extension ServiceProvider_OAuth2 */
+				if(false == ($access_token = $service_extension->getAccessToken($connected_account))) {
+					$error = "Failed to load the access token";
+					return false;
+				}
+				
+				$options['xoauth2_token'] = new Horde_Imap_Client_Password_Xoauth2($this->username, $access_token->getToken());
+				
+				if(!$options['password'])
+					$options['password'] = 'XOAUTH2';
+			}
+			
+			if (DevblocksPlatform::strStartsWith($this->protocol, 'pop3')) {
+				$client = new Horde_Imap_Client_Socket_Pop3($options);
+				
+			} else {
+				$client = new Horde_Imap_Client_Socket($options);
+			}
+			
+			// [TODO] IMAP: capability_ignore
+			// [TODO] Also allow disabling GSSAPI, NTLM from UI (requires patch)
+			/*
+			$disable_authenticators = [];
+			
+			if($account->auth_disable_plain)
+				$disable_authenticators[] = 'PLAIN';
+			
+			if(defined('APP_MAIL_IMAP_DISABLE_NTLM') && APP_MAIL_IMAP_DISABLE_NTLM)
+				$disable_authenticators[] = 'NTLM';
+			
+			if(defined('APP_MAIL_IMAP_DISABLE_GSSAPI') && APP_MAIL_IMAP_DISABLE_GSSAPI)
+				$disable_authenticators[] = 'GSSAPI';
+			
+			if(!empty($disable_authenticators))
+				$imap_options['DISABLE_AUTHENTICATOR'] = $disable_authenticators;
+			*/
+			
+			$client->login();
+			
+			return $client;
+			
+		} catch (Horde_Imap_Client_Exception $e) {
+			$error = $e->getMessage();
+			return false;
 		}
-
-		return $connect;
 	}
 };
 
 class SearchFields_Mailbox extends DevblocksSearchFields {
-	const AUTH_DISABLE_PLAIN = 'p_auth_disable_plain';
 	const CHECKED_AT = 'p_checked_at';
+	const CONNECTED_ACCOUNT_ID = 'p_connected_account_id';
 	const DELAY_UNTIL = 'p_delay_until';
 	const ENABLED = 'p_enabled';
 	const HOST = 'p_host';
@@ -550,7 +561,6 @@ class SearchFields_Mailbox extends DevblocksSearchFields {
 	const PASSWORD = 'p_password';
 	const PORT = 'p_port';
 	const PROTOCOL = 'p_protocol';
-	const SSL_IGNORE_VALIDATION = 'p_ssl_ignore_validation';
 	const TIMEOUT_SECS = 'p_timeout_secs';
 	const UPDATED_AT = 'p_updated_at';
 	const USERNAME = 'p_username';
@@ -630,8 +640,8 @@ class SearchFields_Mailbox extends DevblocksSearchFields {
 		$translate = DevblocksPlatform::getTranslationService();
 
 		$columns = array(
-			self::AUTH_DISABLE_PLAIN => new DevblocksSearchField(self::AUTH_DISABLE_PLAIN, 'mailbox', 'auth_disable_plain', $translate->_('dao.mailbox.auth_disable_plain'), Model_CustomField::TYPE_CHECKBOX, true),
 			self::CHECKED_AT => new DevblocksSearchField(self::CHECKED_AT, 'mailbox', 'checked_at', $translate->_('dao.mailbox.checked_at'), Model_CustomField::TYPE_DATE, true),
+			self::CONNECTED_ACCOUNT_ID => new DevblocksSearchField(self::CONNECTED_ACCOUNT_ID, 'mailbox', 'connected_account_id', $translate->_('common.connected_account'), Model_CustomField::TYPE_NUMBER, true),
 			self::DELAY_UNTIL => new DevblocksSearchField(self::DELAY_UNTIL, 'mailbox', 'delay_until', $translate->_('dao.mailbox.delay_until'), Model_CustomField::TYPE_DATE, true),
 			self::ENABLED => new DevblocksSearchField(self::ENABLED, 'mailbox', 'enabled', $translate->_('common.enabled'), Model_CustomField::TYPE_CHECKBOX, true),
 			self::HOST => new DevblocksSearchField(self::HOST, 'mailbox', 'host', $translate->_('common.host'), Model_CustomField::TYPE_SINGLE_LINE, true),
@@ -642,7 +652,6 @@ class SearchFields_Mailbox extends DevblocksSearchFields {
 			self::PASSWORD => new DevblocksSearchField(self::PASSWORD, 'mailbox', 'password', $translate->_('common.password'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::PORT => new DevblocksSearchField(self::PORT, 'mailbox', 'port', $translate->_('dao.mailbox.port'), Model_CustomField::TYPE_NUMBER, true),
 			self::PROTOCOL => new DevblocksSearchField(self::PROTOCOL, 'mailbox', 'protocol', $translate->_('dao.mailbox.protocol'), Model_CustomField::TYPE_SINGLE_LINE, true),
-			self::SSL_IGNORE_VALIDATION => new DevblocksSearchField(self::SSL_IGNORE_VALIDATION, 'mailbox', 'ssl_ignore_validation', $translate->_('dao.mailbox.ssl_ignore_validation'), Model_CustomField::TYPE_CHECKBOX, true),
 			self::TIMEOUT_SECS => new DevblocksSearchField(self::TIMEOUT_SECS, 'mailbox', 'timeout_secs', $translate->_('dao.mailbox.timeout_secs'), Model_CustomField::TYPE_NUMBER, true),
 			self::UPDATED_AT => new DevblocksSearchField(self::UPDATED_AT, 'mailbox', 'updated_at', $translate->_('common.updated'), Model_CustomField::TYPE_DATE, true),
 			self::USERNAME => new DevblocksSearchField(self::USERNAME, 'mailbox', 'username', $translate->_('common.user'), Model_CustomField::TYPE_SINGLE_LINE, true),
@@ -686,6 +695,7 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 			SearchFields_Mailbox::MAX_MSG_SIZE_KB,
 			SearchFields_Mailbox::UPDATED_AT,
 			SearchFields_Mailbox::CHECKED_AT,
+			SearchFields_Mailbox::CONNECTED_ACCOUNT_ID,
 		);
 
 		$this->addColumnsHidden(array(
@@ -697,9 +707,13 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_Mailbox::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_Mailbox::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -708,7 +722,11 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
-
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
+		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_Mailbox');
 
 		return $objects;
@@ -920,8 +938,6 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 
 		switch($field) {
 			case SearchFields_Mailbox::ENABLED:
-			case SearchFields_Mailbox::SSL_IGNORE_VALIDATION:
-			case SearchFields_Mailbox::AUTH_DISABLE_PLAIN:
 				parent::_renderCriteriaParamBoolean($param);
 				break;
 
@@ -965,6 +981,7 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
 
+			case SearchFields_Mailbox::CONNECTED_ACCOUNT_ID:
 			case SearchFields_Mailbox::ID:
 			case SearchFields_Mailbox::NUM_FAILS:
 			case SearchFields_Mailbox::PORT:
@@ -980,8 +997,6 @@ class View_Mailbox extends C4_AbstractView implements IAbstractView_Subtotals, I
 				break;
 
 			case SearchFields_Mailbox::ENABLED:
-			case SearchFields_Mailbox::SSL_IGNORE_VALIDATION:
-			case SearchFields_Mailbox::AUTH_DISABLE_PLAIN:
 				@$bool = DevblocksPlatform::importGPC($_POST['bool'],'integer',1);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$bool);
 				break;
@@ -1070,6 +1085,15 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 			],
 		);
 		
+		$properties['connected_account_id'] = array(
+			'label' => DevblocksPlatform::translateCapitalized('common.connected_account'),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->connected_account_id,
+			'params' => [
+				'context' => Context_ConnectedAccount::ID,
+			]
+		);
+		
 		$properties['id'] = array(
 			'label' => DevblocksPlatform::translate('common.id'),
 			'type' => Model_CustomField::TYPE_NUMBER,
@@ -1130,18 +1154,6 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 			'value' => DevblocksPlatform::strPrettyBytes($model->max_msg_size_kb * 1000),
 		);
 		
-		$properties['ssl_ignore_validation'] = array(
-			'label' => mb_ucfirst($translate->_('dao.mailbox.ssl_ignore_validation')),
-			'type' => Model_CustomField::TYPE_CHECKBOX,
-			'value' => $model->ssl_ignore_validation,
-		);
-		
-		$properties['auth_disable_plain'] = array(
-			'label' => mb_ucfirst($translate->_('dao.mailbox.auth_disable_plain')),
-			'type' => Model_CustomField::TYPE_CHECKBOX,
-			'value' => $model->auth_disable_plain,
-		);
-		
 		$properties['updated'] = array(
 			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
 			'type' => Model_CustomField::TYPE_DATE,
@@ -1179,8 +1191,6 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 			'num_fails',
 			'timeout_secs',
 			'max_msg_size_kb',
-			'ssl_ignore_validation',
-			'auth_disable_plain',
 			'updated_at',
 		);
 	}
@@ -1206,8 +1216,8 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 		// Token labels
 		$token_labels = array(
 			'_label' => $prefix,
-			'auth_disable_plain' => $prefix.$translate->_('dao.mailbox.auth_disable_plain'),
 			'checked_at' => $prefix.$translate->_('dao.mailbox.checked_at'),
+			'connected_account_id' => $prefix.$translate->_('common.connected_account'),
 			'host' => $prefix.$translate->_('common.host'),
 			'id' => $prefix.$translate->_('common.id'),
 			'is_enabled' => $prefix.$translate->_('common.enabled'),
@@ -1217,7 +1227,6 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 			'port' => $prefix.$translate->_('dao.mailbox.port'),
 			'protocol' => $prefix.$translate->_('dao.mailbox.protocol'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
-			'ssl_ignore_validation' => $prefix.$translate->_('dao.mailbox.ssl_ignore_validation'),
 			'timeout_secs' => $prefix.$translate->_('dao.mailbox.timeout_secs'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'username' => $prefix.$translate->_('common.username'),
@@ -1226,8 +1235,8 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 		// Token types
 		$token_types = array(
 			'_label' => 'context_url',
-			'auth_disable_plain' => Model_CustomField::TYPE_CHECKBOX,
 			'checked_at' => Model_CustomField::TYPE_DATE,
+			'connected_account_id' => Model_CustomField::TYPE_NUMBER,
 			'host' => Model_CustomField::TYPE_SINGLE_LINE,
 			'id' => Model_CustomField::TYPE_NUMBER,
 			'is_enabled' => Model_CustomField::TYPE_CHECKBOX,
@@ -1237,7 +1246,6 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 			'port' => Model_CustomField::TYPE_NUMBER,
 			'protocol' => Model_CustomField::TYPE_SINGLE_LINE,
 			'record_url' => Model_CustomField::TYPE_URL,
-			'ssl_ignore_validation' => Model_CustomField::TYPE_CHECKBOX,
 			'timeout_secs' => Model_CustomField::TYPE_NUMBER,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 			'username' => Model_CustomField::TYPE_SINGLE_LINE,
@@ -1260,8 +1268,8 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 		if($mailbox) {
 			$token_values['_loaded'] = true;
 			$token_values['_label'] = $mailbox->name;
-			$token_values['auth_disable_plain'] = $mailbox->auth_disable_plain;
 			$token_values['checked_at'] = $mailbox->checked_at;
+			$token_values['connected_account_id'] = $mailbox->connected_account_id;
 			$token_values['host'] = $mailbox->host;
 			$token_values['id'] = $mailbox->id;
 			$token_values['is_enabled'] = $mailbox->enabled;
@@ -1270,7 +1278,6 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 			$token_values['num_fails'] = $mailbox->num_fails;
 			$token_values['port'] = $mailbox->port;
 			$token_values['protocol'] = $mailbox->protocol;
-			$token_values['ssl_ignore_validation'] = $mailbox->ssl_ignore_validation;
 			$token_values['timeout_secs'] = $mailbox->timeout_secs;
 			$token_values['updated_at'] = $mailbox->updated_at;
 			$token_values['username'] = $mailbox->username;
@@ -1288,8 +1295,8 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 
 	function getKeyToDaoFieldMap() {
 		return [
-			'auth_disable_plain' => DAO_Mailbox::AUTH_DISABLE_PLAIN,
 			'checked_at' => DAO_Mailbox::CHECKED_AT,
+			'connected_account_id' => DAO_Mailbox::CONNECTED_ACCOUNT_ID,
 			'host' => DAO_Mailbox::HOST,
 			'id' => DAO_Mailbox::ID,
 			'is_enabled' => DAO_Mailbox::ENABLED,
@@ -1300,7 +1307,6 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 			'password' => DAO_Mailbox::PASSWORD,
 			'port' => DAO_Mailbox::PORT,
 			'protocol' => DAO_Mailbox::PROTOCOL,
-			'ssl_ignore_validation' => DAO_Mailbox::SSL_IGNORE_VALIDATION,
 			'timeout_secs' => DAO_Mailbox::TIMEOUT_SECS,
 			'updated_at' => DAO_Mailbox::UPDATED_AT,
 			'username' => DAO_Mailbox::USERNAME,
@@ -1310,8 +1316,8 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 	function getKeyMeta() {
 		$keys = parent::getKeyMeta();
 		
-		$keys['auth_disable_plain']['notes'] = "Used to bypass Microsoft Exchange authentication issues";
 		$keys['checked_at']['notes'] = "The date/time this mailbox was last checked for new messages";
+		$keys['connected_account_id']['notes'] = "The optional connected account to use for XOAUTH2";
 		$keys['host']['notes'] = "The mail server hostname";
 		$keys['is_enabled']['notes'] = "Is this mailbox enabled? `1` for true and `0` for false";
 		$keys['max_msg_size_kb']['notes'] = "The maximum message size to download (in kilobytes); `0` to disable limits";
@@ -1319,7 +1325,6 @@ class Context_Mailbox extends Extension_DevblocksContext implements IDevblocksCo
 		$keys['password']['notes'] = "The mailbox password";
 		$keys['port']['notes'] = "The port to connect to; e.g. `587`";
 		$keys['protocol']['notes'] = "The protocol to use: `pop3`, `pop3-ssl`, `imap`, `imap-ssl`";
-		$keys['ssl_ignore_validation']['notes'] = "Disabled (`0`) by default; enable (`1`) to allow self-signed certificates";
 		$keys['timeout_secs']['notes'] = "The socket timeout in seconds when downloading mail";
 		$keys['username']['notes'] = "The mailbox username";
 		

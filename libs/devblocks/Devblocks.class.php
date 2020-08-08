@@ -111,6 +111,14 @@ class _DevblocksServices {
 	}
 	
 	/**
+	 *
+	 * @return _DevblocksKataService
+	 */
+	function kata() {
+		return _DevblocksKataService::getInstance();
+	}
+
+	/**
 	 * 
 	 * @param string $prefix
 	 * @return _DevblocksLogManager
@@ -231,6 +239,13 @@ class _DevblocksServices {
 	 */
 	function templateSandbox() {
 		return _DevblocksTemplateManager::getInstanceSandbox();
+	}
+	
+	/**
+	 * @return _DevblocksUiManager
+	 */
+	function ui() {
+		return _DevblocksUiManager::getInstance();
 	}
 	
 	/**

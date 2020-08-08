@@ -68,7 +68,7 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 			;
 		// varchar(255)
 		$validation
-			->addField(self::NAME)
+			->addField(self::NAME, DevblocksPlatform::translateCapitalized('message.header.subject'))
 			->string()
 			->setMaxLength(255)
 			;
@@ -256,7 +256,7 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 			$sort_sql.
 			$limit_sql
 		;
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		return self::_getObjectsFromResult($rs);
 	}
@@ -445,10 +445,9 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 		
@@ -457,48 +456,16 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-			
-		// [TODO] Could push the select logic down a level too
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		$results = [];
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_MailQueue::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(mail_queue.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_MailQueue::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 	
 	static function maint() {
@@ -597,6 +564,9 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 		
 		if(array_key_exists('custom_fields', $properties))
 			$params['custom_fields'] = $properties['custom_fields'];
+		
+		if(array_key_exists('message_custom_fields', $properties))
+			$params['message_custom_fields'] = $properties['message_custom_fields'];
 		
 		$change_fields[DAO_MailQueue::PARAMS_JSON] = json_encode($params);
 		$change_fields[DAO_MailQueue::UPDATED] = time();
@@ -753,7 +723,8 @@ class Model_MailQueue {
 		$message_properties = [
 			'group_id' => $this->getParam('group_id', 0),
 			'content' => $this->getParam('content', ''),
-			'content_format' => $this->getParam('format', '')
+			'content_format' => $this->getParam('format', ''),
+			'in_reply_message_id' => $this->getParam('in_reply_message_id', 0),
 		];
 		
 		if($this->hasParam('bucket_id'))
@@ -776,6 +747,7 @@ class Model_MailQueue {
 		
 		if('parsedown' == $message_properties['content_format']) {
 			$output = $message_properties['content'];
+			$output = CerberusMail::getMailTemplateFromContent($output, $message_properties, 'html');
 			$output = DevblocksPlatform::parseMarkdown($output);
 			
 			$filter = new Cerb_HTMLPurifier_URIFilter_Email(true);
@@ -784,7 +756,10 @@ class Model_MailQueue {
 			return $output;
 		
 		} else {
-			return $message_properties['content'];
+			$output = $message_properties['content'];
+			$output = CerberusMail::getMailTemplateFromContent($output, $message_properties, 'text');
+			
+			return $output;
 		}
 	}
 	
@@ -995,9 +970,13 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_MailQueue::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_MailQueue::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -1006,6 +985,10 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_MailQueue');
 		
@@ -1547,6 +1530,15 @@ class Context_Draft extends Extension_DevblocksContext implements IDevblocksCont
 			
 			// Custom fields
 			$token_values = $this->_importModelCustomFieldsAsValues($object, $token_values);
+			
+			$url_writer = DevblocksPlatform::services()->url();
+			
+			// URL
+			if(in_array($object->type, [Model_MailQueue::TYPE_TICKET_FORWARD, Model_MailQueue::TYPE_TICKET_REPLY])) {
+				$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=ticket&id=%d", $object->ticket_id), true) . '#draft' . $object->id;
+			} else {
+				$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=draft&id=%d", $object->id));
+			}
 		}
 		
 		// Worker

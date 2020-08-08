@@ -132,6 +132,10 @@ class WorkspaceWidget_ChartCategories extends Extension_WorkspaceWidget implemen
 		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/chart/categories/config.tpl');
 	}
 	
+	function invokeConfig($action, Model_WorkspaceWidget $model) {
+		return false;
+	}
+	
 	function saveConfig(Model_WorkspaceWidget $widget) {
 		@$params = DevblocksPlatform::importGPC($_POST['params'], 'array', []);
 		
@@ -140,7 +144,7 @@ class WorkspaceWidget_ChartCategories extends Extension_WorkspaceWidget implemen
 		));
 	}
 	
-		// Export
+	// Export
 	
 	function exportData(Model_WorkspaceWidget $widget, $format=null) {
 		switch(DevblocksPlatform::strLower($format)) {

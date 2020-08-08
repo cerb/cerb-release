@@ -56,20 +56,33 @@ abstract class C4_AbstractView {
 	function getDataSample($size) { return []; }
 	
 	// Adjust the last page if we hit the list bounds
-	protected function _getDataWithinBounds() {
+	protected function _getDataBoundedTimed() {
 		if(!method_exists($this, '_getData'))
 			return [];
 		
-		$objects = $this->_getData();
-		
-		// If we have no results, it's not the first page, and we're returning totals
-		if(!$objects[0] && $this->renderPage && $this->renderTotal) {
-			$total = $objects[1];
-			$this->renderPage = max(floor($total/$this->renderLimit)-1, 0);
+		try {
 			$objects = $this->_getData();
+			
+			if(false === $objects) {
+				$error = "The query failed.";
+				C4_AbstractView::marqueeAppend($this->id, $error);
+				return [[], -1];
+			}
+
+			// If we have no results, it's not the first page, and we're returning totals
+			if(!$objects[0] && $this->renderPage && $this->renderTotal) {
+				$total = $objects[1];
+				$this->renderPage = max(floor($total/$this->renderLimit)-1, 0);
+				$objects = $this->_getData();
+			}
+			
+			return $objects;
+			
+		} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+			$error = "The query timed out.";
+			C4_AbstractView::marqueeAppend($this->id, $error);
+			return [[], -1];
 		}
-		
-		return $objects;
 	}
 	
 	private $_placeholderLabels = [];
@@ -196,7 +209,7 @@ abstract class C4_AbstractView {
 			$where_sql.
 			$sort_sql;
 
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		$objects = [];
 		while($row = mysqli_fetch_row($rs)) {
@@ -879,10 +892,8 @@ abstract class C4_AbstractView {
 			
 		}
 		
-		if(empty($string))
-			self::unsetMarquee($view_id);
-		else
-			self::setMarquee($view_id, $string);
+		if($string)
+			self::marqueeAppend($view_id, $string);
 	}
 	
 	static function setMarqueeContextImported($view_id, $context, $count) {
@@ -896,31 +907,27 @@ abstract class C4_AbstractView {
 			);
 		}
 		
-		if(empty($string))
-			self::unsetMarquee($view_id);
-		else
-			self::setMarquee($view_id, $string);
+		if($string)
+			self::marqueeAppend($view_id, $string);
 	}
 	
-	static function setMarquee($view_id, $string) {
-		$visit = CerberusApplication::getVisit();
-		$visit->set($view_id . '_marquee', $string);
+	static function marqueeAppend($view_id, $string) {
+		if(null == ($visit = CerberusApplication::getVisit()))
+			return false;
+		
+		$visit->append($view_id . '_marquee', $string);
 	}
 	
-	static function unsetMarquee($view_id) {
-		$visit = CerberusApplication::getVisit();
-		$visit->remove($view_id . '_marquee');
-	}
-	
-	static function getMarquee($view_id, $pop=true) {
-		$visit = CerberusApplication::getVisit();
+	static function marqueeFlush($view_id) {
+		if(null == ($visit = CerberusApplication::getVisit()))
+			return false;
 		
-		$string = $visit->get($view_id . '_marquee');
+		$mar_key = $view_id . '_marquee';
 		
-		if($pop)
-			self::unsetMarquee($view_id);
+		$marquees = $visit->get($mar_key);
+		$visit->remove($mar_key);
 		
-		return $string;
+		return $marquees;
 	}
 	
 	protected function _checkFulltextMarquee() {
@@ -952,7 +959,7 @@ abstract class C4_AbstractView {
 			}
 			
 			if(!empty($marquees)) {
-				C4_AbstractView::setMarquee($this->id, implode('<br>', $marquees));
+				C4_AbstractView::marqueeAppend($this->id, implode('<br>', $marquees));
 			}
 			
 			DevblocksPlatform::setRegistryKey('fulltext_meta', [], DevblocksRegistryEntry::TYPE_JSON, false);
@@ -987,7 +994,7 @@ abstract class C4_AbstractView {
 		$view->setAutoPersist(false);
 		
 		// Use the worker's timezone for MySQL date functions
-		$db->ExecuteSlave(sprintf("SET time_zone = %s", $db->qstr($date->formatTime('P', time()))));
+		$db->QueryReader(sprintf("SET time_zone = %s", $db->qstr($date->formatTime('P', time()))));
 		
 		$data = [];
 		
@@ -1159,7 +1166,7 @@ abstract class C4_AbstractView {
 					'ORDER BY histo ASC'
 					;
 					
-					$results = $db->GetArraySlave($sql);
+					$results = $db->GetArrayReader($sql);
 					
 					if(empty($results))
 						return [];
@@ -1356,7 +1363,7 @@ abstract class C4_AbstractView {
 						$group_by,
 						$order_by
 					);
-					$results = $db->GetArraySlave($sql);
+					$results = $db->GetArrayReader($sql);
 					
 					if(empty($results))
 						return [];
@@ -2161,6 +2168,13 @@ abstract class C4_AbstractView {
 					break;
 					
 				case Model_CustomField::TYPE_DATE:
+					if($param->operator == DevblocksSearchCriteria::OPER_CUSTOM) {
+						if (array_key_exists('label', $param->value)) {
+							echo $param->value['label'];
+							return;
+						}
+					}
+					
 					$implode_token = ' to ';
 					break;
 					
@@ -2218,6 +2232,12 @@ abstract class C4_AbstractView {
 						$field_ext->prepareCriteriaParam($cfield, $param, $vals, $implode_token);
 					}
 					break;
+			}
+			
+		} else if ($param->operator == DevblocksSearchCriteria::OPER_CUSTOM) {
+			if(array_key_exists('label', $param->value)) {
+				echo $param->value['label'];
+				return;
 			}
 		}
 		
@@ -2317,6 +2337,10 @@ abstract class C4_AbstractView {
 						[
 							'caption' => '(date range)',
 							'snippet' => '"${1:-1 week} to ${2:now}"'
+						],
+						[
+							'caption' => '(advanced)',
+							'snippet' => '(since:"${1:-1 week}" until:"${2:now}" days:[${3:Weekdays}] hours:${4:9a-5p})'
 						],
 					];
 					break;
@@ -2694,9 +2718,9 @@ abstract class C4_AbstractView {
 			"LIMIT 0,250 "
 		;
 		
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 //		$total = count($results);
-//		$total = ($total < 20) ? $total : $db->GetOneSlave("SELECT FOUND_ROWS()");
+//		$total = ($total < 20) ? $total : $db->GetOneReader("SELECT FOUND_ROWS()");
 
 		return $results;
 	}
@@ -2752,7 +2776,7 @@ abstract class C4_AbstractView {
 			"LIMIT 0,250 "
 		;
 		
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 
 		return $results;
 	}
@@ -3005,7 +3029,7 @@ abstract class C4_AbstractView {
 			"LIMIT 0,250 "
 		;
 		
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 
 		return $results;
 	}
@@ -3138,7 +3162,7 @@ abstract class C4_AbstractView {
 			
 		}
 
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 
 		return $results;
 	}
@@ -3282,7 +3306,7 @@ abstract class C4_AbstractView {
 			);
 		}
 
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 
 		return $results;
 	}
@@ -3413,7 +3437,7 @@ abstract class C4_AbstractView {
 				$query_parts['where']
 			)
 		);
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		return $results;
 	}
@@ -3510,7 +3534,7 @@ abstract class C4_AbstractView {
 					"ORDER BY hits DESC "
 				;
 				
-				$results = $db->GetArraySlave($sql);
+				$results = $db->GetArrayReader($sql);
 		
 				if(is_array($results))
 				foreach($results as $result) {
@@ -3582,9 +3606,9 @@ abstract class C4_AbstractView {
 					;
 				}
 				
-				$results = $db->GetArraySlave($sql);
+				$results = $db->GetArrayReader($sql);
 //				$total = count($results);
-//				$total = ($total < 20) ? $total : $db->GetOneSlave("SELECT FOUND_ROWS()");
+//				$total = ($total < 20) ? $total : $db->GetOneReader("SELECT FOUND_ROWS()");
 
 				if(is_array($results))
 				foreach($results as $result) {
@@ -3672,9 +3696,9 @@ abstract class C4_AbstractView {
 					"LIMIT 20 "
 				;
 				
-				$results = $db->GetArraySlave($sql);
+				$results = $db->GetArrayReader($sql);
 //				$total = count($results);
-//				$total = ($total < 20) ? $total : $db->GetOneSlave("SELECT FOUND_ROWS()");
+//				$total = ($total < 20) ? $total : $db->GetOneReader("SELECT FOUND_ROWS()");
 		
 				if(is_array($results))
 				foreach($results as $result) {
@@ -5177,7 +5201,7 @@ class DAO_WorkerViewModel extends Cerb_ORMHelper {
 			(!empty($where) ? ('WHERE ' . $where) : '')
 		);
 		
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		if($rs instanceof mysqli_result)
 		while($row = mysqli_fetch_array($rs)) {

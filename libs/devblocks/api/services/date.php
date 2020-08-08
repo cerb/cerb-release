@@ -20,37 +20,36 @@ class _DevblocksDateManager {
 	public function getIntervals($unit, $start_time, $end_time) {
 		// [TODO] start/end time test
 		
-		$ticks = array();
-		$time = 0;
+		$ticks = [];
 		
 		$from = strtotime(sprintf("-1 %s", $unit), $start_time);
 		$to = $end_time;
 		
 		switch($unit) {
 			case 'year':
-				$date_group_mysql = '%Y';
+				//$date_group_mysql = '%Y';
 				$date_group_php = '%Y';
 				break;
 				
 			case 'month':
-				$date_group_mysql = '%Y-%m';
+				//$date_group_mysql = '%Y-%m';
 				$date_group_php = '%Y-%m';
 				break;
 				
 			case 'week':
 				$from = strtotime("Monday this week 00:00:00", $start_time);
 				$to = strtotime("Sunday this week 23:59:59", $end_time);
-				$date_group_mysql = '%x-%v';
+				//$date_group_mysql = '%x-%v';
 				$date_group_php = '%Y-%W';
 				break;
 				
 			case 'day':
-				$date_group_mysql = '%Y-%m-%d';
+				//$date_group_mysql = '%Y-%m-%d';
 				$date_group_php = '%Y-%m-%d';
 				break;
 				
 			case 'hour':
-				$date_group_mysql = '%Y-%m-%d %H';
+				//$date_group_mysql = '%Y-%m-%d %H';
 				$date_group_php = '%Y-%m-%d %H';
 				break;
 				
@@ -203,6 +202,119 @@ class _DevblocksDateManager {
 		}
 		
 		return false;
+	}
+	
+	public function parseDays($days) {
+		$results = [];
+		
+		if(is_string($days))
+			$days = DevblocksPlatform::parseCsvString($days);
+		
+		if(!is_array($days))
+			return [];
+		
+		foreach($days as $day) {
+			$day = DevblocksPlatform::strLower($day);
+			
+			if (DevblocksPlatform::strStartsWith($day, ['weekday'])) {
+				$results[1] = true;
+				$results[2] = true;
+				$results[3] = true;
+				$results[4] = true;
+				$results[5] = true;
+			} elseif (DevblocksPlatform::strStartsWith($day, ['weekend'])) {
+				$results[0] = true;
+				$results[6] = true;
+			} elseif (DevblocksPlatform::strStartsWith($day, ['su'])) {
+				$results[0] = true;
+			} elseif (DevblocksPlatform::strStartsWith($day, ['m'])) {
+				$results[1] = true;
+			} elseif (DevblocksPlatform::strStartsWith($day, ['tu'])) {
+				$results[2] = true;
+			} elseif (DevblocksPlatform::strStartsWith($day, ['w'])) {
+				$results[3] = true;
+			} elseif (DevblocksPlatform::strStartsWith($day, ['th'])) {
+				$results[4] = true;
+			} elseif (DevblocksPlatform::strStartsWith($day, ['f'])) {
+				$results[5] = true;
+			} elseif (DevblocksPlatform::strStartsWith($day, ['sa'])) {
+				$results[6] = true;
+			}
+		}
+		
+		return array_keys($results);
+	}
+	
+	public function parseTimes($times, $as_secs=false) {
+		$results = [];
+		
+		if(is_string($times))
+			$times = DevblocksPlatform::parseCsvString($times);
+		
+		if(!is_array($times))
+			return [];
+		
+		foreach($times as $time) {
+			if(false !== strpos($time, '-'))  {
+				list($from,$to) = explode('-', $time);
+				$to = $this->_parseTime($to, $as_secs);
+				$from = $this->_parseTime($from, $as_secs, $to);
+				$results[] = [$from,$to];
+				
+			} else {
+				$results[] = $this->_parseTime($time, $as_secs);
+			}
+		}
+		
+		return $results;
+	}
+	
+	private function _parseTime($string, $as_secs=false, $rel_to=null) {
+		$string = trim($string);
+		
+		if (is_numeric($string) && $string >= 0 && $string <= 12) {
+			if ($rel_to) {
+				if($as_secs) {
+					$is_pm = $rel_to >= 43200;
+					$this_hour = ($string<12 ? $string+12 : $string);
+					
+					if($is_pm && $this_hour*3600 > $rel_to)
+						$is_pm = false;
+					
+				} else {
+					$parts = date_parse($rel_to);
+					$is_pm = $parts['hour'] >= 12;
+					$this_hour = ($string<12 ? $string+12 : $string);
+					
+					if($is_pm && $this_hour > $parts['hour'])
+						$is_pm = false;
+				}
+				
+				if($is_pm) {
+					$string .= 'pm';
+				} else {
+					$string .= 'am';
+				}
+				
+			} elseif ($string < 12) {
+				$string .= 'am';
+			}
+			
+		} else {
+			$ends_with = strtolower(substr($string, -1));
+			
+			if (in_array($ends_with, ['a', 'p'])) {
+				$string .= 'm';
+			}
+		}
+		
+		$parts = date_parse($string);
+		
+		if($as_secs) {
+			return $parts['hour']*3600 + $parts['minute']*60;
+		} else {
+			return sprintf("%02d:%02d", $parts['hour'], $parts['minute']);
+		}
 	}
 };
 

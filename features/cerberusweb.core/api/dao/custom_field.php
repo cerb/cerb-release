@@ -214,7 +214,7 @@ class DAO_CustomField extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 		
 		return self::_getObjectsFromResult($rs);
@@ -345,7 +345,7 @@ class DAO_CustomField extends Cerb_ORMHelper {
 			$db->qstr($context),
 			$fieldset_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function countByFieldsetId($fieldset_id) {
@@ -354,7 +354,7 @@ class DAO_CustomField extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM custom_field WHERE custom_fieldset_id = %d",
 			$fieldset_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	public static function delete($ids) {
@@ -450,10 +450,9 @@ class DAO_CustomField extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -462,47 +461,16 @@ class DAO_CustomField extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-			
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		$results = [];
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_CustomField::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(custom_field.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_CustomField::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 	
 	public static function clearCache() {
@@ -953,7 +921,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 				default:
 					if(false != ($field_ext = Extension_CustomField::get($field->type))) {
 						$value = $field_ext->formatFieldValue($value);
-						self::setFieldValue($context, $context_id, $field_id, $value);
+						$field_ext->setFieldValue($field, $context, $context_id, $value);
 					}
 					break;
 			}
@@ -1342,7 +1310,7 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 		 */
 		
 		$sql = implode(' UNION ALL ', $sqls);
-		if(false == ($rs = $db->ExecuteSlave($sql)))
+		if(false == ($rs = $db->QueryReader($sql)))
 			return false;
 		
 		if(!($rs instanceof mysqli_result))
@@ -1494,6 +1462,11 @@ class Model_CustomField {
 		asort($fields);
 		
 		return $fields;
+	}
+	
+	function getTypeLabel() {
+		$types = self::getTypes();
+		return @$types[$this->type];
 	}
 	
 	static function getTypeExtensions() {
@@ -1731,9 +1704,13 @@ class View_CustomField extends C4_AbstractView implements IAbstractView_Subtotal
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_CustomField::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_CustomField::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -1742,6 +1719,10 @@ class View_CustomField extends C4_AbstractView implements IAbstractView_Subtotal
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_CustomField');
 		
@@ -2197,6 +2178,7 @@ class Context_CustomField extends Extension_DevblocksContext implements IDevbloc
 			'name' => $prefix.$translate->_('common.name'),
 			'pos' => $prefix.$translate->_('common.order'),
 			'type' => $prefix.$translate->_('common.type'),
+			'type_label' => $prefix.'Type Label',
 			'updated_at' => $prefix.$translate->_('common.updated'),
 		);
 		
@@ -2208,6 +2190,7 @@ class Context_CustomField extends Extension_DevblocksContext implements IDevbloc
 			'name' => Model_CustomField::TYPE_SINGLE_LINE,
 			'pos' => Model_CustomField::TYPE_NUMBER,
 			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'type_label' => Model_CustomField::TYPE_SINGLE_LINE,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 		);
 		
@@ -2226,6 +2209,7 @@ class Context_CustomField extends Extension_DevblocksContext implements IDevbloc
 			$token_values['id'] = $cfield->id;
 			$token_values['name'] = $cfield->name;
 			$token_values['type'] = $cfield->type;
+			$token_values['type_label'] = $cfield->getTypeLabel();
 			$token_values['pos'] = $cfield->pos;
 			$token_values['updated_at'] = $cfield->updated_at;
 			

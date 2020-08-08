@@ -137,8 +137,7 @@
 			"name": "Default HTML Layout",
 			"owner__context": "app",
 			"owner_id": "0",
-			"content": "<div id=\"body\">\n{{message_body}}\n</div>\n\n<style type=\"text/css\">\n#body {\n  font-family: Arial, Verdana, sans-serif;\n  font-size: 10pt;\n}\n\na { \n  color: black;\n}\n\nblockquote {\n  color: rgb(0, 128, 255);\n  font-style: italic;\n  margin-left: 0px;\n  border-left: 1px solid rgb(0, 128, 255);\n  padding-left: 5px;\n}\n\nblockquote a {\n  color: rgb(0, 128, 255);\n}\n</style>",
-			"signature": ""
+			"content": "<div id=\"body\">\n{{message_body}}\n</div>\n\n<style type=\"text/css\">\n#body {\n  font-family: Arial, Verdana, sans-serif;\n  font-size: 10pt;\n}\n\na { \n  color: black;\n}\n\nblockquote {\n  color: rgb(0, 128, 255);\n  font-style: italic;\n  margin-left: 0px;\n  border-left: 1px solid rgb(0, 128, 255);\n  padding-left: 5px;\n}\n\nblockquote a {\n  color: rgb(0, 128, 255);\n}\n</style>"
 		},
 		{
 			"uid": "signature_default",
@@ -4022,26 +4021,7 @@
 			"owner__context": "app",
 			"owner_id": "0",
 			"content": "{% set seat_rate = 30.00 \n  * (1 == prompt_discount_academic ? 0.75 : 1.0) \n  * (1 == prompt_discount_renewal ? 0.80 : 1.0) \n%}\nSoftware licenses are $30.00 USD per seat-month.\n\n{% if seat_rate != 30.00 %}\nYou qualify for the following discounts:\n{% if 1 == prompt_discount_renewal %}\n * Timely renewal (20% off)\n{% endif %}\n{% if 1 == prompt_discount_academic %}\n * Academic (25% off)\n{% endif %}\n\nYour discounted price is ${{seat_rate|number_format(2)}} USD per seat-month.\n\n{% endif %}\nFor one year of priority support and software updates:\n{{prompt_seats}} seats * ${{seat_rate|number_format(2)}}/seat-month * 12 months = ${{(prompt_seats * seat_rate * 12)|number_format(2)}} USD\n\nWould you like me to send over an invoice?",
-			"placeholders": {
-				"prompt_seats": {
-					"type": "S",
-					"key": "prompt_seats",
-					"label": "How many seats?",
-					"default": "5"
-				},
-				"prompt_discount_academic": {
-					"type": "C",
-					"key": "prompt_discount_academic",
-					"label": "Academic discount?",
-					"default": "0"
-				},
-				"prompt_discount_renewal": {
-					"type": "C",
-					"key": "prompt_discount_renewal",
-					"label": "Timely renewal discount?",
-					"default": "0"
-				}
-			}
+			"prompts_kata": "text/prompt_seats:\n  label: How many seats?\n  default: 5\n\ncheckbox/prompt_discount_academic:\n  label: Academic discount?\n  default@bool: no\n\ncheckbox/prompt_discount_renewal:\n  label: Timely renewal discount?\n  default@bool: no\n"
 		},
 		{
 			"uid": "fieldset_getting_started",
@@ -4297,7 +4277,7 @@
 			"pos": 1,
 			"params": {
 				"layout": "sidebar_left",
-				"placeholder_prompts": "---\r\nplaceholder: input_date_range\r\nlabel: \"Date range:\"\r\ntype: date_range\r\ndefault: today -7 days\r\n---\r\nplaceholder: input_date_subtotal_by\r\nlabel: \"By:\"\r\ntype: picklist\r\ndefault: day\r\nparams:\r\n  options: [day, week, month, year]\r\n---\r\nplaceholder: input_statuses\r\nlabel: \"Statuses:\"\r\ntype: picklist\r\ndefault: []\r\nparams:\r\n  multiple: true\r\n  options: [open, waiting, closed, deleted]\r\n---\r\nplaceholder: input_groups\r\nlabel: \"Groups:\"\r\ntype: chooser\r\ndefault:\r\nparams:\r\n  context: group\r\n  single: false"
+				"prompts_kata": "date_range/input_date_range:\n  label: Date range:\n  default: today -7 days\n\npicklist/input_date_subtotal_by:\n  label: By:\n  default: day\n  params:\n    options@csv: day, week, month, year\n\npicklist/input_statuses:\n  label: Statuses:\n  default@json: []\n  params:\n    multiple@bit: true\n    options@csv: open, waiting, closed, deleted\n\nchooser/input_groups:\n  label: Groups:\n  default:\n  params:\n    context: group\n    single@bit: false"
 			}
 		},
 		{
@@ -4837,7 +4817,7 @@
 			"width_units": 4,
 			"zone": "content",
 			"params": {
-				"data_query": "{# These placeholders are automatically set by the dashboard filters #}\r\n{# See: https://cerb.ai/guides/dashboards/filters/ #}\r\ntype:worklist.subtotals\r\nof:ticket\r\nby.count:[created@{{input_date_subtotal_by}},group~10]\r\nquery:(\r\n  created:\"{{input_date_range}}\"\r\n  {% if input_groups %}\r\n  group.id:[{{input_groups}}]\r\n  {% endif %}\r\n  {% if input_statuses %}\r\n  status:[{{input_statuses|join(',')}}]\r\n  {% endif %}\r\n)\r\nformat:timeseries",
+				"data_query": "{# These placeholders are automatically set by the dashboard filters #}\r\n{# See: https://cerb.ai/docs/dashboards/#prompts #}\r\ntype:worklist.subtotals\r\nof:ticket\r\nby.count:[created@{{input_date_subtotal_by}},group~10]\r\nquery:(\r\n  created:\"{{input_date_range}}\"\r\n  {% if input_groups %}\r\n  group.id:[{{input_groups}}]\r\n  {% endif %}\r\n  {% if input_statuses %}\r\n  status:[{{input_statuses|join(',')}}]\r\n  {% endif %}\r\n)\r\nformat:timeseries",
 				"cache_secs": "",
 				"chart_as": "bar_stacked",
 				"xaxis_label": "",

@@ -215,7 +215,7 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 		
 		return self::_getObjectsFromResult($rs);
@@ -267,7 +267,7 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(workspace_page_id) FROM workspace_tab WHERE workspace_page_id = %d",
 			$page_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	/**
@@ -405,10 +405,9 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -417,47 +416,16 @@ class DAO_WorkspaceTab extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-			
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		$results = [];
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_WorkspaceTab::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(workspace_tab.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_WorkspaceTab::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 	
 	public static function maint() {
@@ -507,7 +475,7 @@ class SearchFields_WorkspaceTab extends DevblocksSearchFields {
 				break;
 				
 			case self::VIRTUAL_HAS_FIELDSET:
-				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_WORKSPACE_TAB)), self::getPrimaryKey());
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_WORKSPACE_TAB), '%s'), self::getPrimaryKey());
 				break;
 				
 			default:
@@ -631,29 +599,49 @@ class Model_WorkspaceTab {
 	}
 	
 	function getPlaceholderPrompts() {
-		if(false == (@$placeholder_prompts = $this->params['placeholder_prompts']))
+		if(false == (@$prompts_kata = $this->params['prompts_kata']))
 			return [];
 		
-		if(false == (@$placeholder_prompts = yaml_parse($placeholder_prompts, -1)))
+		if(false == (@$placeholder_tree = DevblocksPlatform::services()->kata()->parse($prompts_kata)))
 			return [];
 		
-		$keys = array_map(function($prompt) { return $prompt['placeholder']; }, $placeholder_prompts);
+		$placeholder_prompts = DevblocksPlatform::services()->kata()->formatTree($placeholder_tree);
 		
-		// Set placeholder names as keys
-		return array_combine($keys, $placeholder_prompts);
-		
-		// Handle PHP's single document YAML format
-		/*
-		if(
-			array_key_exists(0, $placeholder_prompts) 
-			&& !array_key_exists('placeholder', $placeholder_prompts[0])
-			&& array_key_exists(0, $placeholder_prompts[0])
-		) {
-			$placeholder_prompts = $placeholder_prompts[0];
+		$prompts = [];
+
+		foreach($placeholder_prompts as $prompt_key => $prompt) {
+			list($prompt_type, $prompt_placeholder) = explode('/', $prompt_key, 2);
+			$prompt['placeholder'] = $prompt_placeholder;
+			$prompt['type'] = $prompt_type;
+			
+			switch($prompt_type) {
+				case 'date_range':
+					if(!array_key_exists('params', $prompt))
+						break;
+					
+					if(!array_key_exists('presets', $prompt['params']))
+						break;
+					
+					$presets = [];
+					
+					foreach($prompt['params']['presets'] as $preset_label => $preset) {
+						if(!array_key_exists('query', $preset))
+							continue;
+						
+						if(array_key_exists('label', $preset))
+							$preset_label = $preset['label'];
+						
+						$presets[$preset_label] = $preset['query'];
+					}
+					
+					$prompt['params']['presets'] = $presets;
+					break;
+			}
+			
+			$prompts[$prompt_placeholder] = $prompt;
 		}
-		*/
 		
-		return $placeholder_prompts;
+		return $prompts;
 	}
 	
 	function getDashboardPrefsAsWorker(Model_Worker $worker) {
@@ -661,9 +649,9 @@ class Model_WorkspaceTab {
 		
 		if(false != ($placeholder_prompts = $this->getPlaceholderPrompts()) 
 			&& is_array($placeholder_prompts)) {
-				
+			
 			foreach($placeholder_prompts as $prompt) {
-				$prefs[$prompt['placeholder']] = $prompt['default'];
+				$prefs[$prompt['placeholder']] = @$prompt['default'] ?: null;
 			}
 		}
 		
@@ -760,9 +748,13 @@ class View_WorkspaceTab extends C4_AbstractView implements IAbstractView_Subtota
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_WorkspaceTab::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_WorkspaceTab::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -771,6 +763,10 @@ class View_WorkspaceTab extends C4_AbstractView implements IAbstractView_Subtota
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_WorkspaceTab');
 		

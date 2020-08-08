@@ -738,7 +738,7 @@ class DAO_Domain extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM datacenter_domain WHERE server_id = %d",
 			$server_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	/**
@@ -760,7 +760,7 @@ class DAO_Domain extends Cerb_ORMHelper {
 			$sort_sql.
 			$limit_sql
 		;
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		return self::_getObjectsFromResult($rs);
 	}
@@ -910,7 +910,7 @@ class DAO_Domain extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		$ids = [];
 		
-		$results = $db->GetArraySlave(sprintf("SELECT id ".
+		$results = $db->GetArrayReader(sprintf("SELECT id ".
 			"FROM datacenter_domain ".
 			"WHERE name LIKE %s ".
 			"LIMIT 25",
@@ -943,10 +943,9 @@ class DAO_Domain extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -955,48 +954,16 @@ class DAO_Domain extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-		
-		// [TODO] Could push the select logic down a level too
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		$results = [];
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_Domain::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(datacenter_domain.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_Domain::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 
 };
@@ -1191,9 +1158,13 @@ class View_Domain extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_Domain::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_Domain::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -1202,6 +1173,10 @@ class View_Domain extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_Domain');
 		

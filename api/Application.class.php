@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2020080701);
-define("APP_VERSION", '9.5.11');
+define("APP_BUILD", 2020080703);
+define("APP_VERSION", '9.6.0');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -65,10 +65,6 @@ DevblocksPlatform::registerClasses($path . 'Parser.php', array(
 
 DevblocksPlatform::registerClasses($path . 'Update.php', array(
 	'ChUpdateController',
-));
-
-DevblocksPlatform::registerClasses($path . 'Utils.php', array(
-	'CerberusUtils',
 ));
 
 /**
@@ -358,12 +354,6 @@ class CerberusApplication extends DevblocksApplication {
 		if(extension_loaded("gd") && function_exists('imagettfbbox')) {
 		} else {
 			$errors[] = "The 'GD' PHP extension (with FreeType library support) is required.  Please enable them.";
-		}
-
-		// Extension: IMAP
-		if(extension_loaded("imap")) {
-		} else {
-			$errors[] = "The 'IMAP' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: MailParse
@@ -1772,7 +1762,28 @@ class CerberusContexts {
 		if(!is_array($entry)) {
 			return '';
 		}
-
+		
+		// Adjust things for certain messages
+		
+		if('activities.comment.create' == $entry['message']) {
+			if(@$entry['urls']['target']) {
+				if(false != ($target = CerberusContexts::parseContextUrl($entry['urls']['target']))) {
+					if(CerberusContexts::CONTEXT_COMMENT == $target['context']) {
+						if(@$entry['variables']['target']) {
+							$entry['variables']['object'] = $entry['variables']['target'];
+							$entry['variables']['target'] = null;
+						} else {
+							$parent_comment = DAO_Comment::get($target['id']);
+							$entry['variables']['object'] = $parent_comment->getActorDictionary()->get('_label') . "'s comment";
+							$entry['variables']['target'] = null;
+						}
+						
+						$entry['urls']['object'] = $entry['urls']['target'];
+					}
+				}
+			}
+		}
+		
 		// Load the translated version of the message
 		$entry['message'] = $translate->_($entry['message']);
 
@@ -2692,10 +2703,10 @@ class CerberusLicense {
 	}
 
 	public static function getReleases() {
-		/*																																																																																																																														*/if(1==1) return json_decode(base64_decode('eyI1LjAuMCI6MTI3MTg5NDQwMCwiNS4xLjAiOjEyODE4MzA0MDAsIjUuMi4wIjoxMjg4NTY5NjAwLCI1LjMuMCI6MTI5NTA0OTYwMCwiNS40LjAiOjEzMDM4NjI0MDAsIjUuNS4wIjoxMzEyNDE2MDAwLCI1LjYuMCI6MTMxNzY4NjQwMCwiNS43LjAiOjEzMjYwNjcyMDAsIjYuMC4wIjoxMzM4MTYzMjAwLCI2LjEuMCI6MTM0NjAyNTYwMCwiNi4yLjAiOjEzNTM4ODgwMDAsIjYuMy4wIjoxMzY0MTY5NjAwLCI2LjQuMCI6MTM3MDIxNzYwMCwiNi41LjAiOjEzNzkyODk2MDAsIjYuNi4wIjoxMzkxMTI2NDAwLCI2LjcuMCI6MTM5ODEyNDgwMCwiNi44LjAiOjE0MTA3MzkyMDAsIjYuOS4wIjoxNDIyMjMwNDAwLCI3LjAuMCI6MTQzMjU5ODQwMCwiNy4xLjAiOjE0NDg5MjgwMDAsIjcuMi4wIjoxNDYyMDYwODAwLCI3LjMuMCI6MTQ3MjY4ODAwMCwiOC4wLjAiOjE0OTU3NTY4MDAsIjguMS4wIjoxNTAzOTY0ODAwLCI4LjIuMCI6MTUwOTMyMTYwMCwiOC4zLjAiOjE1MTk2MDMyMDAsIjkuMC4wIjoxNTMzNTEzNjAwLCI5LjEuMCI6MTU0NDgzMjAwMCwiOS4yLjAiOjE1NTEzMTIwMDAsIjkuMy4wIjoxNTU5MjYwODAwLCI5LjQuMCI6MTU2OTgwMTYwMCwiOS41LjAiOjE1Nzc3NTA0MDB9'),true);/*
+		/*																																																																																																																														*/if(1==1) return json_decode(base64_decode('eyI1LjAuMCI6MTI3MTg5NDQwMCwiNS4xLjAiOjEyODE4MzA0MDAsIjUuMi4wIjoxMjg4NTY5NjAwLCI1LjMuMCI6MTI5NTA0OTYwMCwiNS40LjAiOjEzMDM4NjI0MDAsIjUuNS4wIjoxMzEyNDE2MDAwLCI1LjYuMCI6MTMxNzY4NjQwMCwiNS43LjAiOjEzMjYwNjcyMDAsIjYuMC4wIjoxMzM4MTYzMjAwLCI2LjEuMCI6MTM0NjAyNTYwMCwiNi4yLjAiOjEzNTM4ODgwMDAsIjYuMy4wIjoxMzY0MTY5NjAwLCI2LjQuMCI6MTM3MDIxNzYwMCwiNi41LjAiOjEzNzkyODk2MDAsIjYuNi4wIjoxMzkxMTI2NDAwLCI2LjcuMCI6MTM5ODEyNDgwMCwiNi44LjAiOjE0MTA3MzkyMDAsIjYuOS4wIjoxNDIyMjMwNDAwLCI3LjAuMCI6MTQzMjU5ODQwMCwiNy4xLjAiOjE0NDg5MjgwMDAsIjcuMi4wIjoxNDYyMDYwODAwLCI3LjMuMCI6MTQ3MjY4ODAwMCwiOC4wLjAiOjE0OTU3NTY4MDAsIjguMS4wIjoxNTAzOTY0ODAwLCI4LjIuMCI6MTUwOTMyMTYwMCwiOC4zLjAiOjE1MTk2MDMyMDAsIjkuMC4wIjoxNTMzNTEzNjAwLCI5LjEuMCI6MTU0NDgzMjAwMCwiOS4yLjAiOjE1NTEzMTIwMDAsIjkuMy4wIjoxNTU5MjYwODAwLCI5LjQuMCI6MTU2OTgwMTYwMCwiOS41LjAiOjE1Nzc3NTA0MDAsIjkuNi4wIjoxNTkwODgzMjAwfQ=='),true);/*
 		 * Major versions by release date (in GMT)
 		 */
-		return array(
+		return [
 			'5.0.0' => gmmktime(0,0,0,4,22,2010),
 			'5.1.0' => gmmktime(0,0,0,8,15,2010),
 			'5.2.0' => gmmktime(0,0,0,11,1,2010),
@@ -2728,7 +2739,8 @@ class CerberusLicense {
 			'9.3.0' => gmmktime(0,0,0,5,31,2019),
 			'9.4.0' => gmmktime(0,0,0,9,30,2019),
 			'9.5.0' => gmmktime(0,0,0,12,31,2019),
-		);
+			'9.6.0' => gmmktime(0,0,0,5,31,2020),
+		];
 	}
 
 	public static function getReleaseDate($version) {
@@ -2840,7 +2852,7 @@ class Cerb_DevblocksSessionHandler implements IDevblocksHandler_Session {
 		// [TODO] Allow Cerb to enable user-agent comparisons as setting
 		// [TODO] Limit the IPs a worker can log in from (per-worker?)
 
-		if(null != (@$session = $db->GetRowSlave(sprintf("SELECT session_id, refreshed_at, session_data FROM devblocks_session WHERE session_token = %s", $db->qstr($id))))) {
+		if(null != (@$session = $db->GetRowReader(sprintf("SELECT session_id, refreshed_at, session_data FROM devblocks_session WHERE session_token = %s", $db->qstr($id))))) {
 			$maxlifetime = DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::SESSION_LIFESPAN, CerberusSettingsDefaults::SESSION_LIFESPAN);
 			//$is_ajax = (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest');
 
@@ -3454,8 +3466,8 @@ class Cerb_ORMHelper extends DevblocksORMHelper {
 
 	static protected function _getRandom($table, $pkey='id') {
 		$db = DevblocksPlatform::services()->database();
-		$offset = $db->GetOneSlave(sprintf("SELECT ROUND(RAND()*(SELECT COUNT(*)-1 FROM %s))", $table));
-		return $db->GetOneSlave(sprintf("SELECT %s FROM %s LIMIT %d,1", $pkey, $table, $offset));
+		$offset = $db->GetOneReader(sprintf("SELECT ROUND(RAND()*(SELECT COUNT(*)-1 FROM %s))", $table));
+		return $db->GetOneReader(sprintf("SELECT %s FROM %s LIMIT %d,1", $pkey, $table, $offset));
 	}
 
 	static function _searchComponentsVirtualOwner(&$param, &$join_sql, &$where_sql) {
@@ -3500,8 +3512,7 @@ class Cerb_ORMHelper extends DevblocksORMHelper {
 					break;
 				case DevblocksSearchCriteria::OPER_IS_NOT_NULL:
 					$where_sql .= sprintf("AND owner_context = %s AND owner_context_id NOT = 0 ",
-						self::qstr(CerberusContexts::CONTEXT_WORKER),
-						implode(',', $worker_ids)
+						self::qstr(CerberusContexts::CONTEXT_WORKER)
 					);
 					break;
 				case DevblocksSearchCriteria::OPER_NIN_OR_NULL:

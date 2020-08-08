@@ -179,7 +179,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 		
 		return self::_getObjectsFromResult($rs);
@@ -295,7 +295,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 	
 	static public function count($owner_context, $owner_context_id) {
 		$db = DevblocksPlatform::services()->database();
-		return $db->GetOneSlave(sprintf("SELECT count(*) FROM calendar ".
+		return $db->GetOneReader(sprintf("SELECT count(*) FROM calendar ".
 			"WHERE owner_context = %s AND owner_context_id = %d",
 			$db->qstr($owner_context),
 			$owner_context_id
@@ -391,7 +391,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		$ids = array();
 		
-		$results = $db->GetArraySlave(sprintf("SELECT id ".
+		$results = $db->GetArrayReader(sprintf("SELECT id ".
 			"FROM calendar ".
 			"WHERE ".
 			"name LIKE %s ".
@@ -425,10 +425,9 @@ class DAO_Calendar extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -437,49 +436,16 @@ class DAO_Calendar extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-			
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-			
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			
-			$total = mysqli_num_rows($rs);
-		}
-		
-		$results = array();
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_Calendar::ID]);
-			$results[$object_id] = $row;
-		}
-		
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(calendar.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_Calendar::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 
 	static public function clearCache() {
@@ -714,7 +680,7 @@ class Model_Calendar {
 			$date_from
 		);
 		
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		foreach($results as $row) {
 			// If the event spans multiple days, split them up into distinct events
@@ -985,9 +951,13 @@ class View_Calendar extends C4_AbstractView implements IAbstractView_Subtotals, 
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_Calendar::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_Calendar::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -996,6 +966,10 @@ class View_Calendar extends C4_AbstractView implements IAbstractView_Subtotals, 
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_Calendar');
 		

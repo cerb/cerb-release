@@ -159,18 +159,14 @@ class DAO_Address extends Cerb_ORMHelper {
 			if(count($ids) != 1)
 				return NULL;
 			
-			@$addresses = imap_rfc822_parse_adrlist('<'.$email.'>', 'host');
-			
-			if(!is_array($addresses) || empty($addresses))
+			if(false == ($address = CerberusMail::parseRfcAddress($email)))
 				return NULL;
 			
-			$address = array_shift($addresses);
-			
-			if(empty($address->host) || $address->host == 'host')
+			if(!$address['host'])
 				return NULL;
 			
 			// Format the email address
-			$full_address = trim(DevblocksPlatform::strLower($address->mailbox.'@'.$address->host));
+			$full_address = DevblocksPlatform::strLower($address['email']);
 			
 			$id = $db->GetOneMaster(sprintf("SELECT id FROM address WHERE email = %s", $db->qstr($full_address)));
 			
@@ -493,7 +489,7 @@ class DAO_Address extends Cerb_ORMHelper {
 			$sort_sql.
 			$limit_sql
 		;
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 
 		$objects = self::_getObjectsFromResult($rs);
 
@@ -626,7 +622,7 @@ class DAO_Address extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(address_id) FROM requester WHERE ticket_id = %d",
 			$ticket_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function countByTransportId($transport_id) {
@@ -635,7 +631,7 @@ class DAO_Address extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM address WHERE mail_transport_id = %d",
 			$transport_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function countByWorkerId($worker_id) {
@@ -644,7 +640,7 @@ class DAO_Address extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM address WHERE worker_id = %d",
 			$worker_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function countByContactId($org_id) {
@@ -653,7 +649,7 @@ class DAO_Address extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM address WHERE contact_id = %d",
 			$org_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function countByOrgId($org_id) {
@@ -662,7 +658,7 @@ class DAO_Address extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM address WHERE contact_org_id = %d",
 			$org_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	/**
@@ -939,11 +935,10 @@ class DAO_Address extends Cerb_ORMHelper {
 	 * @param string $sortBy
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
-	 * @return array
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -952,38 +947,16 @@ class DAO_Address extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-		
-		if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-			return false;
-		
-		$results = array();
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$id = intval($row[SearchFields_Address::ID]);
-			$results[$id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(*) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_Address::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 };
 
@@ -1493,9 +1466,13 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 			SearchFields_Address::VIRTUAL_WATCHERS,
 		));
 	}
-
-	function getData() {
-		$objects = DAO_Address::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_Address::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -1504,6 +1481,10 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_Address');
 		

@@ -50,11 +50,22 @@ FIELDSET {
 
 	LEGEND {
 		color: $green;
+		padding: 0 5px 0 0;
 		font-size: 120%;
 		font-weight: bold;
 
 		A {
 			color: $green;
+		}
+
+		span.glyphicons {
+			vertical-align: baseline;
+			color: rgb(175,175,175);
+			margin-left: 5px;
+
+			&:hover {
+				color:rgb(100,100,100);
+			}
 		}
 	}
 
@@ -67,8 +78,9 @@ FIELDSET {
 FORM {
 	margin: 0px;
 
-	INPUT[type=text], INPUT[type=password] {
+	INPUT[type=text], INPUT[type=password], INPUT[type=search] {
 		border: 1px solid rgb(150,150,150);
+		padding: 3px;
 
 		&:focus {
 			border: 1px solid rgb(121,183,231);
@@ -77,6 +89,7 @@ FORM {
 
 	TEXTAREA {
 		border: 1px solid rgb(150,150,150);
+		padding: 3px;
 
 		&:focus {
 			border: 1px solid rgb(121,183,231);
@@ -84,7 +97,14 @@ FORM {
 	}
 
 	SELECT {
+		-webkit-appearance: menulist;
 		-moz-appearance: menulist;
+
+		background: white none;
+		border: 1px solid rgb(150,150,150);
+		padding: 2px 4px;
+
+		@include border-radius(5px);
 
 		OPTGROUP {
 			font-style: normal;

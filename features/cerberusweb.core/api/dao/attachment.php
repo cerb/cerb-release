@@ -236,7 +236,7 @@ class DAO_Attachment extends Cerb_ORMHelper {
 			$sort_sql.
 			$limit_sql
 		;
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		return self::_getObjectsFromResult($rs);
 	}
@@ -416,7 +416,7 @@ class DAO_Attachment extends Cerb_ORMHelper {
 				$db->qstr($context),
 				implode(',', $context_ids)
 			);
-			$link_results = $db->GetArraySlave($sql);
+			$link_results = $db->GetArrayReader($sql);
 			$results = [];
 			
 			foreach($link_results as $row) {
@@ -448,7 +448,7 @@ class DAO_Attachment extends Cerb_ORMHelper {
 			(!empty($file_size) ? (sprintf("AND storage_size=%d", $file_size)) : '')
 		);
 		
-		return $db->GetOneSlave($sql);
+		return $db->GetOneReader($sql);
 	}
 	
 	/**
@@ -559,7 +559,7 @@ class DAO_Attachment extends Cerb_ORMHelper {
 					$context_id,
 					$context_id
 				);
-				return $db->GetOneSlave($sql);
+				return $db->GetOneReader($sql);
 				break;
 				
 			default:
@@ -590,7 +590,7 @@ class DAO_Attachment extends Cerb_ORMHelper {
 			$query_parts['where']
 			;
 		
-		return $db->GetOneSlave($sql);
+		return $db->GetOneReader($sql);
 	}
 	
 	static function delete($ids) {
@@ -666,17 +666,17 @@ class DAO_Attachment extends Cerb_ORMHelper {
 	
 	/**
 	 *
+	 * @param string[] $columns
 	 * @param DevblocksSearchCriteria[] $params
 	 * @param integer $limit
 	 * @param integer $page
 	 * @param string $sortBy
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
-	 * @return array
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -685,38 +685,16 @@ class DAO_Attachment extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-		
-		if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-			return false;
-		
-		$results = [];
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$id = intval($row[SearchFields_Attachment::ID]);
-			$results[$id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(a.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_Attachment::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 };
 
@@ -1089,7 +1067,7 @@ class Storage_Attachments extends Extension_DevblocksStorageSchema {
 		
 		$sql = sprintf("SELECT storage_extension, storage_key, storage_profile_id FROM attachment WHERE id IN (%s)", implode(',',$ids));
 		
-		if(false == ($rs = $db->ExecuteSlave($sql)))
+		if(false == ($rs = $db->QueryReader($sql)))
 			return false;
 		
 		// Delete the physical files
@@ -1136,7 +1114,7 @@ class Storage_Attachments extends Extension_DevblocksStorageSchema {
 				$db->qstr($src_profile->extension_id),
 				$src_profile->id
 		);
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		if(!($rs instanceof mysqli_result))
 			return false;
@@ -1171,7 +1149,7 @@ class Storage_Attachments extends Extension_DevblocksStorageSchema {
 				$db->qstr($dst_profile->extension_id),
 				$dst_profile->id
 		);
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		if(!($rs instanceof mysqli_result))
 			return false;
@@ -1333,9 +1311,13 @@ class View_Attachment extends C4_AbstractView implements IAbstractView_Subtotals
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_Attachment::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_Attachment::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -1344,6 +1326,10 @@ class View_Attachment extends C4_AbstractView implements IAbstractView_Subtotals
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_Attachment');
 		
@@ -1729,7 +1715,7 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 			implode(',', array_keys($dicts)),
 			implode(',', array_keys($memberships))
 		);
-		$approved_files = $db->GetArraySlave($sql_approve_by_messages);
+		$approved_files = $db->GetArrayReader($sql_approve_by_messages);
 		
 		foreach($approved_files as $approved_file) {
 			$results[$approved_file['attachment_id']] = true;

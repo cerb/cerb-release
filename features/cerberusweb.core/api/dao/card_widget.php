@@ -202,7 +202,7 @@ class DAO_CardWidget extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 		
 		return self::_getObjectsFromResult($rs);
@@ -401,10 +401,9 @@ class DAO_CardWidget extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 		
@@ -413,47 +412,16 @@ class DAO_CardWidget extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-		
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		$results = [];
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_CardWidget::ID]);
-			$results[$object_id] = $row;
-		}
-		
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(card_widget.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_CardWidget::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 };
 
@@ -579,24 +547,6 @@ class Model_CardWidget {
 	public $width_units;
 	public $zone;
 	
-	/*
-	private $_automations = [];
-	
-	// Load and cache the automation
-	function getAutomation($trigger_name) {
-		if(!array_key_exists($trigger_name, $this->_automations)) {
-			if(false == ($automation = DAO_Automation::getByRecordTypeIdTrigger(Context_CardWidget::ID, $this->id, $trigger_name))) {
-				$this->_automations[$trigger_name] = false;
-				
-			} else {
-				$this->_automations[$trigger_name] = $automation;
-			}
-		}
-		
-		return $this->_automations[$trigger_name];
-	}
-	*/
-	
 	/**
 	 * @return Extension_CardWidget|null
 	 */
@@ -645,8 +595,12 @@ class View_CardWidget extends C4_AbstractView implements IAbstractView_Subtotals
 		$this->doResetCriteria();
 	}
 	
-	function getData() {
-		$objects = DAO_CardWidget::search(
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_CardWidget::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -655,6 +609,10 @@ class View_CardWidget extends C4_AbstractView implements IAbstractView_Subtotals
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_CardWidget');
 		

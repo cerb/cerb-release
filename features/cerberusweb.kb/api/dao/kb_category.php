@@ -142,7 +142,7 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		
 		// Add counts (and bubble up)
 		$sql = "SELECT count(*) AS hits, kb_category_id FROM kb_article_to_category GROUP BY kb_category_id";
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		if(!($rs instanceof mysqli_result))
 			return false;
@@ -298,7 +298,7 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 		
 		return self::_getObjectsFromResult($rs);
@@ -425,7 +425,7 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		$ids = [];
 		
-		$results = $db->GetArraySlave(sprintf("SELECT id ".
+		$results = $db->GetArrayReader(sprintf("SELECT id ".
 			"FROM kb_category ".
 			"WHERE name LIKE %s ".
 			"LIMIT 25",
@@ -454,7 +454,7 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(kb_category_id) FROM kb_article_to_category WHERE kb_article_id = %d",
 			$article_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function countByParentId($parent_id) {
@@ -463,12 +463,21 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM kb_category WHERE parent_id = %d",
 			$parent_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
+	/**
+	 * @param string[] $columns
+	 * @param DevblocksSearchCriteria[] $params
+	 * @param int $limit
+	 * @param int $page
+	 * @param null $sortBy
+	 * @param null $sortAsc
+	 * @param bool $withCounts
+	 * @return array|bool
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -477,41 +486,16 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-		
-		if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-			return false;
-		
-		$results = [];
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$id = intval($row[SearchFields_KbCategory::ID]);
-			$results[$id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(kbc.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_KbCategory::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 	
 	static public function clearCache() {
@@ -996,9 +980,13 @@ class View_KbCategory extends C4_AbstractView implements IAbstractView_Subtotals
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_KbCategory::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_KbCategory::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -1007,6 +995,10 @@ class View_KbCategory extends C4_AbstractView implements IAbstractView_Subtotals
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_KbCategory');
 		

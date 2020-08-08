@@ -125,58 +125,64 @@
 	</tr>
 </table>
 
-{$message_content = $message->getContent()}
+<div class="cerb-editor-tabs">
+	<ul>
+		<li data-cerb-tab="editor"><a href="#reply{$message->id}EditorPanel">{'common.editor'|devblocks_translate|capitalize}</a></li>
+		<li data-cerb-tab="preview"><a href="#reply{$message->id}EditorPreviewPanel">{'common.preview'|devblocks_translate|capitalize}</a></li>
+	</ul>
 
-<div class="cerb-code-editor-toolbar">
-	{if $interactions_menu}
-	<div id="replyInteractions{$message->id}" style="display:inline-block;">
-		{include file="devblocks:cerberusweb.core::events/interaction/interactions_menu.tpl" button_classes="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--interactions"}
-	</div>
+	<div id="reply{$message->id}EditorPanel">
+		{$message_content = $message->getContent()}
 
-	<div class="cerb-code-editor-toolbar-divider"></div>
-	{/if}
+		<div class="cerb-code-editor-toolbar">
+			{if $interactions_menu}
+				<div id="replyInteractions{$message->id}" style="display:inline-block;">
+					{include file="devblocks:cerberusweb.core::events/interaction/interactions_menu.tpl" button_classes="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--interactions"}
+				</div>
+				<div class="cerb-code-editor-toolbar-divider"></div>
+			{/if}
 
-	<button type="button" title="Toggle formatting" class="cerb-code-editor-toolbar-button cerb-editor-toolbar-button--formatting" data-format="{if $is_html}html{else}plaintext{/if}">{if $is_html}Formatting on{else}Formatting off{/if}</button>
+			<button type="button" title="Toggle formatting" class="cerb-code-editor-toolbar-button cerb-editor-toolbar-button--formatting" data-format="{if $is_html}html{else}plaintext{/if}">{if $is_html}Formatting on{else}Formatting off{/if}</button>
 
-	<div class="cerb-code-editor-subtoolbar-format-html" style="display:inline-block;{if !$is_html}display:none;{/if}">
-		{if $html_templates}
-		<select name="html_template_id" style="max-width:150px;">
-			<optgroup label="{'common.template'|devblocks_translate|capitalize}">
-				<option value="">({'common.default'|devblocks_translate|capitalize})</option>
-				{foreach from=$html_templates item=html_template}
-					<option value="{$html_template->id}" {if $draft->params.html_template_id==$html_template->id}selected="selected"{/if}>{$html_template->name}</option>
-				{/foreach}
-			</optgroup>
-		</select>
-		{/if}
-		<button type="button" title="Bold (Ctrl+B)" data-cerb-key-binding="ctrl+b" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--bold"><span class="glyphicons glyphicons-bold"></span></button>
-		<button type="button" title="Italics (Ctrl+I)" data-cerb-key-binding="ctrl+i" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--italic"><span class="glyphicons glyphicons-italic"></span></button>
-		<button type="button" title="Link (Ctrl+K)" data-cerb-key-binding="ctrl+k" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--link"><span class="glyphicons glyphicons-link"></span></button>
-		<button type="button" title="Image (Ctrl+M)" data-cerb-key-binding="ctrl+m" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--image"><span class="glyphicons glyphicons-picture"></span></button>
-		<button type="button" title="List" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--list"><span class="glyphicons glyphicons-list"></span></button>
-		<button type="button" title="Quote (Ctrl+Q)" data-cerb-key-binding="ctrl+q" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--quote"><span class="glyphicons glyphicons-quote"></span></button>
-		<button type="button" title="Code (Ctrl+O)" data-cerb-key-binding="ctrl+o" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--code"><span class="glyphicons glyphicons-embed"></span></button>
-		<button type="button" title="Table" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--table"><span class="glyphicons glyphicons-table"></span></button>
-	</div>
+			<div class="cerb-code-editor-subtoolbar-format-html" style="display:inline-block;{if !$is_html}display:none;{/if}">
+				<div class="cerb-code-editor-toolbar-divider"></div>
+				<button type="button" title="Bold (Ctrl+B)" data-cerb-key-binding="ctrl+b" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--bold"><span class="glyphicons glyphicons-bold"></span></button>
+				<button type="button" title="Italics (Ctrl+I)" data-cerb-key-binding="ctrl+i" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--italic"><span class="glyphicons glyphicons-italic"></span></button>
+				<button type="button" title="Link (Ctrl+K)" data-cerb-key-binding="ctrl+k" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--link"><span class="glyphicons glyphicons-link"></span></button>
+				<button type="button" title="Image (Ctrl+M)" data-cerb-key-binding="ctrl+m" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--image"><span class="glyphicons glyphicons-picture"></span></button>
+				<button type="button" title="List" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--list"><span class="glyphicons glyphicons-list"></span></button>
+				<button type="button" title="Quote (Ctrl+Q)" data-cerb-key-binding="ctrl+q" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--quote"><span class="glyphicons glyphicons-quote"></span></button>
+				<button type="button" title="Code (Ctrl+O)" data-cerb-key-binding="ctrl+o" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--code"><span class="glyphicons glyphicons-embed"></span></button>
+				<button type="button" title="Table" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--table"><span class="glyphicons glyphicons-table"></span></button>
+			</div>
 
-	<div class="cerb-code-editor-toolbar-divider"></div>
+			<div class="cerb-code-editor-toolbar-divider"></div>
 
-	<button type="button" title="Insert #command" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--commands"><span class="glyphicons glyphicons-sampler"></span></button>
-	<button type="button" title="Insert snippet (Ctrl+Shift+Period)" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--snippets"><span class="glyphicons glyphicons-notes-2"></span></button>
-	{*<button type="button" title="Track time" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--save"><span class="glyphicons glyphicons-stopwatch"></span></button>*}
-	<button type="button" title="Save draft (Ctrl+S)" data-cerb-key-binding="ctrl+s" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--save"><span class="glyphicons glyphicons-floppy-save"></span></button>
-	<div class="cerb-code-editor-toolbar-divider"></div>
+			<button type="button" title="Insert #command" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--commands"><span class="glyphicons glyphicons-sampler"></span></button>
+			<button type="button" title="Insert snippet (Ctrl+Shift+Period)" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--snippets"><span class="glyphicons glyphicons-notes-2"></span></button>
+			<button type="button" title="Save draft (Ctrl+S)" data-cerb-key-binding="ctrl+s" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--save"><span class="glyphicons glyphicons-floppy-save"></span></button>
+			<div class="cerb-code-editor-toolbar-divider"></div>
 
+			<button type="button" title="{'common.encrypt'|devblocks_translate|capitalize}" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--encrypt {if $draft->params.options_gpg_encrypt}cerb-code-editor-toolbar-button--enabled{/if}"><span class="glyphicons {if $draft->params.options_gpg_encrypt}glyphicons-lock{else}glyphicons-unlock{/if}"></span></button>
+			<button type="button" title="{'common.encrypt.sign'|devblocks_translate|capitalize}" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--sign {if $draft->params.options_gpg_sign}cerb-code-editor-toolbar-button--enabled{/if}"><span class="glyphicons {if $draft->params.options_gpg_encrypt}glyphicons-user-lock{else}glyphicons-user{/if}"></span></button>
 
-	<button type="button" title="{'common.encrypt'|devblocks_translate|capitalize}" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--encrypt {if $draft->params.options_gpg_encrypt}cerb-code-editor-toolbar-button--enabled{/if}"><span class="glyphicons {if $draft->params.options_gpg_encrypt}glyphicons-lock{else}glyphicons-unlock{/if}"></span></button>
-	<button type="button" title="{'common.encrypt.sign'|devblocks_translate|capitalize}" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--sign {if $draft->params.options_gpg_sign}cerb-code-editor-toolbar-button--enabled{/if}"><span class="glyphicons {if $draft->params.options_gpg_encrypt}glyphicons-user-lock{else}glyphicons-user{/if}"></span></button>
-	<div class="cerb-code-editor-toolbar-divider"></div>
+			{if $html_templates}
+			<div class="cerb-code-editor-subtoolbar-format-html" style="display:inline-block;{if !$is_html}display:none;{/if}">
+				<div class="cerb-code-editor-toolbar-divider"></div>
+				<select name="html_template_id" style="max-width:150px;" title="{'common.template'|devblocks_translate|capitalize}">
+					<optgroup label="{'common.template'|devblocks_translate|capitalize}">
+						<option value="">({'common.default'|devblocks_translate|capitalize})</option>
+						{foreach from=$html_templates item=html_template}
+							<option value="{$html_template->id}" {if $draft->params.html_template_id==$html_template->id}selected="selected"{/if}>{$html_template->name}</option>
+						{/foreach}
+					</optgroup>
+				</select>
+			</div>
+			{/if}
+		</div>
 
-	<button type="button" title="Preview message (Ctrl+Shift+P)" data-cerb-key-binding="ctrl+shift+p" class="cerb-code-editor-toolbar-button cerb-markdown-editor-toolbar-button--preview"><span class="glyphicons glyphicons-eye-open"></span></button>
-</div>
-
-{if $is_forward}
-<textarea name="content" id="reply_{$message->id}" class="reply" style="box-sizing:border-box;">
+		{if $is_forward}
+			<textarea name="content" id="reply_{$message->id}" class="reply" style="box-sizing:border-box;">
 {if !empty($draft)}{$draft->getParam('content')}{else}
 
 
@@ -191,8 +197,8 @@
 {$message_content|trim}
 {/if}
 </textarea>
-{else}
-<textarea name="content" id="reply_{$message->id}" class="reply" style="box-sizing:border-box;" autofocus="autofocus">
+		{else}
+			<textarea name="content" id="reply_{$message->id}" class="reply" style="box-sizing:border-box;" autofocus="autofocus">
 {if !empty($draft)}{$draft->getParam('content')}{else}
 {if 1==$signature_pos || 3==$signature_pos}
 
@@ -213,6 +219,10 @@
 {/if}{*Sig below*}{/if}
 </textarea>
 {/if}
+	</div>
+
+	<div id="reply{$message->id}EditorPreviewPanel" style="min-height:100px;max-height:400px;overflow:auto;border:1px dotted rgb(150,150,150);padding:5px;"></div>
+</div>
 
 <fieldset class="peek reply-attachments" style="margin-top:10px;">
 	<legend>{'common.attachments'|devblocks_translate|capitalize}</legend>
@@ -363,7 +373,34 @@ $(function() {
 
 	var $frm = $('#reply{$message->id}_form');
 	var $reply = $frm.closest('div.reply_frame');
-	
+
+	$frm.find('.cerb-editor-tabs').tabs({
+		activate: function(event, ui) {
+		},
+		beforeActivate: function(event, ui) {
+			if(ui.newTab.attr('data-cerb-tab') !== 'preview')
+				return;
+
+			Devblocks.getSpinner().appendTo(ui.newPanel.html(''));
+
+			var formData = new FormData();
+			formData.set('c', 'profiles');
+			formData.set('a', 'invoke');
+			formData.set('module', 'ticket');
+			formData.set('action', 'previewReplyMessage');
+			formData.set('id', $frm.find('input[name=id]').val());
+			formData.set('format', $frm.find('input[name=format]').val());
+			formData.set('group_id', $frm.find('select[name=group_id]').val());
+			formData.set('bucket_id', $frm.find('select[name=bucket_id]').val());
+			formData.set('html_template_id', $frm.find('select[name=html_template_id]').val());
+			formData.set('content', $frm.find('textarea[name=content]').val());
+
+			genericAjaxPost(formData, null, null, function(html) {
+				ui.newPanel.html(html);
+			});
+		}
+	});
+
 	{if $recent_activity}
 	$frm.hide();
 	{/if}
@@ -599,12 +636,18 @@ $(function() {
 
 				genericAjaxPost(formData,null,'',
 					function(obj) {
-						if(null != obj.html && null != obj.draft_id) {
+						$this.removeAttr('disabled');
+
+						if(!obj)
+							return;
+
+						if(obj.error) {
+							$('#divDraftStatus{$message->id}').html(obj.error);
+
+						} else if (obj.html && obj.draft_id) {
 							$('#divDraftStatus{$message->id}').html(obj.html);
 							$frm.find('input[name=draft_id]').val(obj.draft_id);
 						}
-
-						$this.removeAttr('disabled');
 					}
 				);
 			})
@@ -649,7 +692,7 @@ $(function() {
 
 			$reply.find('button.chooser_file').triggerHandler(new_event);
 
-			$editor.cerbTextEditor('insertText', '![Image](' + event.url + ')');
+			$editor.cerbTextEditor('insertText', '![inline-image](' + event.url + ')');
 
 			setTimeout(function() {
 				$editor.focus();
@@ -679,8 +722,8 @@ $(function() {
 
 			genericAjaxPost(formData, null, null, function(json) {
 				// If the content has placeholders, use that popup instead
-				if (json.has_custom_placeholders) {
-					var $popup_paste = genericAjaxPopup('snippet_paste', 'c=profiles&a=invoke&module=snippet&action=getPlaceholders&id=' + encodeURIComponent(json.id) + '&context_id=' + encodeURIComponent(json.context_id), null, false, '50%');
+				if (json.has_prompts) {
+					var $popup_paste = genericAjaxPopup('snippet_paste', 'c=profiles&a=invoke&module=snippet&action=getPrompts&id=' + encodeURIComponent(json.id) + '&context_id=' + encodeURIComponent(json.context_id), null, false, '50%');
 
 					$popup_paste.bind('snippet_paste', function (event) {
 						if (null == event.text)
@@ -715,28 +758,6 @@ $(function() {
 					'snippet_id': snippet_id
 				}));
 			});
-		});
-
-		// Preview
-		$editor_toolbar.find('.cerb-markdown-editor-toolbar-button--preview').on('click', function () {
-			var formData = new FormData();
-			formData.set('c', 'profiles');
-			formData.set('a', 'invoke');
-			formData.set('module', 'ticket');
-			formData.set('action', 'previewReplyMessage');
-			formData.set('id', $frm.find('input[name=id]').val());
-			formData.set('format', $frm.find('input[name=format]').val());
-			formData.set('group_id', $frm.find('select[name=group_id]').val());
-			formData.set('bucket_id', $frm.find('select[name=bucket_id]').val());
-			formData.set('html_template_id', $frm.find('select[name=html_template_id]').val());
-			formData.set('content', $frm.find('textarea[name=content]').val());
-
-			genericAjaxPopup(
-				'preview_reply',
-				formData,
-				'reuse',
-				false
-			);
 		});
 
 		// Dates
@@ -869,10 +890,12 @@ $(function() {
 					
 					$frm.find('input:hidden[name=reply_mode]').val('');
 					
-					genericAjaxPost($frm, '', null, function() {
+					genericAjaxPost($frm, '', null, function(json) {
 						hideLoadingPanel();
-						
-						var event = new $.Event('cerb-reply-sent');
+
+						var event = new $.Event('cerb-reply-sent', {
+							record: json
+						});
 						$reply.trigger(event);
 						
 						$reply.triggerHandler('cerb-reply--close');
@@ -891,55 +914,93 @@ $(function() {
 				return;
 			
 			var $button = $(this);
-			
-			// Stop draft auto-save
-			if(null != draftAutoSaveInterval) {
-				clearTimeout(draftAutoSaveInterval);
-				draftAutoSaveInterval = null;
-			}
-			
+
+			Devblocks.clearAlerts();
 			showLoadingPanel();
-			
-			$frm.find('input:hidden[name=reply_mode]').val('save');
 			$button.closest('td').hide();
-			
-			genericAjaxPost($frm, '', null, function() {
-				hideLoadingPanel();
-				
-				var event = new $.Event('cerb-reply-saved');
-				$reply.trigger(event);
-				
-				$reply.triggerHandler('cerb-reply--close');
+
+			var formData = new FormData($frm[0]);
+			formData.set('c', 'profiles');
+			formData.set('a', 'invoke');
+			formData.set('module', 'ticket');
+			formData.set('action', 'validateReplyJson');
+
+			// Validate via Ajax before saving
+			genericAjaxPost(formData, '', '', function(json) {
+				if(json && json.status) {
+					if(null != draftAutoSaveInterval) {
+						clearTimeout(draftAutoSaveInterval);
+						draftAutoSaveInterval = null;
+					}
+
+					$frm.find('input:hidden[name=reply_mode]').val('save');
+
+					genericAjaxPost($frm, '', null, function(json) {
+						hideLoadingPanel();
+
+						var event = new $.Event('cerb-reply-saved', {
+							record: json
+						});
+						$reply.trigger(event);
+
+						$reply.triggerHandler('cerb-reply--close');
+					});
+
+				} else {
+					Devblocks.createAlertError(json.message);
+					hideLoadingPanel();
+					$button.closest('td').show();
+				}
 			});
 		});
 		
 		$buttons.find('.draft').click(function(e) {
 			if(e.originalEvent && e.originalEvent.detail && e.originalEvent.detail > 1)
 				return;
-			
-			// Stop the draft auto-save
-			if(null != draftAutoSaveInterval) {
-				clearTimeout(draftAutoSaveInterval);
-				draftAutoSaveInterval = null;
-			}
+
+			var $button = $(this);
+
+			Devblocks.clearAlerts();
+			showLoadingPanel();
+			$button.closest('td').hide();
 
 			var formData = new FormData($frm[0]);
 			formData.set('c', 'profiles');
 			formData.set('a', 'invoke');
-			formData.set('module', 'draft');
-			formData.set('action', 'saveDraftReply');
+			formData.set('module', 'ticket');
+			formData.set('action', 'validateReplyJson');
 
-			$(this).closest('td').hide();
-			
-			showLoadingPanel();
-			
-			genericAjaxPost(formData, '', null, function() {
-				hideLoadingPanel();
-				
-				var event = new $.Event('cerb-reply-draft');
-				$reply.trigger(event);
-				
-				$reply.triggerHandler('cerb-reply--close');
+			// Validate via Ajax before saving
+			genericAjaxPost(formData, '', '', function(json) {
+				if(json && json.status) {
+					if(null != draftAutoSaveInterval) {
+						clearTimeout(draftAutoSaveInterval);
+						draftAutoSaveInterval = null;
+					}
+
+					var formData = new FormData($frm[0]);
+					formData.set('c', 'profiles');
+					formData.set('a', 'invoke');
+					formData.set('module', 'draft');
+					formData.set('action', 'saveDraftReply');
+
+					genericAjaxPost(formData, '', null, function(json) {
+						hideLoadingPanel();
+						$button.closest('td').show();
+
+						var event = new $.Event('cerb-reply-draft', {
+							record: json
+						});
+						$reply.trigger(event);
+
+						$reply.triggerHandler('cerb-reply--close');
+					});
+
+				} else {
+					Devblocks.createAlertError(json.message);
+					hideLoadingPanel();
+					$button.closest('td').show();
+				}
 			});
 		});
 		

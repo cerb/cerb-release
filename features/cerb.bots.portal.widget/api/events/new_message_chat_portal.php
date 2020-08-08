@@ -614,8 +614,6 @@ class Event_NewMessageChatPortal extends Extension_DevblocksEvent {
 				
 			case 'switch_behavior':
 				@$behavior_id = $params['behavior_id'];
-				//$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-				//$content = $tpl_builder->build($params['script'], $dict);
 				
 				$out = sprintf(">>> Switching behavior\n".
 					"%d\n",
@@ -834,6 +832,7 @@ class Event_NewMessageChatPortal extends Extension_DevblocksEvent {
 				
 				@$behavior_id = intval($params['behavior_id']);
 				@$behavior_return = intval($params['return']) ? true : false;
+				@$var_key = $params['var'] ?? '_behavior';
 				
 				if(false == ($behavior = DAO_TriggerEvent::get($behavior_id)))
 					break;
@@ -865,13 +864,14 @@ class Event_NewMessageChatPortal extends Extension_DevblocksEvent {
 					}
 				}
 				
-				$actions[] = array(
+				$actions[] = [
 					'_action' => 'behavior.switch',
 					'_trigger_id' => $trigger->id,
 					'behavior_id' => $behavior_id,
 					'behavior_variables' => $vars,
 					'behavior_return' => $behavior_return,
-				);
+					'var' => $var_key,
+				];
 				
 				$dict->__exit = 'suspend';
 				break;

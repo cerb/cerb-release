@@ -38,8 +38,9 @@ trait DevblocksExtensionGetterTrait {
 	}
 
 	/**
-	 * @param string $extension_id
 	 * @internal
+	 * @param string $extension_id
+	 * @return DevblocksExtensionManifest|null
 	 */
 	public static function get($extension_id, $as_instance=true) {
 		if($as_instance && isset(self::$_registry[$extension_id]))
@@ -58,8 +59,6 @@ trait DevblocksExtensionGetterTrait {
 		} else {
 			return $extensions[$extension_id];
 		}
-		
-		return null;
 	}
 }
 
@@ -134,6 +133,9 @@ class Exception_DevblocksAjaxValidationError extends Exception_Devblocks {
 		return $this->_field_name;
 	}
 };
+
+class Exception_DevblocksDatabaseQueryError extends Exception_Devblocks {};
+class Exception_DevblocksDatabaseQueryTimeout extends Exception_Devblocks {};
 
 interface IDevblocksHandler_Session {
 	static function open($save_path, $session_name);
@@ -688,7 +690,6 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		}
 		
 		// Convert the flat tokens into a tree
-		$forward_recurse = null;
 		$forward_recurse = function(&$node, $node_key, &$stack=null) use (&$keys, &$forward_recurse, &$labels, $label_separator) {
 			if(is_null($stack))
 				$stack = [];
@@ -714,7 +715,6 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		$forward_recurse($keys, '');
 		
-		$condense_func = null;
 		$condense_func = function(&$node, $key=null, &$parent=null) use (&$condense_func, $label_separator, $key_separator) {
 			// If this node has exactly one child
 			if(is_array($node->children) && 1 == count($node->children) && $parent && is_null($node->label)) {
@@ -1820,9 +1820,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 					
 				default:
 					if(false != ($field_ext = $fields[$cf_id]->getTypeExtension())) {
-						$value = $field_ext->getValue($field_values[$cf_id]);
-						$token_values['custom'][$cf_id] = $value;
-						$token_values['custom_' . $cf_id] = $value;
+						$field_ext->getDictionaryValues($fields[$cf_id], $field_values[$cf_id], $token_values);
 					}
 					break;
 			}
@@ -2302,7 +2300,9 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 						break;
 
 					default:
-						continue 2;
+						if(null != ($cfield_ext = $custom_fields[$cfield_id]->getTypeExtension())) {
+							$cfield_ext->getValuesContexts($custom_fields[$cfield_id], $token, $cfields);
+						}
 				}
 			}
 		}
@@ -3317,16 +3317,16 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 			];
 		}
 
-		$bot = $trigger->getBot();
-
 		// Add plugin extensions
 
 		$manifests = Extension_DevblocksEventAction::getAll(false, $trigger->event_point);
 
 		// Filter extensions by VA permissions
-
-		$manifests = $bot->filterActionManifestsByAllowed($manifests);
-
+		
+		if(false != ($bot = $trigger->getBot())) {
+			$manifests = $bot->filterActionManifestsByAllowed($manifests);
+		}
+		
 		if(is_array($manifests))
 		foreach($manifests as $manifest) {
 			$action = [];
@@ -3789,23 +3789,26 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 						CerberusContexts::getContext($on_context['context'], $dict->$on, $snippet_labels, $snippet_values, '', false, false);
 					}
 
-					// Prompted placeholders
+					// Prompts
 
 					// [TODO] If a required prompted placeholder is missing, abort
+				
+					$prompts = $snippet->getPrompts();
 
-					if(is_array($snippet->custom_placeholders) && is_array($placeholder_values))
-					foreach($snippet->custom_placeholders as $placeholder_key => $placeholder) {
-						if(!isset($placeholder_values[$placeholder_key])) {
-							$snippet_values[$placeholder_key] = $placeholder['default'];
+					if(is_array($prompts) && is_array($placeholder_values))
+					foreach($prompts as $prompt) {
+						$prompt_name = $prompt['name'];
+						if(!isset($placeholder_values[$prompt_name])) {
+							$snippet_values[$prompt_name] = $prompt['default'];
 
 						} else {
 							// Convert placeholders
-							$snippet_values[$placeholder_key] = $tpl_builder->build($placeholder_values[$placeholder_key], $dict);
+							$snippet_values[$prompt_name] = $tpl_builder->build($placeholder_values[$prompt_name], $dict);
 						}
 					}
 
 					$value = $tpl_builder->build($snippet->content, $snippet_values);
-					$dict->$var = $value;
+					$dict->set($var, $value);
 
 					if($dry_run) {
 						$out = $this->simulateAction($token, $trigger, $params, $dict);
@@ -4449,7 +4452,7 @@ abstract class Extension_DevblocksStorageSchema extends DevblocksExtension {
 
 		$stats = [];
 
-		$results = $db->GetArraySlave(sprintf("SELECT storage_extension, storage_profile_id, count(id) as hits, sum(storage_size) as bytes FROM %s GROUP BY storage_extension, storage_profile_id ORDER BY storage_extension",
+		$results = $db->GetArrayReader(sprintf("SELECT storage_extension, storage_profile_id, count(id) as hits, sum(storage_size) as bytes FROM %s GROUP BY storage_extension, storage_profile_id ORDER BY storage_extension",
 			$table_name
 		));
 		foreach($results as $result) {

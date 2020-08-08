@@ -142,7 +142,7 @@ class DAO_MailToGroupRule extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 		
 		return self::_getObjectsFromResult($rs);
@@ -311,27 +311,27 @@ class Model_MailToGroupRule {
 						break;
 					
 					case 'tocc':
-						$tocc = array();
+						$tocc = [];
 						$destinations = DevblocksPlatform::parseCsvString($value);
 
 						// Build a list of To/Cc addresses on this message
-						@$to_list = imap_rfc822_parse_adrlist($message_headers['to'],'localhost');
-						@$cc_list = imap_rfc822_parse_adrlist($message_headers['cc'],'localhost');
+						$to_list = CerberusMail::parseRfcAddresses(@$message_headers['to']);
+						$cc_list = CerberusMail::parseRfcAddresses(@$message_headers['cc']);
 						
 						if(is_array($to_list))
 						foreach($to_list as $addy) {
-							if(!isset($addy->mailbox) || !isset($addy->host))
+							if(!$addy['mailbox'] || !$addy['host'])
 								continue;
 						
-							$tocc[] = $addy->mailbox . '@' . $addy->host;
+							$tocc[] = $addy['email'];
 						}
 						
 						if(is_array($cc_list))
 						foreach($cc_list as $addy) {
-							if(!isset($addy->mailbox) || !isset($addy->host))
+							if(!$addy['mailbox'] || !$addy['host'])
 								continue;
 							
-							$tocc[] = $addy->mailbox . '@' . $addy->host;
+							$tocc[] = $addy['email'];
 						}
 						
 						$dest_flag = false; // bail out when true

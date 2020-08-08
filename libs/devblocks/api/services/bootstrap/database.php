@@ -18,8 +18,8 @@ class _DevblocksDatabaseManager {
 				return $this->_connectMaster();
 				break;
 				
-			case '_slave_db':
-				return $this->_connectSlave();
+			case '_reader_db':
+				return $this->_connectReader();
 				break;
 		}
 		
@@ -64,35 +64,35 @@ class _DevblocksDatabaseManager {
 		return $db;
 	}
 	
-	private function _connectSlave() {
+	private function _connectReader() {
 		// Reuse an existing connection for this request
-		if(isset($this->_connections['slave']))
-			return $this->_connections['slave'];
+		if(isset($this->_connections['reader']))
+			return $this->_connections['reader'];
 		
-		// Use the master if we don't have a slave defined
-		if(!defined('APP_DB_SLAVE_HOST') || !APP_DB_SLAVE_HOST) {
-			return $this->_redirectSlaveToMaster();
+		// Use the master if we don't have a reader endpoint defined
+		if(!defined('APP_DB_READER_HOST') || !APP_DB_READER_HOST) {
+			return $this->_redirectReaderToMaster();
 		}
 		
 		// Inherit the user/pass from the master if not specified
 		$persistent = (defined('APP_DB_PCONNECT') && APP_DB_PCONNECT) ? true : false;
-		$user = (defined('APP_DB_SLAVE_USER') && APP_DB_SLAVE_USER) ? APP_DB_SLAVE_USER : APP_DB_USER;
-		$pass = (defined('APP_DB_SLAVE_PASS') && APP_DB_SLAVE_PASS) ? APP_DB_SLAVE_PASS : APP_DB_PASS;
+		$user = (defined('APP_DB_READER_USER') && APP_DB_READER_USER) ? APP_DB_READER_USER : APP_DB_USER;
+		$pass = (defined('APP_DB_READER_PASS') && APP_DB_READER_PASS) ? APP_DB_READER_PASS : APP_DB_PASS;
 		
-		if(false == ($db = $this->_connect(APP_DB_SLAVE_HOST, $user, $pass, APP_DB_DATABASE, $persistent, APP_DB_OPT_SLAVE_CONNECT_TIMEOUT_SECS))) {
-			// [TODO] Cache slave failure for (n) seconds to retry, preventing spam hell on retry connections
-			error_log(sprintf("[Cerb] Error connecting to the slave database (%s).", APP_DB_SLAVE_HOST), E_USER_ERROR);
-			return $this->_redirectSlaveToMaster();
+		if(false == ($db = $this->_connect(APP_DB_READER_HOST, $user, $pass, APP_DB_DATABASE, $persistent, APP_DB_OPT_READER_CONNECT_TIMEOUT_SECS))) {
+			// [TODO] Cache reader failure for (n) seconds to retry, preventing spam hell on retry connections
+			error_log(sprintf("[Cerb] Error connecting to the reader database (%s).", APP_DB_READER_HOST), E_USER_ERROR);
+			return $this->_redirectReaderToMaster();
 		}
 		
-		$this->_connections['slave'] = $db;
+		$this->_connections['reader'] = $db;
 		
 		return $db;
 	}
 	
-	private function _redirectSlaveToMaster() {
+	private function _redirectReaderToMaster() {
 		if($master = $this->_connectMaster())
-			$this->_connections['slave'] = $master;
+			$this->_connections['reader'] = $master;
 		
 		return $master;
 	}
@@ -123,12 +123,18 @@ class _DevblocksDatabaseManager {
 		return $db;
 	}
 	
+	/**
+	 * @return mysqli|false
+	 */
 	function getMasterConnection() {
 		return $this->_master_db;
 	}
 	
-	function getSlaveConnection() {
-		return $this->_slave_db;
+	/**
+	 * @return mysqli|false
+	 */
+	function getReaderConnection() {
+		return $this->_reader_db;
 	}
 	
 	function isConnected() {
@@ -222,11 +228,20 @@ class _DevblocksDatabaseManager {
 		);
 	}
 	
+	/**
+	 * @param string $sql
+	 * @param int $option_bits
+	 * @return mysqli_result|false
+	 */
 	function ExecuteMaster($sql, $option_bits = 0) {
+		return $this->ExecuteWriter($sql, $option_bits);
+	}
+	
+	function ExecuteWriter($sql, $option_bits = 0) {
 		if(DEVELOPMENT_MODE_QUERIES)
 			DevblocksPlatform::services()->log('MASTER');
 		
-		if(APP_DB_OPT_READ_MASTER_AFTER_WRITE && '' != APP_DB_SLAVE_HOST) {
+		if(APP_DB_OPT_READ_MASTER_AFTER_WRITE && '' != APP_DB_READER_HOST) {
 			// If we're ignoring master read-after-write, do nothing
 			if($option_bits & _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE) {
 				//error_log(sprintf("Ignoring master read-after-write: %s", $sql));
@@ -246,11 +261,20 @@ class _DevblocksDatabaseManager {
 		return $this->_Execute($sql, $this->_master_db);
 	}
 	
+	/**
+	 * @deprecated Remove in 10.0
+	 * @param string $sql
+	 * @return mysqli_result|false
+	 */
 	function ExecuteSlave($sql) {
-		$db = $this->_slave_db;
+		return $this->QueryReader($sql);
+	}
+	
+	function QueryReader($sql) {
+		$db = $this->_reader_db;
 		
 		// Check if we're redirecting read-after-write to master
-		if(APP_DB_OPT_READ_MASTER_AFTER_WRITE && '' != APP_DB_SLAVE_HOST) {
+		if(APP_DB_OPT_READ_MASTER_AFTER_WRITE && '' != APP_DB_READER_HOST) {
 			$cache = DevblocksPlatform::services()->cache();
 			/*
 			 * Only perform READ_MASTER_AFTER_WRITE across HTTP requests if we have a high performing 
@@ -268,9 +292,112 @@ class _DevblocksDatabaseManager {
 		}
 		
 		if(DEVELOPMENT_MODE_QUERIES)
-			DevblocksPlatform::services()->log('SLAVE');
+			DevblocksPlatform::services()->log('READER');
 		
 		return $this->_Execute($sql, $db);
+	}
+	
+	/**
+	 * @param string|string[] $sqls
+	 * @param int $time_limit_ms
+	 * @return mysqli_result[]|mysqli_result|false
+	 */
+	function QueryReaderAsync($sqls, $time_limit_ms=10000) {
+		$return_single = false;
+		
+		if(is_string($sqls)) {
+			$return_single = true;
+			$sqls = [$sqls];
+		}
+		
+		if(!is_array($sqls))
+			return false;
+		
+		$user = (defined('APP_DB_READER_USER') && APP_DB_READER_USER) ? APP_DB_READER_USER : APP_DB_USER;
+		$pass = (defined('APP_DB_READER_PASS') && APP_DB_READER_PASS) ? APP_DB_READER_PASS : APP_DB_PASS;
+		
+		$started_at = microtime(true) * 1000;
+		
+		$results = [];
+		$connections = [];
+		$processed = 0;
+		
+		foreach($sqls as $idx => $sql) {
+			if(0 == $idx) {
+				$db = $this->getReaderConnection();
+			} else {
+				$db = $this->_connect(APP_DB_READER_HOST, $user, $pass, APP_DB_DATABASE, false, APP_DB_OPT_READER_CONNECT_TIMEOUT_SECS);
+			}
+			
+			if(!($db instanceof mysqli))
+				return false;
+			
+			mysqli_query($db, $sql, MYSQLI_ASYNC);
+			$connections[] = $db;
+			$results[$db->thread_id] = false;
+		}
+		
+		do {
+			$links = $errors = $rejects = [];
+			
+			foreach($connections as $db)
+				$links[] = $errors[] = $rejects[] = $db;
+			
+			// If we timed out
+			if ((microtime(true) * 1000) - $started_at >= $time_limit_ms) {
+				// Close any incomplete connections
+				foreach($connections as $idx => $db) {
+					if(!($results[$db->thread_id] instanceof mysqli_result)) {
+						// Mark the thread as timed out
+						$results[$db->thread_id] = new Exception_DevblocksDatabaseQueryTimeout();
+						mysqli_kill($db, $db->thread_id);
+						error_log('Timed out ::SQL:: ' . $sqls[$idx]);
+					}
+				}
+				
+				if($return_single) {
+					return array_shift($results);
+				} else {
+					return array_values($results);
+				}
+			}
+			
+			if (!mysqli_poll($links, $errors, $rejects, 1))
+				continue;
+			
+			foreach ($links as $idx => $link) {
+				if ($rs = mysqli_reap_async_query($link)) {
+					$results[$link->thread_id] = $rs;
+					
+				} else {
+					$mysql_errno = mysqli_errno($link);
+					$mysql_error = mysqli_error($link);
+					
+					$results[$link->thread_id] = new Exception_DevblocksDatabaseQueryError();
+					
+					$error_msg = sprintf("[%d] %s ::SQL:: %s",
+						$mysql_errno,
+						$mysql_error,
+						$sqls[$idx]
+					);
+					
+					if (DEVELOPMENT_MODE && php_sapi_name() != 'cli') {
+						trigger_error($error_msg, E_USER_WARNING);
+					} else {
+						error_log($error_msg);
+					}
+				}
+				
+				$processed++;
+			}
+			
+		} while ($processed < count($sqls));
+		
+		if($return_single) {
+			return array_shift($results);
+		} else {
+			return array_values($results);
+		}
 	}
 	
 	private function _Execute($sql, $db, $option_bits = 0) {
@@ -291,16 +418,16 @@ class _DevblocksDatabaseManager {
 
 				// Reconnect
 				if(spl_object_hash($db) == spl_object_hash($this->_connections['master'])) {
-					error_log("Attempting to reconnect to master database...");
+					error_log("Attempting to reconnect to writer database...");
 					unset($this->_connections['master']);
 					$master_db = $this->_connectMaster(APP_DB_OPT_CONNECTION_RECONNECTS, APP_DB_OPT_CONNECTION_RECONNECTS_WAIT_MS);
 					$db = $master_db;
 					
 				} else {
-					error_log("Attempting to reconnect to slave database...");
-					unset($this->_connections['slave']);
-					$slave_db = $this->_connectSlave();
-					$db = $slave_db;
+					error_log("Attempting to reconnect to reader database...");
+					unset($this->_connections['reader']);
+					$reader_db = $this->_connectReader();
+					$db = $reader_db;
 				}
 				
 				// Try again after the reconnection
@@ -327,19 +454,8 @@ class _DevblocksDatabaseManager {
 		return $rs;
 	}
 	
-	// Always slave
-	function SelectLimit($sql, $limit, $start=0) {
-		$limit = intval($limit);
-		$start = intval($start);
-		
-		if($limit > 0)
-			return $this->ExecuteSlave($sql . sprintf(" LIMIT %d,%d", $start, $limit));
-		else
-			return $this->ExecuteSlave($sql);
-	}
-	
 	function escape($string) {
-		return mysqli_real_escape_string($this->_slave_db, $string);
+		return mysqli_real_escape_string($this->_reader_db, $string);
 	}
 	
 	function escapeArray(array $array) {
@@ -349,14 +465,14 @@ class _DevblocksDatabaseManager {
 			if(!is_string($string))
 				$string = strval($string);
 			
-			$results[] = mysqli_real_escape_string($this->_slave_db, $string);
+			$results[] = mysqli_real_escape_string($this->_reader_db, $string);
 		}
 		
 		return $results;
 	}
 	
 	function qstr($string) {
-		return "'".mysqli_real_escape_string($this->_slave_db, $string)."'";
+		return "'".mysqli_real_escape_string($this->_reader_db, $string)."'";
 	}
 	
 	function qstrArray(array $array) {
@@ -366,7 +482,7 @@ class _DevblocksDatabaseManager {
 			if(!is_string($string))
 				$string = strval($string);
 			
-			$results[] = "'".mysqli_real_escape_string($this->_slave_db, $string)."'";
+			$results[] = "'".mysqli_real_escape_string($this->_reader_db, $string)."'";
 		}
 		
 		return $results;
@@ -381,11 +497,24 @@ class _DevblocksDatabaseManager {
 		return $this->_GetArray($rs);
 	}
 	
+	/**
+	 * @deprecated
+	 * @param $sql
+	 * @return array|bool
+	 */
 	function GetArraySlave($sql) {
+		return $this->GetArrayReader($sql);
+	}
+	
+	/**
+	 * @param $sql
+	 * @return array|bool
+	 */
+	function GetArrayReader($sql) {
 		if(DEVELOPMENT_MODE_QUERIES)
-			DevblocksPlatform::services()->log('SLAVE');
+			DevblocksPlatform::services()->log('READER');
 		
-		$rs = $this->ExecuteSlave($sql);
+		$rs = $this->QueryReader($sql);
 		
 		return $this->_GetArray($rs);
 	}
@@ -399,7 +528,8 @@ class _DevblocksDatabaseManager {
 		while($row = mysqli_fetch_assoc($rs)) {
 			$results[] = $row;
 		}
-		mysqli_free_result($rs);
+		
+		$this->Free($rs);
 		
 		return $results;
 	}
@@ -412,18 +542,31 @@ class _DevblocksDatabaseManager {
 		return $this->_GetRow($rs);
 	}
 	
+	/**
+	 * @deprecated
+	 * @param $sql
+	 * @return array|false
+	 */
 	public function GetRowSlave($sql) {
+		return $this->GetRowReader($sql);
+	}
+	
+	/**
+	 * @param $sql
+	 * @return array|false
+	 */
+	public function GetRowReader($sql) {
 		if(DEVELOPMENT_MODE_QUERIES)
-			DevblocksPlatform::services()->log('SLAVE');
+			DevblocksPlatform::services()->log('READER');
 		
-		$rs = $this->ExecuteSlave($sql);
+		$rs = $this->QueryReader($sql);
 		return $this->_GetRow($rs);
 	}
 	
 	private function _GetRow($rs) {
 		if($rs instanceof mysqli_result) {
 			$row = mysqli_fetch_assoc($rs);
-			mysqli_free_result($rs);
+			$this->Free($rs);
 			return $row;
 		}
 		return false;
@@ -437,11 +580,20 @@ class _DevblocksDatabaseManager {
 		return $this->GetOneFromResultset($rs);
 	}
 	
+	/**
+	 * @deprecated
+	 * @param string $sql
+	 * @return array|false
+	 */
 	function GetOneSlave($sql) {
+		return $this->GetOneReader($sql);
+	}
+	
+	function GetOneReader($sql) {
 		if(DEVELOPMENT_MODE_QUERIES)
-			DevblocksPlatform::services()->log('SLAVE');
+			DevblocksPlatform::services()->log('READER');
 		
-		$rs = $this->ExecuteSlave($sql);
+		$rs = $this->QueryReader($sql);
 		return $this->GetOneFromResultset($rs);
 	}
 	
@@ -451,7 +603,7 @@ class _DevblocksDatabaseManager {
 				return false;
 				
 			$row = mysqli_fetch_row($rs);
-			mysqli_free_result($rs);
+			$this->Free($rs);
 			
 			if(count($row))
 				return $row[0];
@@ -492,8 +644,8 @@ class _DevblocksDatabaseManager {
 		return $this->_ErrorMsg($this->_master_db);
 	}
 	
-	function ErrorMsgSlave() {
-		return $this->_ErrorMsg($this->_slave_db);
+	function ErrorMsgReader() {
+		return $this->_ErrorMsg($this->_reader_db);
 	}
 	
 	private function _ErrorMsg($db) {

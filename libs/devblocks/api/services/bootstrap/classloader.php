@@ -179,6 +179,9 @@ class _DevblocksClassLoadManager {
 			'Extension_DevblocksGpgEngine',
 			'DevblocksGpgEngine_OpenPGP',
 		));
+		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/kata.php', [
+			'_DevblocksKataService',
+		]);
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/mfa.php', array(
 			'_DevblocksMultiFactorAuthService',
 		));
@@ -241,6 +244,10 @@ class _DevblocksClassLoadManager {
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/translation.php', array(
 			'_DevblocksTranslationManager',
+		));
+		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/ui.php', array(
+			'_DevblocksUiManager',
+			'DevblocksUiToolbar',
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/url.php', array(
 			'_DevblocksUrlManager',

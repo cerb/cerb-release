@@ -291,6 +291,82 @@ abstract class DevblocksORMHelper {
 		return true;
 	}
 	
+	/**
+	 * @param string $id_key
+	 * @param string $select_sql
+	 * @param string $join_sql
+	 * @param string $where_sql
+	 * @param string $sort_sql
+	 * @param int $page
+	 * @param int $limit
+	 * @param bool $withCounts
+	 * @param int $timeout_ms
+	 * @return array|bool
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected static function _searchWithTimeout(string $id_key, string $select_sql, string $join_sql, ?string $where_sql, ?string $sort_sql, int $page, int $limit, $withCounts=true, int $timeout_ms=10000) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$limit = DevblocksPlatform::intClamp($limit, 0, PHP_INT_MAX);
+		
+		$sql =
+			$select_sql.
+			$join_sql.
+			$where_sql.
+			$sort_sql.
+			($limit ? sprintf(" LIMIT %d,%d", $page*$limit, $limit) : '')
+		;
+		
+		try {
+			if(false == ($rs = $db->QueryReaderAsync($sql, $timeout_ms)))
+				return false;
+			
+			$data = [];
+			
+			if($rs instanceof Exception_DevblocksDatabaseQueryTimeout)
+				throw $rs;
+			
+			if(!$rs instanceof mysqli_result)
+				return false;
+			
+			$total = $rs->num_rows;
+			
+			while($row = mysqli_fetch_assoc($rs)) {
+				$id = $row[$id_key];
+				
+				if(is_numeric($id))
+					$id = intval($id);
+				
+				$data[$id] = $row;
+			}
+			
+			$db->Free($rs);
+			
+			if($withCounts && (!(0 == $page && $total < $limit))) {
+				$sql =
+					"SELECT COUNT(1) " .
+					$join_sql .
+					$where_sql
+				;
+				
+				if(false != ($rs = $db->QueryReaderAsync($sql, $timeout_ms))) {
+					if($rs instanceof Exception_DevblocksDatabaseQueryTimeout) {
+						throw $rs;
+					} else if($rs instanceof mysqli_result) {
+						$total = $db->GetOneFromResultset($rs);
+					}
+					
+					$db->Free($rs);
+				}
+			}
+			
+			return [$data, $total];
+			
+		} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+			throw $e;
+		}
+	}
+	
 	static protected function _buildSortClause($sortBy, $sortAsc, $fields, &$select_sql, $search_class=null) {
 		$sort_sql = null;
 		
@@ -1374,7 +1450,7 @@ class DAO_Translation extends DevblocksORMHelper {
 			"FROM translation ".
 			(!empty($where) ? sprintf("WHERE %s ",$where) : "").
 			"ORDER BY string_id ASC, lang_code ASC";
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		return self::_getObjectsFromResult($rs);
 	}
@@ -1483,7 +1559,7 @@ class DAO_Translation extends DevblocksORMHelper {
 		
 		// Look up distinct land codes from existing translations
 		$sql = sprintf("SELECT DISTINCT lang_code FROM translation ORDER BY lang_code ASC");
-		$results = $db->GetArraySlave($sql);
+		$results = $db->GetArrayReader($sql);
 		
 		// Languages
 		$langs = $translate->getLanguageCodes();
@@ -1639,10 +1715,9 @@ class DAO_Translation extends DevblocksORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -1651,37 +1726,17 @@ class DAO_Translation extends DevblocksORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-		
-		$rs = $db->SelectLimit($sql,$limit,$page*$limit);
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		$results = [];
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$id = intval($row[SearchFields_Translation::ID]);
-			$results[$id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql = "SELECT count(*) " . $join_sql . $where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_Translation::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
-
 };
 
 class SearchFields_Translation extends DevblocksSearchFields {
@@ -1922,7 +1977,7 @@ class DAO_DevblocksStorageProfile extends DevblocksORMHelper {
 			"FROM devblocks_storage_profile ".
 			(!empty($where) ? sprintf("WHERE %s ",$where) : "").
 			"ORDER BY id asc";
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		return self::_getObjectsFromResult($rs);
 	}
@@ -2042,10 +2097,9 @@ class DAO_DevblocksStorageProfile extends DevblocksORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -2054,48 +2108,16 @@ class DAO_DevblocksStorageProfile extends DevblocksORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-			
-		// [TODO] Could push the select logic down a level too
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			$total = mysqli_num_rows($rs);
-		}
-		
-		$results = [];
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_DevblocksStorageProfile::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(devblocks_storage_profile.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_DevblocksStorageProfile::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 
 };

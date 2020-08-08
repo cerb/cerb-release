@@ -31,6 +31,8 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 	function handleActionForPage(string $action, string $scope=null) {
 		if('profileAction' == $scope) {
 			switch ($action) {
+				case 'invokeConfig':
+					return $this->_profileAction_invokeConfig();
 				case 'renderWidget':
 					return $this->_profileAction_renderWidget();
 				case 'savePeekJson':
@@ -341,6 +343,39 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 		$datasource_ext->renderConfig($widget, $widget->params, $params_prefix);
 	}
 	
+	private function _profileAction_invokeConfig() {
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!$active_worker->is_superuser)
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
+		
+		@$id = DevblocksPlatform::importGPC($_POST['id'], 'string', '');
+		@$config_action = DevblocksPlatform::importGPC($_POST['config_action'], 'string', '');
+		
+		if(is_numeric($id)) {
+			if(false == ($model = DAO_WorkspaceWidget::get($id)))
+				DevblocksPlatform::dieWithHttpError(null, 404);
+			
+			$extension = $model->getExtension();
+			
+		} else {
+			if(false == ($extension = Extension_WorkspaceWidget::get($id)))
+				DevblocksPlatform::dieWithHttpError(null, 404);
+			
+			$model = new Model_WorkspaceWidget();
+			$model->id = 0;
+			$model->extension_id = $id;
+		}
+		
+		if(!Context_ProfileWidget::isWriteableByActor($model, $active_worker))
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
+		$extension->invokeConfig($config_action, $model);
+	}
+	
 	private function _profileAction_renderWidget() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -453,11 +488,12 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 		@$index = DevblocksPlatform::importGPC($_POST['index'], 'integer', 0);
 		@$format = DevblocksPlatform::importGPC($_POST['format'], 'string', '');
 		
-		@$placeholders_yaml = DevblocksPlatform::importVar($params['placeholder_simulator_yaml'], 'string', '');
+		@$placeholders_kata = DevblocksPlatform::importVar($params['placeholder_simulator_kata'], 'string', '');
 		
+		$error = null;
 		$template = null;
 		
-		$placeholders = DevblocksPlatform::services()->string()->yamlParse($placeholders_yaml, 0);
+		$placeholders = DevblocksPlatform::services()->kata()->parse($placeholders_kata, $error);
 
 		if(DevblocksPlatform::strStartsWith($template_key, 'params[')) {
 			$template_key = trim(substr($template_key, 6),'[]');

@@ -238,7 +238,7 @@ $(function() {
 
 			$popup.find('button.chooser_file').triggerHandler(new_event);
 
-			$editor.cerbTextEditor('insertText', '![Image](' + event.url + ')');
+			$editor.cerbTextEditor('insertText', '![inline-image](' + event.url + ')');
 
 			setTimeout(function() {
 				$editor.focus();
@@ -282,8 +282,8 @@ $(function() {
 
 				genericAjaxPost(formData, null, null, function (json) {
 					// If the content has placeholders, use that popup instead
-					if (json.has_custom_placeholders) {
-						var $popup_paste = genericAjaxPopup('snippet_paste', 'c=profiles&a=invoke&module=snippet&action=getPlaceholders&id=' + encodeURIComponent(json.id) + '&context_id=' + encodeURIComponent(json.context_id), null, false, '50%');
+					if (json.has_prompts) {
+						var $popup_paste = genericAjaxPopup('snippet_paste', 'c=profiles&a=invoke&module=snippet&action=getPrompts&id=' + encodeURIComponent(json.id) + '&context_id=' + encodeURIComponent(json.context_id), null, false, '50%');
 
 						$popup_paste.bind('snippet_paste', function (event) {
 							if (null == event.text)

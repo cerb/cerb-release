@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>9.5.5</version>
+	<version>9.6.0</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -73,6 +73,7 @@
 		<patch version="9.3.0" revision="1342" file="patches/9.x/9.3.0.php" />
 		<patch version="9.4.0" revision="1363" file="patches/9.x/9.4.0.php" />
 		<patch version="9.5.0" revision="1370" file="patches/9.x/9.5.0.php" />
+		<patch version="9.6.0" revision="1378" file="patches/9.x/9.6.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -4523,7 +4524,18 @@
 			<params>
 			</params>
 		</extension>
-		
+
+		<extension point="cerb.card.widget">
+			<id>cerb.card.widget.form_interaction</id>
+			<name>Form Interaction</name>
+			<class>
+				<file>api/cards/widgets/form_interaction.php</file>
+				<name>CardWidget_FormInteraction</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+
 		<extension point="cerb.card.widget">
 			<id>cerb.card.widget.kb_article.viewer</id>
 			<name>Knowledgebase Article</name>
@@ -4831,6 +4843,23 @@
 			</params>
 		</extension>
 		
+		<extension point="devblocks.event.action">
+			<id>core.bot.action.pgp.encrypt</id>
+			<name>PGP Encrypt</name>
+			<class>
+				<file>api/bots/actions/pgp.php</file>
+				<name>BotAction_PgpEncrypt</name>
+			</class>
+			<params>
+				<param key="label" value="Execute PGP encrypt" />
+				<param key="events">
+					<value>
+						<data key="*" />
+					</value>
+				</param>
+			</params>
+		</extension>
+
 		<extension point="devblocks.event.action">
 			<id>core.bot.action.calculate_time_elapsed</id>
 			<name>Get time elapsed using calendar availability</name>

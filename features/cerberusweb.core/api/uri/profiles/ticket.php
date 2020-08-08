@@ -496,11 +496,7 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 				
 				if(is_array($requesters))
 					foreach($requesters as $requester) {
-						$requester_personal = $requester->getName();
-						$requester_addy = $requester->email;
-						@list($requester_mailbox, $requester_host) = explode('@', $requester_addy);
-						
-						if(false !== ($recipient = imap_rfc822_write_address($requester_mailbox, $requester_host, $requester_personal)))
+						if(false !== ($recipient = CerberusMail::writeRfcAddress($requester->email, $requester->getName())))
 							$recipients[] = $recipient;
 					}
 				
@@ -651,10 +647,13 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 			);
 			
 			if(empty($properties['to']))
-				throw new Exception_DevblocksAjaxValidationError("The 'To:' is required.");
+				throw new Exception_DevblocksAjaxValidationError("`To:` is required.");
 			
 			if(empty($properties['subject']))
-				throw new Exception_DevblocksAjaxValidationError("The 'Subject:' is required.");
+				throw new Exception_DevblocksAjaxValidationError("`Subject:` is required.");
+			
+			if(strlen($properties['subject']) > 255)
+				throw new Exception_DevblocksAjaxValidationError("`Subject:` must be shorter than 255 characters.");
 			
 			// Validate GPG for signature
 			if($properties['gpg_sign']) {
@@ -725,6 +724,8 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 	private function _profileAction_sendReply() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
+		header('Content-Type: application/json; charset=utf-8');
+		
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
@@ -736,7 +737,6 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		}
 		
 		$draft_id = $result['draft_id'];
-		$ticket = $result['ticket'];
 		
 		if(false == ($draft = DAO_MailQueue::get($draft_id)))
 			DevblocksPlatform::dieWithHttpError(null, 404);
@@ -744,9 +744,13 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		if(!Context_Draft::isWriteableByActor($draft, $active_worker))
 			DevblocksPlatform::dieWithHttpError(null, 403);
 		
-		$draft->send();
-		
-		DevblocksPlatform::redirect(new DevblocksHttpResponse(array('profiles','ticket',$ticket->mask)));
+		if(false !== ($response = $draft->send()) && is_array($response)) {
+			$labels = $values = [];
+			CerberusContexts::getContext($response[0], $response[1], $labels, $values, null, true, true);
+
+			// Return the new record data
+			echo json_encode($values);
+		}
 	}
 	
 	private function _profileAction_previewReplyMessage() {
@@ -766,15 +770,18 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		if(!$html_template_id || false == ($html_template = DAO_MailHtmlTemplate::get($html_template_id)))
 			$html_template = $group->getReplyHtmlTemplate($bucket_id);
 		
+		@$in_reply_message_id = DevblocksPlatform::importGPC($_POST['id'],'integer',0);
+		
 		// Parse #commands
 		
-		$message_properties = array(
+		$message_properties = [
+			'message_id' => $in_reply_message_id,
 			'group_id' => $group_id,
 			'bucket_id' => $bucket_id,
 			'content' => $content,
 			'content_format' => $format,
 			'html_template_id' => $html_template ? $html_template->id : 0,
-		);
+		];
 		
 		$hash_commands = [];
 		
@@ -785,7 +792,7 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		// Markdown
 		
 		if('parsedown' == $format) {
-			$output = DevblocksPlatform::parseMarkdown($output);
+			$output = CerberusMail::getMailTemplateFromContent($output, $message_properties, 'html');
 			
 			// Wrap the reply in a template if we have one
 			
@@ -801,9 +808,10 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 			$output = DevblocksPlatform::purifyHTML($output, true, true, [$filter]);
 			
 		} else {
-			$output = nl2br(DevblocksPlatform::strEscapeHtml($output));
+			$output = nl2br(DevblocksPlatform::strEscapeHtml(CerberusMail::getMailTemplateFromContent($output, $message_properties, 'text')));
 		}
 		
+		$tpl->assign('is_inline', true);
 		$tpl->assign('content', $output);
 		$tpl->display('devblocks:cerberusweb.core::internal/editors/preview_popup.tpl');
 	}

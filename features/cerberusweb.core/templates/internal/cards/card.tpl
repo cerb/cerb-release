@@ -60,7 +60,7 @@ $(function() {
     var $popup = genericAjaxPopupFind($div);
     var $layer = $popup.attr('data-layer');
 
-    $popup.one('popup_open',function(event,ui) {
+    $popup.one('popup_open',function() {
         $popup.dialog('option','title', "{$record_aliases.singular|capitalize|escape:'javascript' nofilter}");
         $popup.css('overflow', 'inherit');
 
@@ -69,9 +69,13 @@ $(function() {
         $popup.find('button.cerb-peek-edit')
             .cerbPeekTrigger({ 'view_id': '{$view_id}' })
             .on('cerb-peek-saved', function(e) {
-                genericAjaxPopup($layer,'c=internal&a=invoke&module=records&action=showPeekPopup&context={$peek_context}&context_id={$dict->id}&view_id={$view_id}','reuse',false,'50%');
+                $popup.trigger($.Event(e));
+
+                $popup.trigger($.Event('cerb-widgets-refresh'));
             })
             .on('cerb-peek-deleted', function(e) {
+                $popup.trigger($.Event(e));
+
                 genericAjaxPopupClose($layer);
             })
         ;
@@ -81,7 +85,7 @@ $(function() {
         $popup.find('button.cerb-peek-comments-add')
             .cerbPeekTrigger()
             .on('cerb-peek-saved', function() {
-                genericAjaxPopup($layer,'c=internal&a=invoke&module=records&action=showPeekPopup&context={$peek_context}&context_id={$dict->id}&view_id={$view_id}','reuse',false,'50%');
+                $popup.trigger($.Event('cerb-widgets-refresh'));
             })
         ;
 
@@ -177,9 +181,32 @@ $(function() {
 
         $popup.on('cerb-widget-refresh', function(e) {
             var widget_id = e.widget_id;
-            var refresh_options = (e.refresh_options && typeof e.refresh_options == 'object') ? e.refresh_options : {};
+            var refresh_options = (e.refresh_options && typeof e.refresh_options == 'object') ? e.refresh_options : [];
 
             async.series([ async.apply(loadWidgetFunc, widget_id, false, refresh_options) ], function(err, json) {
+                // Done
+            });
+        });
+
+        $popup.on('cerb-widgets-refresh', function(e) {
+            var widget_ids = (e.widget_ids && $.isArray(e.widget_ids)) ? e.widget_ids : [];
+            var refresh_options = (e.refresh_options && typeof e.refresh_options == 'object') ? e.refresh_options : { };
+
+            var jobs = [];
+
+            $popup.find('.cerb-card-widget').each(function() {
+                var $widget = $(this);
+                var widget_id = parseInt($widget.attr('data-widget-id'));
+
+                // If we're refreshing this widget or all widgets
+                if(widget_id && (0 === widget_ids.length || -1 !== $.inArray(widget_id, widget_ids))) {
+                    jobs.push(
+                        async.apply(loadWidgetFunc, widget_id, false, refresh_options)
+                    );
+                }
+            });
+
+            async.parallelLimit(jobs, 2, function(err, json) {
                 // Done
             });
         });
@@ -250,8 +277,6 @@ $(function() {
             addEvents($(this));
         });
 
-        var jobs = [];
-
         {if $active_worker->is_superuser}
         $add_button
             .cerbPeekTrigger()
@@ -268,8 +293,9 @@ $(function() {
         {/if}
 
         var loadWidgetFunc = function(widget_id, is_full, refresh_options, callback) {
-            var $widget = $popup.find('.cerb-card-widget[data-widget-id=' + widget_id + '] .cerb-card-widget--content').empty();
-            $('<span class="cerb-ajax-spinner"/>').appendTo($widget);
+            var $widget = $popup.find('.cerb-card-widget[data-widget-id=' + widget_id + '] .cerb-card-widget--content').fadeTo('fast', 0.3);
+
+            Devblocks.getSpinner(true).prependTo($widget);
 
             var formData;
 
@@ -312,19 +338,13 @@ $(function() {
                             console.error(e);
                     }
                 }
+
+                $widget.fadeTo('fast', 1.0);
                 callback();
             });
         };
 
-        {foreach from=$zones item=zone}
-        {foreach from=$zone item=widget}
-        jobs.push(
-            async.apply(loadWidgetFunc, {$widget->id|default:0}, false, {})
-        );
-        {/foreach}
-        {/foreach}
-
-        async.parallelLimit(jobs, 2, function(err, json) {});
+        $popup.triggerHandler($.Event('cerb-widgets-refresh'));
     });
 });
 </script>

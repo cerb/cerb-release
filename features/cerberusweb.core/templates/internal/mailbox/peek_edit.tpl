@@ -37,14 +37,18 @@
 			<input type="text" name="name" value="{$model->name}" style="width:98%;" autofocus="autofocus">
 		</td>
 	</tr>
-			<tr>
+	<tr>
 		<td width="0%" nowrap="nowrap"><b>Protocol:</b></td>
-		<td width="100%"><select name="protocol">
-			<option value="pop3" {if $model->protocol=='pop3'}selected{/if}>POP3
-			<option value="pop3-ssl" {if $model->protocol=='pop3-ssl'}selected{/if}>POP3-SSL
-			<option value="imap" {if $model->protocol=='imap'}selected{/if}>IMAP
-			<option value="imap-ssl" {if $model->protocol=='imap-ssl'}selected{/if}>IMAP-SSL
-		</select></td>
+		<td width="100%">
+			<select name="protocol">
+				<option value="pop3-starttls" {if $model->protocol=='pop3-starttls'}selected{/if}>POP3 (STARTTLS)
+				<option value="pop3-ssl" {if $model->protocol=='pop3-ssl'}selected{/if}>POP3 (TLS/SSL)
+				<option value="pop3" {if $model->protocol=='pop3'}selected{/if}>POP3 (Unencrypted)
+				<option value="imap-starttls" {if $model->protocol=='imap-starttls'}selected{/if}>IMAP (STARTTLS)
+				<option value="imap-ssl" {if $model->protocol=='imap-ssl'}selected{/if}>IMAP (TLS/SSL)
+				<option value="imap" {if $model->protocol=='imap'}selected{/if}>IMAP (Unencrypted)
+			</select>
+		</td>
 	</tr>
 	<tr>
 		<td width="0%" nowrap="nowrap"><b>{'common.host'|devblocks_translate|capitalize}:</b></td>
@@ -65,6 +69,21 @@
 		</td>
 	</tr>
 	<tr>
+		<td width="0%" nowrap="nowrap"><b>XOAuth2:</b><br><small>({'common.optional'|devblocks_translate|lower})</small></td>
+		<td width="100%">
+			<button type="button" class="chooser-abstract" data-field-name="connected_account_id" data-context="{Context_ConnectedAccount::ID}" data-single="true" data-query="service:(type:oauth2)"><span class="glyphicons glyphicons-search"></span></button>
+
+			<ul class="bubbles chooser-container">
+				{if $model && $model->connected_account_id}
+					{$account = DAO_ConnectedAccount::get($model->connected_account_id)}
+					{if $account}
+						<li><input type="hidden" name="connected_account_id" value="{$account->id}"><a href="javascript:;" class="cerb-peek-trigger no-underline" data-context="{Context_ConnectedAccount::ID}" data-context-id="{$account->id}">{$account->name}</a></li>
+					{/if}
+				{/if}
+			</ul>
+		</td>
+	</tr>
+	<tr>
 		<td width="0%" nowrap="nowrap"><b>Port:</b></td>
 		<td width="100%">
 			<input type="text" name="port" value="{$model->port}" size="5"> (leave blank for default)
@@ -80,20 +99,6 @@
 		<td width="0%" nowrap="nowrap"><b>Max Msg Size:</b></td>
 		<td width="100%">
 			<input type="text" name="max_msg_size_kb" value="{$model->max_msg_size_kb|default:25600}" size="6"> KB
-		</td>
-	</tr>
-	<tr>
-		<td width="0%" nowrap="nowrap"><b>SSL Validation:</b></td>
-		<td width="100%">
-			<label><input type="radio" name="ssl_ignore_validation" value="0" {if empty($model->ssl_ignore_validation)}checked="checked"{/if}> Enforce</label>
-			<label><input type="radio" name="ssl_ignore_validation" value="1" {if $model->ssl_ignore_validation}checked="checked"{/if}> Ignore</label>
-		</td>
-	</tr>
-	<tr>
-		<td width="0%" nowrap="nowrap"><b>{'dao.mailbox.auth_disable_plain'|devblocks_translate}:</b></td>
-		<td width="100%">
-			<label><input type="radio" name="auth_disable_plain" value="0" {if empty($model->auth_disable_plain)}checked="checked"{/if}> {'common.no'|devblocks_translate|capitalize}</label>
-			<label><input type="radio" name="auth_disable_plain" value="1" {if $model->auth_disable_plain}checked="checked"{/if}> {'common.yes'|devblocks_translate|capitalize}</label>
 		</td>
 	</tr>
 	<tr>
@@ -143,6 +148,9 @@ $(function() {
 	$popup.one('popup_open', function(event,ui) {
 		$popup.dialog('option','title',"{'Mailbox'|devblocks_translate|capitalize|escape:'javascript' nofilter}");
 		$popup.css('overflow', 'inherit');
+
+		$popup.find('.chooser-abstract').cerbChooserTrigger();
+		$popup.find('.cerb-peek-trigger').cerbPeekTrigger();
 
 		// Buttons
 		$popup.find('button.submit').click(Devblocks.callbackPeekEditSave);

@@ -166,27 +166,30 @@ $(function() {
 			// Done
 		});
 	});
-	
-	$container
-		.on('cerb-dashboard-refresh', function(e) {
-			var jobs = [];
-			
-			e.stopPropagation();
-			
-			{foreach from=$zones item=zone}
-			{foreach from=$zone item=widget}
-			jobs.push(
-				async.apply(loadWidgetFunc, {$widget->id|default:0}, true, {})
-			);
-			{/foreach}
-			{/foreach}
-			
-			async.parallelLimit(jobs, 2, function(err, json) {
-				
-			});
-		})
-		;
-	
+
+	$container.on('cerb-widgets-refresh', function(e) {
+		var widget_ids = (e.widget_ids && $.isArray(e.widget_ids)) ? e.widget_ids : [];
+		var refresh_options = (e.refresh_options && typeof e.refresh_options == 'object') ? e.refresh_options : { };
+
+		var jobs = [];
+
+		$container.find('.cerb-workspace-widget').each(function() {
+			var $widget = $(this);
+			var widget_id = parseInt($widget.attr('data-widget-id'));
+
+			// If we're refreshing this widget or all widgets
+			if(widget_id && (0 === widget_ids.length || -1 !== $.inArray(widget_id, widget_ids))) {
+				jobs.push(
+					async.apply(loadWidgetFunc, widget_id, true, refresh_options)
+				);
+			}
+		});
+
+		async.parallelLimit(jobs, 2, function(err, json) {
+			// Done
+		});
+	});
+
 	var addEvents = function($target) {
 		var $menu = $target.find('.cerb-workspace-widget--menu');
 		var $menu_link = $target.find('.cerb-workspace-widget--link');
@@ -277,13 +280,20 @@ $(function() {
 	{/if}
 	
 	var loadWidgetFunc = function(widget_id, is_full, refresh_options, callback) {
-		var $widget = $('#workspaceWidget' + widget_id).empty();
-		$('<span class="cerb-ajax-spinner"/>').appendTo($widget);
+		var $widget = $('#workspaceWidget' + widget_id).fadeTo('fast', 0.3);
+
+		if(is_full) {
+			Devblocks.getSpinner().prependTo($widget);
+		} else {
+			Devblocks.getSpinner(true).prependTo($widget);
+		}
+
+		var formData;
 
 		if(refresh_options instanceof FormData) {
-			var formData = refresh_options;
+			formData = refresh_options;
 		} else {
-			var formData = new FormData();
+			formData = new FormData();
 		}
 
 		formData.set('c', 'profiles');
@@ -317,6 +327,8 @@ $(function() {
 						console.error(e);
 				}
 			}
+
+			$widget.fadeTo('fast', 1.0);
 			callback();
 		});
 	};
@@ -326,7 +338,7 @@ $(function() {
 	var tick = function() {
 		var $dashboard = $('#workspaceTab{$model->id}');
 		
-		if($dashboard.length == 0 || !$dashboard.is(':visible')) {
+		if($dashboard.length === 0 || !$dashboard.is(':visible')) {
 			clearInterval(window.dashboardTimer{$model->id});
 			delete window.dashboardTimer{$model->id};
 			return;
@@ -339,6 +351,6 @@ $(function() {
 	
 	window.dashboardTimer{$model->id} = setInterval(tick, 1000);
 	
-	$container.triggerHandler('cerb-dashboard-refresh');
+	$container.triggerHandler('cerb-widgets-refresh');
 });
 </script>

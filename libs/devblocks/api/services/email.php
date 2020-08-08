@@ -89,83 +89,118 @@ class _DevblocksEmailManager {
 		return $this->_lastErrorMessage;
 	}
 	
-	function testMailbox($server, $port, $service, $username, $password, $ssl_ignore_validation=false, $auth_disable_plain=false, $timeout_secs=30, $max_msg_size_kb=0) {
-		if (!extension_loaded("imap"))
-			throw new Exception("PHP 'imap' extension is not loaded!");
-		
+	/**
+	 * @param $server
+	 * @param $port
+	 * @param $service
+	 * @param $username
+	 * @param $password
+	 * @param int $timeout_secs
+	 * @param int $connected_account_id
+	 * @return bool
+	 * @throws Exception
+	 */
+	private function _testMailboxImap($server, $port, $service, $username, $password, $timeout_secs=30, $connected_account_id=0) {
 		$imap_timeout = !empty($timeout_secs) ? $timeout_secs : 30;
 		
-		// Clear error stack
-		imap_errors();
-		imap_timeout(IMAP_OPENTIMEOUT, $imap_timeout);
-		imap_timeout(IMAP_READTIMEOUT, $imap_timeout);
-		imap_timeout(IMAP_CLOSETIMEOUT, $imap_timeout);
-		
-		$imap_options = array();
-		
-		if($auth_disable_plain)
-			$imap_options['DISABLE_AUTHENTICATOR'] = 'PLAIN';
-		
-		switch($service) {
-			default:
-			case 'pop3': // 110
-				$connect = sprintf("{%s:%d/pop3/notls}INBOX",
-					$server,
-					$port
-				);
-				break;
-				
-			case 'pop3-ssl': // 995
-				$connect = sprintf("{%s:%d/pop3/ssl%s}INBOX",
-					$server,
-					$port,
-					$ssl_ignore_validation ? '/novalidate-cert' : ''
-				);
-				break;
-				
-			case 'imap': // 143
-				$connect = sprintf("{%s:%d/notls}INBOX",
-					$server,
-					$port
-				);
-				break;
-				
-			case 'imap-ssl': // 993
-				$connect = sprintf("{%s:%d/imap/ssl%s}INBOX",
-					$server,
-					$port,
-					$ssl_ignore_validation ? '/novalidate-cert' : ''
-				);
-				break;
-		}
-		
 		try {
-			$mailbox = @imap_open(
-				$connect,
-				!empty($username)?$username:"superuser",
-				!empty($password)?$password:"superuser",
-				0,
-				0,
-				$imap_options
-			);
-	
-			if($mailbox === FALSE)
-				throw new Exception(imap_last_error());
+			$options = [
+				'username' => $username,
+				'password' => $password,
+				'hostspec' => $server,
+				'port' => $port,
+				'timeout' => $imap_timeout,
+				'secure' => false,
+			];
 			
-			@imap_close($mailbox);
+			if($service == 'imap-ssl') {
+				$options['secure'] = 'tlsv1';
+			} else if($service == 'imap-starttls') {
+				$options['secure'] = 'tls';
+			}
 			
-		} catch(Exception $e) {
+			// Are we using a connected account for XOAUTH2?
+			if($connected_account_id) {
+				if(false == ($connected_account = DAO_ConnectedAccount::get($connected_account_id)))
+					throw new Exception("Failed to load the connected account");
+					
+				if(false == ($service = $connected_account->getService()))
+					throw new Exception("Failed to load the connected service");
+				
+				if(false == ($service_extension = $service->getExtension()))
+					throw new Exception("Failed to load the connected service extension");
+				
+				if(!($service_extension instanceof ServiceProvider_OAuth2))
+					throw new Exception("The connected account is not an OAuth2 provider");
+				
+				/** @var $service_extension ServiceProvider_OAuth2 */
+				if(false == ($access_token = $service_extension->getAccessToken($connected_account)))
+					throw new Exception("Failed to load the access token");
+				
+				$options['xoauth2_token'] = new Horde_Imap_Client_Password_Xoauth2($username, $access_token->getToken());
+				
+				if(!$options['password'])
+					$options['password'] = 'XOAUTH2';
+			}
+			
+			$client = new Horde_Imap_Client_Socket($options);
+			
+			$mailbox = 'INBOX';
+			
+			$client->status($mailbox);
+			
+		} catch (Horde_Imap_Client_Exception $e) {
 			throw new Exception($e->getMessage());
 		}
-			
+		
 		return TRUE;
 	}
 	
-	/**
-	 * @return array
-	 */
-	function getErrors() {
-		return imap_errors();
+	private function _testMailboxPop3($server, $port, $service, $username, $password, $timeout_secs=30) {
+		$imap_timeout = !empty($timeout_secs) ? $timeout_secs : 30;
+		
+		try {
+			$options = [
+				'username' => $username,
+				'password' => $password,
+				'hostspec' => $server,
+				'port' => $port,
+				'timeout' => $imap_timeout,
+				'secure' => false,
+			];
+			
+			if($service == 'pop3-ssl') {
+				$options['secure'] = 'tlsv1';
+			} else if($service == 'pop3-starttls') {
+				$options['secure'] = 'tls';
+			}
+			
+			$client = new Horde_Imap_Client_Socket_Pop3($options);
+			
+			$mailbox = 'INBOX';
+			
+			$client->status($mailbox);
+			
+		} catch (Horde_Imap_Client_Exception $e) {
+			throw new Exception($e->getMessage());
+		}
+		
+		return TRUE;
+	}
+	
+	function testMailbox($server, $port, $service, $username, $password, $timeout_secs=30, $connected_account_id=0) {
+		switch($service) {
+			default:
+			case 'pop3':
+			case 'pop3-ssl':
+			case 'pop3-starttls':
+				return $this->_testMailboxPop3($server, $port, $service, $username, $password, $timeout_secs);
+				
+			case 'imap':
+			case 'imap-ssl':
+			case 'imap-starttls':
+				return $this->_testMailboxImap($server, $port, $service, $username, $password, $timeout_secs, $connected_account_id);
+		}
 	}
 	
 	public function getImageProxyBlocklist() {

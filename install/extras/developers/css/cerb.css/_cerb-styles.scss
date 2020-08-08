@@ -72,6 +72,38 @@ DIV.cerb-form {
 	}
 }
 
+DIV.cerb-form-flex {
+	display: flex;
+	flex-flow: row wrap;
+	margin: 0px 0px 10px 0px;
+	box-sizing: border-box;
+
+	> DIV {
+		flex: 2 2 100%;
+		min-width: 250px;
+
+		LABEL {
+			display: block;
+			font-weight: bold;
+		}
+
+		INPUT[type=text] {
+			width: 98%;
+			padding: 2px;
+		}
+
+		TEXTAREA {
+			width: 98%;
+			padding: 2px;
+			min-height: 50px;
+		}
+	}
+
+	.cerb-form-flex--half {
+		flex: 1 1 50%;
+	}
+}
+
 // Fieldsets
 
 FIELDSET.delete {
@@ -871,12 +903,11 @@ DIV.help-box {
 // Misc common DIVs
 
 DIV.message_note {
-	padding: 5px;
-	background-color: rgb(252,242,173);
+	padding: 0;
+	margin: 0;
 	border: 0;
+	position:relative;
 
-	@include border-radius(5px);
-	
 	H3 {
 		font-weight: bold;
 		font-size: 18px;
@@ -1150,7 +1181,7 @@ DIV.badge-green {
 // Tags
 
 SPAN.tag {
-	padding:1px 4px;
+	padding:2px 4px;
 	font-weight:bold;
 	vertical-align:top;
 
@@ -1301,10 +1332,28 @@ FIELDSET.peek {
 
 	LEGEND {
 		color:$green;
-		
+
 		A {
 			color:inherit;
 		}
+	}
+}
+
+FIELDSET.block {
+	border-width:1px 0px 0px 5px;
+	border-style: solid;
+}
+
+FIELDSET.block-cell {
+	border-width: 1px 1px 1px 8px;
+	border-color: rgb(225,225,225);
+	border-style: solid;
+	position: relative;
+	margin-bottom: 10px;
+
+	legend {
+		color: $green;
+		margin: 0;
 	}
 }
 
@@ -1600,18 +1649,6 @@ DIV.cerb-menu {
 	}
 }
 
-// Spinner
-
-.cerb-ajax-spinner {
-	background: url(ajax-spinner.gif?v=#{$timestamp});
-	background-repeat:no-repeat;
-	background-position:top left;
-	display:inline-block;
-	vertical-align:middle;
-	width: 32px;
-	height: 32px;
-}
-
 // Plugins
 
 SPAN.plugin_icon_overlay_disabled {
@@ -1631,6 +1668,23 @@ LABEL.error {
 	color: rgb(255,0,0);
 	padding-left: .5em;
 	vertical-align: top;
+}
+
+// Markdown container
+
+DIV.cerb-markdown-content {
+	P {
+		margin: 0.2em;
+	}
+
+	PRE {
+		margin: 0.2em;
+	}
+
+	CODE {
+		background-color: rgb(245,245,245);
+		padding: 2px;
+	}
 }
 
 // HTML email container (reset styles)

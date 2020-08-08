@@ -44,6 +44,10 @@
 		</tbody>
 	{/foreach}
 	</table>
+	{else}
+		<div>
+			({'common.data.no'|devblocks_translate|lower})
+		</div>
 	{/if}
 	
 	{if $buttons}
@@ -82,8 +86,7 @@ $(function() {
 		.cerbPeekTrigger()
 		.on('cerb-peek-saved cerb-peek-deleted', function(e) {
 			// Reload sheet via event
-			var $tab = $widget.closest('.cerb-card-layout');
-			$tab.triggerHandler($.Event('cerb-widget-refresh', { widget_id: {$widget->id} }));
+			$popup.triggerHandler($.Event('cerb-widget-refresh', { widget_id: {$widget->id} }));
 		})
 		;
 	

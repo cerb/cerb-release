@@ -268,7 +268,7 @@ class DAO_Message extends Cerb_ORMHelper {
 			$sort_sql.
 			$limit_sql
 		;
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		return self::_getObjectsFromResult($rs);
 	}
@@ -350,7 +350,7 @@ class DAO_Message extends Cerb_ORMHelper {
 		if(!$address_id)
 			return 0;
 		
-		return $db->GetOneSlave(sprintf("select max(id) from message where is_outgoing=1 and ticket_id in (select ticket_id from requester where address_id = %d)",
+		return $db->GetOneReader(sprintf("select max(id) from message where is_outgoing=1 and ticket_id in (select ticket_id from requester where address_id = %d)",
 			$address_id
 		));
 	}
@@ -361,7 +361,7 @@ class DAO_Message extends Cerb_ORMHelper {
 		if(!$contact_id)
 			return 0;
 		
-		return $db->GetOneSlave(sprintf("select max(id) from message where is_outgoing=1 and ticket_id in (select ticket_id from requester where address_id in (select id from address where contact_id = %d))",
+		return $db->GetOneReader(sprintf("select max(id) from message where is_outgoing=1 and ticket_id in (select ticket_id from requester where address_id in (select id from address where contact_id = %d))",
 			$contact_id
 		));
 	}
@@ -372,7 +372,7 @@ class DAO_Message extends Cerb_ORMHelper {
 		if(!$org_id)
 			return 0;
 		
-		return $db->GetOneSlave(sprintf("select max(id) from message where is_outgoing=1 and ticket_id in (select ticket_id from requester where address_id in (select id from address where contact_org_id = %d))",
+		return $db->GetOneReader(sprintf("select max(id) from message where is_outgoing=1 and ticket_id in (select ticket_id from requester where address_id in (select id from address where contact_org_id = %d))",
 			$org_id
 		));
 	}
@@ -383,7 +383,7 @@ class DAO_Message extends Cerb_ORMHelper {
 		if(!$address_id)
 			return 0;
 		
-		return $db->GetOneSlave(sprintf("select max(id) from message where is_outgoing=0 and address_id = %d",
+		return $db->GetOneReader(sprintf("select max(id) from message where is_outgoing=0 and address_id = %d",
 			$address_id
 		));
 	}
@@ -394,7 +394,7 @@ class DAO_Message extends Cerb_ORMHelper {
 		if(!$contact_id)
 			return 0;
 		
-		return $db->GetOneSlave(sprintf("select max(id) from message where is_outgoing=0 and address_id in (select id from address where contact_id = %d)",
+		return $db->GetOneReader(sprintf("select max(id) from message where is_outgoing=0 and address_id in (select id from address where contact_id = %d)",
 			$contact_id
 		));
 	}
@@ -405,7 +405,7 @@ class DAO_Message extends Cerb_ORMHelper {
 		if(!$org_id)
 			return 0;
 		
-		return $db->GetOneSlave(sprintf("select max(id) from message where is_outgoing=0 and address_id in (select id from address where contact_org_id = %d)",
+		return $db->GetOneReader(sprintf("select max(id) from message where is_outgoing=0 and address_id in (select id from address where contact_org_id = %d)",
 			$org_id
 		));
 	}
@@ -416,7 +416,7 @@ class DAO_Message extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM message WHERE ticket_id = %d",
 			$ticket_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 
 	static function delete($ids) {
@@ -616,11 +616,10 @@ class DAO_Message extends Cerb_ORMHelper {
 	 * @param string $sortBy
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
-	 * @return array
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		$fulltext_params = [];
 		
 		foreach($params as $param_key => $param) {
@@ -640,10 +639,6 @@ class DAO_Message extends Cerb_ORMHelper {
 		$join_sql = $query_parts['join'];
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
-		
-		// [TODO] This is only needed in <= 7.2.5, not 7.3 release
-		if(isset($params['req_*_in_groups_of_worker']))
-			unset($params['req_*_in_groups_of_worker']);
 		
 		if(!empty($fulltext_params)) {
 			$prefetch_sql = null;
@@ -677,41 +672,16 @@ class DAO_Message extends Cerb_ORMHelper {
 			}
 		}
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-		
-		if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-			return false;
-		
-		$results = [];
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_Message::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(m.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_Message::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 };
 
@@ -1575,7 +1545,7 @@ class Storage_MessageContent extends Extension_DevblocksStorageSchema {
 				$db->qstr($src_profile->extension_id),
 				$src_profile->id
 		);
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		if(!($rs instanceof mysqli_result))
 			return false;
@@ -1612,7 +1582,7 @@ class Storage_MessageContent extends Extension_DevblocksStorageSchema {
 				$db->qstr($dst_profile->extension_id),
 				$dst_profile->id
 		);
-		$rs = $db->ExecuteSlave($sql);
+		$rs = $db->QueryReader($sql);
 		
 		if(!($rs instanceof mysqli_result))
 			return false;
@@ -1779,9 +1749,13 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_Message::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_Message::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -1790,6 +1764,10 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_Message');
 		
@@ -2614,7 +2592,7 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 			
 			// URL
 			$url_writer = DevblocksPlatform::services()->url();
-			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=ticket&id=%d/message/%d", $message->ticket_id, $message->id), true);
+			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=ticket&id=%d", $message->ticket_id), true) . '#message' . $message->id;
 		}
 
 		$context_stack = CerberusContexts::getStack();

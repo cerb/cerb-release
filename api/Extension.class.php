@@ -46,9 +46,12 @@ abstract class Extension_CustomField extends DevblocksExtension {
 	const POINT = 'cerb.custom_field';
 	
 	abstract function renderConfig(Model_CustomField $field);
-	abstract function getLabelsForValues($values);
+	abstract function getDictionaryValues(Model_CustomField $field, $value, &$token_values);
+	abstract function getLabelsForValues(Model_CustomField $field, $values);
 	abstract function getValueTableName();
 	abstract function getValueTableSql($context, array $context_ids);
+	abstract function getValuesContexts(Model_CustomField $field, $token, &$values);
+	abstract function getVarValueToContextMap(Model_TriggerEvent $trigger, string $var_key, $var, &$values_to_contexts);
 	abstract function populateQuickSearchMeta(Model_CustomField $field, array &$search_field_meta);
 	abstract function prepareCriteriaParam(Model_CustomField $field, $param, &$vals, &$implode_token);
 	abstract function renderEditable(Model_CustomField $field, $form_key, $form_value);
@@ -56,6 +59,11 @@ abstract class Extension_CustomField extends DevblocksExtension {
 	abstract function setFieldValue(Model_CustomField $field, $context, $context_id, $value);
 	abstract function unsetFieldValue(Model_CustomField $field, $context, $context_id, $value=null);
 	abstract function validationRegister(Model_CustomField $field, _DevblocksValidationService &$validation);
+	
+	abstract function botActionRender(Model_CustomField $field);
+	abstract function botActionSimulate(Model_CustomField $field, array $params, DevblocksDictionaryDelegate $dict, $value_key);
+	abstract function botActionGetValueFromParams(Model_CustomField $field, array $params, DevblocksDictionaryDelegate $dict);
+	abstract function botActionRun(Model_CustomField $field, array $params, DevblocksDictionaryDelegate $dict, $context, $context_id, $value_key);
 	
 	function hasMultipleValues() {
 		return false;
@@ -432,6 +440,7 @@ abstract class Extension_ProfileWidget extends DevblocksExtension {
 	abstract function render(Model_ProfileWidget $model, $context, $context_id);
 	abstract function invoke(string $action, Model_ProfileWidget $model);
 	abstract function renderConfig(Model_ProfileWidget $model);
+	abstract function invokeConfig($config_action, Model_ProfileWidget $model);
 	function saveConfig(array $fields, $id, &$error=null) { return true; }
 	
 	/**
@@ -600,6 +609,7 @@ abstract class Extension_CardWidget extends DevblocksExtension {
 	
 	abstract function render(Model_CardWidget $model, $context, $context_id);
 	abstract function renderConfig(Model_CardWidget $model);
+	abstract function invokeConfig($action, Model_CardWidget $model);
 	function saveConfig(array $fields, $id, &$error=null) { return true; }
 	
 	/**
@@ -837,6 +847,7 @@ abstract class Extension_WorkspaceWidget extends DevblocksExtension {
 	abstract function render(Model_WorkspaceWidget $widget);
 	abstract function invoke(string $action, Model_WorkspaceWidget $model);
 	abstract function renderConfig(Model_WorkspaceWidget $widget);
+	abstract function invokeConfig($config_action, Model_WorkspaceWidget $model);
 	abstract function saveConfig(Model_WorkspaceWidget $widget);
 	
 	/**

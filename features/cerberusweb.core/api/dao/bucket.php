@@ -240,7 +240,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		if($options & Cerb_ORMHelper::OPT_GET_MASTER_ONLY) {
 			$rs = $db->ExecuteMaster($sql, _DevblocksDatabaseManager::OPT_NO_READ_AFTER_WRITE);
 		} else {
-			$rs = $db->ExecuteSlave($sql);
+			$rs = $db->QueryReader($sql);
 		}
 		
 		return self::_getObjectsFromResult($rs);
@@ -285,7 +285,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		$responsibilities = array();
 		
-		$results = $db->GetArraySlave(sprintf("SELECT worker_id, responsibility_level FROM worker_to_bucket WHERE bucket_id = %d",
+		$results = $db->GetArrayReader(sprintf("SELECT worker_id, responsibility_level FROM worker_to_bucket WHERE bucket_id = %d",
 			$bucket_id
 		));
 		
@@ -387,7 +387,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM bucket WHERE reply_address_id = %d",
 			$email_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function countByEmailSignatureId($sig_id) {
@@ -396,7 +396,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM bucket WHERE reply_signature_id = %d",
 			$sig_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function countByEmailTemplateId($template_id) {
@@ -405,7 +405,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM bucket WHERE reply_html_template_id = %d",
 			$template_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function countByGroupId($group_id) {
@@ -414,7 +414,7 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		$sql = sprintf("SELECT count(id) FROM bucket WHERE group_id = %d",
 			$group_id
 		);
-		return intval($db->GetOneSlave($sql));
+		return intval($db->GetOneReader($sql));
 	}
 	
 	static function delete($ids) {
@@ -582,10 +582,9 @@ class DAO_Bucket extends Cerb_ORMHelper {
 	 * @param boolean $sortAsc
 	 * @param boolean $withCounts
 	 * @return array
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
 	static function search($columns, $params, $limit=10, $page=0, $sortBy=null, $sortAsc=null, $withCounts=true) {
-		$db = DevblocksPlatform::services()->database();
-		
 		// Build search queries
 		$query_parts = self::getSearchQueryComponents($columns,$params,$sortBy,$sortAsc);
 
@@ -594,49 +593,16 @@ class DAO_Bucket extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		$sql =
-			$select_sql.
-			$join_sql.
-			$where_sql.
-			$sort_sql;
-			
-		if($limit > 0) {
-			if(false == ($rs = $db->SelectLimit($sql,$limit,$page*$limit)))
-				return false;
-			
-		} else {
-			if(false == ($rs = $db->ExecuteSlave($sql)))
-				return false;
-			
-			$total = mysqli_num_rows($rs);
-		}
-		
-		$results = array();
-		
-		if(!($rs instanceof mysqli_result))
-			return false;
-		
-		while($row = mysqli_fetch_assoc($rs)) {
-			$object_id = intval($row[SearchFields_Bucket::ID]);
-			$results[$object_id] = $row;
-		}
-
-		$total = count($results);
-		
-		if($withCounts) {
-			// We can skip counting if we have a less-than-full single page
-			if(!(0 == $page && $total < $limit)) {
-				$count_sql =
-					"SELECT COUNT(bucket.id) ".
-					$join_sql.
-					$where_sql;
-				$total = $db->GetOneSlave($count_sql);
-			}
-		}
-		
-		mysqli_free_result($rs);
-		
-		return array($results,$total);
+		return self::_searchWithTimeout(
+			SearchFields_Bucket::ID,
+			$select_sql,
+			$join_sql,
+			$where_sql,
+			$sort_sql,
+			$page,
+			$limit,
+			$withCounts
+		);
 	}
 	
 };
@@ -836,7 +802,6 @@ class Model_Bucket {
 	 * @return Model_Address
 	 */
 	public function getReplyTo() {
-		$from_id = 0;
 		$froms = DAO_Address::getLocalAddresses();
 		
 		// Cascade to bucket
@@ -1533,9 +1498,13 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		
 		$this->doResetCriteria();
 	}
-
-	function getData() {
-		$objects = DAO_Bucket::search(
+	
+	/**
+	 * @return array|false
+	 * @throws Exception_DevblocksDatabaseQueryTimeout
+	 */
+	protected function _getData() {
+		return DAO_Bucket::search(
 			$this->view_columns,
 			$this->getParams(),
 			$this->renderLimit,
@@ -1544,6 +1513,10 @@ class View_Bucket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			$this->renderSortAsc,
 			$this->renderTotal
 		);
+	}
+	
+	function getData() {
+		$objects = $this->_getDataBoundedTimed();
 		
 		$this->_lazyLoadCustomFieldsIntoObjects($objects, 'SearchFields_Bucket');
 		
