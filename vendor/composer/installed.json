@@ -269,17 +269,17 @@
     },
     {
         "name": "ezyang/htmlpurifier",
-        "version": "v4.12.0",
-        "version_normalized": "4.12.0.0",
+        "version": "v4.13.0",
+        "version_normalized": "4.13.0.0",
         "source": {
             "type": "git",
             "url": "https://github.com/ezyang/htmlpurifier.git",
-            "reference": "a617e55bc62a87eec73bd456d146d134ad716f03"
+            "reference": "08e27c97e4c6ed02f37c5b2b20488046c8d90d75"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/ezyang/htmlpurifier/zipball/a617e55bc62a87eec73bd456d146d134ad716f03",
-            "reference": "a617e55bc62a87eec73bd456d146d134ad716f03",
+            "url": "https://api.github.com/repos/ezyang/htmlpurifier/zipball/08e27c97e4c6ed02f37c5b2b20488046c8d90d75",
+            "reference": "08e27c97e4c6ed02f37c5b2b20488046c8d90d75",
             "shasum": ""
         },
         "require": {
@@ -288,7 +288,7 @@
         "require-dev": {
             "simpletest/simpletest": "dev-master#72de02a7b80c6bb8864ef9bf66d41d2f58f826bd"
         },
-        "time": "2019-10-28T03:44:26+00:00",
+        "time": "2020-06-29T00:56:53+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
@@ -297,6 +297,9 @@
             },
             "files": [
                 "library/HTMLPurifier.composer.php"
+            ],
+            "exclude-from-classmap": [
+                "/library/HTMLPurifier/Language/"
             ]
         },
         "notification-url": "https://packagist.org/downloads/",
@@ -622,21 +625,21 @@
     },
     {
         "name": "league/oauth2-client",
-        "version": "2.4.1",
-        "version_normalized": "2.4.1.0",
+        "version": "2.5.0",
+        "version_normalized": "2.5.0.0",
         "source": {
             "type": "git",
             "url": "https://github.com/thephpleague/oauth2-client.git",
-            "reference": "cc114abc622a53af969e8664722e84ca36257530"
+            "reference": "d9f2a1e000dc14eb3c02e15d15759385ec7ff0fb"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/thephpleague/oauth2-client/zipball/cc114abc622a53af969e8664722e84ca36257530",
-            "reference": "cc114abc622a53af969e8664722e84ca36257530",
+            "url": "https://api.github.com/repos/thephpleague/oauth2-client/zipball/d9f2a1e000dc14eb3c02e15d15759385ec7ff0fb",
+            "reference": "d9f2a1e000dc14eb3c02e15d15759385ec7ff0fb",
             "shasum": ""
         },
         "require": {
-            "guzzlehttp/guzzle": "^6.0",
+            "guzzlehttp/guzzle": "^6.0 || ^7.0",
             "paragonie/random_compat": "^1|^2|^9.99",
             "php": "^5.6|^7.0"
         },
@@ -647,7 +650,7 @@
             "phpunit/phpunit": "^5.7|^6.0",
             "squizlabs/php_codesniffer": "^2.3|^3.0"
         },
-        "time": "2018-11-22T18:33:57+00:00",
+        "time": "2020-07-18T17:54:32+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -868,18 +871,527 @@
         ]
     },
     {
+        "name": "pear-pear.horde.org/Horde_Crypt_Blowfish",
+        "version": "1.1.3",
+        "version_normalized": "1.1.3.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Crypt_Blowfish-1.1.3.tgz"
+        },
+        "require": {
+            "pear-pear.horde.org/horde_exception": "<3.0.0.0",
+            "pear-pear.horde.org/horde_support": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_crypt_blowfish": "== 1.1.3.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "A library that provides blowfish encryption/decryption for PHP string data."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Exception",
+        "version": "2.0.8",
+        "version_normalized": "2.0.8.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Exception-2.0.8.tgz"
+        },
+        "require": {
+            "pear-pear.horde.org/horde_translation": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_exception": "== 2.0.8.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "This class provides the default exception handlers for the Horde Application Framework."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Idna",
+        "version": "1.1.2",
+        "version_normalized": "1.1.2.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Idna-1.1.2.tgz"
+        },
+        "require": {
+            "pear-pear.horde.org/horde_exception": "<3.0.0.0",
+            "pear-pear.horde.org/horde_util": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_idna": "== 1.1.2.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "BSD-2-Clause"
+        ],
+        "description": "A library that wraps various backends providing IDNA (Internationalized Domain Names in Applications) support."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Imap_Client",
+        "version": "2.30.1",
+        "version_normalized": "2.30.1.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Imap_Client-2.30.1.tgz"
+        },
+        "require": {
+            "ext-hash": "*",
+            "ext-json": "*",
+            "pear-pear.horde.org/horde_exception": "<3.0.0.0",
+            "pear-pear.horde.org/horde_mail": "<3.0.0.0",
+            "pear-pear.horde.org/horde_mime": "<3.0.0.0",
+            "pear-pear.horde.org/horde_secret": "<3.0.0.0",
+            "pear-pear.horde.org/horde_socket_client": "<3.0.0.0",
+            "pear-pear.horde.org/horde_stream": "<2.0.0.0",
+            "pear-pear.horde.org/horde_stream_filter": "<3.0.0.0",
+            "pear-pear.horde.org/horde_translation": "<3.0.0.0",
+            "pear-pear.horde.org/horde_util": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_imap_client": "== 2.30.1.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "A library to access IMAP4rev1 (RFC 3501) mail servers. Also supports connections to POP3 (STD 53/RFC 1939)."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_ListHeaders",
+        "version": "1.2.5",
+        "version_normalized": "1.2.5.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_ListHeaders-1.2.5.tgz"
+        },
+        "require": {
+            "pear-pear.horde.org/horde_mail": "<3.0.0.0",
+            "pear-pear.horde.org/horde_translation": "<3.0.0.0",
+            "pear-pear.horde.org/horde_util": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_listheaders": "== 1.2.5.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "The Horde_ListHeaders library parses Mailing List Headers as defined in RFC 2369 & RFC 2919."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Mail",
+        "version": "2.6.5",
+        "version_normalized": "2.6.5.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Mail-2.6.5.tgz"
+        },
+        "require": {
+            "pear-pear.horde.org/horde_exception": "<3.0.0.0",
+            "pear-pear.horde.org/horde_idna": "<2.0.0.0",
+            "pear-pear.horde.org/horde_mime": "<3.0.0.0",
+            "pear-pear.horde.org/horde_stream_filter": "<3.0.0.0",
+            "pear-pear.horde.org/horde_translation": "<3.0.0.0",
+            "pear-pear.horde.org/horde_util": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_mail": "== 2.6.5.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "BSD-2-Clause"
+        ],
+        "description": "Provides interfaces for sending e-mail messages and parsing e-mail addresses."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Mime",
+        "version": "2.11.0",
+        "version_normalized": "2.11.0.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Mime-2.11.0.tgz"
+        },
+        "require": {
+            "pear-pear.horde.org/horde_exception": "<3.0.0.0",
+            "pear-pear.horde.org/horde_listheaders": "<2.0.0.0",
+            "pear-pear.horde.org/horde_mail": "<3.0.0.0",
+            "pear-pear.horde.org/horde_stream": "<2.0.0.0",
+            "pear-pear.horde.org/horde_stream_filter": "<3.0.0.0",
+            "pear-pear.horde.org/horde_support": "<3.0.0.0",
+            "pear-pear.horde.org/horde_text_flowed": "<3.0.0.0",
+            "pear-pear.horde.org/horde_translation": "<3.0.0.0",
+            "pear-pear.horde.org/horde_util": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_mime": "== 2.11.0.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "Provides methods for dealing with Multipurpose Internet Mail Extensions (MIME) features (RFC 2045/2046/2047)."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Secret",
+        "version": "2.0.6",
+        "version_normalized": "2.0.6.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Secret-2.0.6.tgz"
+        },
+        "require": {
+            "ext-hash": "*",
+            "pear-pear.horde.org/horde_crypt_blowfish": "<2.0.0.0",
+            "pear-pear.horde.org/horde_exception": "<3.0.0.0",
+            "pear-pear.horde.org/horde_support": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_secret": "== 2.0.6.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "An API for encrypting and decrypting small pieces of data with the use of a shared key."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Socket_Client",
+        "version": "2.1.3",
+        "version_normalized": "2.1.3.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Socket_Client-2.1.3.tgz"
+        },
+        "require": {
+            "pear-pear.horde.org/horde_exception": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_socket_client": "== 2.1.3.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "A library that provides an abstract PHP network socket client."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Stream",
+        "version": "1.6.3",
+        "version_normalized": "1.6.3.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Stream-1.6.3.tgz"
+        },
+        "require": {
+            "pear-pear.horde.org/horde_exception": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_stream": "== 1.6.3.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "An object-oriented interface to assist in creating and storing PHP stream resources, and to provide utility methods to access and manipulate the stream contents."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Stream_Filter",
+        "version": "2.0.4",
+        "version_normalized": "2.0.4.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Stream_Filter-2.0.4.tgz"
+        },
+        "require": {
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_stream_filter": "== 2.0.4.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "A collection of various stream filters."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Stream_Wrapper",
+        "version": "2.1.4",
+        "version_normalized": "2.1.4.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Stream_Wrapper-2.1.4.tgz"
+        },
+        "require": {
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_stream_wrapper": "== 2.1.4.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "BSD-2-Clause"
+        ],
+        "description": "A collection of stream wrappers."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Support",
+        "version": "2.2.0",
+        "version_normalized": "2.2.0.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Support-2.2.0.tgz"
+        },
+        "require": {
+            "pear-pear.horde.org/horde_exception": "<3.0.0.0",
+            "pear-pear.horde.org/horde_stream_wrapper": "<3.0.0.0",
+            "pear-pear.horde.org/horde_util": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_support": "== 2.2.0.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "BSD-2-Clause"
+        ],
+        "description": "Support classes not tied to Horde but is used by it. These classes can be used outside of Horde as well."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Text_Flowed",
+        "version": "2.0.4",
+        "version_normalized": "2.0.4.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Text_Flowed-2.0.4.tgz"
+        },
+        "require": {
+            "pear-pear.horde.org/horde_util": "<3.0.0.0",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_text_flowed": "== 2.0.4.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "A library that provides common methods for manipulating text using the encoding described in RFC 3676 ('flowed' text)."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Translation",
+        "version": "2.2.2",
+        "version_normalized": "2.2.2.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Translation-2.2.2.tgz"
+        },
+        "require": {
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_translation": "== 2.2.2.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "Translation wrappers."
+    },
+    {
+        "name": "pear-pear.horde.org/Horde_Util",
+        "version": "2.5.9",
+        "version_normalized": "2.5.9.0",
+        "dist": {
+            "type": "file",
+            "url": "https://pear.horde.org/get/Horde_Util-2.5.9.tgz"
+        },
+        "require": {
+            "ext-dom": "*",
+            "php": "<8.0.0.0"
+        },
+        "replace": {
+            "pear-horde/horde_util": "== 2.5.9.0"
+        },
+        "type": "pear-library",
+        "installation-source": "dist",
+        "autoload": {
+            "classmap": [
+                ""
+            ]
+        },
+        "include-path": [
+            "/"
+        ],
+        "license": [
+            "LGPL-2.1"
+        ],
+        "description": "A library that provides functionality useful for all kind of applications."
+    },
+    {
         "name": "phpseclib/phpseclib",
-        "version": "2.0.27",
-        "version_normalized": "2.0.27.0",
+        "version": "2.0.28",
+        "version_normalized": "2.0.28.0",
         "source": {
             "type": "git",
             "url": "https://github.com/phpseclib/phpseclib.git",
-            "reference": "34620af4df7d1988d8f0d7e91f6c8a3bf931d8dc"
+            "reference": "d1ca58cf33cb21046d702ae3a7b14fdacd9f3260"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/34620af4df7d1988d8f0d7e91f6c8a3bf931d8dc",
-            "reference": "34620af4df7d1988d8f0d7e91f6c8a3bf931d8dc",
+            "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/d1ca58cf33cb21046d702ae3a7b14fdacd9f3260",
+            "reference": "d1ca58cf33cb21046d702ae3a7b14fdacd9f3260",
             "shasum": ""
         },
         "require": {
@@ -897,7 +1409,7 @@
             "ext-mcrypt": "Install the Mcrypt extension in order to speed up a few other cryptographic operations.",
             "ext-openssl": "Install the OpenSSL extension in order to speed up a wide variety of cryptographic operations."
         },
-        "time": "2020-04-04T23:17:33+00:00",
+        "time": "2020-07-08T09:08:33+00:00",
         "type": "library",
         "installation-source": "dist",
         "autoload": {
@@ -1146,23 +1658,27 @@
     },
     {
         "name": "smarty/smarty",
-        "version": "v3.1.31",
-        "version_normalized": "3.1.31.0",
+        "version": "v3.1.36",
+        "version_normalized": "3.1.36.0",
         "source": {
             "type": "git",
             "url": "https://github.com/smarty-php/smarty.git",
-            "reference": "c7d42e4a327c402897dd587871434888fde1e7a9"
+            "reference": "fd148f7ade295014fff77f89ee3d5b20d9d55451"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/smarty-php/smarty/zipball/c7d42e4a327c402897dd587871434888fde1e7a9",
-            "reference": "c7d42e4a327c402897dd587871434888fde1e7a9",
+            "url": "https://api.github.com/repos/smarty-php/smarty/zipball/fd148f7ade295014fff77f89ee3d5b20d9d55451",
+            "reference": "fd148f7ade295014fff77f89ee3d5b20d9d55451",
             "shasum": ""
         },
         "require": {
             "php": ">=5.2"
         },
-        "time": "2016-12-14T21:57:25+00:00",
+        "require-dev": {
+            "phpunit/phpunit": "6.4.1",
+            "smarty/smarty-lexer": "^3.1"
+        },
+        "time": "2020-04-14T14:44:26+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -1171,8 +1687,8 @@
         },
         "installation-source": "dist",
         "autoload": {
-            "files": [
-                "libs/bootstrap.php"
+            "classmap": [
+                "libs/"
             ]
         },
         "notification-url": "https://packagist.org/downloads/",
@@ -1201,17 +1717,17 @@
     },
     {
         "name": "swiftmailer/swiftmailer",
-        "version": "v5.4.9",
-        "version_normalized": "5.4.9.0",
+        "version": "v5.4.12",
+        "version_normalized": "5.4.12.0",
         "source": {
             "type": "git",
             "url": "https://github.com/swiftmailer/swiftmailer.git",
-            "reference": "7ffc1ea296ed14bf8260b6ef11b80208dbadba91"
+            "reference": "181b89f18a90f8925ef805f950d47a7190e9b950"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/swiftmailer/swiftmailer/zipball/7ffc1ea296ed14bf8260b6ef11b80208dbadba91",
-            "reference": "7ffc1ea296ed14bf8260b6ef11b80208dbadba91",
+            "url": "https://api.github.com/repos/swiftmailer/swiftmailer/zipball/181b89f18a90f8925ef805f950d47a7190e9b950",
+            "reference": "181b89f18a90f8925ef805f950d47a7190e9b950",
             "shasum": ""
         },
         "require": {
@@ -1221,7 +1737,7 @@
             "mockery/mockery": "~0.9.1",
             "symfony/phpunit-bridge": "~3.2"
         },
-        "time": "2018-01-23T07:37:21+00:00",
+        "time": "2018-07-31T09:26:32+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -1257,8 +1773,8 @@
     },
     {
         "name": "symfony/css-selector",
-        "version": "v5.1.2",
-        "version_normalized": "5.1.2.0",
+        "version": "v5.1.3",
+        "version_normalized": "5.1.3.0",
         "source": {
             "type": "git",
             "url": "https://github.com/symfony/css-selector.git",
@@ -1312,32 +1828,37 @@
     },
     {
         "name": "symfony/polyfill-intl-idn",
-        "version": "v1.17.0",
-        "version_normalized": "1.17.0.0",
+        "version": "v1.18.1",
+        "version_normalized": "1.18.1.0",
         "source": {
             "type": "git",
             "url": "https://github.com/symfony/polyfill-intl-idn.git",
-            "reference": "3bff59ea7047e925be6b7f2059d60af31bb46d6a"
+            "reference": "5dcab1bc7146cf8c1beaa4502a3d9be344334251"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/symfony/polyfill-intl-idn/zipball/3bff59ea7047e925be6b7f2059d60af31bb46d6a",
-            "reference": "3bff59ea7047e925be6b7f2059d60af31bb46d6a",
+            "url": "https://api.github.com/repos/symfony/polyfill-intl-idn/zipball/5dcab1bc7146cf8c1beaa4502a3d9be344334251",
+            "reference": "5dcab1bc7146cf8c1beaa4502a3d9be344334251",
             "shasum": ""
         },
         "require": {
             "php": ">=5.3.3",
-            "symfony/polyfill-mbstring": "^1.3",
+            "symfony/polyfill-intl-normalizer": "^1.10",
+            "symfony/polyfill-php70": "^1.10",
             "symfony/polyfill-php72": "^1.10"
         },
         "suggest": {
             "ext-intl": "For best performance"
         },
-        "time": "2020-05-12T16:47:27+00:00",
+        "time": "2020-08-04T06:02:08+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
-                "dev-master": "1.17-dev"
+                "dev-master": "1.18-dev"
+            },
+            "thanks": {
+                "name": "symfony/polyfill",
+                "url": "https://github.com/symfony/polyfill"
             }
         },
         "installation-source": "dist",
@@ -1359,6 +1880,10 @@
                 "email": "laurent@bassin.info"
             },
             {
+                "name": "Trevor Rowbotham",
+                "email": "trevor.rowbotham@pm.me"
+            },
+            {
                 "name": "Symfony Community",
                 "homepage": "https://symfony.com/contributors"
             }
@@ -1375,40 +1900,47 @@
         ]
     },
     {
-        "name": "symfony/polyfill-mbstring",
-        "version": "v1.17.0",
-        "version_normalized": "1.17.0.0",
+        "name": "symfony/polyfill-intl-normalizer",
+        "version": "v1.18.1",
+        "version_normalized": "1.18.1.0",
         "source": {
             "type": "git",
-            "url": "https://github.com/symfony/polyfill-mbstring.git",
-            "reference": "fa79b11539418b02fc5e1897267673ba2c19419c"
+            "url": "https://github.com/symfony/polyfill-intl-normalizer.git",
+            "reference": "37078a8dd4a2a1e9ab0231af7c6cb671b2ed5a7e"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/fa79b11539418b02fc5e1897267673ba2c19419c",
-            "reference": "fa79b11539418b02fc5e1897267673ba2c19419c",
+            "url": "https://api.github.com/repos/symfony/polyfill-intl-normalizer/zipball/37078a8dd4a2a1e9ab0231af7c6cb671b2ed5a7e",
+            "reference": "37078a8dd4a2a1e9ab0231af7c6cb671b2ed5a7e",
             "shasum": ""
         },
         "require": {
             "php": ">=5.3.3"
         },
         "suggest": {
-            "ext-mbstring": "For best performance"
+            "ext-intl": "For best performance"
         },
-        "time": "2020-05-12T16:47:27+00:00",
+        "time": "2020-07-14T12:35:20+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
-                "dev-master": "1.17-dev"
+                "dev-master": "1.18-dev"
+            },
+            "thanks": {
+                "name": "symfony/polyfill",
+                "url": "https://github.com/symfony/polyfill"
             }
         },
         "installation-source": "dist",
         "autoload": {
             "psr-4": {
-                "Symfony\\Polyfill\\Mbstring\\": ""
+                "Symfony\\Polyfill\\Intl\\Normalizer\\": ""
             },
             "files": [
                 "bootstrap.php"
+            ],
+            "classmap": [
+                "Resources/stubs"
             ]
         },
         "notification-url": "https://packagist.org/downloads/",
@@ -1425,11 +1957,77 @@
                 "homepage": "https://symfony.com/contributors"
             }
         ],
-        "description": "Symfony polyfill for the Mbstring extension",
+        "description": "Symfony polyfill for intl's Normalizer class and related functions",
         "homepage": "https://symfony.com",
         "keywords": [
             "compatibility",
-            "mbstring",
+            "intl",
+            "normalizer",
+            "polyfill",
+            "portable",
+            "shim"
+        ]
+    },
+    {
+        "name": "symfony/polyfill-php70",
+        "version": "v1.18.1",
+        "version_normalized": "1.18.1.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/symfony/polyfill-php70.git",
+            "reference": "0dd93f2c578bdc9c72697eaa5f1dd25644e618d3"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/symfony/polyfill-php70/zipball/0dd93f2c578bdc9c72697eaa5f1dd25644e618d3",
+            "reference": "0dd93f2c578bdc9c72697eaa5f1dd25644e618d3",
+            "shasum": ""
+        },
+        "require": {
+            "paragonie/random_compat": "~1.0|~2.0|~9.99",
+            "php": ">=5.3.3"
+        },
+        "time": "2020-07-14T12:35:20+00:00",
+        "type": "library",
+        "extra": {
+            "branch-alias": {
+                "dev-master": "1.18-dev"
+            },
+            "thanks": {
+                "name": "symfony/polyfill",
+                "url": "https://github.com/symfony/polyfill"
+            }
+        },
+        "installation-source": "dist",
+        "autoload": {
+            "psr-4": {
+                "Symfony\\Polyfill\\Php70\\": ""
+            },
+            "files": [
+                "bootstrap.php"
+            ],
+            "classmap": [
+                "Resources/stubs"
+            ]
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "Nicolas Grekas",
+                "email": "p@tchwork.com"
+            },
+            {
+                "name": "Symfony Community",
+                "homepage": "https://symfony.com/contributors"
+            }
+        ],
+        "description": "Symfony polyfill backporting some PHP 7.0+ features to lower PHP versions",
+        "homepage": "https://symfony.com",
+        "keywords": [
+            "compatibility",
             "polyfill",
             "portable",
             "shim"
@@ -1437,27 +2035,31 @@
     },
     {
         "name": "symfony/polyfill-php72",
-        "version": "v1.17.0",
-        "version_normalized": "1.17.0.0",
+        "version": "v1.18.1",
+        "version_normalized": "1.18.1.0",
         "source": {
             "type": "git",
             "url": "https://github.com/symfony/polyfill-php72.git",
-            "reference": "f048e612a3905f34931127360bdd2def19a5e582"
+            "reference": "639447d008615574653fb3bc60d1986d7172eaae"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/symfony/polyfill-php72/zipball/f048e612a3905f34931127360bdd2def19a5e582",
-            "reference": "f048e612a3905f34931127360bdd2def19a5e582",
+            "url": "https://api.github.com/repos/symfony/polyfill-php72/zipball/639447d008615574653fb3bc60d1986d7172eaae",
+            "reference": "639447d008615574653fb3bc60d1986d7172eaae",
             "shasum": ""
         },
         "require": {
             "php": ">=5.3.3"
         },
-        "time": "2020-05-12T16:47:27+00:00",
+        "time": "2020-07-14T12:35:20+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
-                "dev-master": "1.17-dev"
+                "dev-master": "1.18-dev"
+            },
+            "thanks": {
+                "name": "symfony/polyfill",
+                "url": "https://github.com/symfony/polyfill"
             }
         },
         "installation-source": "dist",
@@ -1494,29 +2096,29 @@
     },
     {
         "name": "tijsverkoyen/css-to-inline-styles",
-        "version": "2.2.2",
-        "version_normalized": "2.2.2.0",
+        "version": "2.2.3",
+        "version_normalized": "2.2.3.0",
         "source": {
             "type": "git",
             "url": "https://github.com/tijsverkoyen/CssToInlineStyles.git",
-            "reference": "dda2ee426acd6d801d5b7fd1001cde9b5f790e15"
+            "reference": "b43b05cf43c1b6d849478965062b6ef73e223bb5"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/tijsverkoyen/CssToInlineStyles/zipball/dda2ee426acd6d801d5b7fd1001cde9b5f790e15",
-            "reference": "dda2ee426acd6d801d5b7fd1001cde9b5f790e15",
+            "url": "https://api.github.com/repos/tijsverkoyen/CssToInlineStyles/zipball/b43b05cf43c1b6d849478965062b6ef73e223bb5",
+            "reference": "b43b05cf43c1b6d849478965062b6ef73e223bb5",
             "shasum": ""
         },
         "require": {
             "ext-dom": "*",
             "ext-libxml": "*",
-            "php": "^5.5 || ^7.0",
+            "php": "^5.5 || ^7.0 || ^8.0",
             "symfony/css-selector": "^2.7 || ^3.0 || ^4.0 || ^5.0"
         },
         "require-dev": {
-            "phpunit/phpunit": "^4.8.35 || ^5.7 || ^6.0"
+            "phpunit/phpunit": "^4.8.35 || ^5.7 || ^6.0 || ^7.5"
         },
-        "time": "2019-10-24T08:53:34+00:00",
+        "time": "2020-07-13T06:12:54+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
