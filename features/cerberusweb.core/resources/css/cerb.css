@@ -942,22 +942,33 @@ DIV.help-box SPAN.help.callout-worklist {
   border-radius: 5px 5px 0px 0px;
 }
 
-DIV.message_note {
-  padding: 0;
-  margin: 0;
-  border: 0;
-  position: relative;
+.cerb-comments-thread {
+  margin: 10px 0 0 15px;
+  border-left: 2px solid #c8c8c8;
 }
-DIV.message_note H3 {
+.cerb-comments-thread .cerb-comments-thread--comment {
+  position: relative;
+  margin-top: 10px;
+  margin-left: -17px;
+  padding: 0;
+  border: 0;
+}
+.cerb-comments-thread .cerb-comments-thread--comment:first-child {
+  margin-top: 25px;
+}
+.cerb-comments-thread .cerb-comments-thread--comment H3 {
   font-weight: bold;
   font-size: 18px;
-  margin: 0px;
+  margin: 0;
   color: #666666;
+}
+.cerb-comments-thread .cerb-comments-thread--avatar {
+  float: left;
+  margin: 0 5px 10px 0;
 }
 
 DIV.block {
   padding: 5px;
-  background-color: whitesmoke 25px;
   background: -webkit-linear-gradient(top, whitesmoke 25px, white 75px);
   background: -moz-linear-gradient(270deg, whitesmoke 25px, white 75px);
   background: -o-linear-gradient(top, whitesmoke 25px, white 75px);
@@ -2512,7 +2523,7 @@ div.cerb-board div.cerb-board-column-add p a {
 div.cerb-board div.cerb-board-column-add p a:hover {
   text-decoration: underline;
 }
-div.cerb-board div.cerb-board-column {
+div.cerb-board .cerb-board-column {
   white-space: normal;
   text-align: center;
   vertical-align: top;
@@ -2525,18 +2536,18 @@ div.cerb-board div.cerb-board-column {
   margin: 5px;
   padding: 5px 0px;
 }
-div.cerb-board div.cerb-board-column div.cerb-board-column-toolbar-buttons {
+div.cerb-board .cerb-board-column .cerb-board-column-toolbar-buttons {
   float: right;
   margin: 0px 5px 0px 0px;
 }
-div.cerb-board div.cerb-board-column h2 {
+div.cerb-board .cerb-board-column h2 {
   text-align: left;
   color: #323232;
   margin-left: 10px;
   font-size: 130%;
   cursor: move;
 }
-div.cerb-board div.cerb-board-column div.cerb-board-card {
+div.cerb-board .cerb-board-column div.cerb-board-card {
   text-align: left;
   border-radius: 5px;
   background-color: white;
@@ -2544,28 +2555,28 @@ div.cerb-board div.cerb-board-column div.cerb-board-card {
   display: inline-block;
   width: 280px;
   min-height: 50px;
-  margin: 5px;
+  margin: 2px;
   padding: 0;
   cursor: move;
   overflow: hidden;
   position: relative;
 }
-div.cerb-board div.cerb-board-column div.cerb-board-card > div {
+div.cerb-board .cerb-board-column div.cerb-board-card > div {
   margin: 10px;
 }
-div.cerb-board div.cerb-board-column div.cerb-board-card h3 {
+div.cerb-board .cerb-board-column div.cerb-board-card h3 {
   margin: 0px 0px 5px 0px;
   padding: 0;
   font-size: 120%;
 }
-div.cerb-board div.cerb-board-column div.cerb-board-card h3 a {
+div.cerb-board .cerb-board-column div.cerb-board-card h3 a {
   color: #2d6eb4;
   text-decoration: none;
 }
-div.cerb-board div.cerb-board-column div.cerb-board-card h3 a:hover {
+div.cerb-board .cerb-board-column div.cerb-board-card h3 a:hover {
   text-decoration: underline;
 }
-div.cerb-board div.cerb-board-column div.cerb-board-card div.cerb-board-card-type {
+div.cerb-board .cerb-board-column div.cerb-board-card div.cerb-board-card-type {
   float: right;
   background-color: white;
   border: 1px solid #e6e6e6;
