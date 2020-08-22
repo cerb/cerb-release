@@ -21,6 +21,16 @@
 </table>
 
 <div class="cerb-code-editor-toolbar cerb-code-editor-toolbar--html">
+	<button type="button" class="cerb-code-editor-toolbar-button cerb-html-editor-toolbar-button--insert" title="Insert placeholder"><span class="glyphicons glyphicons-tags"></span></button>
+	<ul class="cerb-float" style="display:none;">
+		<li data-token="{literal}{{message_body}}{/literal}"><b>Message Body</b></li>
+		<li data-token="{literal}{{message_id_header}}{/literal}"><b>Message-Id Header</b></li>
+		<li data-token="{literal}{{group_id}}{/literal}"><b>Group ID</b></li>
+		<li data-token="{literal}{{group__label}}{/literal}"><b>Group Name</b></li>
+		<li data-token="{literal}{{bucket_id}}{/literal}"><b>Bucket ID</b></li>
+		<li data-token="{literal}{{bucket__label}}{/literal}"><b>Bucket Name</b></li>
+	</ul>
+	<div class="cerb-code-editor-toolbar-divider"></div>
 	<button type="button" title="Bold" class="cerb-code-editor-toolbar-button cerb-html-editor-toolbar-button--bold"><span class="glyphicons glyphicons-bold"></span></button>
 	<button type="button" title="Italics" class="cerb-code-editor-toolbar-button cerb-html-editor-toolbar-button--italic"><span class="glyphicons glyphicons-italic"></span></button>
 	<button type="button" title="Link" class="cerb-code-editor-toolbar-button cerb-html-editor-toolbar-button--link"><span class="glyphicons glyphicons-link"></span></button>
@@ -45,20 +55,56 @@
 	font-size: 10pt;
 }
 
-a { 
+a {
 	color: black;
 }
 
 blockquote {
-	color: rgb(0, 128, 255);
-	font-style: italic;
-	margin-left: 0px;
-	border-left: 1px solid rgb(0, 128, 255);
-	padding-left: 5px;
+	color: #646464;
+	border-left: 5px solid;
+	margin: 0 0 0 10px;
+	padding: 0 0 0 10px;
 }
 
 blockquote a {
 	color: rgb(0, 128, 255);
+}
+
+pre > code {
+	display: block;
+	overflow-x: scroll;
+	border: 1px solid #e8e8e8;
+	background-color: #f6f2f0;
+	padding: 10px;
+}
+
+p > code {
+	background-color: #f6f2f0;
+	border: 1px solid #e8e8e8;
+	font-weight: bold;
+	padding: 0.1em 0.2em;
+	line-height: 1.75em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	color: black;
+	margin: 0 0 10px 0;
+	font-weight: bold;
+}
+
+h1 { font-size: 2em; }
+h2 { font-size: 1.85em; }
+h3 { font-size: 1.75em; }
+h4 { font-size: 1.5em; }
+h5 { font-size: 1.25em; }
+h6 { font-size: 1.1em; }
+
+img {
+	max-width: 100%;
+}
+
+ul, ol {
+	padding-left: 2em;
 }
 &lt;/style&gt;{/if}</textarea>
 	
@@ -193,6 +239,26 @@ $(function() {
 				'reuse',
 				false
 			);
+		});
+
+		var $toolbar_button_insert = $content_toolbar.find('.cerb-html-editor-toolbar-button--insert');
+
+		var $toolbar_button_insert_menu = $toolbar_button_insert.next('ul').menu({
+			"select": function(e, $ui) {
+				e.stopPropagation();
+				$toolbar_button_insert_menu.hide();
+
+				var data_token = $ui.item.attr('data-token');
+
+				if (null == data_token)
+					return;
+
+				editor_content.insertSnippet(data_token);
+			}
+		});
+
+		$toolbar_button_insert.on('click', function() {
+			$toolbar_button_insert_menu.toggle();
 		});
 
 		// Peek triggers

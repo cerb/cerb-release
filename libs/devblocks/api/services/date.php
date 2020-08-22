@@ -245,6 +245,72 @@ class _DevblocksDateManager {
 		return array_keys($results);
 	}
 	
+	public function parseDayOfMonth($doms) {
+		if (is_string($doms))
+			$doms = DevblocksPlatform::parseCsvString($doms);
+		
+		if (!is_array($doms))
+			return [];
+		
+		return array_map(function($w) {
+			return DevblocksPlatform::intClamp($w, 1, 31);
+		}, $doms);
+	}
+	
+	public function parseWeeks($weeks) {
+		if (is_string($weeks))
+			$weeks = DevblocksPlatform::parseCsvString($weeks);
+		
+		if (!is_array($weeks))
+			return [];
+		
+		return array_map(function($w) {
+			return DevblocksPlatform::intClamp($w, 0, 53);
+		}, $weeks);
+	}
+	
+	public function parseMonths($months) {
+		$results = [];
+		
+		if(is_string($months))
+			$months = DevblocksPlatform::parseCsvString($months);
+		
+		if(!is_array($months))
+			return [];
+		
+		foreach($months as $month) {
+			$month = DevblocksPlatform::strLower($month);
+			
+			if (DevblocksPlatform::strStartsWith($month, ['ja'])) {
+				$results[1] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['f'])) {
+				$results[2] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['mar'])) {
+				$results[3] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['ap'])) {
+				$results[4] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['may'])) {
+				$results[5] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['jun'])) {
+				$results[6] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['jul'])) {
+				$results[7] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['au'])) {
+				$results[8] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['se'])) {
+				$results[9] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['o'])) {
+				$results[10] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['n'])) {
+				$results[11] = true;
+			} elseif (DevblocksPlatform::strStartsWith($month, ['d'])) {
+				$results[12] = true;
+			}
+		}
+		
+		return array_keys($results);
+	}
+	
 	public function parseTimes($times, $as_secs=false) {
 		$results = [];
 		

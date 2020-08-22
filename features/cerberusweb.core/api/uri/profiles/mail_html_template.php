@@ -164,8 +164,33 @@ class PageSection_ProfilesMailHtmlTemplate extends Extension_PageSection {
 		
 		@$template = DevblocksPlatform::importGPC($_REQUEST['template'],'string', '');
 		
+		$random_group = DAO_Group::get(DAO_Group::random());
+		
+		$message_body = <<< EOD
+<h1>Heading 1</h1>
+<h2>Heading 2</h2>
+<h3>Heading 3</h3>
+<h4>Heading 4</h4>
+<h5>Heading 5</h5>
+<h6>Heading 6</h6>
+<p>This text contains <b>bold</b>, <i>italics</i>, <a href="https://cerb.ai/">links</a>, and <code>code formatting</code>.</p>
+<blockquote>This text is quoted.</blockquote>
+<p>This is an unordered list:<ul><li>red</li><li>green</li><li>blue</li></ul></p>
+<p>This is an ordered list:<ol><li>one</li><li>two</li><li>three</li></ol></p>
+<p>Some preformatted text:</p>
+<pre><code>function double(\$n) {
+  return intval(\$n) * 2;
+}
+</code></pre>
+EOD;
+		
 		$dict = DevblocksDictionaryDelegate::instance([
-			'message_body' => '<blockquote>This text is quoted.</blockquote><p>This text contains <b>bold</b>, <i>italics</i>, <a href="javascript:;">links</a>, and <code>code formatting</code>.</p><p><ul><li>These are unordered</li><li>list items</li></ul></p>',
+			'message_body' => $message_body,
+			'group__context' => CerberusContexts::CONTEXT_GROUP,
+			'group_id' => $random_group->id ?? 0,
+			'bucket__context' => CerberusContexts::CONTEXT_BUCKET,
+			'bucket_id' => @$random_group->getDefaultBucket()->id ?? 0,
+			'message_id_header' => sprintf("<%s@message.example>", sha1(random_bytes(32))),
 		]);
 		
 		$output = $tpl_builder->build($template, $dict);

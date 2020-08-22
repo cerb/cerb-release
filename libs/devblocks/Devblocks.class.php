@@ -457,9 +457,15 @@ class DevblocksPlatform extends DevblocksEngine {
 		
 		if(!$format) {
 			$formats = [
+				'hourofday' => '%H:00',
+				'hour' => '%Y-%m-%d %H:00',
 				'day' => '%Y-%m-%d',
+				'dayofmonth' => '%d',
+				'dayofweek' => '%A',
 				'week' => '%Y-%m-%d',
+				'weekofyear' => '%U',
 				'month' => '%Y-%m',
+				'monthofyear' => '%B',
 				'year' => '%Y',
 			];
 			
@@ -467,6 +473,16 @@ class DevblocksPlatform extends DevblocksEngine {
 				return [];
 			
 			$format = $formats[$step];
+		}
+		
+		if($step == 'dayofmonth' || $step == 'dayofweek') {
+			$step = 'day';
+		} else if($step == 'hourofday') {
+			$step = 'hour';
+		} else if($step == 'monthofyear') {
+			$step = 'month';
+		} else if($step == 'weekofyear') {
+			$step = 'week';
 		}
 		
 		$ts = strtotime(min($array));
@@ -480,7 +496,12 @@ class DevblocksPlatform extends DevblocksEngine {
 			if(!array_key_exists($tick, $values))
 				$values[$tick] = 0;
 			
-			$ts = strtotime(sprintf('+1 %s', $step), $ts);
+			$next_ts = strtotime(sprintf('+1 %s', $step), $ts);
+			
+			if($next_ts == $ts)
+				break;
+			
+			$ts = $next_ts;
 		}
 		
 		$values = array_keys($values);
