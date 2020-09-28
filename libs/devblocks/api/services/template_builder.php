@@ -170,8 +170,10 @@ class _DevblocksTemplateBuilder {
 				'cerb_translate',
 				'context_alias',
 				'context_name',
+				'csv',
 				'date_pretty',
 				'hash_hmac',
+				'indent',
 				'json_pretty',
 				'markdown_to_html',
 				'md5',
@@ -226,7 +228,9 @@ class _DevblocksTemplateBuilder {
 				'array_column',
 				'array_combine',
 				'array_diff',
+				'array_filter_keys',
 				'array_intersect',
+				'array_matches',
 				'array_sort_keys',
 				'array_unique',
 				'array_values',
@@ -1048,7 +1052,9 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFunction('array_column', [$this, 'function_array_column']),
 			new \Twig\TwigFunction('array_combine', [$this, 'function_array_combine']),
 			new \Twig\TwigFunction('array_diff', [$this, 'function_array_diff']),
+			new \Twig\TwigFunction('array_filter_keys', [$this, 'function_array_filter_keys']),
 			new \Twig\TwigFunction('array_intersect', [$this, 'function_array_intersect']),
+			new \Twig\TwigFunction('array_matches', [$this, 'function_array_matches']),
 			new \Twig\TwigFunction('array_sort_keys', [$this, 'function_array_sort_keys']),
 			new \Twig\TwigFunction('array_unique', [$this, 'function_array_unique']),
 			new \Twig\TwigFunction('array_values', [$this, 'function_array_values']),
@@ -1095,6 +1101,34 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 		return array_combine($keys, $values);
 	}
 	
+	function function_array_matches($array, $patterns) {
+		if(is_string($array))
+			$array = [$array];
+		
+		if(!is_array($array))
+			return [];
+		
+		if(is_string($patterns))
+			$patterns = [$patterns];
+		
+		if(!is_array($patterns))
+			return [];
+		
+		$matched = [];
+		
+		foreach($patterns as $pattern) {
+			$pattern = DevblocksPlatform::strToRegExp($pattern);
+			
+			foreach($array as $idx => $value) {
+				if(preg_match($pattern, $value)) {
+					$matched[] = $value;
+				}
+			}
+		}
+		
+		return $matched;
+	}
+	
 	function function_array_diff($arr1, $arr2) {
 		if(!is_array($arr1) && is_null($arr1))
 			$arr1 = [];
@@ -1106,6 +1140,29 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			return;
 		
 		return array_diff($arr1, $arr2);
+	}
+	
+	function function_array_filter_keys($array, $keys) {
+		if(!is_array($array) || !is_array($keys))
+			return [];
+		
+		$keys = array_fill_keys($keys, true);
+		
+		$array = array_map(function($row) use ($keys) {
+			if (is_array($row)) {
+				true;
+			} else if (is_object($row)) {
+				$row = DevblocksPlatform::objectToArray($row);
+			} else if (is_string($row) || is_numeric($row)) {
+				$row = [$row];
+			} else {
+				$row = [];
+			}
+			
+			return array_intersect_key($row, $keys);
+		}, $array);
+		
+		return $array;
 	}
 	
 	function function_array_intersect($arr1, $arr2) {
@@ -1440,8 +1497,10 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFilter('cerb_translate', [$this, 'filter_cerb_translate']),
 			new \Twig\TwigFilter('context_alias', [$this, 'filter_context_alias']),
 			new \Twig\TwigFilter('context_name', [$this, 'filter_context_name']),
+			new \Twig\TwigFilter('csv', [$this, 'filter_csv']),
 			new \Twig\TwigFilter('date_pretty', [$this, 'filter_date_pretty']),
 			new \Twig\TwigFilter('hash_hmac', [$this, 'filter_hash_hmac']),
+			new \Twig\TwigFilter('indent', [$this, 'filter_indent']),
 			new \Twig\TwigFilter('json_pretty', [$this, 'filter_json_pretty']),
 			new \Twig\TwigFilter('markdown_to_html', [$this, 'filter_markdown_to_html']),
 			new \Twig\TwigFilter('md5', [$this, 'filter_md5']),
@@ -1571,6 +1630,31 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 		return '';
 	}
 	
+	function filter_csv($array) {
+		if (!is_array($array))
+			return null;
+		
+		$fp = fopen('php://temp/maxmemory:5242880', 'rw');
+		
+		if(!$fp)
+			return null;
+		
+		foreach ($array as $row) {
+			if(!is_array($row))
+				continue;
+		
+			fputcsv($fp, $row);
+		}
+		
+		rewind($fp);
+		
+		$results = stream_get_contents($fp);
+		
+		fclose($fp);
+		
+		return $results;
+	}
+	
 	function filter_date_pretty($string, $is_delta=false) {
 		if($string instanceof Twig\Markup)
 			$string = strval($string);
@@ -1596,6 +1680,20 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			return '';
 		
 		return $hash;
+	}
+	
+	function filter_indent($string, $marker='', $from_line=0) {
+		if($string instanceof Twig\Markup)
+			$string = strval($string);
+		
+		if(!is_string($string)
+			|| empty($string)
+			)
+			return '';
+		
+		$from_line = intval($from_line);
+			
+		return DevblocksPlatform::services()->string()->indentWith($string, $marker, $from_line);
 	}
 	
 	function filter_json_pretty($string) {
