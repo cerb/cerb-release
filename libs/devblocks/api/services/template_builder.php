@@ -173,6 +173,7 @@ class _DevblocksTemplateBuilder {
 				'csv',
 				'date_pretty',
 				'hash_hmac',
+				'image_info',
 				'indent',
 				'json_pretty',
 				'markdown_to_html',
@@ -232,6 +233,7 @@ class _DevblocksTemplateBuilder {
 				'array_intersect',
 				'array_matches',
 				'array_sort_keys',
+				'array_sum',
 				'array_unique',
 				'array_values',
 				'cerb_avatar_image',
@@ -243,6 +245,8 @@ class _DevblocksTemplateBuilder {
 				'cerb_record_readable',
 				'cerb_record_writeable',
 				'cerb_url',
+				'clamp_float',
+				'clamp_int',
 				'dict_set',
 				'dict_unset',
 				'json_decode',
@@ -1056,6 +1060,7 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFunction('array_intersect', [$this, 'function_array_intersect']),
 			new \Twig\TwigFunction('array_matches', [$this, 'function_array_matches']),
 			new \Twig\TwigFunction('array_sort_keys', [$this, 'function_array_sort_keys']),
+			new \Twig\TwigFunction('array_sum', [$this, 'function_array_sum']),
 			new \Twig\TwigFunction('array_unique', [$this, 'function_array_unique']),
 			new \Twig\TwigFunction('array_values', [$this, 'function_array_values']),
 			new \Twig\TwigFunction('cerb_avatar_image', [$this, 'function_cerb_avatar_image']),
@@ -1067,6 +1072,8 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFunction('cerb_record_readable', [$this, 'function_cerb_record_readable']),
 			new \Twig\TwigFunction('cerb_record_writeable', [$this, 'function_cerb_record_writeable']),
 			new \Twig\TwigFunction('cerb_url', [$this, 'function_cerb_url']),
+			new \Twig\TwigFunction('clamp_float', [$this, 'function_clamp_float']),
+			new \Twig\TwigFunction('clamp_int', [$this, 'function_clamp_int']),
 			new \Twig\TwigFunction('dict_set', [$this, 'function_dict_set']),
 			new \Twig\TwigFunction('dict_unset', [$this, 'function_dict_unset']),
 			new \Twig\TwigFunction('json_decode', [$this, 'function_json_decode']),
@@ -1189,6 +1196,13 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 		ksort($arr);
 		
 		return $arr;
+	}
+	
+	function function_array_sum($arr) {
+		if(!is_array($arr))
+			return false;
+		
+		return array_sum($arr);
 	}
 	
 	function function_array_unique($arr) {
@@ -1349,6 +1363,26 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 		return CerberusApplication::generatePassword($length);
 	}
 	
+	function function_clamp_float($string, $min=PHP_FLOAT_MIN, $max=PHP_FLOAT_MAX) {
+		if($string instanceof Twig\Markup)
+			$string = strval($string);
+		
+		if(!is_numeric($string))
+			return false;
+		
+		return DevblocksPlatform::floatClamp($string, $min, $max);
+	}
+	
+	function function_clamp_int($string, $min=PHP_INT_MIN, $max=PHP_INT_MAX) {
+		if($string instanceof Twig\Markup)
+			$string = strval($string);
+		
+		if(!is_numeric($string))
+			return false;
+		
+		return DevblocksPlatform::intClamp($string, $min, $max);
+	}
+	
 	function function_dict_set($var, $path, $val) {
 		return DevblocksPlatform::arrayDictSet($var, $path, $val);
 	}
@@ -1504,6 +1538,7 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFilter('csv', [$this, 'filter_csv']),
 			new \Twig\TwigFilter('date_pretty', [$this, 'filter_date_pretty']),
 			new \Twig\TwigFilter('hash_hmac', [$this, 'filter_hash_hmac']),
+			new \Twig\TwigFilter('image_info', [$this, 'filter_image_info']),
 			new \Twig\TwigFilter('indent', [$this, 'filter_indent']),
 			new \Twig\TwigFilter('json_pretty', [$this, 'filter_json_pretty']),
 			new \Twig\TwigFilter('markdown_to_html', [$this, 'filter_markdown_to_html']),
@@ -1684,6 +1719,44 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			return '';
 		
 		return $hash;
+	}
+	
+	function filter_image_info($image_bytes) {
+		$image_info = [];
+		
+		try {
+			if(DevblocksPlatform::strStartsWith($image_bytes, 'data:')) {
+				if(false === ($pos = stripos($image_bytes, ';base64,')))
+					throw new Exception_DevblocksValidationError("No base64 encoded image data.");
+				
+				$image_bytes = substr($image_bytes, $pos + 8);
+				
+				if(false == ($image_bytes = base64_decode($image_bytes)))
+					throw new Exception_DevblocksValidationError("Failed to base64 decode image bytes.");
+			}
+				
+			if(false == (@$size_data = getimagesizefromstring($image_bytes)))
+				throw new Exception_DevblocksValidationError("Failed to determine image dimensions.");
+			
+			$image_info['width'] = $size_data[0];
+			$image_info['height'] = $size_data[1];
+			
+			if(array_key_exists('2', $size_data))
+				$image_info['channels'] = $size_data[2];
+			
+			if(array_key_exists('bits', $size_data))
+				$image_info['bits'] = $size_data['bits'];
+			
+			if(array_key_exists('mime', $size_data))
+				$image_info['type'] = $size_data['mime'];
+			
+		} catch (Exception_DevblocksValidationError $e) {
+			return [
+				'_error' => $e->getMessage()
+			];
+		}
+		
+		return $image_info;
 	}
 	
 	function filter_indent($string, $marker='', $from_line=0) {
