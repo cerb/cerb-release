@@ -43,7 +43,7 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 			],
 			[
 				'key' => 'worker_*',
-				'notes' => 'The active worker record. Supports key expansion.',
+				'notes' => 'The active [worker](https://cerb.ai/docs/records/types/worker/#dictionary-placeholders) record. Supports key expansion.',
 			],
 		];
 	}
@@ -282,7 +282,14 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 					'filtering@bool: yes',
 					'headings@bool: yes',
 					'paging@bool: yes',
+					'style: table',
 					'title_column:',
+				],
+				'(.*):await:form:elements:sheet:schema:layout:style' => [
+					'buttons',
+					'fieldsets',
+					'grid',
+					'table',
 				],
 				
 				'(.*):await:form:elements:text:' => [

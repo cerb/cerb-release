@@ -39,7 +39,7 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2021041901);
+define("APP_BUILD", 2021042101);
 define("APP_VERSION", '10.0.0');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
@@ -2534,6 +2534,7 @@ class CerberusContexts {
 			$record_labels = array_column($dicts, '_label', 'id');
 		}
 		
+		if(count($record_ids) === count($record_labels))
 		foreach(array_combine($record_ids, $record_labels) as $record_id => $record_label) {
 			$entry = [
 				// {{actor}} deleted {{record_type}} `{{record_label}}` (#{{record_id}})

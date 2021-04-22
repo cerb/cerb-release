@@ -1958,7 +1958,7 @@ abstract class C4_AbstractView {
 					break;
 					
 				case Model_CustomField::TYPE_CURRENCY:
-					@$currency_id = $cfield->params['currency_id'];
+					$currency_id = $cfield->params['currency_id'] ?? 0;
 					
 					if(!$currency_id || false == ($currency = DAO_Currency::get($currency_id)))
 						break;
@@ -1991,10 +1991,16 @@ abstract class C4_AbstractView {
 						);
 					break;
 					
+				case Model_CustomField::TYPE_FILE:
+				case Model_CustomField::TYPE_FILES:
 				case Model_CustomField::TYPE_LINK:
 					$search_field_meta['type'] = DevblocksSearchCriteria::TYPE_VIRTUAL;
 					
-					@$link_context_id = $cfield->params['context'];
+					if(in_array($cfield->type, [Model_CustomField::TYPE_FILE,Model_CustomField::TYPE_FILES])) {
+						$link_context_id = CerberusContexts::CONTEXT_ATTACHMENT;
+					} else {
+						$link_context_id = $cfield->params['context'] ?? null;
+					}
 					
 					// Deep search links
 					
@@ -2048,22 +2054,14 @@ abstract class C4_AbstractView {
 					break;
 					
 				case Model_CustomField::TYPE_MULTI_LINE:
+				case Model_CustomField::TYPE_SINGLE_LINE:
+				case Model_CustomField::TYPE_URL:
 					$search_field_meta['type'] = DevblocksSearchCriteria::TYPE_TEXT;
 					$search_field_meta['options']['match'] = DevblocksSearchCriteria::OPTION_TEXT_PARTIAL;
 					break;
 					
 				case Model_CustomField::TYPE_NUMBER:
 					$search_field_meta['type'] = DevblocksSearchCriteria::TYPE_NUMBER;
-					break;
-					
-				case Model_CustomField::TYPE_SINGLE_LINE:
-					$search_field_meta['type'] = DevblocksSearchCriteria::TYPE_TEXT;
-					$search_field_meta['options']['match'] = DevblocksSearchCriteria::OPTION_TEXT_PARTIAL;
-					break;
-					
-				case Model_CustomField::TYPE_URL:
-					$search_field_meta['type'] = DevblocksSearchCriteria::TYPE_TEXT;
-					$search_field_meta['options']['match'] = DevblocksSearchCriteria::OPTION_TEXT_PARTIAL;
 					break;
 					
 				case Model_CustomField::TYPE_WORKER:
