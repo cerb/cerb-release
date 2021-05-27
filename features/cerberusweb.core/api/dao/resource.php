@@ -276,6 +276,8 @@ class DAO_Resource extends Cerb_ORMHelper {
 		if(empty($ids))
 			return;
 		
+		Storage_Resource::delete($ids);
+		
 		$ids_list = implode(',', $ids);
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM resource WHERE id IN (%s)", $ids_list));
@@ -1230,7 +1232,7 @@ class Context_Resource extends Extension_DevblocksContext implements IDevblocksC
 		// Only admin workers can modify
 		
 		if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor)))
-			CerberusContexts::denyEverything($models);
+			return CerberusContexts::denyEverything($models);
 		
 		if(CerberusContexts::isActorAnAdmin($actor))
 			return CerberusContexts::allowEverything($models);

@@ -39,7 +39,7 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2021051001);
+define("APP_BUILD", 2021052601);
 define("APP_VERSION", '10.0.1');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
@@ -1613,7 +1613,7 @@ class CerberusContexts {
 	public static function isWriteableByDelegateOwner($actor, $context, $models, $owner_key_prefix='owner_', $ignore_admins=false, $allow_unassigned=false) {
 		if(!($actor instanceof DevblocksDictionaryDelegate))
 			if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor)))
-				CerberusContexts::denyEverything($models);
+				return CerberusContexts::denyEverything($models);
 
 		// Admins can do whatever they want
 		if(!$ignore_admins && CerberusContexts::isActorAnAdmin($actor))
@@ -2592,7 +2592,7 @@ class Context_Application extends Extension_DevblocksContext implements IDevbloc
 		// Only admin workers can modify
 
 		if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor)))
-			CerberusContexts::denyEverything($models);
+			return CerberusContexts::denyEverything($models);
 
 		if(CerberusContexts::isActorAnAdmin($actor))
 			return CerberusContexts::allowEverything($models);
