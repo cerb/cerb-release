@@ -2512,7 +2512,9 @@ abstract class C4_AbstractView {
 					break;
 					
 				case 'virtual':
-					if('search' == @$query_field['examples'][0]['type']) {
+					$field_type = $query_field['examples'][0]['type'] ?? null;
+					
+					if('search' == $field_type) {
 						$suggestion = [
 							'caption' => $suggestion_key,
 							'snippet' => $suggestion_key . '(${1})',
@@ -2520,7 +2522,7 @@ abstract class C4_AbstractView {
 						
 						$suggestions['_contexts'][$suggestion_key] = $query_field['examples'][0]['context'];
 						
-					} else if('chooser' == @$query_field['examples'][0]['type']) {
+					} else if('chooser' == $field_type) {
 						$suggestion = [
 							'caption' => $suggestion_key,
 							'snippet' => $suggestion_key . '[${1}]',
@@ -3720,10 +3722,14 @@ abstract class C4_AbstractView {
 						
 						// Rewrite the results
 						$counts = array_map(function($v) use ($dicts) {
-							$dict = $dicts[$v['label']];
-							$v['label'] = $dict->_label;
-							$v['filter']['oper'] = DevblocksSearchCriteria::OPER_EQ;
-							$v['filter']['values'] = ['context_id' => $dict->id];
+							if(array_key_exists($v['label'], $dicts)) {
+								$dict = $dicts[$v['label']];
+								$v['label'] = $dict->_label;
+								$v['filter']['oper'] = DevblocksSearchCriteria::OPER_EQ;
+								$v['filter']['values'] = ['context_id' => $dict->id];
+								return $v;
+							}
+							
 							return $v;
 						}, $counts);
 						
