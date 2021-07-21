@@ -947,8 +947,11 @@ class View_Bot extends C4_AbstractView implements IAbstractView_Subtotals, IAbst
 				),
 			'watchers' => 
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_WORKER,
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Bot::VIRTUAL_WATCHERS),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					],
 				),
 		);
 		
@@ -979,8 +982,10 @@ class View_Bot extends C4_AbstractView implements IAbstractView_Subtotals, IAbst
 		switch($field) {
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
-				break;
 			
+			case 'watchers':
+				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_Bot::VIRTUAL_WATCHERS, $tokens);
+				
 			default:
 				if($field == 'owner' || substr($field, 0, strlen('owner.')) == 'owner.')
 					return DevblocksSearchCriteria::getVirtualContextParamFromTokens($field, $tokens, 'owner', SearchFields_Bot::VIRTUAL_OWNER);
@@ -990,10 +995,7 @@ class View_Bot extends C4_AbstractView implements IAbstractView_Subtotals, IAbst
 				
 				$search_fields = $this->getQuickSearchFields();
 				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
-				break;
 		}
-		
-		return false;
 	}
 	
 	function render() {

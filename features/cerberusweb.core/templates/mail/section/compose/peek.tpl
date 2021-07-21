@@ -20,7 +20,7 @@
 			<select name="group_id">
 				{foreach from=$groups item=group key=group_id}
 				{if $active_worker->isGroupMember($group_id)}
-				<option value="{$group_id}" member="true" {if $defaults.group_id == $group_id}selected="selected"{/if}>{$group->name}</option>
+				<option value="{$group_id}" member="true" {if $draft->params.group_id == $group_id}selected="selected"{/if}>{$group->name}</option>
 				{/if}
 				{/foreach}
 			</select>
@@ -31,8 +31,8 @@
 			</select>
 			<select name="bucket_id">
 				{foreach from=$buckets item=bucket key=bucket_id}
-					{if $bucket->group_id == $defaults.group_id}
-					<option value="{$bucket_id}" {if $defaults.bucket_id == $bucket_id}selected="selected"{/if}>{$bucket->name}</option>
+					{if $bucket->group_id == $draft->params.group_id}
+					<option value="{$bucket_id}" {if $draft->params.bucket_id == $bucket_id}selected="selected"{/if}>{$bucket->name}</option>
 					{/if}
 				{/foreach}
 			</select>
@@ -41,13 +41,13 @@
 	<tr>
 		<td width="0%" nowrap="nowrap" valign="top" align="right">{'common.organization'|devblocks_translate|capitalize}:&nbsp;</td>
 		<td width="100%">
-			<input type="text" name="org_name" value="{if !empty($org)}{$org}{else}{$draft->params.org_name}{/if}" style="border:1px solid rgb(180,180,180);padding:2px;width:98%;" placeholder="(optional) Link this ticket to an organization for suggested recipients">
+			<input type="text" name="org_name" value="{$draft->params.org_name}" style="border:1px solid rgb(180,180,180);padding:2px;width:98%;" placeholder="(optional) Link this ticket to an organization for suggested recipients">
 		</td>
 	</tr>
 	<tr>
 		<td width="0%" nowrap="nowrap" valign="top" align="right"><a href="javascript:;" class="cerb-recipient-chooser" data-context="{CerberusContexts::CONTEXT_ADDRESS}" data-query="">{'message.header.to'|devblocks_translate|capitalize}</a>:&nbsp;</td>
 		<td width="100%">
-			<input type="text" name="to" id="emailinput{$popup_uniqid}" value="{if $to}{$to}{elseif $draft}{$draft->getParam('to')}{/if}" style="border:1px solid rgb(180,180,180);padding:2px;width:98%;" placeholder="These recipients will automatically be included in all future correspondence">
+			<input type="text" name="to" id="emailinput{$popup_uniqid}" value="{$draft->getParam('to')}" style="border:1px solid rgb(180,180,180);padding:2px;width:98%;" placeholder="These recipients will automatically be included in all future correspondence">
 
 			<div id="compose_suggested{$popup_uniqid}" style="display:none;">
 				<a href="javascript:;" onclick="$(this).closest('div').hide();">x</a>
@@ -113,13 +113,7 @@
 						<button type="button" title="{'common.encrypt.sign'|devblocks_translate|capitalize}" class="cerb-code-editor-toolbar-button cerb-reply-editor-toolbar-button--sign {if $draft->params.options_gpg_sign}cerb-code-editor-toolbar-button--enabled{/if}"><span class="glyphicons {if $draft->params.options_gpg_sign}glyphicons-user-lock{else}glyphicons-user{/if}"></span></button>
 					</div>
 
-					<textarea id="divComposeContent{$popup_uniqid}" name="content" style="box-sizing:border-box;">{if $draft && $draft->getParam('content')}{$draft->getParam('content')}{else}{if $defaults.signature_pos}
-
-
-
-#signature
-#cut
-{/if}{/if}</textarea>
+					<textarea id="divComposeContent{$popup_uniqid}" name="content" style="box-sizing:border-box;">{$draft->getParam('content')}</textarea>
 				</div>
 
 				<div id="compose{$popup_uniqid}EditorPreviewPanel" style="min-height:100px;max-height:400px;overflow:auto;border:1px dotted rgb(150,150,150);padding:5px;"></div>
@@ -164,11 +158,11 @@
 	<div>
 		<b>{'common.status'|devblocks_translate|capitalize}:</b>
 
-		<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+O)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_OPEN}" class="status_open" {if $defaults.status=='open'}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','none');"> {'status.open'|devblocks_translate}</label>
-		<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+W)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_WAITING}" class="status_waiting" {if $defaults.status=='waiting'}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','block');"> {'status.waiting'|devblocks_translate}</label>
-		{if $active_worker->hasPriv('core.ticket.actions.close')}<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+C)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_CLOSED}" class="status_closed" {if $defaults.status=='closed'}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','block');"> {'status.closed'|devblocks_translate}</label>{/if}
+		<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+O)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_OPEN}" class="status_open" {if $draft->params.status_id==Model_Ticket::STATUS_OPEN}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','none');"> {'status.open'|devblocks_translate}</label>
+		<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+W)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_WAITING}" class="status_waiting" {if $draft->params.status_id==Model_Ticket::STATUS_WAITING}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','block');"> {'status.waiting'|devblocks_translate}</label>
+		{if $active_worker->hasPriv('core.ticket.actions.close')}<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+C)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_CLOSED}" class="status_closed" {if $draft->params.status_id==Model_Ticket::STATUS_CLOSED}checked="checked"{/if} onclick="toggleDiv('divComposeClosed{$popup_uniqid}','block');"> {'status.closed'|devblocks_translate}</label>{/if}
 
-		<div id="divComposeClosed{$popup_uniqid}" style="display:{if $defaults.status=='open'}none{else}block{/if};margin:5px 0px 10px 20px;">
+		<div id="divComposeClosed{$popup_uniqid}" style="display:{if $draft->params.status_id==Model_Ticket::STATUS_OPEN}none{else}block{/if};margin:5px 0px 10px 20px;">
 			<b>{'display.reply.next.resume'|devblocks_translate}</b><br>
 			{'display.reply.next.resume_eg'|devblocks_translate}<br>
 			<input type="text" name="ticket_reopen" size="64" class="input_date" value="{$draft->params.ticket_reopen}"><br>
@@ -216,9 +210,6 @@
 	</div>
 </fieldset>
 
-{$custom_field_values = $draft->params.custom_fields}
-{$custom_fieldsets_available = DAO_CustomFieldset::getUsableByActorByContext($active_worker, CerberusContexts::CONTEXT_TICKET)}
-
 {if $custom_fields || $custom_fieldsets_available}
 <fieldset class="peek" style="{if $custom_fieldsets_available}padding-bottom:0px;{/if}">
 	<legend>
@@ -229,11 +220,11 @@
 
 	<div style="{if $custom_fields}{else}display:none;{/if}">
 		{if !empty($custom_fields)}
-			{include file="devblocks:cerberusweb.core::internal/custom_fields/bulk/form.tpl" bulk=false}
+			{include file="devblocks:cerberusweb.core::internal/custom_fields/bulk/form.tpl" bulk=false custom_fields_expanded=$draft->params.custom_fields}
 		{/if}
 	</div>
 
-	{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_TICKET bulk=false custom_fieldsets_available=$custom_fieldsets_available}
+	{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_TICKET context_id=0 bulk=true custom_fieldsets_available=$custom_fieldsets_available custom_fieldsets_linked=$custom_fieldsets_linked custom_fields_expanded=$draft->params.custom_fields}
 </fieldset>
 {/if}
 
@@ -251,19 +242,6 @@
 	</div>
 </fieldset>
 
-<div class="status"></div>
-
-<div class="help-box submit-no-recipients" style="display:none;">
-	<h1>You haven't specified any recipients.</h1>
-	<p>
-		A new ticket will be created without sending any email.
-		This is normal if you're working on an issue and you plan to add an email address later (e.g. phone call).
-	</p>
-	<p>
-		If this isn't what you meant to do, add a recipient in the <b>To:</b> field above.
-	</p>
-</div>
-
 <div class="submit-normal">
 	<button type="button" class="submit" title="{if $pref_keyboard_shortcuts}(Ctrl+Shift+Enter){/if}"><span class="glyphicons glyphicons-send"></span> {'display.ui.send_message'|devblocks_translate}</button>
 	<button type="button" class="draft"><span class="glyphicons glyphicons-disk-save"></span> {'display.ui.continue_later'|devblocks_translate}</button>
@@ -273,15 +251,25 @@
 
 <script type="text/javascript">
 $(function() {
-	if(undefined === draftComposeAutoSaveInterval)
-		var draftComposeAutoSaveInterval = null;
+	var draftComposeAutoSaveInterval = null;
 
-	var $popup = genericAjaxPopupFind('#frmComposePeek{$popup_uniqid}');
+	var $frm = $('#frmComposePeek{$popup_uniqid}');
+	var $popup = genericAjaxPopupFind($frm);
 
+	function enableAutoSaveDraft() {
+		if(null == draftComposeAutoSaveInterval)
+			draftComposeAutoSaveInterval = setInterval("$('#frmComposePeek{$popup_uniqid} .cerb-reply-editor-toolbar-button--save').click();", 30000);
+	}
+
+	function disableAutoSaveDraft() {
+		if(null != draftComposeAutoSaveInterval) {
+			clearInterval(draftComposeAutoSaveInterval);
+			draftComposeAutoSaveInterval = null;
+		}
+	}
+	
 	$popup.one('popup_open',function(event,ui) {
 		$popup.dialog('option','title','{'mail.send_mail'|devblocks_translate|capitalize|escape:'javascript' nofilter}');
-		
-		var $frm = $('#frmComposePeek{$popup_uniqid}');
 		
 		// Close confirmation
 		
@@ -364,12 +352,11 @@ $(function() {
 					
 					if(typeof event.values == "object" && event.values.length > 0) {
 						var val = $input.val();
-						if(val.length > 0 && val.trim().substr(-1) != ',') {
-							var new_val = val + ', ' + event.labels.join(', ');
-							$input.val(new_val);
+						
+						if(val.length > 0 && val.trim().substr(-1) !== ',') {
+							$input.val(val + ', ' + event.labels.join(', '));
 						} else {
-							var new_val = val + (val.length == 0 || val.substr(-1) == ' ' ? '' : ' ') + event.labels.join(', ');
-							$input.val(new_val);
+							$input.val(val + (0 === val.length || val.substr(-1) === ' ' ? '' : ' ') + event.labels.join(', '));
 						}
 					}
 				});
@@ -605,7 +592,7 @@ $(function() {
 
 		// Snippets
 		$editor_toolbar.on('cerb-editor-toolbar-snippet-inserted', function(event) {
-			if(undefined == event.snippet_id)
+			if(!event.hasOwnProperty('snippet_id'))
 				return;
 
 			var formData = new FormData();
@@ -618,7 +605,7 @@ $(function() {
 
 			genericAjaxPost(formData, null, null, function (json) {
 				// If the content has placeholders, use that popup instead
-				if (json.has_prompts) {
+				if (json.hasOwnProperty('has_prompts')) {
 					var $popup_paste = genericAjaxPopup('snippet_paste', 'c=profiles&a=invoke&module=snippet&action=getPrompts&id=' + encodeURIComponent(json.id) + '&context_id=' + encodeURIComponent(json.context_id), null, false, '50%');
 
 					$popup_paste.bind('snippet_paste', function (event) {
@@ -673,18 +660,6 @@ $(function() {
 			
 			$bucket.focus();
 		});
-		
-		$frm.find('input:text[name=to]').on('change keyup', function(event) {
-			var $input = $(this);
-			
-			if($input.val().length > 0) {
-				$frm.find('div.submit-no-recipients').hide();
-				
-			} else {
-				$frm.find('div.submit-no-recipients').show();
-				
-			}
-		}).trigger('change');
 		
 		$frm.find('input:text[name=to], input:text[name=cc], input:text[name=bcc]').focus(function(event) {
 			$('#compose_suggested{$popup_uniqid}').appendTo($(this).closest('td'));
@@ -767,14 +742,29 @@ $(function() {
 				.focus()
 			;
 		});
-
-		draftComposeAutoSaveInterval = setInterval(function() {
-			$editor_toolbar_button_save_draft.click();
-		}, 30000); // and every 30 sec
 		
+		enableAutoSaveDraft();
+
 		// Shortcuts
 
 		{if $pref_keyboard_shortcuts}
+			var toolbarShortcutTrigger = function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				$editor_toolbar.find('[data-interaction-keyboard="' + this.keys + '"]').click();
+				return true;
+			};
+	
+			{if $toolbar_keyboard_shortcuts}
+			{foreach from=$toolbar_keyboard_shortcuts item=toolbar_keyboard_shortcut}
+			$editor.bind(
+				'keydown',
+				{$toolbar_keyboard_shortcut.keys|json_encode nofilter},
+				toolbarShortcutTrigger.bind({$toolbar_keyboard_shortcut|json_encode nofilter})
+			);
+			{/foreach}
+			{/if}
+	
 			// Send focus
 			$editor.bind('keydown', 'ctrl+return alt+return meta+return', function(e) {
 				e.preventDefault();
@@ -865,7 +855,7 @@ $(function() {
 						if(matches)
 							prefix = matches[1];
 
-						if(prefix != last_prefix)
+						if(prefix !== last_prefix)
 							bins.push({ prefix:prefix, lines:[] });
 
 						// Strip the prefix
@@ -877,7 +867,7 @@ $(function() {
 						last_prefix = prefix;
 					}
 
-					// Rewrap quoted blocks
+					// Re-wrap quoted blocks
 					for(var i in bins) {
 						prefix = bins[i].prefix;
 						var l = 0;
@@ -936,86 +926,220 @@ $(function() {
 			hideLoadingPanel();
 		});
 		
-		$frm.find('button.submit').click(function() {
-			var $status = $frm.find('div.status').html('').hide();
-			$status.text('').hide();
+		var funcValidationInteractions = function(json) {
+			var validation_interactions = Promise.resolve();
+			
+			if('object' != typeof json || !json.hasOwnProperty('validation_interactions'))
+				return validation_interactions;
+
+			for(var validation_interaction_key in json.validation_interactions) {
+				if(!json.validation_interactions.hasOwnProperty(validation_interaction_key))
+					continue;
+
+				var validation_interaction = json.validation_interactions[validation_interaction_key];
+
+				if(!validation_interaction.hasOwnProperty('data'))
+					continue;
+
+				validation_interactions = validation_interactions.then(function() {
+					return new Promise(function(resolve, reject) {
+						var interaction_params = '';
+
+						if(this.data.hasOwnProperty('inputs') && 'object' == typeof this.data.inputs)
+							interaction_params = $.param(this.data.inputs);
+						
+						var $interaction =
+							$('<div/>')
+								.attr('data-interaction-uri', this.data.uri)
+								.attr('data-interaction-params', interaction_params)
+								.attr('data-interaction-done', '')
+								.cerbBotTrigger({
+									'modal': true,
+									'caller': 'mail.compose.send',
+									'start': function(formData) {
+										var draft_id = $frm.find('input:hidden[name=draft_id]').val();
+										formData.set('caller[params][draft_id]', draft_id);	
+									},
+									'done': function(e) {
+										e.stopPropagation();
+										$interaction.remove();
+										
+										// If the interaction rejected validation
+										if(e.eventData.hasOwnProperty('exit') && 'return' === e.eventData.exit) {
+											if(e.eventData.hasOwnProperty('return') && e.eventData.return.hasOwnProperty('reject')) {
+												setTimeout(function() { $editor.focus(); }, 25);
+												reject(e);
+												return;
+											}
+										}
+										
+										resolve(e);
+									},
+									'error': function(e) {
+										reject(e);
+										setTimeout(function() { $editor.focus(); }, 25);
+									},
+									'abort': function(e) {
+										reject(e);
+										setTimeout(function() { $editor.focus(); }, 25);
+									}
+								})
+								.click()
+						;
+					}.bind(this));
+				}.bind(validation_interaction));
+			}
+			
+			return validation_interactions;
+		};		
+		
+		$frm.find('button.submit').click(function(e) {
+			e.stopPropagation();
+			
+			if(e.originalEvent && e.originalEvent.detail && e.originalEvent.detail > 1)
+				return;
+
+			var $button = $(this);
 
 			Devblocks.clearAlerts();
 			showLoadingPanel();
+			$button.closest('div').hide();
+			disableAutoSaveDraft();
+
+			var hookSuccess = function() {
+				showLoadingPanel();
+
+				$frm.find('input:hidden[name=compose_mode]').val('');
+
+				genericAjaxPost($frm, '', null, function(json) {
+					$popup.trigger('popup_saved');
+
+					var post_event = $.Event('cerb-compose-sent', {
+						record: json
+					});
+					genericAjaxPopupClose($popup, post_event);
+				});
+			};
+
+			var hookError = function(message) {
+				Devblocks.createAlertError(message);
+				$button.closest('div').show();
+				enableAutoSaveDraft();
+			};
 
 			var formData = new FormData($frm[0]);
 			formData.set('c', 'profiles');
 			formData.set('a', 'invoke');
 			formData.set('module', 'draft');
 			formData.set('action', 'validateComposeJson');
+			formData.set('compose_mode', 'send');
 
 			// Validate via Ajax before sending
 			genericAjaxPost(formData, '', '', function(json) {
-				if(json && json.status) {
-					if(null != draftComposeAutoSaveInterval) {
-						clearTimeout(draftComposeAutoSaveInterval);
-						draftComposeAutoSaveInterval = null;
-					}
+				hideLoadingPanel();
 
-					genericAjaxPost($frm, null, null,
-						function(json) {
-							$popup.trigger('popup_saved');
+				if(null == json || 'object' != typeof json)
+					return hookError('An unexpected error occurred. Try again.');
 
-							var post_event = $.Event('cerb-compose-sent', {
-								record: json
-							});
-							genericAjaxPopupClose($popup, post_event);
-						}
-					);
+				if(json.hasOwnProperty('validation_interactions') && 'object' == typeof json.validation_interactions) {
+					var validation_interactions = funcValidationInteractions(json);
+
+					validation_interactions
+						.then(function() {
+							hookSuccess();
+						})
+						.catch(function() {
+							// Aborted
+							enableAutoSaveDraft();
+						})
+						.finally(function() {
+							$button.closest('div').show();
+						})
+					;
+
+				} else if(json.hasOwnProperty('status') && json.status) {
+					hookSuccess();
 
 				} else {
-					hideLoadingPanel();
-					Devblocks.createAlertError(json.message);
+					hookError(json.message);
 				}
 			});
 		});
 
 		$frm.find('.draft').click(function(e) {
+			e.stopPropagation();
+			
 			if(e.originalEvent && e.originalEvent.detail && e.originalEvent.detail > 1)
 				return;
 
+			var $button = $(this);
+
 			Devblocks.clearAlerts();
 			showLoadingPanel();
+			$button.closest('div').hide();
+			disableAutoSaveDraft();
+
+			var hookSuccess = function() {
+				disableAutoSaveDraft();
+
+				var formData = new FormData($frm[0]);
+				formData.set('c', 'profiles');
+				formData.set('a', 'invoke');
+				formData.set('module', 'draft');
+				formData.set('action', 'saveDraftCompose');
+
+				genericAjaxPost(
+					formData,
+					null,
+					'',
+					function() {
+						genericAjaxGet('view{$view_id}','c=internal&a=invoke&module=worklists&action=refresh&id={$view_id}');
+						genericAjaxPopupClose($popup, $.Event('cerb-compose-draft'));
+					}
+				);
+			};
+
+			var hookError = function(message) {
+				Devblocks.createAlertError(message);
+				$button.closest('div').show();
+				enableAutoSaveDraft();
+			};
 
 			var formData = new FormData($frm[0]);
 			formData.set('c', 'profiles');
 			formData.set('a', 'invoke');
 			formData.set('module', 'draft');
 			formData.set('action', 'validateComposeJson');
+			formData.set('compose_mode', 'draft');
 
 			// Validate via Ajax before sending
 			genericAjaxPost(formData, '', '', function(json) {
-				if(json && json.status) {
-					if(null != draftComposeAutoSaveInterval) {
-						clearTimeout(draftComposeAutoSaveInterval);
-						draftComposeAutoSaveInterval = null;
-					}
+				hideLoadingPanel();
 
-					var formData = new FormData($frm[0]);
-					formData.set('c', 'profiles');
-					formData.set('a', 'invoke');
-					formData.set('module', 'draft');
-					formData.set('action', 'saveDraftCompose');
+				if(null == json || 'object' != typeof json)
+					return hookError('An unexpected error occurred. Try again.');
 
-					genericAjaxPost(
-						formData,
-						null,
-						'',
-						function() {
-							hideLoadingPanel();
-							genericAjaxGet('view{$view_id}','c=internal&a=invoke&module=worklists&action=refresh&id={$view_id}');
-							genericAjaxPopupClose($popup, $.Event('cerb-compose-draft'));
-						}
-					);
+				if(json.hasOwnProperty('validation_interactions') && 'object' == typeof json.validation_interactions) {
+					var validation_interactions = funcValidationInteractions(json);
+
+					validation_interactions
+						.then(function() {
+							hookSuccess();
+						})
+						.catch(function() {
+							// Aborted
+							enableAutoSaveDraft();
+						})
+						.finally(function() {
+							$button.closest('div').show();
+						})
+					;
+
+				} else if(json.hasOwnProperty('status') && json.status) {
+					hookSuccess();
 
 				} else {
-					hideLoadingPanel();
-					Devblocks.createAlertError(json.message);
+					hookError(json.message);
 				}
 			});
 		});
@@ -1026,10 +1150,7 @@ $(function() {
 			window.onbeforeunload = null;
 
 			if(confirm('Are you sure you want to discard this message?')) {
-				if(null != draftComposeAutoSaveInterval) {
-					clearTimeout(draftComposeAutoSaveInterval);
-					draftComposeAutoSaveInterval = null;
-				}
+				disableAutoSaveDraft();
 
 				var draft_id = $frm.find('input:hidden[name=draft_id]').val();
 
@@ -1047,7 +1168,7 @@ $(function() {
 			}
 		});
 
-		{if $org || $draft->params.org_name}
+		{if $draft->params.org_name}
 		$frm.find('input:text[name=org_name]').trigger('autocompletechange');
 		{/if}
 

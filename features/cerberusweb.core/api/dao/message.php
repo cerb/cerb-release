@@ -689,34 +689,8 @@ class DAO_Message extends Cerb_ORMHelper {
 		$sort_sql = $query_parts['sort'];
 		
 		if(!empty($fulltext_params)) {
-			$prefetch_sql = null;
-			
-			if(!empty($params)) {
-				$sort_by = 'm.id';
-				
-				// Optimize index usage if we're already constraining by date
-				if(false !== stripos($where_sql, 'created_date')) {
-					$sort_by = 'm.created_date';
-				}
-				
-				// We need this extra JOIN to be able to do the LIMIT (can't in subqueries)
-				/** @noinspection SqlResolve */
-				$prefetch_sql = 
-					sprintf('SELECT message.id FROM message INNER JOIN (SELECT m.id %s ORDER BY %s DESC LIMIT 20000) AS search ON (search.id=message.id)',
-						$join_sql . $where_sql,
-						$sort_by
-					);
-			}
-			
-			// Restrict the scope of the fulltext search to these IDs
-			if($prefetch_sql) {
-				foreach($fulltext_params as $param_key => $param) {
-					$where_sql .= 'AND ' . SearchFields_Message::getWhereSQL($param, array('prefetch_sql' => $prefetch_sql)) . ' ';
-				}
-			} else {
-				foreach($fulltext_params as $param_key => $param) {
-					$where_sql .= 'AND ' . SearchFields_Message::getWhereSQL($param) . ' ';
-				}
+			foreach ($fulltext_params as $param) {
+				$where_sql .= 'AND ' . SearchFields_Message::getWhereSQL($param) . ' ';
 			}
 		}
 		
@@ -775,7 +749,11 @@ class SearchFields_Message extends DevblocksSearchFields {
 	const VIRTUAL_NOTES_SEARCH = '*_notes_search';
 	const VIRTUAL_CONTEXT_LINK = '*_context_link';
 	const VIRTUAL_HAS_FIELDSET = '*_has_fieldset';
+	const VIRTUAL_HEADER_CC = '*_header_cc';
+	const VIRTUAL_HEADER_DELIVERED_TO = '*_header_delivered_to';
+	const VIRTUAL_HEADER_FROM = '*_header_from';
 	const VIRTUAL_HEADER_MESSAGE_ID = '*_header_message_id';
+	const VIRTUAL_HEADER_TO = '*_header_to';
 	const VIRTUAL_SENDER_SEARCH = '*_sender_search';
 	const VIRTUAL_TICKET_SEARCH = '*_ticket_search';
 	const VIRTUAL_WORKER_SEARCH = '*_worker_search';
@@ -796,10 +774,7 @@ class SearchFields_Message extends DevblocksSearchFields {
 		);
 	}
 	
-	static function getWhereSQL(DevblocksSearchCriteria $param, $options=[]) {
-		if(!is_array($options))
-			$options = [];
-		
+	static function getWhereSQL(DevblocksSearchCriteria $param) {
 		switch($param->field) {
 			case self::VIRTUAL_ATTACHMENTS_SEARCH:
 				return self::_getWhereSQLFromAttachmentsField($param, CerberusContexts::CONTEXT_MESSAGE, self::getPrimaryKey());
@@ -808,7 +783,7 @@ class SearchFields_Message extends DevblocksSearchFields {
 				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_COMMENT, sprintf('SELECT context_id FROM comment WHERE context = %s AND id IN (%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_MESSAGE), '%s'), self::getPrimaryKey());
 				
 			case self::MESSAGE_CONTENT:
-				return self::_getWhereSQLFromFulltextField($param, Search_MessageContent::ID, self::getPrimaryKey(), $options);
+				return self::_getWhereSQLFromFulltextField($param, Search_MessageContent::ID, self::getPrimaryKey());
 				
 			case self::FULLTEXT_NOTE_CONTENT:
 				return self::_getWhereSQLFromCommentFulltextField($param, Search_CommentContent::ID, CerberusContexts::CONTEXT_MESSAGE, self::getPrimaryKey());
@@ -834,6 +809,26 @@ class SearchFields_Message extends DevblocksSearchFields {
 						Cerb_ORMHelper::qstr($value)
 					);
 				}
+				
+			case self::VIRTUAL_HEADER_CC:
+			case self::VIRTUAL_HEADER_DELIVERED_TO:
+			case self::VIRTUAL_HEADER_FROM:
+			case self::VIRTUAL_HEADER_TO:
+				$header_names = [
+					self::VIRTUAL_HEADER_CC => 'cc',
+					self::VIRTUAL_HEADER_DELIVERED_TO => 'delivered-to',
+					self::VIRTUAL_HEADER_FROM => 'from',
+					self::VIRTUAL_HEADER_TO => 'to',
+				];
+				
+				if(null == ($header_name = $header_names[$param->field] ?? null))
+					return '0';
+				
+				$attributes = [
+					'header_name' => $header_name
+				];
+				
+				return self::_getWhereSQLFromFulltextField($param, Search_MessageHeaders::ID, self::getPrimaryKey(), $attributes);
 				
 			case self::VIRTUAL_SENDER_SEARCH:
 				return self::_getWhereSQLFromVirtualSearchField($param, CerberusContexts::CONTEXT_ADDRESS, 'm.address_id');
@@ -948,14 +943,14 @@ class SearchFields_Message extends DevblocksSearchFields {
 			case 'ticket.group':
 				$models = DAO_Group::getIds($values);
 				$label_map = array_column($models, 'name', 'id');
-				$label_map[0] = DevblocksPlatform::translate('common.none');
+				$label_map[0] = sprintf('(%s)', DevblocksPlatform::translate('common.none'));
 				return $label_map;
 	
 			case 'bucket':
 			case 'ticket.bucket':
 				$models = DAO_Bucket::getIds($values);
 				$label_map = array_column($models, 'name', 'id');
-				$label_map[0] = DevblocksPlatform::translate('common.none');
+				$label_map[0] = sprintf('(%s)', DevblocksPlatform::translate('common.none'));
 				return $label_map;
 				
 			case SearchFields_Message::TICKET_ID:
@@ -1038,8 +1033,12 @@ class SearchFields_Message extends DevblocksSearchFields {
 			SearchFields_Message::VIRTUAL_ATTACHMENTS_SEARCH => new DevblocksSearchField(SearchFields_Message::VIRTUAL_ATTACHMENTS_SEARCH, '*', 'attachments_search', null, null, false),
 			SearchFields_Message::VIRTUAL_NOTES_SEARCH => new DevblocksSearchField(SearchFields_Message::VIRTUAL_NOTES_SEARCH, '*', 'notes_search', null, null, false),
 			SearchFields_Message::VIRTUAL_CONTEXT_LINK => new DevblocksSearchField(SearchFields_Message::VIRTUAL_CONTEXT_LINK, '*', 'context_link', $translate->_('common.links'), null, false),
-			self::VIRTUAL_HAS_FIELDSET => new DevblocksSearchField(self::VIRTUAL_HAS_FIELDSET, '*', 'has_fieldset', $translate->_('common.fieldset'), null, false),
+			SearchFields_Message::VIRTUAL_HAS_FIELDSET => new DevblocksSearchField(SearchFields_Message::VIRTUAL_HAS_FIELDSET, '*', 'has_fieldset', $translate->_('common.fieldset'), null, false),
+			SearchFields_Message::VIRTUAL_HEADER_CC => new DevblocksSearchField(SearchFields_Message::VIRTUAL_HEADER_CC, '*', 'header_cc', $translate->_('message.search.header_cc'), Model_CustomField::TYPE_SINGLE_LINE, false),
+			SearchFields_Message::VIRTUAL_HEADER_DELIVERED_TO => new DevblocksSearchField(SearchFields_Message::VIRTUAL_HEADER_DELIVERED_TO, '*', 'header_message_id', $translate->_('message.search.header_delivered_to'), Model_CustomField::TYPE_SINGLE_LINE, false),
+			SearchFields_Message::VIRTUAL_HEADER_FROM => new DevblocksSearchField(SearchFields_Message::VIRTUAL_HEADER_FROM, '*', 'header_message_id', $translate->_('message.search.header_from'), Model_CustomField::TYPE_SINGLE_LINE, false),
 			SearchFields_Message::VIRTUAL_HEADER_MESSAGE_ID => new DevblocksSearchField(SearchFields_Message::VIRTUAL_HEADER_MESSAGE_ID, '*', 'header_message_id', $translate->_('message.search.header_message_id'), Model_CustomField::TYPE_SINGLE_LINE, false),
+			SearchFields_Message::VIRTUAL_HEADER_TO => new DevblocksSearchField(SearchFields_Message::VIRTUAL_HEADER_TO, '*', 'header_to', $translate->_('message.search.header_to'), Model_CustomField::TYPE_SINGLE_LINE, false),
 			SearchFields_Message::VIRTUAL_SENDER_SEARCH => new DevblocksSearchField(SearchFields_Message::VIRTUAL_SENDER_SEARCH, '*', 'sender_search', null, null, false),
 			SearchFields_Message::VIRTUAL_TICKET_SEARCH => new DevblocksSearchField(SearchFields_Message::VIRTUAL_TICKET_SEARCH, '*', 'ticket_search', null, null, false),
 			SearchFields_Message::VIRTUAL_WORKER_SEARCH => new DevblocksSearchField(SearchFields_Message::VIRTUAL_WORKER_SEARCH, '*', 'worker_search', null, null, false),
@@ -1269,11 +1268,16 @@ class Search_MessageContent extends Extension_DevblocksSearchSchema {
 		return [];
 	}
 	
-	public function getFields() {
-		return array(
-			'content',
-			'created',
-		);
+	public function getIdField() {
+		return 'id';
+	}
+	
+	public function getDataField() {
+		return 'content';
+	}
+	
+	public function getPrimaryKey() {
+		return 'id';
 	}
 	
 	public function reindex() {
@@ -1313,14 +1317,6 @@ class Search_MessageContent extends Extension_DevblocksSearchSchema {
 				}
 				break;
 		}
-	}
-	
-	public function query($query, $attributes=[], $limit=null) {
-		if(false == ($engine = $this->getEngine()))
-			return false;
-		
-		$ids = $engine->query($this, $query, $attributes, $limit);
-		return $ids;
 	}
 	
 	private function _indexDictionary($dict, $engine) {
@@ -1792,7 +1788,11 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 			SearchFields_Message::TICKET_STATUS_ID,
 			SearchFields_Message::VIRTUAL_ATTACHMENTS_SEARCH,
 			SearchFields_Message::VIRTUAL_CONTEXT_LINK,
+			SearchFields_Message::VIRTUAL_HEADER_CC,
+			SearchFields_Message::VIRTUAL_HEADER_DELIVERED_TO,
+			SearchFields_Message::VIRTUAL_HEADER_FROM,
 			SearchFields_Message::VIRTUAL_HEADER_MESSAGE_ID,
+			SearchFields_Message::VIRTUAL_HEADER_TO,
 			SearchFields_Message::VIRTUAL_NOTES_SEARCH,
 			SearchFields_Message::VIRTUAL_TICKET_SEARCH,
 		));
@@ -1975,10 +1975,30 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 					'score' => 2000,
 					'options' => array('param_key' => SearchFields_Message::CREATED_DATE),
 				),
+			'header.cc' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_FULLTEXT,
+					'options' => array('param_key' => SearchFields_Message::VIRTUAL_HEADER_CC),
+				),
+			'header.deliveredTo' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_FULLTEXT,
+					'options' => array('param_key' => SearchFields_Message::VIRTUAL_HEADER_DELIVERED_TO),
+				),
+			'header.from' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_FULLTEXT,
+					'options' => array('param_key' => SearchFields_Message::VIRTUAL_HEADER_FROM),
+				),
 			'header.messageId' => 
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Message::VIRTUAL_HEADER_MESSAGE_ID),
+				),
+			'header.to' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_FULLTEXT,
+					'options' => array('param_key' => SearchFields_Message::VIRTUAL_HEADER_TO),
 				),
 			'fieldset' =>
 				array(
@@ -2164,6 +2184,12 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Message::VIRTUAL_SENDER_SEARCH);
 				break;
 				
+			case 'header.cc':
+			case 'header.deliveredTo':
+			case 'header.from':
+			case 'header.to':
+				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
+				
 			case 'header.messageId':
 				$field_key = SearchFields_Message::VIRTUAL_HEADER_MESSAGE_ID;
 				$oper = null;
@@ -2234,6 +2260,29 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 				echo sprintf("%s matches <b>%s</b>",
 					DevblocksPlatform::strEscapeHtml(DevblocksPlatform::translateCapitalized('common.notes')),
 					DevblocksPlatform::strEscapeHtml($param->value)
+				);
+				break;
+				
+			case SearchFields_Message::VIRTUAL_HEADER_CC:
+			case SearchFields_Message::VIRTUAL_HEADER_DELIVERED_TO:
+			case SearchFields_Message::VIRTUAL_HEADER_FROM:
+			case SearchFields_Message::VIRTUAL_HEADER_TO:
+				$labels = [
+					SearchFields_Message::VIRTUAL_HEADER_CC => 'Cc header',
+					SearchFields_Message::VIRTUAL_HEADER_DELIVERED_TO => 'Delivered-To header',
+					SearchFields_Message::VIRTUAL_HEADER_FROM => 'From header',
+					SearchFields_Message::VIRTUAL_HEADER_TO => 'To header',
+				];
+				
+				$label = $labels[$key] ?? $param->field;
+				$value = $param->value;
+				
+				if(is_array($value) && array_key_exists(1, $value) && 'expert' == $value[1])
+					$value = $value[0];
+				
+				echo sprintf("%s matches <b>%s</b>",
+					DevblocksPlatform::strEscapeHtml($label),
+					DevblocksPlatform::strEscapeHtml($value)
 				);
 				break;
 				
@@ -2663,7 +2712,8 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 			
 			// URL
 			$url_writer = DevblocksPlatform::services()->url();
-			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=ticket&id=%d", $message->ticket_id), true) . '#message' . $message->id;
+			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=message&id=%d", $message->id), true);
+			$token_values['ticket_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=ticket&id=%d", $message->ticket_id), true) . '#message' . $message->id;
 		}
 
 		$context_stack = CerberusContexts::getStack();
@@ -3174,6 +3224,11 @@ class Context_Message extends Extension_DevblocksContext implements IDevblocksCo
 	}
 
 	public function profileGetUrl($context_id) {
-		return null;
+		$url_writer = DevblocksPlatform::services()->url();
+		
+		if(empty($context_id))
+			return '';
+		
+		return $url_writer->writeNoProxy('c=profiles&type=message&id='.$context_id, true);
 	}
 };

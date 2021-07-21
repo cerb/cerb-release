@@ -80,7 +80,7 @@
 				<tr>
 					<td width="1%" nowrap="nowrap" align="right" valign="middle"><a href="javascript:;" class="cerb-recipient-chooser" data-context="{CerberusContexts::CONTEXT_ADDRESS}" data-query=""><b>{'message.header.to'|devblocks_translate|capitalize}</b></a>:&nbsp;</td>
 					<td width="99%" align="left">
-						<input type="text" size="45" name="to" value="{$to}" placeholder="{if $is_forward}These recipients will receive this forwarded message{else}These recipients will automatically be included in all future correspondence as participants{/if}" class="required" style="width:100%;border:1px solid rgb(180,180,180);padding:2px;">
+						<input type="text" size="45" name="to" value="{$draft->params.to}" placeholder="{if $is_forward}These recipients will receive this forwarded message{else}These recipients will automatically be included in all future correspondence as participants{/if}" class="required" style="width:100%;border:1px solid rgb(180,180,180);padding:2px;">
 						{if !$is_forward}
 							{if !empty($suggested_recipients)}
 								<div id="reply{$message->id}_suggested">
@@ -100,21 +100,21 @@
 				<tr>
 					<td width="1%" nowrap="nowrap" align="right" valign="middle"><a href="javascript:;" class="cerb-recipient-chooser" data-context="{CerberusContexts::CONTEXT_ADDRESS}" data-query="">{'message.header.cc'|devblocks_translate|capitalize}</a>:&nbsp;</td>
 					<td width="99%" align="left">
-						<input type="text" size="45" name="cc" value="{$cc}" placeholder="These recipients will publicly receive a one-time copy of this message" style="width:100%;border:1px solid rgb(180,180,180);padding:2px;">
+						<input type="text" size="45" name="cc" value="{$draft->params.cc}" placeholder="These recipients will publicly receive a one-time copy of this message" style="width:100%;border:1px solid rgb(180,180,180);padding:2px;">
 					</td>
 				</tr>
 				
 				<tr>
 					<td width="1%" nowrap="nowrap" align="right" valign="middle"><a href="javascript:;" class="cerb-recipient-chooser" data-context="{CerberusContexts::CONTEXT_ADDRESS}" data-query="">{'message.header.bcc'|devblocks_translate|capitalize}</a>:&nbsp;</td>
 					<td width="99%" align="left">
-						<input type="text" size="45" name="bcc" value="{$bcc}" placeholder="These recipients will secretly receive a one-time copy of this message" style="width:100%;border:1px solid rgb(180,180,180);padding:2px;">
+						<input type="text" size="45" name="bcc" value="{$draft->params.bcc}" placeholder="These recipients will secretly receive a one-time copy of this message" style="width:100%;border:1px solid rgb(180,180,180);padding:2px;">
 					</td>
 				</tr>
 				
 				<tr>
 					<td width="1%" nowrap="nowrap" align="right" valign="middle"><b>{'message.header.subject'|devblocks_translate|capitalize}:</b>&nbsp;</td>
 					<td width="99%" align="left">
-						<input type="text" size="45" name="subject" value="{$subject}" style="width:100%;border:1px solid rgb(180,180,180);padding:2px;" class="required" maxlength="255">
+						<input type="text" size="45" name="subject" value="{$draft->params.subject}" style="width:100%;border:1px solid rgb(180,180,180);padding:2px;" class="required" maxlength="255">
 					</td>
 				</tr>
 				
@@ -163,45 +163,7 @@
 
 		</div>
 
-		{if $is_forward}
-			<textarea name="content" id="reply_{$message->id}" class="reply" style="box-sizing:border-box;">
-{if !empty($draft)}{$draft->getParam('content')}{else}
-
-
-#signature
-
-{'display.reply.forward.banner'|devblocks_translate}
-{if isset($headers.subject)}{'message.header.subject'|devblocks_translate|capitalize}: {$headers.subject|cat:"\n"}{/if}
-{if isset($headers.from)}{'message.header.from'|devblocks_translate|capitalize}: {$headers.from|cat:"\n"}{/if}
-{if isset($headers.date)}{'message.header.date'|devblocks_translate|capitalize}: {$headers.date|cat:"\n"}{/if}
-{if isset($headers.to)}{'message.header.to'|devblocks_translate|capitalize}: {$headers.to|cat:"\n"}{/if}
-
-{$message_content|trim}
-{/if}
-</textarea>
-		{else}
-			<textarea name="content" id="reply_{$message->id}" class="reply" style="box-sizing:border-box;" autofocus="autofocus">
-{if !empty($draft)}{$draft->getParam('content')}{else}
-{if 1==$signature_pos || 3==$signature_pos}
-
-
-#signature
-{if 1==$signature_pos}
-#cut
-{/if}{if in_array($reply_mode,[0,2])}{*Sig above*}
-
-
-{/if}
-{/if}{if in_array($reply_mode,[0,2])}{$quote_sender=$message->getSender()}{$quote_sender_personal=$quote_sender->getName()}{if !empty($quote_sender_personal)}{$reply_personal=$quote_sender_personal}{else}{$reply_personal=$quote_sender->email}{/if}{$reply_date=$message->created_date|devblocks_date:'D, d M Y'}{'display.reply.reply_banner'|devblocks_translate:$reply_date:$reply_personal}
-{/if}{if in_array($reply_mode,[0,2])}{$message_content|trim|indent:1:'> '|devblocks_email_quote}
-{/if}{if 2==$signature_pos}
-
-
-#signature
-#cut
-{/if}{*Sig below*}{/if}
-</textarea>
-{/if}
+		<textarea name="content" id="reply_{$message->id}" class="reply" style="box-sizing:border-box;" {if !$is_forward}autofocus{/if}>{$draft->getParam('content')}</textarea>
 	</div>
 
 	<div id="reply{$message->id}EditorPreviewPanel" style="min-height:100px;max-height:400px;overflow:auto;border:1px dotted rgb(150,150,150);padding:5px;"></div>
@@ -251,12 +213,12 @@
 				<div>
 					<b>{'common.status'|devblocks_translate|capitalize}:</b>
 
-					<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+O)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_OPEN}" class="status_open" onclick="toggleDiv('replyOpen{$message->id}','block');toggleDiv('replyClosed{$message->id}','none');" {if (empty($draft) && 'open'==$mail_status_reply) || $draft->params.status_id==Model_Ticket::STATUS_OPEN}checked="checked"{/if}> {'status.open'|devblocks_translate|capitalize}</label>
-					<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+W)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_WAITING}" class="status_waiting" onclick="toggleDiv('replyOpen{$message->id}','block');toggleDiv('replyClosed{$message->id}','block');" {if (empty($draft) && 'waiting'==$mail_status_reply) || $draft->params.status_id==Model_Ticket::STATUS_WAITING}checked="checked"{/if}> {'status.waiting'|devblocks_translate|capitalize}</label>
-					{if $active_worker->hasPriv('core.ticket.actions.close') || ($ticket->status_id == Model_Ticket::STATUS_CLOSED)}<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+C)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_CLOSED}" class="status_closed" onclick="toggleDiv('replyOpen{$message->id}','none');toggleDiv('replyClosed{$message->id}','block');" {if (empty($draft) && 'closed'==$mail_status_reply) || $draft->params.status_id==Model_Ticket::STATUS_CLOSED}checked="checked"{/if}> {'status.closed'|devblocks_translate|capitalize}</label>{/if}
+					<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+O)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_OPEN}" class="status_open" onclick="toggleDiv('replyOpen{$message->id}','block');toggleDiv('replyClosed{$message->id}','none');" {if $draft->params.status_id==Model_Ticket::STATUS_OPEN}checked="checked"{/if}> {'status.open'|devblocks_translate|capitalize}</label>
+					<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+W)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_WAITING}" class="status_waiting" onclick="toggleDiv('replyOpen{$message->id}','block');toggleDiv('replyClosed{$message->id}','block');" {if $draft->params.status_id==Model_Ticket::STATUS_WAITING}checked="checked"{/if}> {'status.waiting'|devblocks_translate|capitalize}</label>
+					{if $active_worker->hasPriv('core.ticket.actions.close') || ($ticket->status_id == Model_Ticket::STATUS_CLOSED)}<label {if $pref_keyboard_shortcuts}title="(Ctrl+Shift+C)"{/if}><input type="radio" name="status_id" value="{Model_Ticket::STATUS_CLOSED}" class="status_closed" onclick="toggleDiv('replyOpen{$message->id}','none');toggleDiv('replyClosed{$message->id}','block');" {if $draft->params.status_id==Model_Ticket::STATUS_CLOSED}checked="checked"{/if}> {'status.closed'|devblocks_translate|capitalize}</label>{/if}
 					<br>
 
-					<div id="replyClosed{$message->id}" style="display:{if (empty($draft) && 'open'==$mail_status_reply) || (!empty($draft) && $draft->params.status_id==Model_Ticket::STATUS_OPEN)}none{else}block{/if};margin:5px 0px 10px 20px;">
+					<div id="replyClosed{$message->id}" style="display:{if $draft->params.status_id==Model_Ticket::STATUS_OPEN}none{else}block{/if};margin:5px 0px 10px 20px;">
 						<div style="display:flex;flex-flow:row wrap;">
 							<div style="flex:1 1 45%;padding-right:10px;">
 								<b>{'display.reply.next.resume'|devblocks_translate}</b>
@@ -266,7 +228,7 @@
 							</div>
 						</div>
 
-						<input type="text" name="ticket_reopen" size="55" value="{if !empty($draft)}{$draft->params.ticket_reopen}{elseif !empty($ticket->reopen_at)}{$ticket->reopen_at|devblocks_date}{/if}"><br>
+						<input type="text" name="ticket_reopen" size="55" value="{$draft->params.ticket_reopen}"><br>
 						{'display.reply.next.resume_blank'|devblocks_translate}<br>
 					</div>
 				</div>
@@ -316,10 +278,8 @@
 	</table>
 </fieldset>
 
-{$custom_fieldsets_available = DAO_CustomFieldset::getUsableByActorByContext($active_worker, CerberusContexts::CONTEXT_TICKET)}
-
 {if $custom_fields || $custom_fieldsets_available}
-<fieldset class="peek" style="{if $custom_fieldsets_available}padding-bottom:0px;{/if}">
+<fieldset class="peek" style="{if $custom_fieldsets_available}padding-bottom:0;{/if}">
 	<legend>
 		<label>
 			{'common.update'|devblocks_translate|capitalize}
@@ -332,7 +292,7 @@
 	{/if}
 	</div>
 
-	{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_TICKET context_id=$ticket->id bulk=true custom_fieldsets_available=$custom_fieldsets_available}
+	{include file="devblocks:cerberusweb.core::internal/custom_fieldsets/peek_custom_fieldsets.tpl" context=CerberusContexts::CONTEXT_TICKET context_id=$ticket->id bulk=true custom_fieldsets_available=$custom_fieldsets_available custom_fieldsets_linked=$custom_fieldsets_linked custom_fields_expanded=$draft->params.custom_fields}
 </fieldset>
 {/if}
 
@@ -346,7 +306,7 @@
 
 	<div style="{if $draft->params.send_at}{else}display:none;{/if}">
 		<b>When should the message be delivered?</b> (leave blank to send immediately)<br>
-		<input type="text" name="send_at" size="64" style="width:89%;" placeholder="now" value="{if !empty($draft)}{$draft->params.send_at}{/if}">
+		<input type="text" name="send_at" size="64" style="width:89%;" placeholder="now" value="{$draft->params.send_at}">
 	</div>
 </fieldset>
 
@@ -366,11 +326,22 @@
 
 <script type="text/javascript">
 $(function() {
-	if(draftAutoSaveInterval == undefined)
-		var draftAutoSaveInterval = null;
+	var draftAutoSaveInterval = null;
 
 	var $frm = $('#reply{$message->id}_form');
 	var $reply = $frm.closest('div.reply_frame');
+	
+	function enableAutoSaveDraft() {
+		if(null == draftAutoSaveInterval)
+			draftAutoSaveInterval = setInterval("$('#reply{$message->id}_form .cerb-reply-editor-toolbar-button--save').click();", 30000);
+	}
+	
+	function disableAutoSaveDraft() {
+		if(null != draftAutoSaveInterval) {
+			clearInterval(draftAutoSaveInterval);
+			draftAutoSaveInterval = null;
+		}
+	}
 
 	$frm.find('.cerb-editor-tabs').tabs({
 		activate: function(event, ui) {
@@ -427,11 +398,7 @@ $(function() {
 			$editor_toolbar_button_save_draft.click();
 			
 			// Start draft auto-save timer every 30 seconds
-			if(null != draftAutoSaveInterval) {
-				clearTimeout(draftAutoSaveInterval);
-				draftAutoSaveInterval = null;
-			}
-			draftAutoSaveInterval = setInterval("$('#reply{$message->id}_form .cerb-reply-editor-toolbar-button--save').click();", 30000);
+			enableAutoSaveDraft();
 			
 			// Move cursor
 			editor.focus();
@@ -521,7 +488,7 @@ $(function() {
 			
 			$bucket_options.each(function() {
 				var parent_id = $(this).attr('group_id');
-				if(parent_id == '*' || parent_id == group_id)
+				if(parent_id === '*' || parent_id === group_id)
 					$(this).clone().appendTo($bucket);
 			});
 			
@@ -738,7 +705,7 @@ $(function() {
 
 		// Snippets
 		$editor_toolbar.on('cerb-editor-toolbar-snippet-inserted', function(event) {
-			if(undefined == event.snippet_id)
+			if(!event.hasOwnProperty('snippet_id'))
 				return;
 
 			// Now we need to read in each snippet as either 'raw' or 'parsed' via Ajax
@@ -870,6 +837,73 @@ $(function() {
 		
 		var $buttons = $('#reply{$message->id}_buttons');
 
+		var funcValidationInteractions = function(json) {
+			var validation_interactions = Promise.resolve();
+			
+			if('object' != typeof json || !json.hasOwnProperty('validation_interactions'))
+				return validation_interactions;
+
+			for(var validation_interaction_key in json.validation_interactions) {
+				if(!json.validation_interactions.hasOwnProperty(validation_interaction_key))
+					continue;
+
+				var validation_interaction = json.validation_interactions[validation_interaction_key];
+
+				if(!validation_interaction.hasOwnProperty('data'))
+					continue;
+
+				validation_interactions = validation_interactions.then(function() {
+					return new Promise(function(resolve, reject) {
+						var interaction_params = '';
+
+						if(this.data.hasOwnProperty('inputs') && 'object' == typeof this.data.inputs)
+							interaction_params = $.param(this.data.inputs);
+						
+						var $interaction =
+							$('<div/>')
+								.attr('data-interaction-uri', this.data.uri)
+								.attr('data-interaction-params', interaction_params)
+								.attr('data-interaction-done', '')
+								.cerbBotTrigger({
+									'modal': true,
+									'caller': 'mail.reply.send',
+									'start': function(formData) {
+										var draft_id = $frm.find('input:hidden[name=draft_id]').val();
+										formData.set('caller[params][draft_id]', draft_id);	
+									},
+									'done': function(e) {
+										e.stopPropagation();
+										$interaction.remove();
+										
+										// If the interaction rejected validation
+										if(e.eventData.hasOwnProperty('exit') && 'return' === e.eventData.exit) {
+											if(e.eventData.hasOwnProperty('return') && e.eventData.return.hasOwnProperty('reject')) {
+												setTimeout(function() { $editor.focus(); }, 25);
+												reject(e);
+												return;
+											}
+										}
+										
+										resolve(e);
+									},
+									'error': function(e) {
+										reject(e);
+										setTimeout(function() { $editor.focus(); }, 25);
+									},
+									'abort': function(e) {
+										reject(e);
+										setTimeout(function() { $editor.focus(); }, 25);
+									}
+								})
+								.click()
+						;
+					}.bind(this));
+				}.bind(validation_interaction));
+			}
+			
+			return validation_interactions;
+		};
+		
 		$buttons.find('button.send').on('click', function(e) {
 			if(e.originalEvent && e.originalEvent.detail && e.originalEvent.detail > 1)
 				return;
@@ -883,10 +917,7 @@ $(function() {
 			window.onbeforeunload = null;
 			
 			if(confirm('Are you sure you want to discard this reply?')) {
-				if(null != draftAutoSaveInterval) { 
-					clearTimeout(draftAutoSaveInterval);
-					draftAutoSaveInterval = null; 
-				}
+				disableAutoSaveDraft();
 				
 				var draft_id = $frm.find('input:hidden[name=draft_id]').val();
 
@@ -914,39 +945,67 @@ $(function() {
 
 			Devblocks.clearAlerts();
 			showLoadingPanel();
-			$button.closest('td').hide();
+			$button.closest('div').hide();
+			disableAutoSaveDraft();
 
+			var hookSuccess = function() {
+				showLoadingPanel();
+				
+				$frm.find('input:hidden[name=reply_mode]').val('');
+
+				genericAjaxPost($frm, '', null, function(json) {
+					hideLoadingPanel();
+					
+					var event = new $.Event('cerb-reply-sent', {
+						record: json
+					});
+					$reply.trigger(event);
+
+					$reply.triggerHandler('cerb-reply--close');
+				});
+			};
+			
+			var hookError = function(message) {
+				Devblocks.createAlertError(message);
+				$button.closest('div').show();
+				enableAutoSaveDraft();
+			};
+			
 			var formData = new FormData($frm[0]);
 			formData.set('c', 'profiles');
 			formData.set('a', 'invoke');
 			formData.set('module', 'ticket');
 			formData.set('action', 'validateReplyJson');
+			formData.set('reply_mode', 'send');
 
 			// Validate via Ajax before sending
 			genericAjaxPost(formData, '', '', function(json) {
-				if(json && json.status) {
-					if(null != draftAutoSaveInterval) {
-						clearTimeout(draftAutoSaveInterval);
-						draftAutoSaveInterval = null;
-					}
-					
-					$frm.find('input:hidden[name=reply_mode]').val('');
-					
-					genericAjaxPost($frm, '', null, function(json) {
-						hideLoadingPanel();
+				hideLoadingPanel();
+				
+				if(null == json || 'object' != typeof json)
+					return hookError('An unexpected error occurred. Try again.');
 
-						var event = new $.Event('cerb-reply-sent', {
-							record: json
-						});
-						$reply.trigger(event);
-						
-						$reply.triggerHandler('cerb-reply--close');
-					});
+				if(json.hasOwnProperty('validation_interactions') && 'object' == typeof json.validation_interactions) {
+					var validation_interactions = funcValidationInteractions(json);
+										
+					validation_interactions
+						.then(function() {
+							hookSuccess();
+						})
+						.catch(function() {
+							// Aborted
+							enableAutoSaveDraft();
+						})
+						.finally(function() {
+							$button.closest('div').show();
+						})
+					;
+
+				} else if(json.hasOwnProperty('status') && json.status) {
+					hookSuccess();
 					
 				} else {
-					Devblocks.createAlertError(json.message);
-					hideLoadingPanel();
-					$button.closest('td').show();
+					hookError(json.message);
 				}
 			});
 		});
@@ -959,39 +1018,67 @@ $(function() {
 
 			Devblocks.clearAlerts();
 			showLoadingPanel();
-			$button.closest('td').hide();
+			$button.closest('div').hide();
+			disableAutoSaveDraft();
+			
+			var hookSuccess = function() {
+				showLoadingPanel();
+				
+				$frm.find('input:hidden[name=reply_mode]').val('save');
 
+				genericAjaxPost($frm, '', null, function(json) {
+					hideLoadingPanel();
+					
+					var event = new $.Event('cerb-reply-saved', {
+						record: json
+					});
+					$reply.trigger(event);
+
+					$reply.triggerHandler('cerb-reply--close');
+				});
+			};
+			
+			var hookError = function(message) {
+				Devblocks.createAlertError(message);
+				$button.closest('div').show();
+				enableAutoSaveDraft();
+			};
+			
 			var formData = new FormData($frm[0]);
 			formData.set('c', 'profiles');
 			formData.set('a', 'invoke');
 			formData.set('module', 'ticket');
 			formData.set('action', 'validateReplyJson');
+			formData.set('reply_mode', 'save');
 
 			// Validate via Ajax before saving
 			genericAjaxPost(formData, '', '', function(json) {
-				if(json && json.status) {
-					if(null != draftAutoSaveInterval) {
-						clearTimeout(draftAutoSaveInterval);
-						draftAutoSaveInterval = null;
-					}
+				hideLoadingPanel();
 
-					$frm.find('input:hidden[name=reply_mode]').val('save');
+				if(null == json || 'object' != typeof json)
+					return hookError('An unexpected error occurred. Try again.');
+				
+				if(json.hasOwnProperty('validation_interactions') && 'object' == typeof json.validation_interactions) {
+					var validation_interactions = funcValidationInteractions(json);
 
-					genericAjaxPost($frm, '', null, function(json) {
-						hideLoadingPanel();
+					validation_interactions
+						.then(function () {
+							hookSuccess();
+						})
+						.catch(function () {
+							// Aborted
+							enableAutoSaveDraft();
+						})
+						.finally(function () {
+							$button.closest('div').show();
+						})
+					;
 
-						var event = new $.Event('cerb-reply-saved', {
-							record: json
-						});
-						$reply.trigger(event);
-
-						$reply.triggerHandler('cerb-reply--close');
-					});
-
+				} else if(json.hasOwnProperty('status') && json.status) {
+					hookSuccess();
+					
 				} else {
-					Devblocks.createAlertError(json.message);
-					hideLoadingPanel();
-					$button.closest('td').show();
+					hookError(json.message);
 				}
 			});
 		});
@@ -1004,44 +1091,74 @@ $(function() {
 
 			Devblocks.clearAlerts();
 			showLoadingPanel();
-			$button.closest('td').hide();
+			$button.closest('div').hide();
+			disableAutoSaveDraft();
+			
+			var hookSuccess = function() {
+				showLoadingPanel();
+				
+				var formData = new FormData($frm[0]);
+				formData.set('c', 'profiles');
+				formData.set('a', 'invoke');
+				formData.set('module', 'draft');
+				formData.set('action', 'saveDraftReply');
+
+				genericAjaxPost(formData, '', null, function(json) {
+					hideLoadingPanel();
+					
+					$button.closest('div').show();
+
+					var event = new $.Event('cerb-reply-draft', {
+						record: json
+					});
+					$reply.trigger(event);
+
+					$reply.triggerHandler('cerb-reply--close');
+				});
+			};
+			
+			var hookError = function(message) {
+				Devblocks.createAlertError(message);
+				$button.closest('div').show();
+				enableAutoSaveDraft();
+			};
 
 			var formData = new FormData($frm[0]);
 			formData.set('c', 'profiles');
 			formData.set('a', 'invoke');
 			formData.set('module', 'ticket');
 			formData.set('action', 'validateReplyJson');
+			formData.set('reply_mode', 'draft');
 
 			// Validate via Ajax before saving
 			genericAjaxPost(formData, '', '', function(json) {
-				if(json && json.status) {
-					if(null != draftAutoSaveInterval) {
-						clearTimeout(draftAutoSaveInterval);
-						draftAutoSaveInterval = null;
-					}
+				hideLoadingPanel();
 
-					var formData = new FormData($frm[0]);
-					formData.set('c', 'profiles');
-					formData.set('a', 'invoke');
-					formData.set('module', 'draft');
-					formData.set('action', 'saveDraftReply');
+				if(null == json || 'object' != typeof json)
+					return hookError('An unexpected error occurred. Try again.');
+				
+				if(json.hasOwnProperty('validation_interactions') && 'object' == typeof json.validation_interactions) {
+					var validation_interactions = funcValidationInteractions(json);
 
-					genericAjaxPost(formData, '', null, function(json) {
-						hideLoadingPanel();
-						$button.closest('td').show();
-
-						var event = new $.Event('cerb-reply-draft', {
-							record: json
-						});
-						$reply.trigger(event);
-
-						$reply.triggerHandler('cerb-reply--close');
-					});
-
+					validation_interactions
+						.then(function () {
+							showLoadingPanel();
+							hookSuccess();
+						})
+						.catch(function () {
+							// Aborted
+							enableAutoSaveDraft();
+						})
+						.finally(function () {
+							$button.closest('div').show();
+						})
+					;
+					
+				} else if(json.hasOwnProperty('status') && json.status) {
+					hookSuccess();
+					
 				} else {
-					Devblocks.createAlertError(json.message);
-					hideLoadingPanel();
-					$button.closest('td').show();
+					hookError(json.message);
 				}
 			});
 		});
@@ -1052,14 +1169,7 @@ $(function() {
 			
 		{else}
 			$editor_toolbar_button_save_draft.click(); // save now
-			if(null != draftAutoSaveInterval) {
-				clearTimeout(draftAutoSaveInterval);
-				draftAutoSaveInterval = null;
-			}
-			// and every 30 sec
-			draftAutoSaveInterval = setInterval(function() {
-				$('#reply{$message->id}_form .cerb-reply-editor-toolbar-button--save').click();
-			}, 30000);
+			enableAutoSaveDraft();
 		{/if}
 		
 		// Files
@@ -1089,6 +1199,23 @@ $(function() {
 		// Shortcuts
 
 		{if $pref_keyboard_shortcuts}
+			var toolbarShortcutTrigger = function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				$editor_toolbar.find('[data-interaction-keyboard="' + this.keys + '"]').click();
+				return true;
+			};
+			
+			{if $toolbar_keyboard_shortcuts}
+			{foreach from=$toolbar_keyboard_shortcuts item=toolbar_keyboard_shortcut}
+			$editor.bind(
+				'keydown',
+				{$toolbar_keyboard_shortcut.keys|json_encode nofilter},
+				toolbarShortcutTrigger.bind({$toolbar_keyboard_shortcut|json_encode nofilter})
+			);
+			{/foreach}
+			{/if}
+			
 			// Send focus
 			$editor.bind('keydown', 'ctrl+return alt+return meta+return', function(e) {
 				e.preventDefault();
@@ -1257,7 +1384,8 @@ $(function() {
 			});
 		{/if}
 
-		{* Run custom jQuery scripts from VA behavior *}
+		{* @deprecated Run custom jQuery scripts from VA behavior *}
+		{* [TODO] Remove this in 11.0 *}
 		
 		{if !empty($jquery_scripts)}
 		$('#reply{$message->id}_form').closest('div.reply_frame').each(function(e) {

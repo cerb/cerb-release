@@ -103,6 +103,14 @@ class _DevblocksServices {
 	}
 	
 	/**
+	 *
+	 * @return _DevblocksFileService
+	 */
+	function file() {
+		return _DevblocksFileService::getInstance();
+	}
+	
+	/**
 	 * 
 	 * @return _DevblocksHttpService
 	 */
@@ -2035,6 +2043,9 @@ class DevblocksPlatform extends DevblocksEngine {
 	}
 	
 	static function strParseDecimal($number, $decimal_places=2, $decimal_separator='.') {
+		if(!is_string($number) && !is_numeric($number))
+			$number = '0';
+		
 		if(0 == strlen($number))
 			$number = '0';
 		
@@ -2062,6 +2073,9 @@ class DevblocksPlatform extends DevblocksEngine {
 	}
 	
 	static function strFormatDecimal($number, $decimal_places=2, $decimal_separator='.', $thousands_separator=',') {
+		if(!is_string($number) && !is_numeric($number))
+			$number = '0';
+		
 		if(0 == strlen($number))
 			$number = '0';
 		
@@ -2351,6 +2365,19 @@ class DevblocksPlatform extends DevblocksEngine {
 		$cache->clean();
 		
 		return false;
+	}
+	
+	public static function logError(string $error_msg) {
+		$orig_log_errors_max_len = ini_set('log_errors_max_len', 8192);
+		
+		if(DEVELOPMENT_MODE && php_sapi_name() != 'cli') {
+			trigger_error($error_msg, E_USER_WARNING);
+		} else {
+			error_log($error_msg);
+		}
+		
+		if($orig_log_errors_max_len)
+			ini_set('log_errors_max_len', $orig_log_errors_max_len);
 	}
 	
 	/**

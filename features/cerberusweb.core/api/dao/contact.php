@@ -110,6 +110,8 @@ class DAO_Contact extends Cerb_ORMHelper {
 			->addField(self::PRIMARY_EMAIL_ID)
 			->id()
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_ADDRESS, true))
+			->setUnique(get_class())
+			->setNotEmpty(false)
 			;
 		$validation
 			->addField(self::TIMEZONE)
@@ -717,35 +719,27 @@ class SearchFields_Contact extends DevblocksSearchFields {
 		switch($param->field) {
 			case self::FULLTEXT_CONTACT:
 				return self::_getWhereSQLFromFulltextField($param, Search_Contact::ID, self::getPrimaryKey());
-				break;
 				
 			case self::FULLTEXT_COMMENT_CONTENT:
 				return self::_getWhereSQLFromCommentFulltextField($param, Search_CommentContent::ID, CerberusContexts::CONTEXT_CONTACT, self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_ALIAS:
 				return  self::_getWhereSQLFromAliasesField($param, CerberusContexts::CONTEXT_CONTACT, self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_CONTEXT_LINK:
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_CONTACT, self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_EMAIL_SEARCH:
 				return self::_getWhereSQLFromVirtualSearchField($param, CerberusContexts::CONTEXT_ADDRESS, 'contact.primary_email_id');
-				break;
 				
 			case self::VIRTUAL_HAS_FIELDSET:
 				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_CONTACT), '%s'), self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_ORG_SEARCH:
 				return self::_getWhereSQLFromVirtualSearchField($param, CerberusContexts::CONTEXT_ORG, 'contact.org_id');
-				break;
 				
 			case self::VIRTUAL_WATCHERS:
 				return self::_getWhereSQLFromWatchersField($param, CerberusContexts::CONTEXT_CONTACT, self::getPrimaryKey());
-				break;
 			
 			default:
 				if('cf_' == substr($param->field, 0, 3)) {
@@ -753,7 +747,6 @@ class SearchFields_Contact extends DevblocksSearchFields {
 				} else {
 					return $param->getWhereSQL(self::getFields(), self::getPrimaryKey());
 				}
-				break;
 		}
 	}
 	
@@ -795,7 +788,7 @@ class SearchFields_Contact extends DevblocksSearchFields {
 				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, CerberusContexts::CONTEXT_CONTACT);
 				$label_map = array_column(DevblocksPlatform::objectsToArrays($dicts), '_label', 'id');
 				if(in_array(0, $values))
-					$label_map[0] = DevblocksPlatform::translate('common.none');
+					$label_map[0] = sprintf('(%s)', DevblocksPlatform::translate('common.none'));
 				return $label_map;
 				break;
 				
@@ -893,19 +886,16 @@ class Search_Contact extends Extension_DevblocksSearchSchema {
 		return array();
 	}
 	
-	public function getFields() {
-		return array(
-			'content',
-		);
+	public function getIdField() {
+		return 'id';
 	}
 	
-	public function query($query, $attributes=array(), $limit=null) {
-		if(false == ($engine = $this->getEngine()))
-			return false;
-		
-		$ids = $engine->query($this, $query, $attributes, $limit);
-		
-		return $ids;
+	public function getDataField() {
+		return 'content';
+	}
+	
+	public function getPrimaryKey() {
+		return 'id';
 	}
 	
 	public function reindex() {
@@ -1468,8 +1458,11 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 				),
 			'watchers' => 
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_WORKER,
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Contact::VIRTUAL_WATCHERS),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					],
 				),
 		);
 		
@@ -1508,15 +1501,12 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 		switch($field) {
 			case 'alias':
 				return DevblocksSearchCriteria::getContextAliasParamFromTokens(SearchFields_Contact::VIRTUAL_ALIAS, $tokens);
-				break;
 			
 			case 'email':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Contact::VIRTUAL_EMAIL_SEARCH);
-				break;
 				
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
-				break;
 				
 			case 'gender':
 				$field_key = SearchFields_Contact::GENDER;
@@ -1541,22 +1531,20 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 					$oper,
 					$value
 				);
-				break;
 				
 			case 'org':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Contact::VIRTUAL_ORG_SEARCH);
-				break;
 			
+			case 'watchers':
+				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_Contact::VIRTUAL_WATCHERS, $tokens);
+				
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
 					return DevblocksSearchCriteria::getContextLinksParamFromTokens($field, $tokens);
 				
 				$search_fields = $this->getQuickSearchFields();
 				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
-				break;
 		}
-		
-		return false;
 	}
 	
 	function render() {

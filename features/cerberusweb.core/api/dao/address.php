@@ -1188,19 +1188,16 @@ class Search_Address extends Extension_DevblocksSearchSchema {
 		return array();
 	}
 	
-	public function getFields() {
-		return array(
-			'content',
-		);
+	public function getIdField() {
+		return 'id';
 	}
 	
-	public function query($query, $attributes=array(), $limit=null) {
-		if(false == ($engine = $this->getEngine()))
-			return false;
-		
-		$ids = $engine->query($this, $query, $attributes, $limit);
-		
-		return $ids;
+	public function getDataField() {
+		return 'content';
+	}
+	
+	public function getPrimaryKey() {
+		return 'id';
 	}
 	
 	public function reindex() {
@@ -1768,6 +1765,9 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Address::VIRTUAL_WATCHERS),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					],
 				),
 		);
 		
@@ -1821,19 +1821,15 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 		switch($field) {
 			case 'contact':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Address::VIRTUAL_CONTACT_SEARCH);
-				break;
 				
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
-				break;
 				
 			case 'org':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Address::VIRTUAL_ORG_SEARCH);
-				break;
 				
 			case 'ticket':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Address::VIRTUAL_TICKET_SEARCH);
-				break;
 			
 			case 'ticket.id':
 				$field_key = SearchFields_Address::VIRTUAL_TICKET_ID;
@@ -1850,11 +1846,9 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 					$oper,
 					$value
 				);
-				break;
 				
 			case 'watchers':
 				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_Address::VIRTUAL_WATCHERS, $tokens);
-				break;
 				
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
@@ -1862,10 +1856,7 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 				
 				$search_fields = $this->getQuickSearchFields();
 				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
-				break;
 		}
-		
-		return false;
 	}
 	
 	function render() {

@@ -87,6 +87,7 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 			'*' => [
 				'(.*):await:' => [
 					'draft:',
+					'duration:',
 					'form:',
 					'interaction:',
 					'record:',
@@ -95,6 +96,11 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 				'(.*):await:draft:' => [
 					'uri:',
 					'output:',
+				],
+				
+				'(.*):await:duration:' => [
+					'message: Waiting...',
+					'until: 5 seconds',
 				],
 				
 				'(.*):await:form:' => [
@@ -316,13 +322,66 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 					'table',
 				],
 				
+				'(.*):await:form:elements:submit:' => [
+					'buttons:',
+					'continue@bool: yes',
+					'reset@bool: no',
+				],
+				
+				'(.*):await:form:elements:submit:buttons:' => [
+					[
+						'caption' => 'continue:',
+						'snippet' => "continue/\${1:yes}:\n  label: Continue\n  icon: circle-ok\n  icon_at: start\n  value: yes\n",
+					],
+					[
+						'caption' => 'reset:',
+						'snippet' => "reset:\n  label: Reset\n  icon: refresh\n  icon_at: start",
+					],
+				],
+				
+				'(.*):await:form:elements:submit:buttons:continue:' => [
+					'label:',
+					'icon:',
+					'icon_at:',
+					'style:',
+					'value:',
+				],
+				
+				'(.*):await:form:elements:submit:buttons:continue:icon_at:' => [
+					'start',
+					'end',
+				],
+				
+				'(.*):await:form:elements:submit:buttons:continue:style:' => [
+					'outline',
+					'secondary',
+				],
+				
+				'(.*):await:form:elements:submit:buttons:reset:' => [
+					'label:',
+					'icon:',
+					'icon_at:',
+					'style:',
+				],
+				
+				'(.*):await:form:elements:submit:buttons:reset:icon_at:' => [
+					'start',
+					'end',
+				],
+				
+				'(.*):await:form:elements:submit:buttons:reset:style:' => [
+					'outline',
+					'secondary',
+				],
+				
 				'(.*):await:form:elements:text:' => [
 					'default:',
 					'label:',
 					'max_length:',
 					'placeholder:',
-					'required@bool:',
+					'required@bool: yes',
 					'type:',
+					'validation@text:',
 				],
 				
 				'(.*):await:form:elements:text:type:' => [
@@ -344,7 +403,8 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 					'label:',
 					'max_length:',
 					'placeholder:',
-					'required@bool:',
+					'required@bool: yes',
+					'validation@text:',
 				],
 				
 				'(.*):await:interaction:' => [

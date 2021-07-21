@@ -588,74 +588,92 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 		return $field_key;
 	}
 	
-	static function _getWhereSQLFromFulltextField(DevblocksSearchCriteria $param, $schema, $pkey, $options=array()) {
+	static function _getWhereSQLFromFulltextField(DevblocksSearchCriteria $param, $schema, $join_key, $attributes=[]) {
 		if(false == ($search = Extension_DevblocksSearchSchema::get($schema)))
 			return null;
 		
 		$query = $search->getQueryFromParam($param);
-		$attribs = array();
 		
-		if(isset($options['prefetch_sql'])) {
-			$attribs['id'] = array(
-				'sql' => $options['prefetch_sql'],
-			);
+		if(DevblocksPlatform::strStartsWith($query, '!')) {
+			$not = true;
+			$query = ltrim($query, '!');
+		} else {
+			$not = false;
 		}
 		
-		if(false === ($ids = $search->query($query, $attribs))) {
-			return '0';
-			
-		} elseif(is_array($ids)) {
-			if(empty($ids))
-				$ids = array(-1);
-			
-			return sprintf('%s IN (%s)',
-				$pkey,
-				implode(', ', $ids)
-			);
-			
-		} elseif(is_string($ids)) {
-			return sprintf("%s IN (SELECT %s.id FROM %s WHERE %s.id=%s)",
-				$pkey,
-				$ids,
-				$ids,
-				$ids,
-				$pkey
-			);
-		}
-		
-		return '0';
+		return $search->generateSql(
+			$query,
+			$attributes,
+			function($sql) use ($join_key, $not) {
+				//return sprintf('%sEXISTS (%s)',
+				return sprintf('%s %sIN (%s)',
+					$join_key,
+					$not ? 'NOT ' : '',
+					$sql
+				);
+			},
+			function($id_key) use ($join_key) {
+				return [
+					sprintf('%s = %s',
+						Cerb_ORMHelper::escape($id_key),
+						Cerb_ORMHelper::escape($join_key)
+					)
+				];
+			},
+			function(array $ids) use ($join_key, $not) {
+				return sprintf('%s %sIN (%s)',
+					$join_key,
+					$not ? 'NOT ' : '',
+					implode(', ', $ids)
+				);
+			}
+		);
 	}
 	
-	static function _getWhereSQLFromCommentFulltextField(DevblocksSearchCriteria $param, $schema, $from_context, $pkey) {
+	static function _getWhereSQLFromCommentFulltextField(DevblocksSearchCriteria $param, $schema, $from_context, $join_key) : string {
 		$search = Extension_DevblocksSearchSchema::get($schema);
 		$query = $search->getQueryFromParam($param);
 		
-		$not = false;
+		$attributes = [
+			'context_crc32' => sprintf("%u", crc32($from_context)),
+		];
+		
 		if(DevblocksPlatform::strStartsWith($query, '!')) {
 			$not = true;
-			$query = mb_substr($query, 1);
+			$query = ltrim($query, '!');
+		} else {
+			$not = false;
 		}
 		
-		if(false === ($ids = $search->query($query, array('context_crc32' => sprintf("%u", crc32($from_context)))))) {
-			return '0';
-		
-		} elseif(is_array($ids)) {
-			$from_ids = DAO_Comment::getContextIdsByContextAndIds($from_context, $ids);
-			
-			return sprintf('%s %sIN (%s)',
-				$pkey,
-				$not ? 'NOT ' : '',
-				implode(', ', (!empty($from_ids) ? $from_ids : array(-1)))
-			);
-			
-		} elseif(is_string($ids)) {
-			return sprintf("%s %sIN (SELECT context_id FROM comment INNER JOIN %s ON (%s.id=comment.id))",
-				$pkey,
-				$not ? 'NOT ' : '',
-				$ids,
-				$ids
-			);
-		}
+		return $search->generateSql(
+			$query,
+			$attributes,
+			function($sql) use ($join_key, $not) {
+				//return sprintf('%sEXISTS (%s)',
+				return sprintf('%s %sIN (%s)',
+					$join_key,
+					$not ? 'NOT ' : '',
+					$sql
+				);
+			},
+			function($id_key) use ($join_key) {
+				return [
+					sprintf('%s = %s',
+						Cerb_ORMHelper::escape($id_key),
+						Cerb_ORMHelper::escape($join_key)
+					)
+				];
+			},
+			function(array $ids) use ($join_key, $from_context, $not) {
+				$from_ids = DAO_Comment::getContextIdsByContextAndIds($from_context, $ids);
+				
+				return sprintf('%s %sIN (%s)',
+					$join_key,
+					$not ? 'NOT ' : '',
+					implode(', ', (!empty($from_ids) ? $from_ids : array(-1)))
+				);
+			}
+		);
 	}
 	
 	static function _getWhereSQLFromAttachmentsField(DevblocksSearchCriteria $param, $context, $join_key) {
@@ -816,7 +834,6 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 							Cerb_OrmHelper::escape($context_id_field),
 							'0'
 						);
-						break;
 				}
 				return;
 			}
@@ -835,7 +852,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			if(false == ($primary_key = $search_class::getPrimaryKey()))
 				return;
 			
-			$query_parts = $dao_class::getSearchQueryComponents(array(), $params);
+			$query_parts = $dao_class::getSearchQueryComponents([], $params);
 			
 			$query_parts['select'] = sprintf("SELECT %s ", $primary_key);
 			
@@ -857,8 +874,8 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 		if(!is_array($param->value))
 			return '0';
 		
-		$wheres = array();
-		$contexts = array();
+		$wheres = [];
+		$contexts = [];
 			
 		foreach($param->value as $owner_context) {
 			@list($context, $context_id) = explode(':', $owner_context);
@@ -1053,10 +1070,42 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 	}
 	
 	static function _getWhereSQLFromWatchersField(DevblocksSearchCriteria $param, $from_context, $pkey) {
-		$ids = DevblocksPlatform::sanitizeArray($param->value, 'integer');
-		
 		switch($param->operator) {
+			case DevblocksSearchCriteria::OPER_CUSTOM:
+				if(false == ($context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_WORKER, true)))
+					return null;
+				
+				if(false == ($view = $context_ext->getTempView()))
+					return null;
+				
+				$params = $view->getParamsFromQuickSearch($param->value);
+				
+				$query_parts = DAO_Worker::getSearchQueryComponents(
+					[],
+					$params
+				);
+				
+				$query_parts['select'] = sprintf("SELECT %s ", SearchFields_Worker::getPrimaryKey());
+				
+				$subquery_sql =
+					$query_parts['select']
+					. $query_parts['join']
+					. $query_parts['where']
+				;
+				
+				// [TODO] NOT
+				
+				return sprintf("%s IN (SELECT from_context_id FROM context_link WHERE context_link.from_context = %s AND context_link.from_context_id = %s AND context_link.to_context = %s AND context_link.to_context_id IN (%s)) ",
+					$pkey,
+					Cerb_ORMHelper::qstr($from_context),
+					$pkey,
+					Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_WORKER),
+					$subquery_sql
+				);
+				
 			case DevblocksSearchCriteria::OPER_IN:
+				$ids = DevblocksPlatform::sanitizeArray($param->value, 'integer');
+				
 				return sprintf("%s IN (SELECT from_context_id FROM context_link WHERE from_context = %s AND from_context_id = %s AND to_context = 'cerberusweb.contexts.worker' AND to_context_id IN (%s))",
 					$pkey,
 					Cerb_ORMHelper::qstr($from_context),
@@ -1065,6 +1114,8 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				);
 				
 			case DevblocksSearchCriteria::OPER_NIN:
+				$ids = DevblocksPlatform::sanitizeArray($param->value, 'integer');
+				
 				return sprintf("%s NOT IN (SELECT from_context_id FROM context_link WHERE from_context = %s AND to_context = 'cerberusweb.contexts.worker' AND to_context_id IN (%s))",
 					$pkey,
 					Cerb_ORMHelper::qstr($from_context),
@@ -1346,6 +1397,8 @@ class DevblocksSearchCriteria {
 	public $field;
 	public $operator;
 	public $value;
+	public $key;
+	public $tokens = [];
 	
 	/**
 	 * @param string $field
@@ -2111,70 +2164,89 @@ class DevblocksSearchCriteria {
 		$terms = null;
 		
 		foreach($tokens as $token) {
-			switch($token->type) {
+			switch ($token->type) {
+				// Parameterized expression
+				case 'T_GROUP':
+					$query = substr(CerbQuickSearchLexer::getTokensAsQuery($tokens), 1, -1);
+					
+					return new DevblocksSearchCriteria(
+						$field_key,
+						DevblocksSearchCriteria::OPER_CUSTOM,
+						$query
+					);
+					break;
+		
 				case 'T_NOT':
-					$not = !$not;
-					break;
-					
 				case 'T_ARRAY':
-					$oper = ($not) ? self::OPER_NIN : self::OPER_IN;
-					$terms = $token->value;
-					break;
-					
 				case 'T_QUOTED_TEXT':
 				case 'T_TEXT':
-					$oper = ($not) ? self::OPER_NIN : self::OPER_IN;
-					$terms = DevblocksPlatform::parseCsvString($token->value);
-					break;
-			}
-		}
-		
-		if(1 == count($terms) && in_array(DevblocksPlatform::strLower($terms[0]), array('any','yes'))) {
-			$oper = self::OPER_IS_NOT_NULL;
-			$value = array();
-			
-		} else if(1 == count($terms) && in_array(DevblocksPlatform::strLower($terms[0]), array('none','no'))) {
-			$oper = self::OPER_IS_NULL;
-			$value = array();
-			
-		} else {
-			$active_worker = CerberusApplication::getActiveWorker();
-			$workers = DAO_Worker::getAllActive();
-				
-			$worker_ids = array();
-			
-			if(is_array($terms))
-			foreach($terms as $term) {
-				if(is_numeric($term) && isset($workers[$term])) {
-					$worker_ids[intval($term)] = true;
-				
-				} elseif($active_worker && 0 == strcasecmp($term, 'me')) {
-					$worker_ids[$active_worker->id] = true;
-					continue;
-				}
-				
-				foreach($workers as $worker_id => $worker) {
-					if(isset($worker_ids[$worker_id]))
-						continue;
-					
-					if(false !== stristr($worker->getName(), $term)) {
-						$worker_ids[$worker_id] = true;
+					foreach($tokens as $token) {
+						switch($token->type) {
+							case 'T_NOT':
+								$not = !$not;
+								break;
+							
+							case 'T_ARRAY':
+								$oper = ($not) ? self::OPER_NIN : self::OPER_IN;
+								$terms = $token->value;
+								break;
+							
+							case 'T_QUOTED_TEXT':
+							case 'T_TEXT':
+								$oper = ($not) ? self::OPER_NIN : self::OPER_IN;
+								$terms = DevblocksPlatform::parseCsvString($token->value);
+								break;
+						}
 					}
-				}
-			}
-			
-			if(!empty($worker_ids)) {
-				$value = array_keys($worker_ids);
-			} else {
-				$value = array(-1);
+					
+					if(1 == count($terms) && in_array(DevblocksPlatform::strLower($terms[0]), array('any','yes'))) {
+						$oper = self::OPER_IS_NOT_NULL;
+						$value = [];
+						
+					} else if(1 == count($terms) && in_array(DevblocksPlatform::strLower($terms[0]), array('none','no'))) {
+						$oper = self::OPER_IS_NULL;
+						$value = [];
+						
+					} else {
+						$active_worker = CerberusApplication::getActiveWorker();
+						$workers = DAO_Worker::getAllActive();
+						
+						$worker_ids = [];
+						
+						if(is_array($terms))
+							foreach($terms as $term) {
+								if(is_numeric($term) && isset($workers[$term])) {
+									$worker_ids[intval($term)] = true;
+									
+								} elseif($active_worker && 0 == strcasecmp($term, 'me')) {
+									$worker_ids[$active_worker->id] = true;
+									continue;
+								}
+								
+								foreach($workers as $worker_id => $worker) {
+									if(isset($worker_ids[$worker_id]))
+										continue;
+									
+									if(false !== stristr($worker->getName(), $term)) {
+										$worker_ids[$worker_id] = true;
+									}
+								}
+							}
+						
+						if(!empty($worker_ids)) {
+							$value = array_keys($worker_ids);
+						} else {
+							$value = [-1];
+						}
+					}
+					
+					return new DevblocksSearchCriteria(
+						$field_key,
+						$oper,
+						$value
+					);
 			}
 		}
-		
-		return new DevblocksSearchCriteria(
-			$field_key,
-			$oper,
-			$value
-		);
 	}
 	
 	public static function getContextAliasParamFromTokens($field_key, $tokens) {
@@ -2211,7 +2283,25 @@ class DevblocksSearchCriteria {
 	}
 
 	public static function getFulltextParamFromTokens($field_key, $tokens) {
-		$terms = array();
+		$terms = [];
+		
+		// Unwrap a parenthetical group ("quoted phrease" terms)
+		if(
+			is_array($tokens)
+			&& array_key_exists(0, $tokens)
+			&& $tokens[0] instanceof CerbQuickSearchLexerToken
+			&& $tokens[0]->type == 'T_GROUP'
+		) {
+			$new_tokens = [];
+			
+			foreach($tokens[0]->children as $token) {
+				if($token->type == 'T_FIELD' && $token->value == 'text')
+					$new_tokens = array_merge($new_tokens, $token->children);
+			}
+			
+			$tokens = $new_tokens;
+			unset($new_tokens);
+		}
 		
 		foreach($tokens as $token) {
 			switch($token->type) {
@@ -2394,10 +2484,7 @@ class DevblocksSearchCriteria {
 
 				$where_in = '';
 				
-				if(empty($vals)) {
-					$where_in = '';
-					
-				} else {
+				if(is_array($vals)) {
 					$where_in = sprintf("%s IN (%s) OR ",
 						$db_field_name,
 						implode(",",$vals)
@@ -2491,9 +2578,7 @@ class DevblocksSearchCriteria {
 				
 				$where = '';
 				
-				if(empty($vals)) {
-					
-				} else {
+				if(is_array($vals)) {
 					$has_multiple_values = false;
 					
 					if(substr($this->field, 0, 3) == 'cf_') {
@@ -2644,7 +2729,7 @@ class DevblocksSearchCriteria {
 				break;
 			
 			default:
-				break;
+				return 0;
 		}
 		
 		return $where;

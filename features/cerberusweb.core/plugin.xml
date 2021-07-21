@@ -4,7 +4,7 @@
 	<name>Cerb Core</name>
 	<description>The core functionality of Cerb.</description>
 	<author>Webgroup Media, LLC.</author>
-	<version>10.0.0</version>
+	<version>10.1.0</version>
 	<link>https://cerb.ai</link>
 	
 	<!-- Plugin Dependencies -->
@@ -77,6 +77,7 @@
 		<patch version="9.7.0" revision="1380" file="patches/9.x/9.7.0.php" />
 
 		<patch version="10.0.0" revision="1392" file="patches/10.x/10.0.0.php" />
+		<patch version="10.1.0" revision="1404" file="patches/10.x/10.1.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -563,6 +564,7 @@
 		
 		<file path="api/dao/message_headers.php">
 			<class name="DAO_MessageHeaders" />
+			<class name="Search_MessageHeaders" />
 		</file>
 		
 		<file path="api/dao/message_html_cache.php">
@@ -4796,6 +4798,42 @@
 				</param>
 			</params>
 		</extension>
+		
+		<extension point="cerb.automation.trigger">
+			<id>cerb.trigger.interaction.internal</id>
+			<name>interaction.internal</name>
+			<class>
+				<file>api/automations/triggers/interaction.internal.php</file>
+				<name>AutomationTrigger_InteractionInternal</name>
+			</class>
+			<params>
+				<param key="description" value="Worker interactions used and managed internally by Cerb" />
+				<param key="features">
+					<value>
+						<data key="await" />
+						<data key="callers" />
+						<data key="inputs" />
+					</value>
+				</param>
+			</params>
+		</extension>
+
+		<extension point="cerb.automation.trigger">
+			<id>cerb.trigger.mail.draft</id>
+			<name>mail.draft</name>
+			<class>
+				<file>api/automations/triggers/mail.draft.php</file>
+				<name>AutomationTrigger_MailDraft</name>
+			</class>
+			<params>
+				<param key="description" value="Modify a new or resumed draft before the editor opens" />
+				<param key="features">
+					<value>
+						<data key="inputs" />
+					</value>
+				</param>
+			</params>
+		</extension>
 
 		<extension point="cerb.automation.trigger">
 			<id>cerb.trigger.mail.filter</id>
@@ -4813,7 +4851,24 @@
 				</param>
 			</params>
 		</extension>
-
+		
+		<extension point="cerb.automation.trigger">
+			<id>cerb.trigger.mail.received</id>
+			<name>mail.received</name>
+			<class>
+				<file>api/automations/triggers/mail.received.php</file>
+				<name>AutomationTrigger_MailReceived</name>
+			</class>
+			<params>
+				<param key="description" value="After a new email message is received" />
+				<param key="features">
+					<value>
+						<data key="inputs" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
 		<extension point="cerb.automation.trigger">
 			<id>cerb.trigger.mail.route</id>
 			<name>mail.route</name>
@@ -4825,6 +4880,59 @@
 				<param key="description" value="Determine a destination group inbox given properties of an incoming message" />
 				<param key="features">
 					<value>
+						<data key="inputs" />
+					</value>
+				</param>
+			</params>
+		</extension>
+
+		<extension point="cerb.automation.trigger">
+			<id>cerb.trigger.mail.send</id>
+			<name>mail.send</name>
+			<class>
+				<file>api/automations/triggers/mail.send.php</file>
+				<name>AutomationTrigger_MailSend</name>
+			</class>
+			<params>
+				<param key="description" value="Before a sent message is delivered" />
+				<param key="features">
+					<value>
+						<data key="inputs" />
+					</value>
+				</param>
+			</params>
+		</extension>
+		
+		<extension point="cerb.automation.trigger">
+			<id>cerb.trigger.mail.sent</id>
+			<name>mail.sent</name>
+			<class>
+				<file>api/automations/triggers/mail.sent.php</file>
+				<name>AutomationTrigger_MailSent</name>
+			</class>
+			<params>
+				<param key="description" value="After a sent message is delivered" />
+				<param key="features">
+					<value>
+						<data key="inputs" />
+					</value>
+				</param>
+			</params>
+		</extension>
+
+		<extension point="cerb.automation.trigger">
+			<id>cerb.trigger.mail.draft.validate</id>
+			<name>mail.draft.validate</name>
+			<class>
+				<file>api/automations/triggers/mail.draft.validate.php</file>
+				<name>AutomationTrigger_MailDraftValidate</name>
+			</class>
+			<params>
+				<param key="description" value="Validate a draft before sending" />
+				<param key="features">
+					<value>
+						<data key="await" />
+						<data key="callers" />
 						<data key="inputs" />
 					</value>
 				</param>
@@ -4975,6 +5083,16 @@
 			<class>
 				<file>api/toolbars/automation.editor.php</file>
 				<name>Toolbar_AutomationEditor</name>
+			</class>
+			<params/>
+		</extension>
+		
+		<extension point="cerb.toolbar">
+			<id>cerb.toolbar.draft.read</id>
+			<name>draft.read</name>
+			<class>
+				<file>api/toolbars/draft.read.php</file>
+				<name>Toolbar_DraftRead</name>
 			</class>
 			<params/>
 		</extension>
@@ -6024,6 +6142,17 @@
 			<class>
 				<file>api/dao/message.php</file>
 				<name>Search_MessageContent</name>
+			</class>
+			<params>
+			</params>
+		</extension>
+
+		<extension point="devblocks.search.schema">
+			<id>cerberusweb.search.schema.message_headers</id>
+			<name>Message Headers</name>
+			<class>
+				<file>api/dao/message_headers.php</file>
+				<name>Search_MessageHeaders</name>
 			</class>
 			<params>
 			</params>
@@ -7491,6 +7620,8 @@
 			<params>
 				<param key="contexts">
 					<value>
+						<data key="cerberusweb.contexts.mail.draft" />
+						<data key="cerberusweb.contexts.message" />
 						<data key="cerberusweb.contexts.ticket" />
 					</value>
 				</param>

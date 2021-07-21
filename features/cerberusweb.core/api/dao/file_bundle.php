@@ -452,27 +452,21 @@ class SearchFields_FileBundle extends DevblocksSearchFields {
 		switch($param->field) {
 			case self::FULLTEXT_COMMENT_CONTENT:
 				return self::_getWhereSQLFromCommentFulltextField($param, Search_CommentContent::ID, CerberusContexts::CONTEXT_FILE_BUNDLE, self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_CONTEXT_LINK:
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_FILE_BUNDLE, self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_HAS_FIELDSET:
 				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_FILE_BUNDLE), '%s'), self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_OWNER:
 				return self::_getWhereSQLFromContextAndID($param, 'file_bundle.owner_context', 'file_bundle.owner_context_id');
-				break;
 			
 			case self::VIRTUAL_USABLE_BY:
 				return self::_getWhereSQLForUsableBy($param, self::getPrimaryKey());
-				break;
 
 			case self::VIRTUAL_WATCHERS:
 				return self::_getWhereSQLFromWatchersField($param, CerberusContexts::CONTEXT_FILE_BUNDLE, self::getPrimaryKey());
-				break;
 			
 			default:
 				if('cf_' == substr($param->field, 0, 3)) {
@@ -480,7 +474,6 @@ class SearchFields_FileBundle extends DevblocksSearchFields {
 				} else {
 					return $param->getWhereSQL(self::getFields(), self::getPrimaryKey());
 				}
-				break;
 		}
 	}
 	
@@ -818,8 +811,11 @@ class View_FileBundle extends C4_AbstractView implements IAbstractView_Subtotals
 				),
 			'watchers' =>
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_WORKER,
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_FileBundle::VIRTUAL_WATCHERS),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					],
 				),
 		);
 		
@@ -863,7 +859,6 @@ class View_FileBundle extends C4_AbstractView implements IAbstractView_Subtotals
 		switch($field) {
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
-				break;
 			
 			case 'usableBy.worker':
 				$oper = $value = null;
@@ -881,8 +876,10 @@ class View_FileBundle extends C4_AbstractView implements IAbstractView_Subtotals
 					DevblocksSearchCriteria::OPER_CUSTOM,
 					['context' => CerberusContexts::CONTEXT_WORKER, 'id' => $worker_id]
 				);
-				break;
 			
+			case 'watchers':
+				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_FileBundle::VIRTUAL_WATCHERS, $tokens);
+				
 			default:
 				if($field == 'owner' || substr($field, 0, strlen('owner.')) == 'owner.')
 					return DevblocksSearchCriteria::getVirtualContextParamFromTokens($field, $tokens, 'owner', SearchFields_FileBundle::VIRTUAL_OWNER);
@@ -892,10 +889,7 @@ class View_FileBundle extends C4_AbstractView implements IAbstractView_Subtotals
 				
 				$search_fields = $this->getQuickSearchFields();
 				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
-				break;
 		}
-		
-		return false;
 	}
 	
 	function render() {

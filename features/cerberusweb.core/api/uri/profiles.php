@@ -169,10 +169,18 @@ class Page_Profiles extends CerberusPageExtension {
 		
 		$dao_class = $context_ext->getDaoClass();
 		
+		// Load the record
 		if(false == ($record = $dao_class::get($context_id)))
-			return;
+			DevblocksPlatform::redirect(new DevblocksHttpRequest());
 		
 		$tpl->assign('record', $record);
+		
+		// Events
+		
+		if($context == CerberusContexts::CONTEXT_TICKET) {
+			// Trigger ticket view event (before we load it, in case we change it)
+			Event_TicketViewedByWorker::trigger($record->id, $active_worker->id);
+		}
 		
 		// Dictionary
 		
@@ -180,7 +188,12 @@ class Page_Profiles extends CerberusPageExtension {
 		CerberusContexts::getContext($context, $record, $labels, $values, '', true, false);
 		$dict = DevblocksDictionaryDelegate::instance($values);
 		$tpl->assign('dict', $dict);
-
+		
+		// Permissions
+		
+		if(!CerberusContexts::isReadableByActor($context, $dict, $active_worker))
+			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translateCapitalized('common.access_denied'), 403);
+		
 		// Toolbar
 		$toolbar_placeholders = $dict->getDictionary(null, false, 'record_');
 		$toolbar_placeholders['worker__context'] = CerberusContexts::CONTEXT_WORKER;
@@ -231,7 +244,6 @@ class Page_Profiles extends CerberusPageExtension {
 		
 		$toolbar_kata = DevblocksPlatform::services()->ui()->toolbar()->parse($toolbar_kata, $toolbar_dict);
 		$tpl->assign('toolbar_profile', $toolbar_kata);
-		
 		
 		// Active tab
 		
@@ -1071,7 +1083,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 						'status' => true,
 					]);
 					return;
-					break;
 					
 				case 'pages':
 					@$page_ids = DevblocksPlatform::importGPC($_POST['pages'],'array:integer',[]);
@@ -1092,7 +1103,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
-					break;
 					
 				case 'availability':
 					@$availability_calendar_id = DevblocksPlatform::importGPC($_POST['availability_calendar_id'],'integer',0);
@@ -1113,7 +1123,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
-					break;
 					
 				case 'localization':
 					@$lang_code = DevblocksPlatform::importGPC($_POST['lang_code'],'string','en_US');
@@ -1148,7 +1157,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
-					break;
 					
 				case 'mail':
 					@$mail_disable_html_display = DevblocksPlatform::importGPC($_POST['mail_disable_html_display'],'integer',0);
@@ -1180,7 +1188,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
-					break;
 					
 				case 'records':
 					@$comment_disable_formatting = DevblocksPlatform::importGPC($_POST['comment_disable_formatting'],'integer',0);
@@ -1191,7 +1198,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
-					break;
 					
 				case 'search':
 					@$search_favorites = DevblocksPlatform::importGPC($_POST['search_favorites'],'array',[]);
@@ -1206,7 +1212,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
-					break;
 					
 				case 'security':
 					// Secret questions
@@ -1275,7 +1280,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
-					break;
 					
 				case 'watchers':
 					@$activity_points = DevblocksPlatform::importGPC($_POST['activity_point'],'array',array());
@@ -1289,7 +1293,6 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 						'message' => DevblocksPlatform::translate('success.saved_changes'),
 					]);
 					return;
-					break;
 			}
 			
 		} catch (Exception_DevblocksAjaxValidationError $e) {

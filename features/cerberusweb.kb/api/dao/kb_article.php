@@ -586,7 +586,6 @@ class SearchFields_KbArticle extends DevblocksSearchFields {
 							Cerb_ORMHelper::escape($param->operator),
 							$value
 						);
-						break;
 						
 					case DevblocksSearchCriteria::OPER_IN:
 					case DevblocksSearchCriteria::OPER_NIN:
@@ -598,10 +597,8 @@ class SearchFields_KbArticle extends DevblocksSearchFields {
 							$param->operator == DevblocksSearchCriteria::OPER_NIN ? 'NOT IN' : 'IN',
 							implode(',', $category_ids)
 						);
-						break;
 				}
 				return 0;
-				break;
 				
 			case self::TOP_CATEGORY_ID:
 				switch($param->operator) {
@@ -618,7 +615,6 @@ class SearchFields_KbArticle extends DevblocksSearchFields {
 							Cerb_ORMHelper::escape($param->operator),
 							$value
 						);
-						break;
 						
 					case DevblocksSearchCriteria::OPER_IN:
 					case DevblocksSearchCriteria::OPER_NIN:
@@ -633,23 +629,18 @@ class SearchFields_KbArticle extends DevblocksSearchFields {
 						break;
 				}
 				return 0;
-				break;
 				
 			case self::FULLTEXT_ARTICLE_CONTENT:
 				return self::_getWhereSQLFromFulltextField($param, Search_KbArticle::ID, self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_CONTEXT_LINK:
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_KB_ARTICLE, self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_HAS_FIELDSET:
 				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_KB_ARTICLE), '%s'), self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_WATCHERS:
 				return self::_getWhereSQLFromWatchersField($param, CerberusContexts::CONTEXT_KB_ARTICLE, self::getPrimaryKey());
-				break;
 			
 			default:
 				if('cf_' == substr($param->field, 0, 3)) {
@@ -657,7 +648,6 @@ class SearchFields_KbArticle extends DevblocksSearchFields {
 				} else {
 					return $param->getWhereSQL(self::getFields(), self::getPrimaryKey());
 				}
-				break;
 		}
 	}
 	
@@ -763,10 +753,16 @@ class Search_KbArticle extends Extension_DevblocksSearchSchema {
 		return [];
 	}
 	
-	public function getFields() {
-		return array(
-			'content',
-		);
+	public function getIdField() {
+		return 'id';
+	}
+	
+	public function getDataField() {
+		return 'content';
+	}
+	
+	public function getPrimaryKey() {
+		return 'id';
 	}
 	
 	public function reindex() {
@@ -795,15 +791,6 @@ class Search_KbArticle extends Extension_DevblocksSearchSchema {
 				$this->setParam('last_indexed_time', time());
 				break;
 		}
-	}
-	
-	public function query($query, $attributes=[], $limit=null) {
-		if(false == ($engine = $this->getEngine()))
-			return false;
-
-		$ids = $engine->query($this, $query, $attributes, $limit);
-		
-		return $ids;
 	}
 	
 	public function index($stop_time=null) {
@@ -1608,9 +1595,12 @@ class View_KbArticle extends C4_AbstractView implements IAbstractView_Subtotals,
 			$where_sql
 		);
 		
-		$results = $db->GetArrayReader($sql);
-		
-		return $results;
+		try {
+			return $db->GetArrayReader($sql, 15000);
+			
+		} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+			return false;
+		}
 	}
 	
 	protected function _getSubtotalCountForCategory() {
@@ -1681,9 +1671,12 @@ class View_KbArticle extends C4_AbstractView implements IAbstractView_Subtotals,
 			$where_sql
 		);
 		
-		$results = $db->GetArrayReader($sql);
-		
-		return $results;
+		try {
+			return $db->GetArrayReader($sql, 15000);
+			
+		} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+			return false;
+		}
 	}
 	
 	protected function _getSubtotalCountForCategoryTopic() {
@@ -1780,8 +1773,11 @@ class View_KbArticle extends C4_AbstractView implements IAbstractView_Subtotals,
 				),
 			'watchers' => 
 				array(
-					'type' => 'WS',
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_KbArticle::VIRTUAL_WATCHERS),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					],
 				),
 		);
 		
@@ -1823,18 +1819,17 @@ class View_KbArticle extends C4_AbstractView implements IAbstractView_Subtotals,
 		switch($field) {
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
-				break;
 			
+			case 'watchers':
+				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_KbArticle::VIRTUAL_WATCHERS, $tokens);
+				
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
 					return DevblocksSearchCriteria::getContextLinksParamFromTokens($field, $tokens);
 				
 				$search_fields = $this->getQuickSearchFields();
 				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
-				break;
 		}
-		
-		return false;
 	}
 	
 	function render() {

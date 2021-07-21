@@ -16,11 +16,9 @@ class _DevblocksDatabaseManager {
 		switch($name) {
 			case '_master_db':
 				return $this->_connectMaster();
-				break;
 				
 			case '_reader_db':
 				return $this->_connectReader();
-				break;
 		}
 		
 		return null;
@@ -90,6 +88,20 @@ class _DevblocksDatabaseManager {
 		return $db;
 	}
 	
+	private function _connectNewReader() {
+		// Inherit the user/pass from the master if not specified
+		$host = APP_DB_READER_HOST ?: APP_DB_HOST;
+		$user = APP_DB_READER_USER ?: APP_DB_USER;
+		$pass = APP_DB_READER_PASS ?: APP_DB_PASS;
+		
+		if(false == ($db = $this->_connect($host, $user, $pass, APP_DB_DATABASE, APP_DB_PCONNECT, APP_DB_OPT_MASTER_CONNECT_TIMEOUT_SECS))) {
+			error_log(sprintf("[Cerb] Error connecting to a reader host (%s).", $host), E_USER_ERROR);
+			return false;
+		}
+		
+		return $db;
+	}	
+	
 	private function _redirectReaderToMaster() {
 		if($master = $this->_connectMaster())
 			$this->_connections['reader'] = $master;
@@ -135,6 +147,13 @@ class _DevblocksDatabaseManager {
 	 */
 	function getReaderConnection() {
 		return $this->_reader_db;
+	}
+	
+	/**
+	 * @return mysqli|false
+	 */
+	function getNewReaderConnection() {
+		return $this->_connectNewReader();
 	}
 	
 	function isConnected() {
@@ -261,6 +280,13 @@ class _DevblocksDatabaseManager {
 		return $this->_Execute($sql, $this->_master_db);
 	}
 	
+	function ExecuteWriterOrFail($sql, $fail_message = 'A required database query failed. Check the log for more details.', $option_bits = 0) {
+		if(false === ($result = $this->ExecuteWriter($sql, $option_bits)))
+			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::strEscapeHtml($fail_message));
+		
+		return $result;
+	}
+	
 	function QueryReader($sql) {
 		$db = $this->_reader_db;
 		
@@ -290,7 +316,7 @@ class _DevblocksDatabaseManager {
 	
 	/**
 	 * @param string|string[] $sqls
-	 * @param int $time_limit_ms
+	 * @param int|int[] $time_limit_ms
 	 * @return mysqli_result[]|mysqli_result|false
 	 */
 	function QueryReaderAsync($sqls, $time_limit_ms=10000) {
@@ -304,6 +330,14 @@ class _DevblocksDatabaseManager {
 		if(!is_array($sqls))
 			return false;
 		
+		if(is_string($time_limit_ms)) {
+			$time_limits = array_fill(0, count($sqls), $time_limit_ms);
+		} else if (is_array($time_limit_ms)) {
+			$time_limits = array_pad($time_limit_ms, count($sqls), current($time_limit_ms));
+		} else {
+			$time_limits = array_fill(0, count($sqls), 10000);
+		}
+		
 		$user = (defined('APP_DB_READER_USER') && APP_DB_READER_USER) ? APP_DB_READER_USER : APP_DB_USER;
 		$pass = (defined('APP_DB_READER_PASS') && APP_DB_READER_PASS) ? APP_DB_READER_PASS : APP_DB_PASS;
 		
@@ -312,12 +346,13 @@ class _DevblocksDatabaseManager {
 		$results = [];
 		$connections = [];
 		$processed = 0;
+		$monitor_db = null;
 		
 		foreach($sqls as $idx => $sql) {
 			if(0 == $idx) {
 				$db = $this->getReaderConnection();
 			} else {
-				$db = $this->_connect(APP_DB_READER_HOST, $user, $pass, APP_DB_DATABASE, false, APP_DB_OPT_READER_CONNECT_TIMEOUT_SECS);
+				$db = $this->getNewReaderConnection();
 			}
 			
 			if(!($db instanceof mysqli))
@@ -334,32 +369,49 @@ class _DevblocksDatabaseManager {
 			foreach($connections as $db)
 				$links[] = $errors[] = $rejects[] = $db;
 			
-			// If we timed out
-			if ((microtime(true) * 1000) - $started_at >= $time_limit_ms) {
-				// Close any incomplete connections
-				foreach($connections as $idx => $db) {
-					if(!($results[$db->thread_id] instanceof mysqli_result)) {
-						// Mark the thread as timed out
-						$results[$db->thread_id] = new Exception_DevblocksDatabaseQueryTimeout();
-						mysqli_kill($db, $db->thread_id);
-						error_log('Timed out ::SQL:: ' . $sqls[$idx]);
-					}
-				}
-				
-				if($return_single) {
-					return array_shift($results);
-				} else {
-					return array_values($results);
+			$elapsed_ms = (microtime(true) * 1000) - $started_at;
+			
+			// Close any incomplete connections
+			foreach($connections as $idx => $db) {
+				// If we timed out on this query
+				if(false === $results[$db->thread_id] && $elapsed_ms >= $time_limits[$idx]) {
+					// Open a new connection to control the other threads
+					if(is_null($monitor_db))
+						$monitor_db = $this->getNewReaderConnection();
+					
+					// Mark the thread as timed out
+					$results[$db->thread_id] = new Exception_DevblocksDatabaseQueryTimeout();
+					
+					DevblocksPlatform::logError(sprintf('Timed out ::SQL:: (%s pid:%d time:%dms) %s ',
+						APP_DB_DATABASE,
+						$db->thread_id,
+						$time_limit_ms,
+						$sqls[$idx]
+					));
+					
+					// Kill the timed out thread using the new connection
+					mysqli_kill($monitor_db, $db->thread_id);
 				}
 			}
 			
-			if (!mysqli_poll($links, $errors, $rejects, 1))
-				continue;
+			if(!is_null($monitor_db))
+				@mysqli_close($monitor_db);
+			
+			mysqli_poll($links, $errors, $rejects, 1);
 			
 			foreach ($links as $idx => $link) {
-				if ($rs = mysqli_reap_async_query($link)) {
+				$rs = mysqli_reap_async_query($link);
+					
+				// If we already have a result, skip it
+				if(false !== $results[$link->thread_id]) {
+					/** @noinspection PhpExpressionResultUnusedInspection */
+					true;
+					
+				// If successful
+				} else if ($rs instanceof mysqli_result) {
 					$results[$link->thread_id] = $rs;
 					
+				// If an error
 				} else {
 					$mysql_errno = mysqli_errno($link);
 					$mysql_error = mysqli_error($link);
@@ -372,11 +424,7 @@ class _DevblocksDatabaseManager {
 						$sqls[$idx]
 					);
 					
-					if (DEVELOPMENT_MODE && php_sapi_name() != 'cli') {
-						trigger_error($error_msg, E_USER_WARNING);
-					} else {
-						error_log($error_msg);
-					}
+					DevblocksPlatform::logError($error_msg);
 				}
 				
 				$processed++;
@@ -432,11 +480,7 @@ class _DevblocksDatabaseManager {
 					$sql
 				);
 				
-				if(DEVELOPMENT_MODE && php_sapi_name() != 'cli') {
-					trigger_error($error_msg, E_USER_WARNING);
-				} else {
-					error_log($error_msg);
-				}
+				DevblocksPlatform::logError($error_msg);
 				
 				return false;
 			}

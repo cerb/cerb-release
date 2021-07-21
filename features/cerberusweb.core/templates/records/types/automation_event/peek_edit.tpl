@@ -30,40 +30,19 @@
     <fieldset class="peek">
         <legend>Automations: (KATA)</legend>
         <div class="cerb-code-editor-toolbar">
-            {$toolbar_dict = DevblocksDictionaryDelegate::instance([
-            'caller_name' => 'cerb.eventHandler.automation',
-
-            'worker__context' => CerberusContexts::CONTEXT_WORKER,
-            'worker_id' => $active_worker->id
-            ])}
-
-{$toolbar_kata =
-"menu/add:
-  icon: circle-plus
-  tooltip: Add
-  items:
-    interaction/automation:
-      label: Automation
-      uri: ai.cerb.eventHandler.automation
-      inputs:
-        trigger: {$model->extension_id}
-"}
-
-            {$toolbar = DevblocksPlatform::services()->ui()->toolbar()->parse($toolbar_kata, $toolbar_dict)}
-
             {DevblocksPlatform::services()->ui()->toolbar()->render($toolbar)}
 
             <div class="cerb-code-editor-toolbar-divider"></div>
 
             {include file="devblocks:cerberusweb.core::automations/triggers/editor_event_handler_buttons.tpl"}
 
-            <button type="button" style="float:right;" class="cerb-code-editor-toolbar-button cerb-editor-button-help"><a href="#" target="_blank"><span class="glyphicons glyphicons-circle-question-mark"></span></a></button>
+            <button type="button" style="float:right;" class="cerb-code-editor-toolbar-button cerb-editor-button-help"><a href="https://cerb.ai/docs/automations/#events" target="_blank"><span class="glyphicons glyphicons-circle-question-mark"></span></a></button>
         </div>
 
         <textarea name="automations_kata" data-editor-mode="ace/mode/cerb_kata">{$model->automations_kata}</textarea>
 
         {if is_a($trigger_ext, 'Extension_AutomationTrigger')}
-        {include file="devblocks:cerberusweb.core::automations/triggers/editor_event_handler.tpl" trigger_inputs=$trigger_ext->getInputsMeta()}
+        {include file="devblocks:cerberusweb.core::automations/triggers/editor_event_handler.tpl" trigger_inputs=$trigger_ext->getEventPlaceholders()}
         {/if}
     </fieldset>
     

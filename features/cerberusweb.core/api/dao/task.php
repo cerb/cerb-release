@@ -1053,8 +1053,11 @@ class View_Task extends C4_AbstractView implements IAbstractView_Subtotals, IAbs
 				),
 			'watchers' => 
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_WORKER,
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Task::VIRTUAL_WATCHERS),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					],
 				),
 		);
 		
@@ -1094,11 +1097,9 @@ class View_Task extends C4_AbstractView implements IAbstractView_Subtotals, IAbs
 		switch($field) {
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
-				break;
 			
 			case 'owner':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Task::VIRTUAL_OWNER_SEARCH);
-				break;
 				
 			case 'isCompleted':
 			case 'status':
@@ -1133,19 +1134,17 @@ class View_Task extends C4_AbstractView implements IAbstractView_Subtotals, IAbs
 					$oper,
 					array_keys($values)
 				);
-				break;
+			
+			case 'watchers':
+				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_Task::VIRTUAL_WATCHERS, $tokens);
 				
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
 					return DevblocksSearchCriteria::getContextLinksParamFromTokens($field, $tokens);
 				
 				$search_fields = $this->getQuickSearchFields();
-				$param = DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
-				return $param;
-				break;
+				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
 		}
-		
-		return false;
 	}
 	
 	function render() {

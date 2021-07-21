@@ -420,8 +420,16 @@ class CerberusMail {
 							$email = trim($email);
 							
 							if(!$email) {
-								$email = $personal;
-								$personal = '';
+								$matches = [];
+								
+								// Formmail style?
+								if(preg_match('#^(.*?\@.*?) \((.*?)\)$#', $personal, $matches)) {
+									$email = $matches[1];
+									$personal = $matches[2];
+								} else {
+									$email = $personal;
+									$personal = '';
+								}
 								
 							} else {
 								if(DevblocksPlatform::strStartsWith($personal, '"')) {
@@ -593,12 +601,21 @@ class CerberusMail {
 				case 'parsedown':
 					$properties = [
 						'html_template_id' => $html_template_id,
+						'content' => $body,
 					];
-					self::_generateMailBodyMarkdown($mail, $body, $properties, null, null);
+					self::_generateMailBodyMarkdown($mail, $properties);
 					break;
 					
 				default:
-					$mail->setBody($body);
+					$properties = [
+						'content' => $body,
+					];
+					
+					$mail->setBody(self::_generateBodyContentWithPartModifications(
+						$properties,
+						'sent',
+						'text'
+					));
 					break;
 			}
 			
@@ -754,9 +771,6 @@ class CerberusMail {
 			CerberusMail::parseComposeHashCommands($worker, $properties, $hash_commands);
 		}
 		
-		// Handle content appends and prepends
-		self::_generateBodiesWithContentModifications($properties);
-		
 		@$org_id = $properties['org_id'];
 		@$toStr = $properties['to'];
 		@$cc = $properties['cc'];
@@ -850,11 +864,11 @@ class CerberusMail {
 			switch($content_format) {
 				case 'markdown':
 				case 'parsedown':
-					$embedded_files = self::_generateMailBodyMarkdown($email, @$properties['content_sent'], $properties, $group_id, $bucket->id);
+					$embedded_files = self::_generateMailBodyMarkdown($email, $properties, $group_id, $bucket->id);
 					break;
 					
 				default:
-					$content_sent = CerberusMail::getMailTemplateFromContent(@$properties['content_sent'], $properties, 'text');
+					$content_sent = CerberusMail::getMailTemplateFromContent($properties, 'sent', 'text');
 					$email->setBody($content_sent);
 					break;
 			}
@@ -992,7 +1006,7 @@ class CerberusMail {
 		// Save a copy of the sent HTML body
 		$html_body_id = 0;
 		if(in_array($content_format, ['markdown','parsedown'])) {
-			if(false !== ($html_saved = CerberusMail::getMailTemplateFromContent(@$properties['content_saved'], $properties, 'html'))) {
+			if(false !== ($html_saved = CerberusMail::getMailTemplateFromContent($properties, 'saved', 'html'))) {
 				$html_body_id = DAO_Attachment::create([
 					DAO_Attachment::NAME => 'original_message.html',
 					DAO_Attachment::MIME_TYPE => 'text/html',
@@ -1032,7 +1046,7 @@ class CerberusMail {
 		$message_id = DAO_Message::create($fields);
 		
 		// Convert to a plaintext part
-		$plaintext_saved = CerberusMail::getMailTemplateFromContent(@$properties['content_saved'], $properties, 'text');
+		$plaintext_saved = CerberusMail::getMailTemplateFromContent($properties, 'saved', 'text');
 		
 		Storage_MessageContent::put($message_id, $plaintext_saved);
 		unset($plaintext_saved);
@@ -1135,6 +1149,9 @@ class CerberusMail {
 	static private function _composeTriggerEvents($message_id, $group_id) {
 		// Events
 		if(!empty($message_id) && !empty($group_id)) {
+			// Changing the outgoing message through an automation
+			AutomationTrigger_MailSent::trigger($message_id);
+			
 			// After message sent (global)
 			Event_MailAfterSent::trigger($message_id);
 			
@@ -1214,9 +1231,6 @@ class CerberusMail {
 			
 			return [CerberusContexts::CONTEXT_DRAFT, $draft_id];
 		}
-		
-		// Handle content appends and prepends
-		self::_generateBodiesWithContentModifications($properties);
 		
 		$toStr = $properties['to'] ?? null;
 		$cc = $properties['cc'] ?? null;
@@ -1302,11 +1316,11 @@ class CerberusMail {
 			switch($content_format) {
 				case 'markdown':
 				case 'parsedown':
-					self::_generateMailBodyMarkdown($email, @$properties['content_sent'], $properties, null, null);
+					self::_generateMailBodyMarkdown($email, $properties, null, null);
 					break;
 				
 				default:
-					$content_sent = CerberusMail::getMailTemplateFromContent(@$properties['content_sent'], $properties, 'text');
+					$content_sent = CerberusMail::getMailTemplateFromContent($properties, 'sent', 'text');
 					$email->setBody($content_sent);
 					break;
 			}
@@ -1546,9 +1560,6 @@ class CerberusMail {
 				}
 			}
 			
-			// Handle content appends and prepends
-			self::_generateBodiesWithContentModifications($properties);
-			
 			// Re-read properties
 			@$content_format = $properties['content_format'];
 			@$files = $properties['files'];
@@ -1750,11 +1761,11 @@ class CerberusMail {
 			switch ($content_format) {
 				case 'markdown':
 				case 'parsedown':
-					$embedded_files = self::_generateMailBodyMarkdown($mail, @$properties['content_sent'], $properties, $ticket->group_id, $ticket->bucket_id);
+					$embedded_files = self::_generateMailBodyMarkdown($mail, $properties, $ticket->group_id, $ticket->bucket_id);
 					break;
 				
 				default:
-					$content_sent = CerberusMail::getMailTemplateFromContent(@$properties['content_sent'], $properties, 'text');
+					$content_sent = CerberusMail::getMailTemplateFromContent($properties, 'sent', 'text');
 					$mail->setBody($content_sent);
 					break;
 			}
@@ -1927,7 +1938,7 @@ class CerberusMail {
 			// Save a copy of the sent HTML body
 			$html_body_id = 0;
 			if(in_array($content_format,  ['markdown', 'parsedown'])) {
-				if(false !== ($html_saved = CerberusMail::getMailTemplateFromContent(@$properties['content_saved'], $properties, 'html'))) {
+				if(false !== ($html_saved = CerberusMail::getMailTemplateFromContent($properties, 'saved', 'html'))) {
 					$html_body_id = DAO_Attachment::create([
 						DAO_Attachment::NAME => 'original_message.html',
 						DAO_Attachment::MIME_TYPE => 'text/html',
@@ -1980,7 +1991,7 @@ class CerberusMail {
 			}
 			
 			// Convert to a plaintext part
-			$plaintext_saved = CerberusMail::getMailTemplateFromContent(@$properties['content_saved'], $properties, 'text');
+			$plaintext_saved = CerberusMail::getMailTemplateFromContent($properties, 'saved', 'text');
 			
 			Storage_MessageContent::put($message_id, $plaintext_saved);
 			unset($plaintext_saved);
@@ -2049,6 +2060,9 @@ class CerberusMail {
 		
 		// Events
 		if(!empty($message_id)) {
+			// Changing the outgoing message through an automation
+			AutomationTrigger_MailSent::trigger($message_id);
+			
 			// After message sent (global)
 			Event_MailAfterSent::trigger($message_id);
 			
@@ -2696,8 +2710,8 @@ class CerberusMail {
 			
 			$ids = explode(':', $decrypted_message, 2);
 			
-			$in_message_id = base_convert($ids[0], 16, 10);
-			$in_worker_id = base_convert($ids[1], 16, 10);
+			@$in_message_id = base_convert($ids[0], 16, 10);
+			@$in_worker_id = base_convert($ids[1], 16, 10);
 			
 			if($in_worker_id != $worker_id)
 				return false;
@@ -2896,11 +2910,8 @@ class CerberusMail {
 		}
 	}
 	
-	static private function _generateBodiesWithContentModifications(&$properties) {
-		if(!isset($properties['content']))
-			return;
-		
-		$properties['content_sent'] = $properties['content_saved'] = $properties['content'];
+	static private function _generateBodyContentWithPartModifications(array $properties, string $part, string $format) : string {
+		$content = $properties['content'] ?? '';
 		
 		// Apply content modifications in FIFO order
 		if(false != ($content_modifications = @$properties['content_modifications']))
@@ -2908,74 +2919,93 @@ class CerberusMail {
 			@$action = $content_modification['action'];
 			@$params = $content_modification['params'];
 			
+			$params_on = $params['on'] ?? [];
+			
+			$on = [
+				'html' => true,
+				'text' => true,
+				'saved' => true,
+				'sent' => true,
+			];
+			
+			if(is_array($params_on))
+			foreach($params_on as $on_key => $is_on) {
+				if(array_key_exists($on_key, $on) && !$is_on)
+					$on[$on_key] = false;
+			}
+			
+			// Backwards compatibility for bot behaviors. Remove in 11.0
+			// @deprecated ==========
+			if(array_key_exists('replace_on', $params)) {
+				$params['mode'] = $params['replace_on'];
+				unset($params['replace_on']);
+			}
+			
+			if(array_key_exists('mode', $params)) {
+				if ('saved' == $params['mode']) {
+					$on['saved'] = true;
+					$on['sent'] = false;
+				} elseif ('sent' == $params['mode']) {
+					$on['saved'] = false;
+					$on['sent'] = true;
+				}
+			}
+			// ==========@deprecated
+			
+			// If this part or format is disabled, skip it
+			if(!$on[$part] || !$on[$format])
+				continue;
+			
 			// Replacement
 			if($action == 'replace') {
 				@$replace = $params['replace'];
 				@$replace_is_regexp = $params['replace_is_regexp'];
-				@$replace_on = $params['replace_on'];
 				@$with = $params['with'];
-
-				if(!$replace_on || 'saved' == $replace_on) {
-					if($replace_is_regexp) {
-						$properties['content_saved'] = preg_replace($replace, $with, $properties['content_saved']);
-					} else {
-						$properties['content_saved'] = str_replace($replace, $with, $properties['content_saved']);
-					}
-				}
 				
-				if(!$replace_on || 'sent' == $replace_on) {
-					if($replace_is_regexp) {
-						$properties['content_sent'] = preg_replace($replace, $with, $properties['content_sent']);
-					} else {
-						$properties['content_sent'] = str_replace($replace, $with, $properties['content_sent']);
-					}
+				if($replace_is_regexp) {
+					$content = preg_replace($replace, $with, $content);
+				} else {
+					$content = str_replace($replace, $with, $content);
 				}
 			
 			// Prepends
 			} elseif ($action == 'prepend') {
-				@$mode = $params['mode'];
-				@$content = $params['content'];
+				@$prepend_content = $params['content'];
 				
-				if(!$mode || 'saved' == $mode) {
-					$properties['content_saved'] = $content . "\n" . $properties['content_saved'];
-				}
-				
-				if(!$mode || 'sent' == $mode) {
-					$properties['content_sent'] = $content . "\n" . $properties['content_sent'];
-				}
+				$content = $prepend_content . "\n" . $content;
 				
 			// Appends
 			} elseif ($action == 'append') {
-				@$mode = $params['mode'];
-				@$content = $params['content'];
+				@$append_content = $params['content'];
 			
-				if(!$mode || 'saved' == $mode) {
-					$properties['content_saved'] = $properties['content_saved'] . "\n" . $content;
-				}
-				
-				if(!$mode || 'sent' == $mode) {
-					$properties['content_sent'] = $properties['content_sent'] . "\n" . $content;
-				}
+				$content = $content . "\n" . $append_content;
 			}
 		}
+		
+		return $content;
 	}
 	
+	// Strip some Markdown in the plaintext version
 	static function generateTextFromMarkdown($markdown) {
 		$plaintext = null;
 		
 		$url_writer = DevblocksPlatform::services()->url();
 		$base_url = $url_writer->write('c=files', true) . '/';
 		
-		// Strip some Markdown in the plaintext version
+		// Fix references to internal files
 		try {
 			$plaintext = preg_replace_callback(
-				sprintf('|(\!\[inline-image\]\(%s(.*?)\))|', preg_quote($base_url)),
+				sprintf('|(\!\[(.*?)\]\(%s(.*?)\))|', preg_quote($base_url)),
 				function($matches) use ($base_url) {
-					if(3 == count($matches)) {
-						@list($file_id, $file_name) = explode('/', $matches[2], 2);
+					if(4 == count($matches)) {
+						@list($file_id, $file_name) = explode('/', $matches[3], 2);
 						
-						if($file_id && $file_name)
-							return sprintf("[Image %s]", urldecode($file_name));
+						$file_name = urldecode($file_name);
+						
+						if($file_id && $file_name) {
+							$inline_text = $file_name . ($matches[2] ? (' ' . $matches[2]) : '');
+							return sprintf("[%s]", $inline_text);
+						}
 					}
 					
 					return $matches[0];
@@ -2987,12 +3017,14 @@ class CerberusMail {
 			error_log($e->getMessage());
 		}
 		
+		// Images
 		try {
 			$plaintext = preg_replace_callback(
-				sprintf('|(\!\[Image\]\((.*?)\))|'),
+				'|(\!\[(.*?)\]\((.*?)\))|',
 				function($matches) {
-					if(3 == count($matches)) {
-						return sprintf("[Image %s]", $matches[2]);
+					if(4 == count($matches)) {
+						$inline_text = $matches[3] . ($matches[2] ? (' ' . $matches[2]) : '');
+						return sprintf("[%s]", $inline_text);
 					}
 					
 					return $matches[0];
@@ -3007,7 +3039,7 @@ class CerberusMail {
 		return $plaintext;
 	}
 	
-	static private function _generateMailBodyMarkdown(&$mail, $content, $properties=[], $group_id=0, $bucket_id=0) {
+	static private function _generateMailBodyMarkdown(&$mail, array $properties, int $group_id=0, int $bucket_id=0) {
 		$url_writer = DevblocksPlatform::services()->url();
 		@$html_template_id = $properties['html_template_id'] ?: 0;
 		
@@ -3015,8 +3047,9 @@ class CerberusMail {
 		$exclude_files = [];
 		
 		// Replace signatures for each part
-		$text_body = CerberusMail::getMailTemplateFromContent($content, $properties, 'text');
-		$html_body = CerberusMail::getMailTemplateFromContent($content, $properties, 'html');
+		
+		$text_body = CerberusMail::getMailTemplateFromContent($properties, 'sent', 'text');
+		$html_body = CerberusMail::getMailTemplateFromContent($properties, 'sent', 'html');
 		
 		//
 		$base_url = $url_writer->write('c=files', true) . '/';
@@ -3039,7 +3072,7 @@ class CerberusMail {
 				];
 				
 				if(array_key_exists('outgoing_message_id', $properties)) {
-					$values['message_id_header'] = @$properties['outgoing_message_id'] ?? '';
+					$values['message_id_header'] = $properties['outgoing_message_id'] ?? '';
 				}
 				
 				if(array_key_exists('token', $properties)) {
@@ -3048,22 +3081,22 @@ class CerberusMail {
 				
 				if(array_key_exists('bucket_id', $properties)) {
 					$values['bucket__context'] = CerberusContexts::CONTEXT_BUCKET;
-					$values['bucket_id'] = @$properties['bucket_id'] ?? 0;
+					$values['bucket_id'] = $properties['bucket_id'] ?? 0;
 				}
 				
 				if(array_key_exists('group_id', $properties)) {
 					$values['group__context'] = CerberusContexts::CONTEXT_GROUP;
-					$values['group_id'] = @$properties['group_id'] ?? 0;
+					$values['group_id'] = $properties['group_id'] ?? 0;
 				}
 				
 				if(array_key_exists('ticket_id', $properties)) {
 					$values['ticket__context'] = CerberusContexts::CONTEXT_TICKET;
-					$values['ticket_id'] = @$properties['ticket_id'] ?? 0;
+					$values['ticket_id'] = $properties['ticket_id'] ?? 0;
 				}
 				
 				if(array_key_exists('worker_id', $properties)) {
 					$values['worker__context'] = CerberusContexts::CONTEXT_WORKER;
-					$values['worker_id'] = @$properties['worker_id'] ?? 0;
+					$values['worker_id'] = $properties['worker_id'] ?? 0;
 				}
 				
 				$html_body = $tpl_builder->build(
@@ -3114,7 +3147,13 @@ class CerberusMail {
 		return $embedded_files;
 	}
 	
-	public static function getMailTemplateFromContent($output, array $message_properties, string $format='text') {
+	public static function getMailTemplateFromContent(array $message_properties, string $part, string $format='text') {
+		$output = self::_generateBodyContentWithPartModifications(
+			$message_properties,
+			$part,
+			$format
+		);
+		
 		$output = strtr($output, "\r", '');
 		
 		if('html' == $format) {

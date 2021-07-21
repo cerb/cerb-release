@@ -1742,19 +1742,16 @@ class Search_Worker extends Extension_DevblocksSearchSchema {
 		return [];
 	}
 	
-	public function getFields() {
-		return array(
-			'content',
-		);
+	public function getIdField() {
+		return 'id';
 	}
 	
-	public function query($query, $attributes=[], $limit=null) {
-		if(false == ($engine = $this->getEngine()))
-			return false;
-		
-		$ids = $engine->query($this, $query, $attributes, $limit);
-		
-		return $ids;
+	public function getDataField() {
+		return 'content';
+	}
+	
+	public function getPrimaryKey() {
+		return 'id';
 	}
 	
 	public function reindex() {

@@ -393,16 +393,16 @@ class SearchFields_GpgPrivateKey extends DevblocksSearchFields {
 						Cerb_ORMHelper::qstr($param->value)
 					);
 				}
-				break;
 			
 			case self::VIRTUAL_CONTEXT_LINK:
 				return self::_getWhereSQLFromContextLinksField($param, Context_GpgPrivateKey::ID, self::getPrimaryKey());
-				break;
 			
 			case self::VIRTUAL_HAS_FIELDSET:
 				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%s)', Cerb_ORMHelper::qstr(Context_GpgPrivateKey::ID), '%s'), self::getPrimaryKey());
-				break;
 			
+			case self::VIRTUAL_WATCHERS:
+				return self::_getWhereSQLFromWatchersField($param, Context_GpgPrivateKey::ID, self::getPrimaryKey());
+				
 			default:
 				if('cf_' == substr($param->field, 0, 3)) {
 					return self::_getWhereSQLFromCustomFields($param);
@@ -650,8 +650,11 @@ class View_GpgPrivateKey extends C4_AbstractView implements IAbstractView_Subtot
 				),
 			'watchers' =>
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_WORKER,
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_GpgPrivateKey::VIRTUAL_WATCHERS),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					],
 				),
 		);
 		
@@ -677,11 +680,12 @@ class View_GpgPrivateKey extends C4_AbstractView implements IAbstractView_Subtot
 		switch($field) {
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
-				break;
 			
 			case 'fingerprint':
 				return DevblocksSearchCriteria::getTextParamFromTokens(SearchFields_GpgPrivateKey::FINGERPRINT, $tokens);
-				break;
+
+			case 'watchers':
+				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_GpgPrivateKey::VIRTUAL_WATCHERS, $tokens);
 			
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
@@ -689,7 +693,6 @@ class View_GpgPrivateKey extends C4_AbstractView implements IAbstractView_Subtot
 				
 				$search_fields = $this->getQuickSearchFields();
 				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
-				break;
 		}
 	}
 	

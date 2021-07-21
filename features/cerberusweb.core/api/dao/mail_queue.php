@@ -748,8 +748,31 @@ class Model_MailQueue {
 	public $queue_delivery_date;
 	public $queue_fails;
 	
+	private $_ticket = null;
+	private $_message = null;
+	
 	public function getTicket() {
-		return DAO_Ticket::get($this->ticket_id);
+		if(!$this->_ticket)
+			$this->_ticket = DAO_Ticket::get($this->ticket_id);
+		
+		return $this->_ticket;
+	}
+	
+	public function setTicket(Model_Ticket $ticket) {
+		$this->_ticket = $ticket;
+	}
+	
+	public function getMessage() {
+		if(!$this->_message) {
+			if(false != ($message_id = $this->getParam('in_reply_message_id', 0)))
+				$this->_message = DAO_Message::get($message_id);
+		}
+		
+		return $this->_message;
+	}
+	
+	public function setMessage(Model_Message $message) {
+		$this->_message = $message;
 	}
 	
 	public function getWorker() {
@@ -783,20 +806,15 @@ class Model_MailQueue {
 		}
 		
 		if('parsedown' == $message_properties['content_format']) {
-			$output = $message_properties['content'];
-			$output = CerberusMail::getMailTemplateFromContent($output, $message_properties, 'html');
+			$output = CerberusMail::getMailTemplateFromContent($message_properties, 'saved', 'html');
 			$output = DevblocksPlatform::parseMarkdown($output);
 			
 			$filter = new Cerb_HTMLPurifier_URIFilter_Email(true);
 			
-			$output = DevblocksPlatform::purifyHTML($output, true, true, [$filter]);
-			return $output;
+			return DevblocksPlatform::purifyHTML($output, true, true, [$filter]);
 		
 		} else {
-			$output = $message_properties['content'];
-			$output = CerberusMail::getMailTemplateFromContent($output, $message_properties, 'text');
-			
-			return $output;
+			return CerberusMail::getMailTemplateFromContent($message_properties, 'saved', 'text');
 		}
 	}
 	
@@ -948,6 +966,9 @@ class Model_MailQueue {
 		if($this->hasParam('send_at'))
 			$properties['send_at'] = $this->getParam('send_at');
 		
+		if($this->hasParam('headers'))
+			$properties['headers'] = $this->getParam('headers');
+		
 		return $properties;
 	}
 	
@@ -977,22 +998,46 @@ class Model_MailQueue {
 	}
 	
 	private function _sendCompose() {
+		$automation_properties = [];
+		
+		// Changing the outgoing message through an automation
+		AutomationTrigger_MailSend::trigger($this, $automation_properties);
+		
 		$properties = $this->getMessageProperties();
+		
+		foreach($automation_properties as $k => $v)
+			$properties[$k] = $v;
 		
 		return CerberusMail::compose($properties);
 	}
 	
 	private function _sendTransactional() {
+		$automation_properties = [];
+		
+		// Changing the outgoing message through an automation
+		AutomationTrigger_MailSend::trigger($this, $automation_properties);
+		
 		$properties = $this->getMessageProperties();
+		
+		foreach($automation_properties as $k => $v)
+			$properties[$k] = $v;
 		
 		return CerberusMail::sendTransactional($properties);
 	}
 	
 	private function _sendTicketReply() {
+		$automation_properties = [];
+		
+		// Changing the outgoing message through an automation
+		AutomationTrigger_MailSend::trigger($this, $automation_properties);
+		
 		$properties = $this->getMessageProperties();
 		
 		if('save' == $this->getParam('reply_mode'))
 			$properties['dont_send'] = true;
+		
+		foreach($automation_properties as $k => $v)
+			$properties[$k] = $v;
 		
 		return CerberusMail::sendTicketMessage($properties);
 	}
@@ -1394,12 +1439,12 @@ class Context_Draft extends Extension_DevblocksContext implements IDevblocksCont
 	}
 	
 	function profileGetUrl($context_id) {
+		$url_writer = DevblocksPlatform::services()->url();
+		
 		if(empty($context_id))
 			return '';
 	
-		$url_writer = DevblocksPlatform::services()->url();
-		$url = $url_writer->writeNoProxy('c=profiles&type=draft&id='.$context_id, true);
-		return $url;
+		return $url_writer->writeNoProxy(sprintf('c=profiles&type=draft&id=%d', $context_id), true);
 	}
 	
 	function profileGetFields($model=null) {
@@ -1624,11 +1669,8 @@ class Context_Draft extends Extension_DevblocksContext implements IDevblocksCont
 			$url_writer = DevblocksPlatform::services()->url();
 			
 			// URL
-			if(in_array($object->type, [Model_MailQueue::TYPE_TICKET_FORWARD, Model_MailQueue::TYPE_TICKET_REPLY])) {
-				$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=ticket&id=%d", $object->ticket_id), true) . '#draft' . $object->id;
-			} else {
-				$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=draft&id=%d", $object->id));
-			}
+			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=draft&id=%d", $object->id));
+			$token_values['ticket_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=ticket&id=%d", $object->ticket_id), true) . '#draft' . $object->id;
 		}
 		
 		// Worker

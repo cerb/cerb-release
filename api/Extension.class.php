@@ -779,7 +779,6 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 									'interaction/pgp_decrypt' => [
 										'label' => 'Decrypt',
 										'uri' => 'ai.cerb.automationBuilder.action.pgpDecrypt',
-										'headless' => true,
 									],
 									'interaction/pgp_encrypt' => [
 										'label' => 'Encrypt',
@@ -906,6 +905,32 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 		return $toolbar;
 	}
 	
+	public function getEventToolbarItems(array $toolbar) : array {
+		return $toolbar;
+	}	
+	
+	public function getEventToolbar() {
+		$toolbar = [
+			'interaction/automation' => [
+				'icon' => 'search',
+				'tooltip' => 'Find or create an automation',
+				'uri' => 'ai.cerb.eventHandler.automation',
+				'inputs' => [
+					'trigger' => $this->id,
+				],
+			],
+		];
+		
+		if(method_exists($this, 'getEventToolbarItems'))
+			$toolbar = $this->getEventToolbarItems($toolbar);
+		
+		return $toolbar;
+	}
+	
+	function getEventPlaceholders() : array {
+		return $this->getInputsMeta();
+	}
+	
 	public function getAutocompleteSuggestionsJson() {
 		$common_actions = [
 			'decision:',
@@ -922,7 +947,6 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 				'snippet' => "return:\n\t",
 				'docHTML' => "<b>return:</b><br>Finish and return a successful response",
 			],
-			// [TODO] If the trigger is resumable
 			[
 				'caption' => 'await:',
 				'snippet' => "await:\n\t",

@@ -299,34 +299,49 @@ abstract class DevblocksORMHelper {
 	 * @return array|bool
 	 * @throws Exception_DevblocksDatabaseQueryTimeout
 	 */
-	protected static function _searchWithTimeout(string $id_key, string $select_sql, string $join_sql, ?string $where_sql, ?string $sort_sql, int $page, int $limit, $withCounts=true, int $timeout_ms=10000) {
+	protected static function _searchWithTimeout(string $id_key, string $select_sql, string $join_sql, ?string $where_sql, ?string $sort_sql, int $page, int $limit, $withCounts=true, int $timeout_ms=15000) {
 		$db = DevblocksPlatform::services()->database();
 		
 		$limit = DevblocksPlatform::intClamp($limit, 0, PHP_INT_MAX);
+		$timeouts = [];
 		
-		$sql =
+		$sqls[] = 
 			$select_sql.
 			$join_sql.
 			$where_sql.
 			$sort_sql.
 			($limit ? sprintf(" LIMIT %d,%d", $page*$limit, $limit) : '')
 		;
+		$timeouts[] = $timeout_ms;
+		
+		if($withCounts) {
+			$sqls[] =
+				"SELECT COUNT(1) " .
+				$join_sql .
+				$where_sql
+			;
+			$timeouts[] = $timeout_ms;
+		}
 		
 		try {
-			if(false == ($rs = $db->QueryReaderAsync($sql, $timeout_ms)))
+			if(false == ($responses = $db->QueryReaderAsync($sqls, $timeouts)))
+				return false;
+			
+			if($responses[0] instanceof Exception_DevblocksDatabaseQueryTimeout)
+				throw $responses[0];
+			
+			if(!($responses[0] instanceof mysqli_result))
 				return false;
 			
 			$data = [];
 			
-			if($rs instanceof Exception_DevblocksDatabaseQueryTimeout)
-				throw $rs;
+			if($withCounts) {
+				$total = '-1';
+			} else {
+				$total = $responses[0]->num_rows;
+			}
 			
-			if(!$rs instanceof mysqli_result)
-				return false;
-			
-			$total = $rs->num_rows;
-			
-			while($row = mysqli_fetch_assoc($rs)) {
+			while($row = mysqli_fetch_assoc($responses[0])) {
 				$id = $row[$id_key];
 				
 				if(is_numeric($id))
@@ -335,21 +350,18 @@ abstract class DevblocksORMHelper {
 				$data[$id] = $row;
 			}
 			
-			$db->Free($rs);
+			$db->Free($responses[0]);
 			
-			if($withCounts && (!(0 == $page && $total < $limit))) {
-				$sql =
-					"SELECT COUNT(1) " .
-					$join_sql .
-					$where_sql
-				;
-				
-				if(false != ($rs = $db->QueryReaderAsync($sql, $timeout_ms))) {
-					if($rs instanceof Exception_DevblocksDatabaseQueryTimeout) {
-						throw $rs;
-					} else if($rs instanceof mysqli_result) {
-						$total = $db->GetOneFromResultset($rs);
-					}
+			if($withCounts) {
+				if ($responses[1] instanceof Exception_DevblocksDatabaseQueryTimeout) {
+					$total = -1;
+					
+				} else if (!($responses[1] instanceof mysqli_result)) {
+					return false;
+					
+				} else {
+					$total = $db->GetOneFromResultset($responses[1]);
+					$db->Free($responses[1]);
 				}
 			}
 			
@@ -926,8 +938,11 @@ abstract class DevblocksORMHelper {
 		// Params
 		if(is_array($params))
 		foreach($params as $param_key => $param) {
-			if(!is_array($param) && !is_object($param)) {
-				$where = "-1";
+			if(false === $param) {
+				$where = "0";
+				
+			} elseif(!is_array($param) && !is_object($param)) {
+				$where = "0";
 				
 			// Is this a criteria group (OR, AND, OR NOT, AND NOT)?
 			} elseif(is_array($param)) {

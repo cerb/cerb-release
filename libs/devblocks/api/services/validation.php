@@ -58,6 +58,11 @@ class DevblocksValidationField {
 			;
 	}
 	
+	function error() : _DevblocksValidationTypeError {
+		$this->_type = new  _DevblocksValidationTypeError('error');
+		return $this->_type;
+	}
+	
 	/**
 	 * 
 	 * @return _DevblocksValidationTypeFloat
@@ -671,7 +676,7 @@ class _DevblocksValidationType {
 		// If required, it also must not be empty
 		$this->setNotEmpty(true);
 		
-		$this->_data['required'] = $bool ? true : false;
+		$this->_data['required'] = (bool) $bool;
 		return $this;
 	}
 	
@@ -696,6 +701,14 @@ class _DevblocksValidationType {
 			return true;
 		
 		return $this->_data['not_empty'] ? false : true;
+	}
+	
+	function isEmpty($value) {
+		if('id' == $this->_type_name) {
+			return (0 == strlen($value) || 0 === $value);
+		} else {
+			return 0 == strlen($value);	
+		}
 	}
 	
 	function setNotEmpty($bool) {
@@ -766,6 +779,18 @@ class _DevblocksValidationTypeArray extends _DevblocksValidationType {
 class _DevblocksValidationTypeBoolean extends _DevblocksValidationType {
 	function __construct($type_name='boolean') {
 		parent::__construct($type_name);
+		return $this;
+	}
+}
+
+class  _DevblocksValidationTypeError extends _DevblocksValidationType {
+	function __construct($type_name='false') {
+		parent::__construct($type_name);
+		return $this;
+	}
+	
+	function setError($message) : _DevblocksValidationTypeError {
+		$this->_data['error'] = $message;
 		return $this;
 	}
 }
@@ -967,7 +992,7 @@ class _DevblocksValidationService {
 		
 		// [TODO] This would have trouble if we were bulk updating a unique field
 		if(isset($data['unique']) && $data['unique']) {
-			if($field->_type->canBeEmpty() && 0 == strlen($value)) {
+			if($field->_type->canBeEmpty() && $field->_type->isEmpty($value)) {
 				// May be empty
 				
 			} else {
@@ -1018,6 +1043,9 @@ class _DevblocksValidationService {
 				}
 				break;
 				
+			case '_DevblocksValidationTypeError':
+				throw new Exception_DevblocksValidationError($data['error'] ?? sprintf("'%s' is incorrect.", $field_label));
+				
 			case '_DevblocksValidationTypeGeoPoint':
 				if(!is_string($value)) {
 					throw new Exception_DevblocksValidationError(sprintf("'%s' must be text.", $field_label));
@@ -1032,7 +1060,7 @@ class _DevblocksValidationService {
 				break;
 				
 			case '_DevblocksValidationTypeFloat':
-				if($field->_type->canBeEmpty() && 0 == strlen($value))
+				if($field->_type->canBeEmpty() && $field->_type->isEmpty($value))
 					$value = 0;
 				
 				if(!is_numeric($value)) {
@@ -1096,7 +1124,7 @@ class _DevblocksValidationService {
 					
 					$possible_values = $data['possible_values'] ?? null;
 					
-					if(!($field->_type->canBeEmpty() && 0 == strlen($value))) {
+					if(!($field->_type->canBeEmpty() && $field->_type->isEmpty($value))) {
 						if ($possible_values && !in_array($value, $possible_values)) {
 							throw new Exception_DevblocksValidationError(sprintf("'%s' must be one of: %s", $field_label, implode(', ', $data['possible_values'])));
 						}
@@ -1109,34 +1137,24 @@ class _DevblocksValidationService {
 					throw new Exception_DevblocksValidationError(sprintf("'%s' must be a string or array (%s).", $field_label, gettype($value)));
 				}
 				
-				if(!is_array($value)) {
-					$values = [$value];
-				} else {
-					$values = $value;
-				}
-				
-				if($data) {
-					foreach($values as $v) {
-						if(is_string($v)) {
-							if(isset($data['length_min']) && strlen($v) < $data['length_min']) {
-								throw new Exception_DevblocksValidationError(sprintf("'%s' must be longer than %d characters.", $field_label, $data['length_min']));
-							}
-							
-							if(isset($data['length_max']) && strlen($v) > $data['length_max']) {
-								// Truncation
-								if(array_key_exists('truncation', $data) && $data['truncation']) {
-									$value = substr($value, 0, $data['length_max'] - 3) . '...';
-								} else {
-									throw new Exception_DevblocksValidationError(sprintf("'%s' must be no longer than %d characters.", $field_label, $data['length_max']));
-								}
-							}
-						
-							$possible_values = $data['possible_values'] ?? null;
-							
-							if($possible_values && !in_array($v, $possible_values)) {
-								throw new Exception_DevblocksValidationError(sprintf("'%s' must be one of: %s", $field_label, implode(', ', $data['possible_values'])));
-							}
+				if(is_string($value)) {
+					if(isset($data['length_min']) && strlen($value) < $data['length_min']) {
+						throw new Exception_DevblocksValidationError(sprintf("'%s' must be longer than %d characters.", $field_label, $data['length_min']));
+					}
+					
+					if(isset($data['length_max']) && strlen($value) > $data['length_max']) {
+						// Truncation
+						if(array_key_exists('truncation', $data) && $data['truncation']) {
+							$value = substr($value, 0, $data['length_max'] - 3) . '...';
+						} else {
+							throw new Exception_DevblocksValidationError(sprintf("'%s' must be no longer than %d characters.", $field_label, $data['length_max']));
 						}
+					}
+					
+					$possible_values = $data['possible_values'] ?? null;
+					
+					if($possible_values && !in_array($value, $possible_values)) {
+						throw new Exception_DevblocksValidationError(sprintf("'%s' must be one of: %s", $field_label, implode(', ', $data['possible_values'])));
 					}
 				}
 				break;

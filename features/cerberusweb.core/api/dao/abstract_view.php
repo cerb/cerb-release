@@ -243,12 +243,15 @@ abstract class C4_AbstractView {
 			$join_sql.
 			$where_sql.
 			$sort_sql;
-
-		$rs = $db->QueryReader($sql);
+		
+		$rs = $db->QueryReaderAsync($sql, 10000);
 		
 		$objects = [];
-		while($row = mysqli_fetch_row($rs)) {
-			$objects[] = $row[0];
+		
+		if($rs instanceof mysqli_result) {
+			while($row = mysqli_fetch_row($rs)) {
+				$objects[] = $row[0];
+			}
 		}
 		
 		return $objects;
@@ -472,9 +475,11 @@ abstract class C4_AbstractView {
 		}
 	}
 	
-	function getParamsFromQuickSearch(?string $query, array $bindings=[]) {
-		if(!($this instanceof IAbstractView_QuickSearch))
+	function getParamsFromQuickSearch(?string $query, array $bindings=[], &$error=null) {
+		if(!($this instanceof IAbstractView_QuickSearch)) {
+			$error = "This record type doesn't support search queries.";
 			return false;
+		}
 		
 		// Replace placeholders
 
@@ -562,30 +567,49 @@ abstract class C4_AbstractView {
 		
 		// Convert fields T_FIELD to DevblocksSearchCriteria
 		
-		array_walk_recursive($fields, function(&$v, $k) use (&$fields) {
+		$error = null;
+		
+		array_walk_recursive($fields, function(&$v, $k) use (&$fields, &$error) {
+			if($error)
+				return;
+			
 			if($v instanceof DevblocksSearchCriteria) {
 				$param = $this->getParamFromQuickSearchFieldTokens($v->key, $v->tokens);
 				
 				if($param instanceof DevblocksSearchCriteria) {
 					$v = $param;
 				} else {
-					//$v = new DevblocksSearchCriteria('_unknown', DevblocksSearchCriteria::OPER_FALSE);
-					unset($fields[$k]);
+					$error = sprintf('Unknown filter `%s:`', $v->key);
 				}
 			}
 		});
 		
+		if($error)
+			return false;
+		
 		return $fields;
 	}
 	
-	function addParamsWithQuickSearch(?string $query, bool $replace=true, array $bindings=[]) {
-		$fields = $this->getParamsFromQuickSearch($query, $bindings);
+	function addParamsWithQuickSearch(?string $query, bool $replace=true, array $bindings=[], &$error=null) : bool {
+		if(false === ($fields = $this->getParamsFromQuickSearch($query, $bindings, $error))) {
+			$this->addParams([false], true);
+			C4_AbstractView::marqueeAppend($this->id, $error);
+			return false;
+		}
+		
 		$this->addParams($fields, $replace);
+		return true;
 	}
 	
-	function addParamsRequiredWithQuickSearch(?string $query, bool $replace=true, array $bindings=[]) {
-		$fields = $this->getParamsFromQuickSearch($query, $bindings);
+	function addParamsRequiredWithQuickSearch(?string $query, bool $replace=true, array $bindings=[], &$error=null) : bool {
+		if(false === ($fields = $this->getParamsFromQuickSearch($query, $bindings, $error))) {
+			$this->addParamsRequired([false], true);
+			C4_AbstractView::marqueeAppend($this->id, $error);
+			return false;
+		}
+		
 		$this->addParamsRequired($fields, $replace);
+		return true;
 	}
 	
 	function getSorts() {
@@ -1001,441 +1025,6 @@ abstract class C4_AbstractView {
 		}
 	}
 	
-	// Histograms
-	
-	static function getHistogram($view_context, $query, $params=[]) {
-		$date = DevblocksPlatform::services()->date();
-		$db = DevblocksPlatform::services()->database();
-		
-		if(empty($view_context))
-			return;
-		
-		if(false == ($context_ext = Extension_DevblocksContext::getByAlias($view_context, true)))
-			return;
-		
-		if(null == ($dao_class = $context_ext->getDaoClass()))
-			return;
-		
-		if(null == ($search_class = $context_ext->getSearchClass()))
-			return;
-		
-		if(null == ($primary_key = $search_class::getPrimaryKey()))
-			return;
-		
-		if(false == ($view = $context_ext->getSearchView()))
-			return;
-		
-		$view->addParamsWithQuickSearch($query);
-		$view->setAutoPersist(false);
-		
-		// Use the worker's timezone for MySQL date functions
-		$db->QueryReader(sprintf("SET time_zone = %s", $db->qstr($date->formatTime('P', time()))));
-		
-		$data = [];
-		
-		$view->renderPage = 0;
-		$view->renderLimit = @$params['limit'] ?: 30;
-		
-		// Initial query planner
-		
-		$query_parts = $dao_class::getSearchQueryComponents(
-			$view->view_columns,
-			$view->getParams(),
-			$view->renderSortBy,
-			$view->renderSortAsc
-		);
-		
-		// We need to know what date fields we have
-		
-		$fields = $view->getFields();
-		$xaxis_field = null;
-		$xaxis_field_type = null;
-		
-		switch($params['xaxis_field']) {
-			case '_id':
-				$xaxis_field = new DevblocksSearchField('_id', $query_parts['primary_table'], 'id', null, Model_CustomField::TYPE_NUMBER);
-				break;
-					
-			default:
-				@$xaxis_field = $fields[$params['xaxis_field']];
-				break;
-		}
-		
-		if(!empty($xaxis_field)) {
-			@$yaxis_func = $params['yaxis_func'];
-			$yaxis_field = null;
-			
-			switch($yaxis_func) {
-				case 'count':
-					break;
-					
-				default:
-					@$yaxis_field = $fields[$params['yaxis_field']];
-					
-					if(empty($yaxis_field)) {
-						$yaxis_func = 'count';
-					}
-					break;
-			}
-			
-			switch($xaxis_field->type) {
-				case Model_CustomField::TYPE_DATE:
-					// X-axis tick
-					@$xaxis_tick = $params['xaxis_tick'];
-						
-					if(empty($xaxis_tick))
-						$xaxis_tick = 'day';
-						
-					switch($xaxis_tick) {
-						case 'hour':
-							$date_format_mysql = '%Y-%m-%d %H:00';
-							$date_format_php = '%Y-%m-%d %H:00';
-							$date_label = $date_format_php;
-							break;
-								
-						default:
-						case 'day':
-							$date_format_mysql = '%Y-%m-%d';
-							$date_format_php = '%Y-%m-%d';
-							$date_label = $date_format_php;
-							break;
-								
-						case 'week':
-							$date_format_mysql = '%xW%v';
-							$date_format_php = '%YW%W';
-							$date_label = $date_format_php;
-							break;
-								
-						case 'month':
-							$date_format_mysql = '%Y-%m';
-							$date_format_php = '%Y-%m';
-							$date_label = $date_format_php;
-							break;
-								
-						case 'year':
-							$date_format_mysql = '%Y-01-01';
-							$date_format_php = '%Y-01-01';
-							$date_label = '%Y';
-							break;
-					}
-					
-					switch($yaxis_func) {
-						case 'sum':
-							$select_func = sprintf("SUM(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
-							);
-							break;
-								
-						case 'avg':
-							$select_func = sprintf("AVG(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
-							);
-							break;
-								
-						case 'min':
-							$select_func = sprintf("MIN(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
-							);
-							break;
-								
-						case 'max':
-							$select_func = sprintf("MAX(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
-							);
-							break;
-							
-						case 'value':
-							$select_func = sprintf("%s.%s",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
-							);
-							break;
-								
-						default:
-						case 'count':
-							$select_func = 'COUNT(*)';
-							break;
-					}
-					
-					// INNER JOIN the x-axis cfield
-					if($xaxis_field && DevblocksPlatform::strStartsWith($xaxis_field->token, 'cf_')) {
-						$xaxis_cfield_id = substr($xaxis_field->token, 3);
-						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
-							'custom_field_numbervalue',
-							$xaxis_cfield_id,
-							$xaxis_field->token,
-							$xaxis_field->token,
-							$primary_key
-						);
-					}
-					
-					// INNER JOIN the y-axis cfield
-					if($yaxis_field && DevblocksPlatform::strStartsWith($yaxis_field->token, 'cf_') && !($xaxis_field && $xaxis_field->token == $yaxis_field->token)) {
-						$yaxis_cfield_id = substr($yaxis_field->token, 3);
-						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
-							'custom_field_numbervalue',
-							$yaxis_cfield_id,
-							$yaxis_field->token,
-							$yaxis_field->token,
-							$primary_key
-						);
-					}
-					
-					$sql = sprintf("SELECT %s AS hits, DATE_FORMAT(FROM_UNIXTIME(%s.%s), '%s') AS histo ",
-						$select_func,
-						$xaxis_field->db_table,
-						$xaxis_field->db_column,
-						$date_format_mysql
-					).
-					str_replace('%','%%',$query_parts['join']).
-					str_replace('%','%%',$query_parts['where']).
-					sprintf("GROUP BY DATE_FORMAT(FROM_UNIXTIME(%s.%s), '%s') ",
-						$xaxis_field->db_table,
-						$xaxis_field->db_column,
-						$date_format_mysql
-					).
-					'ORDER BY histo ASC'
-					;
-					
-					$results = $db->GetArrayReader($sql);
-					
-					if(empty($results))
-						return [];
-					
-					// Find the first and last date
-					$find_params = C4_AbstractView::findParam($xaxis_field->token, $view->getParams());
-					@$xaxis_param = array_shift($find_params);
-
-					$current_tick = null;
-					$last_tick = null;
-					
-					if(!empty($xaxis_param)) {
-						if(2 == count($xaxis_param->value)) {
-							$current_tick = strtotime($xaxis_param->value[0]);
-							$last_tick = strtotime($xaxis_param->value[1]);
-						}
-					}
-					
-					$first_result = null;
-					$last_result = null;
-					
-					if(empty($current_tick) && empty($last_tick)) {
-						$last_result = end($results);
-						$first_result = reset($results);
-						$current_tick = strtotime($first_result['histo']);
-						$last_tick = strtotime($last_result['histo']);
-					}
-					
-					// Fill in time gaps from no data
-					
-					$array = [];
-					
-					foreach($results as $v) {
-						$array[$v['histo']] = $v['hits'];
-					}
-					
-					$results = $array;
-					unset($array);
-						
-					// var_dump($current_tick, $last_tick, $xaxis_tick);
-					// var_dump($results);
-
-					// Set the first histogram bucket to the beginning of its increment
-					//   e.g. 2012-July-09 10:20 -> 2012-July-09 00:00
-					switch($xaxis_tick) {
-						case 'hour':
-						case 'day':
-						case 'month':
-						case 'year':
-							$current_tick = strtotime(strftime($date_format_php, $current_tick));
-							break;
-							
-						// Always Monday
-						case 'week':
-							$current_tick = strtotime('Monday this week', $current_tick);
-							break;
-					}
-					
-					do {
-						$histo = strftime($date_format_php, $current_tick);
-						// var_dump($histo);
-
-						$value = (isset($results[$histo])) ? $results[$histo] : 0;
-						
-						$yaxis_label = ((int) $value != $value) ? sprintf("%0.2f", $value) : sprintf("%d", $value);
-						
-						if(isset($params['yaxis_format'])) {
-							$yaxis_label = DevblocksPlatform::formatNumberAs($yaxis_label, @$params['yaxis_format']);
-						}
-						
-						$data[] = [
-							'x' => $current_tick,
-							'y' => (float)$value,
-							'x_label' => strftime($date_label, $current_tick),
-							'y_label' => $yaxis_label,
-						];
-						
-						$current_tick = strtotime(sprintf('+1 %s', $xaxis_tick), $current_tick);
-
-					} while($current_tick <= $last_tick);
-						
-					unset($results);
-					break;
-
-				// x-axis is a not a date
-				//case Model_CustomField::TYPE_NUMBER:
-				default:
-					switch($xaxis_field->token) {
-						case '_id':
-							$order_by = null;
-							$group_by = sprintf("GROUP BY %s.id%s ",
-								str_replace('%','%%',$query_parts['primary_table']),
-								($yaxis_field ? sprintf(", %s.%s", $yaxis_field->db_table, $yaxis_field->db_column) : '')
-							);
-							
-							if(empty($order_by))
-								$order_by = sprintf("ORDER BY %s.id ", str_replace('%','%%',$query_parts['primary_table']));
-							
-							break;
-
-						default:
-							$group_by = sprintf("GROUP BY %s.%s",
-								$xaxis_field->db_table,
-								$xaxis_field->db_column
-							);
-							
-							$order_by = 'ORDER BY xaxis ASC';
-							break;
-					}
-					
-					switch($yaxis_func) {
-						case 'sum':
-							$select_func = sprintf("SUM(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
-							);
-							break;
-								
-						case 'avg':
-							$select_func = sprintf("AVG(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
-							);
-							break;
-								
-						case 'min':
-							$select_func = sprintf("MIN(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
-							);
-							break;
-								
-						case 'max':
-							$select_func = sprintf("MAX(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
-							);
-							break;
-								
-						case 'value':
-							$select_func = sprintf("%s.%s",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
-							);
-							break;
-								
-						default:
-						case 'count':
-							$select_func = 'COUNT(*)';
-							break;
-					}
-					
-					/*
-					// Scatterplots ignore histograms if not aggregate
-					if($widget->extension_id == 'core.workspace.widget.scatterplot') {
-						if(false === strpos($select_func, '(')) {
-							$group_by = null;
-						}
-					}
-					*/
-					
-					// INNER JOIN the x-axis cfield
-					if($xaxis_field && DevblocksPlatform::strStartsWith($xaxis_field->token, 'cf_')) {
-						$xaxis_cfield_id = substr($xaxis_field->token, 3);
-						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
-							DAO_CustomFieldValue::getValueTableName($xaxis_cfield_id),
-							$xaxis_cfield_id,
-							$xaxis_field->token,
-							$xaxis_field->token,
-							$primary_key
-						);
-					}
-					
-					// INNER JOIN the y-axis cfield
-					if($yaxis_field && DevblocksPlatform::strStartsWith($yaxis_field->token, 'cf_') && !($xaxis_field && $xaxis_field->token == $yaxis_field->token)) {
-						$yaxis_cfield_id = substr($yaxis_field->token, 3);
-						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
-							DAO_CustomFieldValue::getValueTableName($yaxis_cfield_id),
-							$yaxis_cfield_id,
-							$yaxis_field->token,
-							$yaxis_field->token,
-							$primary_key
-						);
-					}
-
-					// [TODO] Sort/Limit
-					$sql = sprintf("SELECT %s AS yaxis, %s.%s AS xaxis " .
-						str_replace('%','%%',$query_parts['join']).
-						str_replace('%','%%',$query_parts['where']).
-						"%s ".
-						"%s ",
-						$select_func,
-						$xaxis_field->db_table,
-						$xaxis_field->db_column,
-						$group_by,
-						$order_by
-					);
-					$results = $db->GetArrayReader($sql);
-					
-					if(empty($results))
-						return [];
-					
-					$data = [];
-					
-					$counter = 0;
-					
-					foreach($results as $result) {
-						switch($xaxis_field_type) {
-							case Model_CustomField::TYPE_NUMBER:
-								$x = ($params['xaxis_field'] == '_id') ? $counter++ : (float)$result['xaxis'];
-								$xaxis_label = DevblocksPlatform::formatNumberAs((float)$result['xaxis'], @$params['xaxis_format']);
-								break;
-							default:
-								$x = $result['xaxis'];
-								$xaxis_label = $result['xaxis'];
-								break;
-						}
-						
-						$yaxis_label = DevblocksPlatform::formatNumberAs((float)$result['yaxis'], @$params['yaxis_format']);
-						
-						$data[$x] = array(
-							'x' => $x,
-							'y' => (float)$result['yaxis'],
-							'x_label' => $xaxis_label,
-							'y_label' => $yaxis_label,
-						);
-					}
-					break;
-			}
-		}
-		
-		return array_values($data);
-	}
-	
 	// Render
 	
 	function render() {
@@ -1702,6 +1291,11 @@ abstract class C4_AbstractView {
 		}
 		
 		switch($param->operator) {
+			case DevblocksSearchCriteria::OPER_CUSTOM:
+				echo sprintf("Watcher matches <b>%s</b>",
+					DevblocksPlatform::strEscapeHtml($param->value)
+				);
+				break;
 			case DevblocksSearchCriteria::OPER_IS_NULL:
 				echo sprintf("There are no <b>%s</b>",
 					DevblocksPlatform::strEscapeHtml($label_plural)
@@ -2771,10 +2365,12 @@ abstract class C4_AbstractView {
 			"LIMIT 0,250 "
 		;
 		
-		$results = $db->GetArrayReader($sql);
-//		$total = count($results);
-//		$total = ($total < 20) ? $total : $db->GetOneReader("SELECT FOUND_ROWS()");
-
+		try {
+			$results = $db->GetArrayReader($sql, 15000);
+		} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+			$results = false;
+		}
+		
 		return $results;
 	}
 	
@@ -2829,7 +2425,11 @@ abstract class C4_AbstractView {
 			"LIMIT 0,250 "
 		;
 		
-		$results = $db->GetArrayReader($sql);
+		try {
+			$results = $db->GetArrayReader($sql, 15000);
+		} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+			$results = false;
+		}
 
 		return $results;
 	}
@@ -3082,7 +2682,11 @@ abstract class C4_AbstractView {
 			"LIMIT 0,250 "
 		;
 		
-		$results = $db->GetArrayReader($sql);
+		try {
+			$results = $db->GetArrayReader($sql, 15000);
+		} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+			$results = false;
+		}
 
 		return $results;
 	}
@@ -3214,8 +2818,12 @@ abstract class C4_AbstractView {
 			);
 			
 		}
-
-		$results = $db->GetArrayReader($sql);
+		
+		try {
+			$results = $db->GetArrayReader($sql, 15000);
+		} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+			$results = false;
+		}
 
 		return $results;
 	}
@@ -3358,8 +2966,12 @@ abstract class C4_AbstractView {
 				$where_sql
 			);
 		}
-
-		$results = $db->GetArrayReader($sql);
+		
+		try {
+			$results = $db->GetArrayReader($sql, 15000);
+		} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+			$results = false;
+		}
 
 		return $results;
 	}
@@ -3490,7 +3102,12 @@ abstract class C4_AbstractView {
 				$query_parts['where']
 			)
 		);
-		$results = $db->GetArrayReader($sql);
+		
+		try {
+			$results = $db->GetArrayReader($sql, 15000);
+		} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+			$results = false;
+		}
 		
 		return $results;
 	}
@@ -3589,7 +3206,11 @@ abstract class C4_AbstractView {
 					"ORDER BY hits DESC "
 				;
 				
-				$results = $db->GetArrayReader($sql);
+				try {
+					$results = $db->GetArrayReader($sql, 15000);
+				} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+					$results = false;
+				}
 		
 				if(is_array($results))
 				foreach($results as $result) {
@@ -3660,11 +3281,13 @@ abstract class C4_AbstractView {
 						"LIMIT 20 "
 					;
 				}
+			
+				try {
+					$results = $db->GetArrayReader($sql, 15000);
+				} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+					$results = false;
+				}
 				
-				$results = $db->GetArrayReader($sql);
-//				$total = count($results);
-//				$total = ($total < 20) ? $total : $db->GetOneReader("SELECT FOUND_ROWS()");
-
 				if(is_array($results))
 				foreach($results as $result) {
 					$label = '';
@@ -3755,9 +3378,11 @@ abstract class C4_AbstractView {
 					"LIMIT 20 "
 				;
 				
-				$results = $db->GetArrayReader($sql);
-//				$total = count($results);
-//				$total = ($total < 20) ? $total : $db->GetOneReader("SELECT FOUND_ROWS()");
+				try {
+					$results = $db->GetArrayReader($sql, 15000);
+				} catch (Exception_DevblocksDatabaseQueryTimeout $e) {
+					$results = false;
+				}
 		
 				if(is_array($results))
 				foreach($results as $result) {
@@ -4075,6 +3700,9 @@ class CerbQuickSearchLexer {
 	}
 	
 	static function buildParams($token, &$parent) {
+		if(!is_object($token))
+			return;
+		
 		switch($token->type) {
 			case 'T_GROUP':
 				// Sanitize
@@ -4355,6 +3983,9 @@ class CerbQuickSearchLexer {
 			$append_to = null;
 			
 			foreach($token->children as $k => $child) {
+				if(!is_object($child))
+					continue;
+				
 				switch($child->type) {
 					case 'T_FIELD':
 						$append_to = $k;
@@ -4397,6 +4028,9 @@ class CerbQuickSearchLexer {
 			$field = null;
 			
 			foreach($token->children as $k => $child) {
+				if(!is_object($child))
+					continue;
+				
 				switch($child->type) {
 					case 'T_QUOTED_TEXT':
 					case 'T_TEXT':
@@ -4426,13 +4060,12 @@ class CerbQuickSearchLexer {
 			$token->value = null;
 			
 			foreach($token->children as $k => $child) {
+				if(!is_object($child))
+					continue;
+				
 				switch($child->type) {
 					case 'T_BOOL':
 						if(empty($token->value)) {
-							$oper = sprintf('%sAND',
-								$all ? 'ALL ' : ''
-							);
-							
 							// [TODO] This should write a group like 'NOT (a AND b)' instead
 							
 							switch($child->value) {

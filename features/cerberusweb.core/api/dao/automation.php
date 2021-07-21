@@ -5,7 +5,6 @@ class DAO_Automation extends Cerb_ORMHelper {
 	const EXTENSION_ID = 'extension_id';
 	const EXTENSION_PARAMS_JSON = 'extension_params_json';
 	const ID = 'id';
-	const IS_UNLISTED = 'is_unlisted';
 	const NAME = 'name';
 	const POLICY_KATA = 'policy_kata';
 	const SCRIPT = 'script';
@@ -39,10 +38,6 @@ class DAO_Automation extends Cerb_ORMHelper {
 			->addField(self::ID)
 			->id()
 			->setEditable(false)
-			;
-		$validation
-			->addField(self::IS_UNLISTED)
-			->bit()
 			;
 		// varchar(255)
 		$validation
@@ -186,7 +181,7 @@ class DAO_Automation extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
 		// SQL
-		$sql = "SELECT id, name, description, is_unlisted, extension_id, extension_params_json, created_at, updated_at, script, policy_kata ".
+		$sql = "SELECT id, name, description, extension_id, extension_params_json, created_at, updated_at, script, policy_kata ".
 			"FROM automation ".
 			$where_sql.
 			$sort_sql.
@@ -204,17 +199,23 @@ class DAO_Automation extends Cerb_ORMHelper {
 	
 	/**
 	 * @param $name
-	 * @param $extension_id
+	 * @param $extension_ids
 	 * @return Model_Automation
 	 */
-	static function getByNameAndTrigger($name, $extension_id) {
+	static function getByNameAndTrigger($name, $extension_ids) : ?Model_Automation {
+		if(is_string($extension_ids))
+			$extension_ids = [$extension_ids];
+		
+		if(!is_array($extension_ids) || empty($extension_ids))
+			return null;
+		
 		// [TODO] Cache
 		$results = self::getWhere(
-			sprintf("%s = %s AND %s = %s",
+			sprintf("%s = %s AND %s IN (%s)",
 				Cerb_ORMHelper::escape(DAO_Automation::NAME),
 				Cerb_ORMHelper::qstr($name),
 				Cerb_ORMHelper::escape(DAO_Automation::EXTENSION_ID),
-				Cerb_ORMHelper::qstr($extension_id)
+				implode(',', Cerb_ORMHelper::qstrArray($extension_ids))
 			),
 			null,
 			true,
@@ -222,7 +223,7 @@ class DAO_Automation extends Cerb_ORMHelper {
 		);
 		
 		if(false == $results || 1 != count($results))
-			return [];
+			return null;
 		
 		return current($results);
 	}
@@ -245,7 +246,10 @@ class DAO_Automation extends Cerb_ORMHelper {
 		return null;
 	}
 	
-	public static function getByUri(string $interaction_uri, string $extension_id=null) {
+	public static function getByUri(string $interaction_uri, $extension_ids=null) {
+		if(!is_null($extension_ids) && !is_array($extension_ids))
+			$extension_ids = [$extension_ids];
+		
 		if(DevblocksPlatform::strStartsWith($interaction_uri, 'cerb:')) {
 			if(false == ($uri_parts = DevblocksPlatform::services()->ui()->parseURI($interaction_uri)))
 				return null;
@@ -271,7 +275,7 @@ class DAO_Automation extends Cerb_ORMHelper {
 		
 		$object = array_shift($objects);
 		
-		if(!$extension_id || $extension_id == $object->extension_id)
+		if(!$extension_ids || in_array($object->extension_id, $extension_ids))
 			return $object;
 		
 		return null;
@@ -326,7 +330,6 @@ class DAO_Automation extends Cerb_ORMHelper {
 			$object->extension_id = $row['extension_id'];
 			$object->created_at = intval($row['created_at']);
 			$object->id = intval($row['id']);
-			$object->is_unlisted = intval($row['is_unlisted']);
 			$object->name = $row['name'];
 			$object->policy_kata = $row['policy_kata'];
 			$object->script = $row['script'];
@@ -413,14 +416,12 @@ class DAO_Automation extends Cerb_ORMHelper {
 			"automation.name as %s, ".
 			"automation.description as %s, ".
 			"automation.extension_id as %s, ".
-			"automation.is_unlisted as %s, ".
 			"automation.created_at as %s, ".
 			"automation.updated_at as %s ",
 				SearchFields_Automation::ID,
 				SearchFields_Automation::NAME,
 				SearchFields_Automation::DESCRIPTION,
 				SearchFields_Automation::EXTENSION_ID,
-				SearchFields_Automation::IS_UNLISTED,
 				SearchFields_Automation::CREATED_AT,
 				SearchFields_Automation::UPDATED_AT
 			);
@@ -485,7 +486,6 @@ class DAO_Automation extends Cerb_ORMHelper {
 				'description' => '',
 				'extension_id' => '',
 				'script' => '',
-				'is_unlisted' => 0,
 				'policy_kata' => 0,
 				'created_at' => time(),
 				'updated_at' => time(),
@@ -493,12 +493,11 @@ class DAO_Automation extends Cerb_ORMHelper {
 			$automation_data
 		);
 		
-		$db->ExecuteMaster(sprintf("INSERT INTO automation (name, description, is_unlisted, extension_id, script, policy_kata, created_at, updated_at) ".
-			"VALUES (%s, %s, %d, %s, %s, %s, %d, %d) ".
-			"ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), name=VALUES(name), is_unlisted=VALUES(is_unlisted), extension_id=VALUES(extension_id), script=VALUES(script), policy_kata=VALUES(policy_kata), created_at=VALUES(created_at), updated_at=VALUES(updated_at)",
+		$db->ExecuteMaster(sprintf("INSERT INTO automation (name, description, extension_id, script, policy_kata, created_at, updated_at) ".
+			"VALUES (%s, %s, %s, %s, %s, %d, %d) ".
+			"ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), name=VALUES(name), extension_id=VALUES(extension_id), script=VALUES(script), policy_kata=VALUES(policy_kata), created_at=VALUES(created_at), updated_at=VALUES(updated_at)",
 			$db->qstr($automation_data['name']),
 			$db->qstr($automation_data['description']),
-			$automation_data['is_unlisted'] ? 1 : 0,
 			$db->qstr($automation_data['extension_id']),
 			$db->qstr($automation_data['script']),
 			$db->qstr($automation_data['policy_kata']),
@@ -516,7 +515,6 @@ class SearchFields_Automation extends DevblocksSearchFields {
 	const EXTENSION_ID = 'a_extension_id';
 	const NAME = 'a_name';
 	const ID = 'a_id';
-	const IS_UNLISTED = 'a_is_unlisted';
 	const UPDATED_AT = 'a_updated_at';
 
 	const VIRTUAL_CONTEXT_LINK = '*_context_link';
@@ -590,7 +588,6 @@ class SearchFields_Automation extends DevblocksSearchFields {
 			self::DESCRIPTION => new DevblocksSearchField(self::DESCRIPTION, 'automation', 'description', $translate->_('common.description'), null, true),
 			self::EXTENSION_ID => new DevblocksSearchField(self::EXTENSION_ID, 'automation', 'extension_id', $translate->_('common.extension'), null, true),
 			self::ID => new DevblocksSearchField(self::ID, 'automation', 'id', $translate->_('common.id'), null, true),
-			self::IS_UNLISTED => new DevblocksSearchField(self::IS_UNLISTED, 'automation', 'is_unlisted', $translate->_('dao.automation.is_unlisted'), Model_CustomField::TYPE_CHECKBOX, true),
 			self::NAME => new DevblocksSearchField(self::NAME, 'automation', 'name', $translate->_('common.name'), null, true),
 			self::UPDATED_AT => new DevblocksSearchField(self::UPDATED_AT, 'automation', 'updated_at', $translate->_('common.updated'), null, true),
 
@@ -618,7 +615,6 @@ class Model_Automation {
 	public $extension_id = null;
 	public $extension_params = [];
 	public $id;
-	public $is_unlisted;
 	public $name = null;
 	public $policy_kata = null;
 	public $script = null;
@@ -736,6 +732,18 @@ class Model_Automation {
 		
 		return $dict;
 	}
+	
+	public function logError($log_message, $node_path, $log_level=3) {
+		$fields = [
+			DAO_AutomationLog::LOG_MESSAGE => $log_message,
+			DAO_AutomationLog::LOG_LEVEL => $log_level,
+			DAO_AutomationLog::CREATED_AT => time(),
+			DAO_AutomationLog::AUTOMATION_NAME => $this->name ?? '',
+			DAO_AutomationLog::AUTOMATION_NODE => $node_path,
+		];
+		
+		return DAO_AutomationLog::create($fields);
+	}
 };
 
 class View_Automation extends C4_AbstractView implements IAbstractView_Subtotals, IAbstractView_QuickSearch {
@@ -807,7 +815,6 @@ class View_Automation extends C4_AbstractView implements IAbstractView_Subtotals
 			switch($field_key) {
 				// Fields
 				case SearchFields_Automation::EXTENSION_ID:
-				case SearchFields_Automation::IS_UNLISTED:
 					$pass = true;
 					break;
 					
@@ -843,10 +850,6 @@ class View_Automation extends C4_AbstractView implements IAbstractView_Subtotals
 		switch($column) {
 			case SearchFields_Automation::EXTENSION_ID:
 				$counts = $this->_getSubtotalCountForStringColumn($context, $column);
-				break;
-				
-			case SearchFields_Automation::IS_UNLISTED:
-				$counts = $this->_getSubtotalCountForBooleanColumn($context, $column);
 				break;
 				
 			case SearchFields_Automation::VIRTUAL_CONTEXT_LINK:
@@ -886,11 +889,6 @@ class View_Automation extends C4_AbstractView implements IAbstractView_Subtotals
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
 					'options' => array('param_key' => SearchFields_Automation::CREATED_AT),
-				),
-			'isUnlisted' =>
-				array(
-					'type' => DevblocksSearchCriteria::TYPE_BOOL,
-					'options' => array('param_key' => SearchFields_Automation::IS_UNLISTED),
 				),
 			'name' =>
 				array(
@@ -937,8 +935,11 @@ class View_Automation extends C4_AbstractView implements IAbstractView_Subtotals
 				),
 			'watchers' => 
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_WORKER,
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Automation::VIRTUAL_WATCHERS),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					],
 				),
 		);
 		
@@ -965,6 +966,9 @@ class View_Automation extends C4_AbstractView implements IAbstractView_Subtotals
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
 			
+			case 'watchers':
+				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_Automation::VIRTUAL_WATCHERS, $tokens);
+			
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
 					return DevblocksSearchCriteria::getContextLinksParamFromTokens($field, $tokens);
@@ -972,8 +976,6 @@ class View_Automation extends C4_AbstractView implements IAbstractView_Subtotals
 				$search_fields = $this->getQuickSearchFields();
 				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
 		}
-		
-		return false;
 	}
 	
 	function render() {
@@ -999,10 +1001,6 @@ class View_Automation extends C4_AbstractView implements IAbstractView_Subtotals
 		$field = $param->field;
 
 		switch($field) {
-			case SearchFields_Automation::IS_UNLISTED:
-				parent::_renderCriteriaParamBoolean($param);
-				break;
-				
 			default:
 				parent::renderCriteriaParam($param);
 				break;
@@ -1047,11 +1045,6 @@ class View_Automation extends C4_AbstractView implements IAbstractView_Subtotals
 			case SearchFields_Automation::CREATED_AT:
 			case SearchFields_Automation::UPDATED_AT:
 				$criteria = $this->_doSetCriteriaDate($field, $oper);
-				break;
-				
-			case SearchFields_Automation::IS_UNLISTED:
-				@$bool = DevblocksPlatform::importGPC($_POST['bool'],'integer',1);
-				$criteria = new DevblocksSearchCriteria($field,$oper,$bool);
 				break;
 				
 			case SearchFields_Automation::VIRTUAL_CONTEXT_LINK:
@@ -1152,12 +1145,6 @@ class Context_Automation extends Extension_DevblocksContext implements IDevblock
 			'value' => $model->extension_id,
 		];
 		
-		$properties['is_unlisted'] = [
-			'label' => DevblocksPlatform::translateCapitalized('dao.automation.is_unlisted'),
-			'type' => Model_CustomField::TYPE_CHECKBOX,
-			'value' => $model->is_unlisted,
-		];
-		
 		$properties['policy_kata'] = [
 			'label' => DevblocksPlatform::translateCapitalized('common.policy'),
 			'type' => Model_CustomField::TYPE_MULTI_LINE,
@@ -1253,7 +1240,6 @@ class Context_Automation extends Extension_DevblocksContext implements IDevblock
 			'description' => $prefix.$translate->_('common.description'),
 			'extension_id' => $prefix.$translate->_('common.trigger'),
 			'extension_params' => $prefix.$translate->_('common.trigger') . ' params',
-			'is_unlisted' => $prefix.$translate->_('dao.automation.is_unlisted'),
 			'created_at' => $prefix.$translate->_('common.created'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'policy_kata' => $prefix.$translate->_('common.policy'),
@@ -1268,7 +1254,6 @@ class Context_Automation extends Extension_DevblocksContext implements IDevblock
 			'description' => Model_CustomField::TYPE_SINGLE_LINE,
 			'extension_id' => Model_CustomField::TYPE_SINGLE_LINE,
 			'extension_params' => null, // array
-			'is_unlisted' => Model_CustomField::TYPE_CHECKBOX,
 			'created_at' => Model_CustomField::TYPE_DATE,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 			'policy_kata' => Model_CustomField::TYPE_MULTI_LINE,
@@ -1296,7 +1281,6 @@ class Context_Automation extends Extension_DevblocksContext implements IDevblock
 			$token_values['name'] = $automation->name;
 			$token_values['description'] = $automation->description;
 			$token_values['id'] = $automation->id;
-			$token_values['is_unlisted'] = $automation->is_unlisted ? 1 : 0;
 			$token_values['extension_id'] = $automation->extension_id;
 			$token_values['extension_params'] = $automation->extension_params;
 			$token_values['created_at'] = $automation->created_at;
@@ -1320,7 +1304,6 @@ class Context_Automation extends Extension_DevblocksContext implements IDevblock
 			'description' => DAO_Automation::DESCRIPTION,
 			'extension_id' => DAO_Automation::EXTENSION_ID,
 			'id' => DAO_Automation::ID,
-			'is_unlisted' => DAO_Automation::IS_UNLISTED,
 			'links' => '_links',
 			'name' => DAO_Automation::NAME,
 			'policy_kata' => DAO_Automation::POLICY_KATA,

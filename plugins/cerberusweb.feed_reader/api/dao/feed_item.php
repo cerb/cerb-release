@@ -413,23 +413,18 @@ class SearchFields_FeedItem extends DevblocksSearchFields {
 		switch($param->field) {
 			case self::FULLTEXT_COMMENT_CONTENT:
 				return self::_getWhereSQLFromCommentFulltextField($param, Search_CommentContent::ID, CerberusContexts::CONTEXT_FEED_ITEM, self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_CONTEXT_LINK:
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_FEED_ITEM, self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_FEED_SEARCH:
 				return self::_getWhereSQLFromVirtualSearchField($param, CerberusContexts::CONTEXT_FEED, 'feed_item.feed_id');
-				break;
 				
 			case self::VIRTUAL_HAS_FIELDSET:
 				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_FEED_ITEM), '%s'), self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_WATCHERS:
 				return self::_getWhereSQLFromWatchersField($param, CerberusContexts::CONTEXT_FEED_ITEM, self::getPrimaryKey());
-				break;
 				
 			default:
 				if('cf_' == substr($param->field, 0, 3)) {
@@ -437,10 +432,7 @@ class SearchFields_FeedItem extends DevblocksSearchFields {
 				} else {
 					return $param->getWhereSQL(self::getFields(), self::getPrimaryKey());
 				}
-				break;
 		}
-		
-		return false;
 	}
 	
 	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
@@ -463,7 +455,7 @@ class SearchFields_FeedItem extends DevblocksSearchFields {
 				$models = DAO_Feed::getIds($values);
 				$label_map = array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
 				if(in_array(0,$values))
-					$label_map[0] = DevblocksPlatform::translate('common.none');
+					$label_map[0] = sprintf('(%s)', DevblocksPlatform::translate('common.none'));
 				return $label_map;
 				break;
 				
@@ -471,7 +463,7 @@ class SearchFields_FeedItem extends DevblocksSearchFields {
 				$models = DAO_FeedItem::getIds($values);
 				$label_map = array_column(DevblocksPlatform::objectsToArrays($models), 'title', 'id');
 				if(in_array(0,$values))
-					$label_map[0] = DevblocksPlatform::translate('common.none');
+					$label_map[0] = sprintf('(%s)', DevblocksPlatform::translate('common.none'));
 				return $label_map;
 				break;
 				
@@ -759,8 +751,11 @@ class View_FeedItem extends C4_AbstractView implements IAbstractView_Subtotals, 
 				),
 			'watchers' => 
 				array(
-					'type' => DevblocksSearchCriteria::TYPE_WORKER,
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_FeedItem::VIRTUAL_WATCHERS),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					],
 				),
 		);
 		
@@ -822,15 +817,12 @@ class View_FeedItem extends C4_AbstractView implements IAbstractView_Subtotals, 
 					$oper,
 					array_keys($values)
 				);
-				break;
 		
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
-				break;
 			
 			case 'watchers':
 				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_FeedItem::VIRTUAL_WATCHERS, $tokens);
-				break;
 				
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
@@ -838,10 +830,7 @@ class View_FeedItem extends C4_AbstractView implements IAbstractView_Subtotals, 
 				
 				$search_fields = $this->getQuickSearchFields();
 				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
-				break;
 		}
-		
-		return false;
 	}
 	
 	function render() {
