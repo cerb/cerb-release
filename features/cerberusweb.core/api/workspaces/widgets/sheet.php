@@ -143,12 +143,30 @@ class WorkspaceWidget_Sheet extends Extension_WorkspaceWidget {
 		}
 	}
 	
-	function saveConfig(Model_WorkspaceWidget $widget) {
+	function saveConfig(Model_WorkspaceWidget $widget, ?string &$error=null) : bool {
 		@$params = DevblocksPlatform::importGPC($_POST['params'], 'array', []);
+		
+		$kata = DevblocksPlatform::services()->kata();
+		
+		if(array_key_exists('sheet_kata', $params)) {
+			if(false === $kata->validate($params['sheet_kata'], CerberusApplication::kataSchemas()->sheet(), $error)) {
+				$error = 'Sheet: ' . $error;
+				return false;
+			}
+		}
+		
+		if(array_key_exists('toolbar_kata', $params)) {
+			if(false === $kata->validate($params['toolbar_kata'], CerberusApplication::kataSchemas()->interactionToolbar(), $error)) {
+				$error = 'Toolbar: ' . $error;
+				return false;
+			}
+		}
 		
 		DAO_WorkspaceWidget::update($widget->id, array(
 			DAO_WorkspaceWidget::PARAMS_JSON => json_encode($params),
 		));
+		
+		return true;
 	}
 	
 	private function _workspaceWidgetConfigAction_previewToolbar(Model_WorkspaceWidget $widget) {

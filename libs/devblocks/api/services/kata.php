@@ -1,6 +1,22 @@
 <?php
 class _DevblocksKataService {
 	private static ?_DevblocksKataService $_instance = null;
+
+	private array $_valid_annotations = [
+		'base64',
+		'bit',
+		'bool',
+		'csv',
+		'date',
+		'int',
+		'json',
+		'kata',
+		'key',
+		'list',
+		'raw',
+		'text',
+		'trim',
+	];
 	
 	static function getInstance() : _DevblocksKataService {
 		if(is_null(self::$_instance))
@@ -27,6 +43,23 @@ class _DevblocksKataService {
 		$tree = [];
 		$ptr =& $tree;
 		$indent_stack = [[0,&$ptr]];
+		
+		$funcValidateKeyName = function($key, $line_number, &$error) {
+			list($field_type, $field_name) = array_pad(explode('/', $key, 2), 2, null);
+			
+			if(empty($field_name))
+				return true;
+			
+			// Validate field name
+			if($field_name) {
+				if($field_name != DevblocksPlatform::strAlphaNum($field_name, '_')) {
+					$error = sprintf("`%s:` name `%s` must only contain letters, numbers, and underscores (line %d)", $field_type, $field_name, $line_number+1);
+					return false;
+				}
+			}
+			
+			return true;
+		};
 		
 		do {
 			$line = current($lines);
@@ -76,17 +109,24 @@ class _DevblocksKataService {
 				case '':
 					if(preg_match('#' . $field_pattern . '\s*$#i', $trimmed_line, $matches)) {
 						$field_id = $matches[1] ?? null;
+						
+						// Validate field name
+						if(!$funcValidateKeyName($field_id, $line_number, $error))
+							return false;
+						
 						$field_attributes = DevblocksPlatform::parseCsvString(ltrim($matches[2] ?? null, '@'));
 						
 						$new_attributes = array_diff($field_attributes, ['text']);
 						$field_key = $field_id . ($new_attributes ? ('@' . implode(',', $new_attributes)) : '');
 						
-						if(array_key_exists($field_key, $ptr)) {
+						$siblings = array_map(fn($k) => DevblocksPlatform::services()->string()->strBefore($k, '@'), array_keys($ptr));
+						
+						if(in_array(DevblocksPlatform::services()->string()->strBefore($field_key, '@'), $siblings)) {
 							$error = sprintf("`%s:` has a sibling with the same name (line %d)", $field_key, $line_number+1);
 							return false;
 						}
 						
-						if(array_intersect($field_attributes, ['base64', 'bit', 'bool', 'csv', 'date', 'int', 'json', 'list', 'raw', 'text'])) {
+						if(array_intersect($field_attributes, ['base64', 'bit', 'bool', 'csv', 'date', 'int', 'json', 'list', 'raw', 'text', 'trim'])) {
 							$state = 'text_block';
 							
 							$text_block = '';
@@ -137,11 +177,17 @@ class _DevblocksKataService {
 							$ptr =& $ptr[$field_key]['_data'];
 						}
 						
-					} else if(preg_match('#' . $field_pattern . '?\s*(.*?)$#i', $trimmed_line, $matches)) {
+					} else if(preg_match('#' . $field_pattern . '\s*(.*?)$#i', $trimmed_line, $matches)) {
+						// Validate field name
+						if(!$funcValidateKeyName($matches[1], $line_number, $error))
+							return false;
+						
 						$key = $matches[1] . $matches[2];
 						$value = $matches[3];
 						
-						if(array_key_exists($key, $ptr)) {
+						$siblings = array_map(fn($k) => DevblocksPlatform::services()->string()->strBefore($k, '@'), array_keys($ptr));
+						
+						if(in_array(DevblocksPlatform::services()->string()->strBefore($key, '@'), $siblings)) {
 							$error = sprintf("`%s:` has a sibling with the same name (line %d)", $key, $line_number+1);
 							return false;
 						}
@@ -152,11 +198,17 @@ class _DevblocksKataService {
 						if($indent_transition > 0) {
 							$indent_stack[] = [$indent_len, &$ptr];
 						}
-						
-					} else {
+
+					// Comments
+					} else if(DevblocksPlatform::strStartsWith($trimmed_line, '#')) {
 						if($indent_transition > 0) {
 							$indent_stack[] = [$indent_len, &$ptr];
 						}
+					
+					// Unknown command
+					} else {
+						$error = sprintf("Unexpected syntax (line %d): %s", $line_number+1, $trimmed_line);
+						return false;
 					}
 					break;
 			}
@@ -469,6 +521,16 @@ class _DevblocksKataService {
 					}
 				} else if($annotation == 'list') {
 					$v = DevblocksPlatform::parseCrlfString($v);
+				} else if($annotation == 'raw') { 
+					// Do nothing
+				} else if($annotation == 'text') { 
+					// Do nothing
+				} else if($annotation == 'trim') {
+					if(is_string($v))
+						$v = trim($v);
+				} else {
+					$error = sprintf("Unknown attribute: @%s", $annotation);
+					return false;
 				}
 			}
 			
@@ -508,5 +570,215 @@ class _DevblocksKataService {
 		} else {
 			return [$k => $v];
 		}
+	}
+	
+	public function validate(string $doc_kata, string $schema_kata, ?string &$error=null, ?DevblocksDictionaryDelegate $dict=null) : bool {
+		$kata = DevblocksPlatform::services()->kata();
+		
+		if(false === ($doc_tree = $kata->parse($doc_kata, $error)))
+			return false;
+		
+		if(empty($doc_tree))
+			return true;
+		
+		if(false == ($doc_tree = $kata->formatTree($doc_tree, $dict, $error)))
+			return false;
+
+		if(false === ($schema = $this->parse($schema_kata, $error))) {
+			$error = sprintf("Syntax error: %s", $error);
+			return false;
+		}
+		
+		$schema_dict = DevblocksDictionaryDelegate::instance([]);
+		
+		if(false === ($schema = $this->formatTree($schema, $schema_dict, $error)))
+			return false;
+		
+		// Definitions (for recursion)
+		$schema_definitions = $schema['definitions'] ?? [];
+		$schema = $schema['schema'] ?? [];
+		
+		$funcValidateKey = function($key, $value, $schema, &$key_path, &$error) use (&$funcValidateKey, &$dict, $schema_definitions) {
+			$string = DevblocksPlatform::services()->string();
+			
+			if($key) { // If not the root
+				$key_path[] = $key;
+				
+				list($key_type,) = array_pad(explode('/', $key), 2, null);
+				
+				$node_types = $schema[$key_type]['types'] ?? [];
+				
+			} else { // If this is the root
+				$schema = ['types' => ['object' => $schema]];
+				$node_types = $schema['types'];
+			}
+			
+			$found_type = false;
+			
+			// Check all possible types in order
+			foreach($node_types as $node_type => $node_type_params) {
+				if($found_type)
+					break;
+				
+				if('object' == $node_type && is_array($value) && !DevblocksPlatform::arrayIsIndexed($value)) {
+					$found_type = true;
+					
+					$type_attributes = $node_type_params['attributes'] ?? [];
+					
+					$node_attributes =
+						array_combine(
+							array_keys($value),
+							array_map(fn($k) => $string->strBefore($string->strBefore($k, '/'), '@'), array_keys($value))
+						)
+					;
+					
+					// Handle unknown attributes
+					
+					$unknown_attributes = array_diff(
+						array_unique(array_values($node_attributes)),
+						array_keys($type_attributes)
+					);
+					
+					if($unknown_attributes) {
+						$attribute_patterns = $node_type_params['attributePatterns'] ?? [];
+						
+						if(!is_array($attribute_patterns))
+							$attribute_patterns = [];
+						
+						foreach($unknown_attributes as $unknown_attribute) {
+							$found_attribute = false;
+							
+							foreach($attribute_patterns as $attribute_pattern_key => $attribute_pattern) {
+								if('pattern' != DevblocksPlatform::services()->string()->strBefore($attribute_pattern_key, '/'))
+									continue;
+								
+								if(is_array($attribute_pattern) && array_key_exists('match', $attribute_pattern)) {
+									$attribute_pattern_match = $attribute_pattern['match'];
+									
+									if(!DevblocksPlatform::strStartsWith($attribute_pattern_match, '/'))
+										$attribute_pattern_match = DevblocksPlatform::strToRegExp($attribute_pattern_match);
+									
+									if(preg_match($attribute_pattern_match, $unknown_attribute)) {
+										$found_attribute = true;
+										$type_attributes[$unknown_attribute] = $attribute_pattern['attributes'] ?? [];
+									}
+								}
+							}
+							
+							if(!$found_attribute) {
+								$error = sprintf(
+									'Key `%s%s:` is unknown',
+									$key_path ? (implode(':', $key_path) . ':') : '',
+									$unknown_attribute
+								);
+								
+								return false;
+							}
+						}
+					}
+					
+					foreach ($type_attributes as $attr_key => &$attr_params) {
+						// Using a definition?
+						if(array_key_exists('ref', $attr_params) && is_string($attr_params['ref'])) {
+							if(array_key_exists($attr_params['ref'], $schema_definitions)) {
+								$merge_params = array_diff_key($attr_params, ['ref'=>true]);
+								$attr_params = array_merge($schema_definitions[$attr_params['ref']], $merge_params);
+							}
+						}
+						
+						$attr_key_count = array_count_values($node_attributes);
+						$attr_key_prefix = $key_path ? (implode(':', $key_path) . ':') : '';
+						
+						if (!is_array($attr_params))
+							$attr_params = [];
+						
+						if (array_key_exists('required', $attr_params)) {
+							if (!array_key_exists($attr_key, $attr_key_count)) {
+								$error = sprintf('Key `%s%s:` is required', $attr_key_prefix, $attr_key);
+								return false;
+							}
+						}
+						
+						if (!array_key_exists('multiple', $attr_params) || !$attr_params['multiple']) {
+							// If not nameable but named
+							foreach ($node_attributes as $na_key => $na_type) {
+								if ($attr_key == $na_type && false !== strpos($na_key, '/')) {
+									$error = sprintf('Key `%s%s:` must not have a name', $attr_key_prefix, $attr_key);
+									return false;
+								}
+							}
+							
+							// If duplicated
+							if (array_key_exists($attr_key, $attr_key_count) && $attr_key_count[$attr_key] > 1) {
+								$error = sprintf('Key `%s%s:` can not be duplicated', $attr_key_prefix, $attr_key);
+								return false;
+							}
+						}
+					}
+					
+					foreach ($value as $k => $v) {
+						if (false === ($funcValidateKey($k, $v, $type_attributes, $key_path, $error)))
+							return false;
+					}
+				
+				} else { // Not an object
+					if(!$dict)
+						$found_type = true;
+					
+					if('any' == $node_type) {
+						$found_type = true;
+						
+					} elseif('bit' == $node_type) {
+						if(in_array($value, [0,1]))
+							$found_type = true;
+						
+					} elseif('bool' == $node_type) {
+						if(is_bool($value))
+							$found_type = true;
+						
+					} elseif('list' == $node_type) {
+						if(is_array($value))
+							$found_type = true;
+						
+					} elseif('number' == $node_type) {
+						if(is_numeric($value))
+							$found_type = true;
+						
+					} elseif('string' == $node_type) {
+						if(is_string($value) || is_null($value))
+							$found_type = true;
+					}					
+				}
+			}
+			
+			// If we didn't find a suitable type
+			if(!$found_type) {
+				if($node_types) {
+					$error = sprintf("Key `%s:` must be of type: %s",
+						implode(':', $key_path),
+						implode(', ', array_keys($node_types))
+					);
+				} else {
+					$error = sprintf("Key `%s:` has no schema type",
+						implode(':', $key_path),
+					);
+				}
+				
+				return false;
+			}
+			
+			if($key)
+				array_pop($key_path);
+			
+			return true;
+		};
+		
+		$key_path = [];
+		$error = null;
+		
+		if(false === $funcValidateKey(null, $doc_tree, $schema, $key_path, $error))
+			return false;
+		
+		return true;
 	}
 }

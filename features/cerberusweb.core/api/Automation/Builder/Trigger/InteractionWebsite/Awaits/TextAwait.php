@@ -15,13 +15,14 @@ class TextAwait extends AbstractAwait {
 		$prompt_type = $this->_data['type'] ?? 'freeform';
 		
 		$input_field = $validation->addField($this->_key, $prompt_label);
-		$input_field_type = null;
 		
 		$is_required = array_key_exists('required', $this->_data) && $this->_data['required'];
 		
 		switch ($prompt_type) {
 			case 'freeform':
-				$input_field_type = $input_field->string();
+				$input_field_type = $input_field->string($validation::STRING_UTF8MB4)
+					->setMaxLength(1024)
+				;
 				break;
 				
 			case 'bool':
@@ -90,17 +91,30 @@ class TextAwait extends AbstractAwait {
 				break;
 			
 			case 'url':
-				$input_field_type = $input_field->url();
+				$input_field_type = $input_field->url()
+					->setMaxLength(2048)
+				;
 				break;
 			
 			default:
 				// [TODO] Error on unknown
-				$input_field_type = $input_field->string();
+				$input_field_type = $input_field->string($validation::STRING_UTF8MB4)
+					->setMaxLength(1024)
+				;
 				break;
 		}
 		
 		if($is_required)
 			$input_field_type->setRequired(true);
+		
+		if(array_key_exists('min_length', $this->_data) && is_numeric($this->_data['min_length']) && $this->_data['min_length'])
+			$input_field_type->setMinLength($this->_data['min_length']);
+		
+		if(array_key_exists('max_length', $this->_data) && is_numeric($this->_data['max_length']) && $this->_data['max_length'])
+			$input_field_type->setMaxLength($this->_data['max_length']);
+		
+		$is_truncated = DevblocksPlatform::services()->string()->toBool($this->_data['truncate'] ?? 'yes');
+		$input_field_type->setTruncation($is_truncated);
 	}
 	
 	function formatValue() {
