@@ -4533,6 +4533,9 @@ class _CerbApplication_KataSchemas {
               after:
                 types:
                   list:
+              badge:
+                types:
+                  string:
               hidden:
                 types:
                   bool:
@@ -4560,6 +4563,9 @@ class _CerbApplication_KataSchemas {
               default:
                 types:
                   string:
+              hidden:
+                types:
+                  bool:
               icon:
                 types:
                   string:
