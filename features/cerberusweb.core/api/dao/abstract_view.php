@@ -411,6 +411,8 @@ abstract class C4_AbstractView {
 	function getParams($parse_placeholders=true) {
 		$params = DevblocksPlatform::deepCloneArray($this->_paramsEditable);
 		
+		$error = null;
+		
 		// Required should supersede editable
 		
 		if(is_array($this->_paramsRequired)) {
@@ -424,10 +426,13 @@ abstract class C4_AbstractView {
 		// Required quick search
 		
 		if($this->_paramsRequiredQuery) {
-			if(false != ($params_required = $this->getParamsFromQuickSearch($this->_paramsRequiredQuery))) {
+			if(false != ($params_required = $this->getParamsFromQuickSearch($this->_paramsRequiredQuery, [], $error))) {
 				foreach($params_required as $key => $param) {
 					$params['req_'.$key] = $param;
 				}
+			} else {
+				self::marqueeFlush($this->id);
+				self::marqueeAppend($this->id, '[Warning] Required query: ' . $error);
 			}
 		}
 		
@@ -1660,6 +1665,28 @@ abstract class C4_AbstractView {
 					
 				case Model_CustomField::TYPE_WORKER:
 					$search_field_meta['type'] = DevblocksSearchCriteria::TYPE_WORKER;
+					
+					// Add a field.id quick search key for choosers
+					
+					$id_field_meta = [
+						'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+						'is_sortable' => true,
+						'options' => [
+							'param_key' => sprintf("cf_%d", $cf_id),
+							'cf_ctx' => $cfield->context,
+							'cf_id' => $cf_id,
+						],
+						'examples' => [
+							[
+								'type' => 'chooser',
+								'context' => CerberusContexts::CONTEXT_WORKER,
+								'q' => '',
+								'single' => false,
+							],
+						]
+					];
+					
+					$fields[$field_key . '.id'] = $id_field_meta;
 					break;
 					
 				default:

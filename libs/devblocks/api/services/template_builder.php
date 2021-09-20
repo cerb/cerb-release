@@ -197,16 +197,19 @@ class _DevblocksTemplateBuilder {
 				'truncate',
 				'unescape',
 				'url_decode',
+				'values',
 				
 				'abs',
 				'batch',
 				'capitalize',
+				'column',
 				'convert_encoding',
 				'date',
 				'date_modify',
 				'default',
 				'e',
 				'escape',
+				'filter',
 				'first',
 				'format',
 				'join',
@@ -215,10 +218,12 @@ class _DevblocksTemplateBuilder {
 				'last',
 				'length',
 				'lower',
+				'map',
 				'merge',
 				'nl2br',
 				'number_format',
 				'raw',
+				'reduce',
 				'replace',
 				'reverse',
 				'round',
@@ -247,6 +252,7 @@ class _DevblocksTemplateBuilder {
 				'array_values',
 				'cerb_avatar_image',
 				'cerb_avatar_url',
+				'cerb_calendar_time_elapsed',
 				'cerb_extract_uris',
 				'cerb_file_url',
 				'cerb_has_priv',
@@ -426,6 +432,9 @@ class _DevblocksTemplateBuilder {
 				
 				$out = $template->render([]);
 			}
+			
+		} catch(ArgumentCountError $e) {
+			$this->_errors[] = "Argument count error";
 			
 		} catch(SyntaxError $e) {
 			$this->_errors[] = sprintf("%s (line %d)",
@@ -1152,6 +1161,7 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFunction('array_values', [$this, 'function_array_values']),
 			new \Twig\TwigFunction('cerb_avatar_image', [$this, 'function_cerb_avatar_image']),
 			new \Twig\TwigFunction('cerb_avatar_url', [$this, 'function_cerb_avatar_url']),
+			new \Twig\TwigFunction('cerb_calendar_time_elapsed', [$this, 'function_cerb_calendar_time_elapsed']),
 			new \Twig\TwigFunction('cerb_extract_uris', [$this, 'function_cerb_extract_uris']),
 			new \Twig\TwigFunction('cerb_file_url', [$this, 'function_cerb_file_url']),
 			new \Twig\TwigFunction('cerb_has_priv', [$this, 'function_cerb_has_priv']),
@@ -1319,6 +1329,25 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			return;
 		
 		return array_values($arr);
+	}
+	
+	function function_cerb_calendar_time_elapsed($calendar, $date_from, $date_to) {
+		if(!is_numeric($calendar) || false == ($calendar = DAO_Calendar::get($calendar)))
+			return false;
+		
+		/** @var $calendar Model_Calendar */
+		
+		if(empty($date_from) || (!is_numeric($date_from) && false == (@$date_from = strtotime($date_from))))
+			$date_from = 0;
+		
+		if(empty($date_to) || (!is_numeric($date_to) && false == (@$date_to = strtotime($date_to))))
+			$date_to = 0;
+		
+		$calendar_events = $calendar->getEvents($date_from, $date_to);
+		$availability = $calendar->computeAvailability($date_from, $date_to, $calendar_events);
+		
+		$mins = $availability->getMinutes();
+		return strlen(str_replace('0', '', $mins)) * 60;
 	}
 	
 	function function_cerb_has_priv($priv, $actor_context=null, $actor_id=null) {
@@ -1671,6 +1700,7 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFilter('truncate', [$this, 'filter_truncate']),
 			new \Twig\TwigFilter('unescape', [$this, 'filter_unescape']),
 			new \Twig\TwigFilter('url_decode', [$this, 'filter_url_decode']),
+			new \Twig\TwigFilter('values', [$this, 'filter_values']),
 		);
 	}
 	
@@ -2129,6 +2159,13 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			default:
 				return rawurldecode($string);
 		}
+	}
+	
+	function filter_values($array) : array {
+		if(!array($array))
+			return [];
+		
+		return array_values($array);
 	}
 	
 	public function getTests() {

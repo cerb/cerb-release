@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2021091001);
-define("APP_VERSION", '10.1.0');
+define("APP_BUILD", 2021092001);
+define("APP_VERSION", '10.1.1');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -2426,7 +2426,12 @@ class CerberusContexts {
 						
 						$error = null;
 						
-						$handlers = $record_changed_events->getKata($dict);
+						$handlers = $record_changed_events->getKata($dict, $error);
+						
+						if(false === $handlers && $error) {
+							error_log('[KATA] Invalid record.changed KATA: ' . $error);
+							$handlers = [];
+						}
 						
 						$event_handler->handleEach(
 							AutomationTrigger_RecordChanged::ID,
