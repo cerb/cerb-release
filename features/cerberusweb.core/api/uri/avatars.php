@@ -37,7 +37,6 @@ class Controller_Avatars extends DevblocksControllerExtension {
 				@$url = DevblocksPlatform::importGPC($_REQUEST['url'], 'string', '');
 				$this->_fetchImageFromUrl($url);
 				return;
-				break;
 		}
 		
 		$contexts = Extension_DevblocksContext::getAll(false);
@@ -228,7 +227,20 @@ class Controller_Avatars extends DevblocksControllerExtension {
 				
 				$this->_renderFilePng(APP_PATH . sprintf('/features/cerberusweb.core/resources/images/avatars/person%d.png', $n));
 				break;
+			
+			case CerberusContexts::CONTEXT_BUCKET:
+				// Look up the avatar record
+				if(
+					false != ($bucket = DAO_Bucket::get($context_id))
+					&& false != ($avatar = DAO_ContextAvatar::getByContext(CerberusContexts::CONTEXT_GROUP, $bucket->group_id))
+				) {
+					$this->_renderAvatar($avatar);
+					return;
+				}
 				
+				$this->_renderFilePng(APP_PATH . '/features/cerberusweb.core/resources/images/avatars/convo.png');
+				return;
+
 			case CerberusContexts::CONTEXT_BOT:
 				$this->_renderFilePng(APP_PATH . '/features/cerberusweb.core/resources/images/avatars/va.png');
 				break;
@@ -240,6 +252,19 @@ class Controller_Avatars extends DevblocksControllerExtension {
 			case CerberusContexts::CONTEXT_GROUP:
 				$this->_renderFilePng(APP_PATH . '/features/cerberusweb.core/resources/images/avatars/convo.png');
 				break;
+				
+			case CerberusContexts::CONTEXT_TICKET:
+				// Look up the avatar record
+				if(
+					false != ($ticket = DAO_Ticket::get($context_id))
+					&& false != ($avatar = DAO_ContextAvatar::getByContext(CerberusContexts::CONTEXT_GROUP, $ticket->group_id))
+				) {
+					$this->_renderAvatar($avatar);
+					return;
+				}
+				
+				$this->_renderFilePng(APP_PATH . '/features/cerberusweb.core/resources/images/avatars/convo.png');
+				return;
 				
 			default:
 				$this->_renderFilePng(APP_PATH . '/features/cerberusweb.core/resources/images/avatars/va.png');

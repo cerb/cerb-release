@@ -256,9 +256,6 @@ class _DevblocksSheetServiceTypes {
 			$column_key = $column['key'] ?? null;
 			$column_params = $column['params'] ?? [];
 			
-			@$card_label = $column_params['label'];
-			@$card_context = $column_params['context'];
-			@$card_id = $column_params['id'];
 			@$is_underlined = !array_key_exists('underline', $column_params) || $column_params['underline'];
 			
 			$default_card_context_key = null;
@@ -322,16 +319,17 @@ class _DevblocksSheetServiceTypes {
 				// Avatar image?
 				if(array_key_exists('image', $column_params) && $column_params['image']) {
 					$avatar_size = '1.5em';
-					
-					$avatar_value .= sprintf('<img src="%s?v=%s" style="width:%s;border-radius:%s;margin-right:0.25em;vertical-align:middle;">',
-						$url_writer->write(sprintf("c=avatars&ctx=%s&id=%d",
-							DevblocksPlatform::strEscapeHtml($card_context),
-							$card_id
-						)),
-						DevblocksPlatform::strEscapeHtml($sheet_dict->get('updated_at', $sheet_dict->get('updated'))),
-						DevblocksPlatform::strEscapeHtml($avatar_size),
-						DevblocksPlatform::strEscapeHtml($avatar_size)
-					);
+					if(false != ($card_context_ext = Extension_DevblocksContext::getByAlias($card_context))) {
+						$avatar_value .= sprintf('<img src="%s?v=%s" style="width:%s;border-radius:%s;margin-right:0.25em;vertical-align:middle;">',
+							$url_writer->write(sprintf("c=avatars&ctx=%s&id=%d",
+								DevblocksPlatform::strEscapeHtml($card_context_ext->params['alias']),
+								$card_id
+							)),
+							DevblocksPlatform::strEscapeHtml($sheet_dict->get('updated_at', $sheet_dict->get('updated'))),
+							DevblocksPlatform::strEscapeHtml($avatar_size),
+							DevblocksPlatform::strEscapeHtml($avatar_size)
+						);
+					}
 				}
 				
 				// Card link
@@ -405,6 +403,22 @@ class _DevblocksSheetServiceTypes {
 				$column_params = [
 					'image' => $column_params
 				];
+			}
+			
+			if(array_key_exists('record_uri', $column_params)) {
+				$record_uri = $tpl_builder->build($column_params['record_uri'], $sheet_dict);
+				
+				if(false == ($uri_parts = DevblocksPlatform::services()->ui()->parseURI($record_uri)))
+					return '';
+				
+				$img = sprintf('<img class="cerb-avatar" style="margin-right:0.25em;" src="%s?v=%d"/>',
+					DevblocksPlatform::services()->url()->writeNoProxy(sprintf('c=avatars&ctx=%s&id=%d', $uri_parts['context_ext']->params['alias'], $uri_parts['context_id']), true),
+					APP_BUILD
+				);
+				
+				DevblocksPlatform::purifyHTML($img, false, true, [$filter]);
+				
+				return $img;
 			}
 			
 			if(array_key_exists('image', $column_params) && $column_params['image']) {
@@ -719,12 +733,6 @@ class _DevblocksSheetServiceTypes {
 			
 			$value = '';
 			
-			if(array_key_exists('icon', $column_params) && $column_params['icon']) {
-				$icon_column = $column;
-				$icon_column['params'] = $column_params['icon'];
-				$value .= $this->icon()($icon_column, $sheet_dict);
-			}
-			
 			if(array_key_exists('value', $column_params)) {
 				$text_value = $column_params['value'];
 			} else if(array_key_exists('value_key', $column_params)) {
@@ -744,6 +752,12 @@ class _DevblocksSheetServiceTypes {
 			if(array_key_exists('value_map', $column_params) && is_array($column_params['value_map'])) {
 				if(array_key_exists($text_value, $column_params['value_map']))
 					$text_value = $column_params['value_map'][$text_value];
+			}
+			
+			if(array_key_exists('icon', $column_params) && $column_params['icon'] && $text_value) {
+				$icon_column = $column;
+				$icon_column['params'] = $column_params['icon'];
+				$value .= $this->icon()($icon_column, $sheet_dict);
 			}
 			
 			$value .= $is_escaped ? $text_value : DevblocksPlatform::strEscapeHtml($text_value);

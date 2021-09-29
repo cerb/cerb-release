@@ -192,6 +192,8 @@ class _DevblocksTemplateBuilder {
 				'spaceless',
 				'split_crlf',
 				'split_csv',
+				'str_pos',
+				'str_sub',
 				'strip_lines',
 				'tokenize',
 				'truncate',
@@ -521,7 +523,9 @@ class DevblocksDictionaryDelegate implements JsonSerializable, IteratorAggregate
 	}
 	
 	public function __unset($name) {
+		$removed = $this->_dictionary[$name] ?? null; 
 		unset($this->_dictionary[$name]);
+		return $removed;
 	}
 	
 	public function clearCaches() {
@@ -614,8 +618,7 @@ class DevblocksDictionaryDelegate implements JsonSerializable, IteratorAggregate
 	}
 	
 	public function _getPathFromText($name, $delimiter='.') {
-		$path = explode($delimiter, $name);
-		return $path;
+		return explode($delimiter, $name);
 	}
 	
 	public function setKeyPath($name, $value, $delimiter='.') {
@@ -674,12 +677,12 @@ class DevblocksDictionaryDelegate implements JsonSerializable, IteratorAggregate
 		
 		$ptr =& $this->_dictionary;
 		
-		while($k = array_shift($path)) {
+		while(null !== ($k = array_shift($path))) {
 			if(!array_key_exists($k, $ptr)) {
 				return false;
 			}
 			
-			if(empty($path)) {
+			if(0 == count($path)) {
 				unset($ptr[$k]);
 				return true;
 				
@@ -1695,6 +1698,8 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFilter('sha1', [$this, 'filter_sha1']),
 			new \Twig\TwigFilter('split_crlf', [$this, 'filter_split_crlf']),
 			new \Twig\TwigFilter('split_csv', [$this, 'filter_split_csv']),
+			new \Twig\TwigFilter('str_pos', [$this, 'filter_str_pos']),
+			new \Twig\TwigFilter('str_sub', [$this, 'filter_str_sub']),
 			new \Twig\TwigFilter('strip_lines', [$this, 'filter_strip_lines']),
 			new \Twig\TwigFilter('tokenize', [$this, 'filter_tokenize']),
 			new \Twig\TwigFilter('truncate', [$this, 'filter_truncate']),
@@ -2079,6 +2084,32 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			return '';
 		
 		return DevblocksPlatform::parseCsvString($string);
+	}
+	
+	function filter_str_pos($haystack, $needle, $offset=0, $ignoreCase=false) {
+		if($haystack instanceof Twig\Markup)
+			$haystack = strval($haystack);
+		
+		if(!is_string($haystack) || !is_string($needle) || !is_int($offset) || !is_bool($ignoreCase))
+			return false;
+		
+		if($ignoreCase) {
+			$pos = stripos($haystack, $needle, $offset);
+			return false === $pos ? -1 : $pos;
+		} else {
+			$pos = strpos($haystack, $needle, $offset);
+			return false === $pos ? -1 : $pos;
+		}
+	}
+	
+	function filter_str_sub($string, $from, $to) {
+		if($string instanceof Twig\Markup)
+			$string = strval($string);
+		
+		if(!is_string($string) || !is_int($from) || !is_int($to))
+			return false;
+		
+		return substr($string, $from, $to-$from);
 	}
 	
 	function filter_strip_lines($string, $prefixes) {

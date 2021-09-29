@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2021092001);
-define("APP_VERSION", '10.1.1');
+define("APP_BUILD", 2021092901);
+define("APP_VERSION", '10.1.2');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -4335,6 +4335,15 @@ class _CerbApplication_KataSchemas {
                               key:
                                 types:
                                   string:
+                      output:
+                        types:
+                          string:
+                      on_error:
+                        ref: commands
+                      on_success:
+                        ref: commands
+                      on_simulate:
+                        ref: commands
               
               while:
                 multiple@bool: yes
@@ -4853,6 +4862,9 @@ class _CerbApplication_KataSchemas {
                   types:
                     # [TODO] Possible values: table, etc.
                     string:
+                title_column:
+                  types:
+                    string:
         
         columns:
           types:
@@ -4883,6 +4895,20 @@ class _CerbApplication_KataSchemas {
                                 icon:
                                   types:
                                     string:
+                                    object:
+                                      attributes:
+                                        image_key:
+                                          types:
+                                            string:
+                                        image_template:
+                                          types:
+                                            string:
+                                        image:
+                                          types:
+                                            string:
+                                        record_uri:
+                                          types:
+                                            string:
                                 id_key:
                                   types:
                                     string:
@@ -4951,6 +4977,9 @@ class _CerbApplication_KataSchemas {
                                   types:
                                     string:
                                 image:
+                                  types:
+                                    string:
+                                record_uri:
                                   types:
                                     string:
                 
@@ -5117,6 +5146,20 @@ class _CerbApplication_KataSchemas {
                                 icon:
                                   types:
                                     string:
+                                    object:
+                                      attributes:
+                                        image_key:
+                                          types:
+                                            string:
+                                        image_template:
+                                          types:
+                                            string:
+                                        image:
+                                          types:
+                                            string:
+                                        record_uri:
+                                          types:
+                                            string:
                                 value_key:
                                   types:
                                     string:

@@ -188,7 +188,7 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 				'(.*):await:form:elements:sheet:data:' => [
 					[
 						'caption' => 'automation:',
-						'snippet' => "automation:\n  uri: cerb:automation:\${1:automation.name}\n  inputs:\n",
+						'snippet' => "automation:\n  uri: cerb:automation:\${1:cerb.data.records}\n  inputs:\n    record_type: ticket\n    query_required: status:o\n",
 					],
 					[
 						'caption' => '(manual)',
@@ -218,15 +218,24 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 				],
 				'(.*):await:form:elements:sheet:schema:columns:card:params:' => [
 					'bold@bool: yes',
+					'context:',
 					'context_key:',
+					'context_template@raw:',
 					'icon:',
+					'id:',
 					'id_key:',
+					'id_template@raw:',
 					'image@bool: yes',
+					'label:',
 					'label_key:',
+					'label_template@raw:',
 					'underline@bool: yes',
 				],
 				'(.*):await:form:elements:sheet:schema:columns:card:params:icon:' => [
-					'image:',
+					'image: circle-ok',
+					'image_key: icon_key',
+					'image_template@raw:',
+					'record_uri@raw:',
 				],
 				'(.*):await:form:elements:sheet:schema:columns:date:' => [
 					'params:',
@@ -243,6 +252,7 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 					'image: circle-ok',
 					'image_key: icon_key',
 					'image_template@raw:',
+					'record_uri@raw:',
 				],
 				'(.*):await:form:elements:sheet:schema:columns:link:' => [
 					'params:',
@@ -303,7 +313,10 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 					'icon:',
 				],
 				'(.*):await:form:elements:sheet:schema:columns:text:params:icon:' => [
-					'image:',
+					'image: circle-ok',
+					'image_key: icon_key',
+					'image_template@raw:',
+					'record_uri@raw:',
 				],
 				'(.*):await:form:elements:sheet:schema:columns:time_elapsed:' => [
 					'params:',

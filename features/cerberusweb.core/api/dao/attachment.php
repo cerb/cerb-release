@@ -1019,7 +1019,7 @@ class Storage_Attachments extends Extension_DevblocksStorageSchema {
 	
 	/**
 	 * @param int $id
-	 * @param string $contents
+	 * @param string|resource $contents
 	 * @param Model_DevblocksStorageProfile|int $profile
 	 * @return bool|void
 	 */
@@ -1836,7 +1836,8 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 	}
 	
 	function getMeta($context_id) {
-		$attachment = DAO_Attachment::get($context_id);
+		if(null == ($attachment = DAO_Attachment::get($context_id)))
+			return [];
 
 		return array(
 			'id' => $attachment->id,
