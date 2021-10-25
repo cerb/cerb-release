@@ -6,7 +6,7 @@
     'aliases' => 
     array (
     ),
-    'reference' => '03bef481d1f70792a5de20571c729139fe333492',
+    'reference' => 'a21df1969bff4c91103eac71762679c6c13b2d37',
     'name' => 'wgm/cerb',
   ),
   'versions' => 
@@ -58,12 +58,12 @@
     ),
     'egulias/email-validator' => 
     array (
-      'pretty_version' => '3.1.1',
-      'version' => '3.1.1.0',
+      'pretty_version' => '3.1.2',
+      'version' => '3.1.2.0',
       'aliases' => 
       array (
       ),
-      'reference' => 'c81f18a3efb941d8c4d2e025f6183b5c6d697307',
+      'reference' => 'ee0db30118f661fb166bcffbf5d82032df484697',
     ),
     'erusev/parsedown' => 
     array (
@@ -103,21 +103,21 @@
     ),
     'guzzlehttp/promises' => 
     array (
-      'pretty_version' => '1.4.1',
-      'version' => '1.4.1.0',
+      'pretty_version' => '1.5.1',
+      'version' => '1.5.1.0',
       'aliases' => 
       array (
       ),
-      'reference' => '8e7d04f1f6450fef59366c399cfad4b9383aa30d',
+      'reference' => 'fe752aedc9fd8fcca3fe7ad05d419d32998a06da',
     ),
     'guzzlehttp/psr7' => 
     array (
-      'pretty_version' => '1.8.2',
-      'version' => '1.8.2.0',
+      'pretty_version' => '1.8.3',
+      'version' => '1.8.3.0',
       'aliases' => 
       array (
       ),
-      'reference' => 'dc960a912984efb74d0a90222870c72c87f10c91',
+      'reference' => '1afdd860a2566ed3c2b0b4a3de6e23434a79ec85',
     ),
     'horde/imap-client' => 
     array (
@@ -167,12 +167,12 @@
     ),
     'league/oauth2-server' => 
     array (
-      'pretty_version' => '8.3.2',
-      'version' => '8.3.2.0',
+      'pretty_version' => '8.3.3',
+      'version' => '8.3.3.0',
       'aliases' => 
       array (
       ),
-      'reference' => '0809487d33dd8a2c8c8c04e4a599ba4aadba1ae6',
+      'reference' => 'f5698a3893eda9a17bcd48636990281e7ca77b2a',
     ),
     'league/oauth2server' => 
     array (
@@ -257,21 +257,21 @@
     ),
     'phpdocumentor/reflection-docblock' => 
     array (
-      'pretty_version' => '5.2.2',
-      'version' => '5.2.2.0',
+      'pretty_version' => '5.3.0',
+      'version' => '5.3.0.0',
       'aliases' => 
       array (
       ),
-      'reference' => '069a785b2141f5bcf49f3e353548dc1cce6df556',
+      'reference' => '622548b623e81ca6d78b721c5e029f4ce664f170',
     ),
     'phpdocumentor/type-resolver' => 
     array (
-      'pretty_version' => '1.5.0',
-      'version' => '1.5.0.0',
+      'pretty_version' => '1.5.1',
+      'version' => '1.5.1.0',
       'aliases' => 
       array (
       ),
-      'reference' => '30f38bffc6f24293dadd1823936372dfa9e86e2f',
+      'reference' => 'a12f7e301eb7258bb68acd89d4aefa05c2906cae',
     ),
     'phpseclib/phpseclib' => 
     array (
@@ -534,21 +534,21 @@
     ),
     'smarty/smarty' => 
     array (
-      'pretty_version' => 'v3.1.39',
-      'version' => '3.1.39.0',
+      'pretty_version' => 'v3.1.40',
+      'version' => '3.1.40.0',
       'aliases' => 
       array (
       ),
-      'reference' => 'e27da524f7bcd7361e3ea5cdfa99c4378a7b5419',
+      'reference' => '9d4f8309ed49702e0d7152f9983c3a9c4b98eb9d',
     ),
     'swiftmailer/swiftmailer' => 
     array (
-      'pretty_version' => 'v6.2.7',
-      'version' => '6.2.7.0',
+      'pretty_version' => 'v6.3.0',
+      'version' => '6.3.0.0',
       'aliases' => 
       array (
       ),
-      'reference' => '15f7faf8508e04471f666633addacf54c0ab5933',
+      'reference' => '8a5d5072dca8f48460fce2f4131fcc495eec654c',
     ),
     'symfony/css-selector' => 
     array (
@@ -665,7 +665,7 @@
       'aliases' => 
       array (
       ),
-      'reference' => '03bef481d1f70792a5de20571c729139fe333492',
+      'reference' => 'a21df1969bff4c91103eac71762679c6c13b2d37',
     ),
   ),
 );
