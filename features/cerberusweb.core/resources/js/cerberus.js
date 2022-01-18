@@ -3494,7 +3494,7 @@ var ajax = new cAjaxCalls();
 						{
 							label: '#comment',
 							value: '#comment ',
-							description: 'Add a comment with @mention notifications'
+							description: 'Add a ticket comment with @mention notifications'
 						},
 						{
 							label: '#cut',
@@ -3520,6 +3520,16 @@ var ajax = new cAjaxCalls();
 							label: '#snippet',
 							value: '#snippet ',
 							description: 'Insert a snippet'
+						},
+						{
+							label: '#start comment',
+							value: '#start comment\nYour multiple line comment goes here.\n#end\n',
+							description: 'Add a multiple line ticket comment with @mention notifications'
+						},
+						{
+							label: '#start note',
+							value: '#start note\nYour multiple line sticky note goes here.\n#end\n',
+							description: 'Add a multiple line sticky note with @mention notifications'
 						},
 						{
 							label: '#unwatch',
@@ -4853,7 +4863,7 @@ var ajax = new cAjaxCalls();
 				return;
 			
 			$trigger
-				.css('color', 'rgb(100,100,100)')
+				.css('color', 'var(--cerb-color-background-contrast-100)')
 				.css('cursor', 'text')
 				.attr('readonly', 'readonly')
 			;
@@ -4890,7 +4900,7 @@ var ajax = new cAjaxCalls();
 	$.fn.cerbTemplateTrigger = function(options) {
 		return this.each(function() {
 			var $trigger = $(this)
-				.css('color', 'rgb(100,100,100)')
+				.css('color', 'var(--cerb-color-background-contrast-100)')
 				.css('cursor', 'text')
 				.attr('readonly', 'readonly')
 			;
