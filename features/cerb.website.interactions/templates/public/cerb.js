@@ -10,7 +10,7 @@ function CerbInteractions() {
     this.$badge = null;
     this.$popup = null;
     this.$spinner = null;
-    this.focusableSelector = 'a:not([disabled]), button:not([disabled]), input[type=text]:not([disabled]), textarea:not([disabled]), [tabindex]:not([disabled]):not([tabindex="-1"])';
+    this.focusableSelector = 'a:not([disabled]), input[type=text]:not([disabled]), textarea:not([disabled]), [tabindex]:not([disabled]):not([tabindex="-1"])';
     
     this.init();
 }
@@ -33,7 +33,6 @@ CerbInteractions.prototype.init = function() {
     
     this.$spinner = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     this.$spinner.setAttribute('viewBox', '0 0 100 100');
-    this.$spinner.style.width = '32px';
     this.$spinner.appendChild($circle);
     this.$spinner.classList.add('cerb-spinner');
     
@@ -148,6 +147,7 @@ CerbInteractions.prototype.html = function (el, html) {
         var $newScript = document.createElement('script');
         var scriptData = ($oldScript.text || $oldScript.textContent || $oldScript.innerHTML || "");
         $newScript.setAttribute('type', 'text/javascript');
+        $newScript.setAttribute('nonce', this.$script.getAttribute('nonce'));
         $newScript.appendChild(document.createTextNode(scriptData));
         $parent.insertBefore($newScript, $oldScript)
         $parent.removeChild($oldScript);

@@ -130,6 +130,9 @@ class PageSection_SetupStorageProfiles extends Extension_PageSection {
 	}
 	
 	private function _configAction_testProfileJson() {
+		if(DEVBLOCKS_STORAGE_ENGINE_PREVENT_CHANGE)
+			return;
+		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if(!$active_worker || !$active_worker->is_superuser)
@@ -138,15 +141,17 @@ class PageSection_SetupStorageProfiles extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		@$extension_id = DevblocksPlatform::importGPC($_POST['extension_id'],'string','');
-		@$id = DevblocksPlatform::importGPC($_POST['id'],'integer',0);
-
+		$extension_id = DevblocksPlatform::importGPC($_POST['extension_id'] ?? null,'string','');
+		$id = DevblocksPlatform::importGPC($_POST['id'] ?? null,'integer',0);
+		
+		header('Content-Type: application/json; charset=utf-8');
+		
 		try {
 			if(null == ($profile = DAO_DevblocksStorageProfile::get($id)))
 				$profile = new Model_DevblocksStorageProfile();
 			
 			if(empty($extension_id)
-				|| null == ($ext = $ext = DevblocksPlatform::getExtension($extension_id, true)))
+				|| null == ($ext = DevblocksPlatform::getExtension($extension_id, true)))
 				throw new Exception("Can't load extension.");
 				
 			/* @var $ext Extension_DevblocksStorageEngine */

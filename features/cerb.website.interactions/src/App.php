@@ -107,6 +107,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 		$stack = array_shift($path);
 		
 		$portal = ChPortalHelper::getPortal();
+		$session = ChPortalHelper::getSession();
 		
 		switch($stack) {
 			case 'interaction':
@@ -182,15 +183,42 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 						$tpl = DevblocksPlatform::services()->templateSandbox();
 						$tpl->display('devblocks:cerb.website.interactions::public/cerb.js');
 						break;
+						
+					case 'image':
+						$portal_schema = $this->_getPortalSchema();
+						$portal_code = ChPortalHelper::getCode();
+						
+						$hash = array_shift($path);
+						$file = array_shift($path);
+						
+						$secret = $portal_schema->getImageRequestsSecret() ?? sha1(DevblocksPlatform::services()->encryption()->getSystemKey());
+						$hash_calc = hash_hmac('sha256', implode('/',[$file,$portal_code]), $secret);
+						
+						// If the signature doesn't match or is expired, forbid
+						if(!($hash===$hash_calc))
+							DevblocksPlatform::dieWithHttpError(null, 403);
+						
+						if(false != ($resource = \DAO_Resource::getByNameAndType($file, \ResourceType_PortalImage::ID))) {
+							$this->_renderPortalImage($resource);
+						}
+						break;
 				}
 				break;
 				
 			default:
 				$tpl = DevblocksPlatform::services()->templateSandbox();
+				$portal_schema = $this->_getPortalSchema();
 				
 				header('Content-Type: text/html');
 				
-				$portal_schema = $this->_getPortalSchema();
+				$csp = $portal_schema->getContentSecurityPolicy();
+				
+				$csp_header = sprintf("Content-Security-Policy: default-src 'self'; img-src 'self' data: %s; script-src 'nonce-%s'; object-src 'none';",
+					implode(' ', $csp['imageHosts'] ?? []),
+					$session->nonce
+				);
+				
+				header($csp_header);
 				
 				if(null != ($interaction = $stack)) {
 					$interaction_params = DevblocksPlatform::services()->url()->arrayToQueryString($_GET ?? []);
@@ -199,11 +227,21 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 					$tpl->assign('page_interaction_params', $interaction_params);
 				}
 				
+				$tpl->assign('session', $session);
 				$tpl->assign('portal', $portal);
 				$tpl->assign('portal_schema', $portal_schema);
 				$tpl->display('devblocks:cerb.website.interactions::public/index.tpl');
 				break;
 		}
+	}
+	
+	public static function parseMarkdown($string) : string {
+		$parser = new CerbMarkdown_InteractionWebsite();
+		$parser->setBreaksEnabled(true);
+		$parser->setMarkupEscaped(true);
+		$parser->setSafeMode(true);
+		
+		return $parser->parse($string);
 	}
 	
 	private function _renderPortalImage(Model_Resource $resource) {
@@ -345,6 +383,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 			DevblocksPlatform::dieWithHttpError("null continuation token", 404);
 		
 		$form_components = AutomationTrigger_InteractionWebsite::getFormComponentMeta();
+		$portal_schema = $this->_getPortalSchema();
 		
 		$initial_state = $continuation->state_data['dict'] ?? [];
 		$last_prompts = $initial_state['__return']['form']['elements'] ?? [];
@@ -360,7 +399,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 		list($prompt_type, $prompt_set_key) = array_pad(explode('/', $prompt_key), 2, null);
 		
 		if(array_key_exists($prompt_type, $form_components)) {
-			$component = new $form_components[$prompt_type]($prompt_set_key, null, $last_prompt);
+			$component = new $form_components[$prompt_type]($prompt_set_key, null, $last_prompt, $portal_schema);
 			$component->invoke($prompt_key, $prompt_action, $continuation);
 		}
 	}
@@ -395,6 +434,8 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 			$validation_errors = [];
 			$validation_values = [];
 			
+			$portal_schema = $this->_getPortalSchema();
+			
 			foreach ($last_prompts as $last_prompt_key => $last_prompt) {
 				list($last_prompt_type, $prompt_set_key) = array_pad(explode('/', $last_prompt_key, 2), 2, null);
 				
@@ -413,7 +454,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 						|| (is_array($prompt_value) && count($prompt_value));
 					
 					if ($is_required || $is_set) {
-						$component = new $form_components[$last_prompt_type]($prompt_set_key, $prompt_value, $last_prompt);
+						$component = new $form_components[$last_prompt_type]($prompt_set_key, $prompt_value, $last_prompt, $portal_schema);
 						
 						$component->validate($validation);
 						
@@ -473,7 +514,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 						if(in_array($last_prompt_type, $prompts_without_output))
 							continue;
 						
-						$component = new $form_components[$last_prompt_type]($prompt_set_key, $prompt_value, $last_prompt);
+						$component = new $form_components[$last_prompt_type]($prompt_set_key, $prompt_value, $last_prompt, $portal_schema);
 						$initial_state[$prompt_set_key] = $component->formatValue();
 					}
 				}
@@ -617,6 +658,8 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 			}
 		}
 		
+		$portal_schema = self::_getPortalSchema();
+		
 		foreach($elements as $element_key => $element_data) {
 			list($action_key_type, $var) = array_pad(explode('/', $element_key, 2), 2, null);
 			
@@ -626,10 +669,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 			if(array_key_exists($action_key_type, $form_components)) {
 				$value = $automation_results->get($var, null);
 				
-				if(!array_key_exists($action_key_type, $form_components))
-					continue;
-				
-				$component = new $form_components[$action_key_type]($var, $value, $element_data);
+				$component = new $form_components[$action_key_type]($var, $value, $element_data, $portal_schema);
 				$component->render($continuation);
 			}
 		}
@@ -808,5 +848,65 @@ class CerbPortalWebsiteInteractions_Model {
 		}
 		
 		return $navbar;
+	}
+	
+	function getContentSecurityPolicy() {
+		return $this->_schema['security']['contentSecurityPolicy'] ?? [];
+	}
+	
+	public function getImageRequestsSecret() {
+		return $this->_schema['security']['imageRequests']['secret'] ?? null;
+	}
+}
+
+class CerbMarkdown_InteractionWebsite extends Parsedown {
+	protected $safeLinksWhitelist = [
+		'http://',
+		'https://',
+		'mailto:',
+		'tel:',
+	];
+	
+	protected function inlineImage($Excerpt) {
+		$image = parent::inlineImage($Excerpt);
+		
+		$alt = $image['element']['attributes']['alt'] ?? null;
+		
+		$matches = [];
+		
+		if($alt && preg_match('#^(.*?) =(\d*)x(\d*)$#', $alt, $matches)) {
+			$width = $matches[2];
+			$height = $matches[3];
+			
+			if($width || $height) {
+				$image['element']['attributes']['alt'] = $matches[1];
+				
+				if($width)
+					$image['element']['attributes']['width'] = $width;
+				
+				if($height)
+					$image['element']['attributes']['height'] = $height;
+			}
+		}
+		
+		return $image;
+	}
+	
+	protected function inlineLink($Excerpt) {
+		$url_writer = DevblocksPlatform::services()->url();
+		
+		$link = parent::inlineLink($Excerpt);
+		
+		$href = $link['element']['attributes']['href'] ?? null;
+		
+		if(DevblocksPlatform::strStartsWith($href, '/')) {
+			$link['element']['attributes']['href'] = $url_writer->write('') . ltrim($href, '/');
+			
+		} else if (DevblocksPlatform::strStartsWith($href, ['http:','https:'])) {
+			$link['element']['attributes']['target'] = '_blank';
+			$link['element']['attributes']['rel'] = 'nofollow noopener';
+		}
+		
+		return $link;
 	}
 }
