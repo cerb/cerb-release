@@ -245,6 +245,7 @@ if(!isset($tables['metric_value'])) {
 		`dim2_value_id` int unsigned NOT NULL DEFAULT 0,
 		`expires_at` int unsigned NOT NULL DEFAULT 0,
 		PRIMARY KEY (metric_id, granularity, bin, dim0_value_id, dim1_value_id, dim2_value_id),
+		INDEX metric_dim0 (metric_id, granularity, dim0_value_id, dim1_value_id, dim2_value_id),
 		INDEX metric_dim1 (metric_id, granularity, bin, dim1_value_id, dim2_value_id),
 		INDEX metric_dim2 (metric_id, granularity, bin, dim2_value_id),
 		INDEX (expires_at)
@@ -253,6 +254,13 @@ if(!isset($tables['metric_value'])) {
 	$db->ExecuteMaster($sql) or die("[MySQL Error] " . $db->ErrorMsgMaster());
 	
 	$tables['metric_value'] = 'metric_value';
+	
+} else {
+	list(, $indexes) = $db->metaTable('metric_value');
+	
+	if(!array_key_exists('metric_dim0', $indexes)) {
+		$db->ExecuteMaster("ALTER TABLE metric_value ADD INDEX metric_dim0 (metric_id, granularity, dim0_value_id, dim1_value_id, dim2_value_id)");
+	}
 }
 
 // ===========================================================================
@@ -693,6 +701,8 @@ if(!$logo_id && file_exists(APP_STORAGE_PATH . '/logo')) {
 			$db->ExecuteMaster("UPDATE IGNORE devblocks_setting SET value = UNIX_TIMESTAMP() WHERE setting = 'ui_user_logo_updated_at'");
 			$db->ExecuteMaster("DELETE FROM devblocks_setting WHERE setting = 'ui_user_logo_mimetype'");
 		}
+		
+		rename(APP_STORAGE_PATH . '/logo', APP_STORAGE_PATH . '/logo.old');
 	}
 }
 
