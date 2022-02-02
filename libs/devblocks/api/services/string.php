@@ -263,6 +263,14 @@ class _DevblocksStringService {
 		
 		libxml_use_internal_errors(true);
 		
+		$str = mb_convert_encoding($str, 'HTML-ENTITIES');
+		
+		$replacements = [
+			'&nbsp;' => '',
+		];
+		
+		$str = str_replace(array_keys($replacements), array_values($replacements), $str);
+		
 		$dom->loadHTML(sprintf('<?xml version="1.0" encoding="%s">', LANG_CHARSET_CODE) . $str);
 		
 		$dom->normalizeDocument();

@@ -18,9 +18,7 @@ class CalendarDatasource_Calendar extends Extension_CalendarDatasource {
 		$tpl->assign('params', $params);
 		$tpl->assign('params_prefix', $params_prefix);
 		
-		$calendars = [];
-		
-		if($calendar instanceof Model_Calendar && $calendar->id) {
+		if($calendar->owner_context) {
 			$calendars = DAO_Calendar::getReadableByActor([$calendar->owner_context, $calendar->owner_context_id]);
 		} else {
 			$calendars = DAO_Calendar::getReadableByActor([CerberusContexts::CONTEXT_WORKER, $active_worker->id]);
@@ -34,13 +32,16 @@ class CalendarDatasource_Calendar extends Extension_CalendarDatasource {
 		$tpl->display('devblocks:cerberusweb.core::internal/calendar/datasources/calendar/config.tpl');
 	}
 	
-	function getData(Model_Calendar $calendar, array $params=array(), $params_prefix=null, $date_range_from=null, $date_range_to=null) {
-		$calendar_events = array();
-
-		//@$series_idx = $this->_getSeriesIdxFromPrefix($params_prefix);
-
-		if(false == ($sync_calendar = DAO_Calendar::get($params['sync_calendar_id'])))
-			return $calendar_events;
+	function getData(Model_Calendar $calendar, array $params=[], $params_prefix=null, $date_range_from=null, $date_range_to=null) {
+		if(
+			!array_key_exists('sync_calendar_id', $params)
+			|| $params['sync_calendar_id'] == $calendar->id // No infinite recursion
+			|| false == ($sync_calendar = DAO_Calendar::get($params['sync_calendar_id']))
+		) {
+			return [];
+		}
+		
+		$calendar_events = [];
 		
 		$sync_data = $sync_calendar->getEvents($date_range_from, $date_range_to);
 		
