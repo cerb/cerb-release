@@ -332,10 +332,25 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		$range = DevblocksPlatform::services()->date()->parseDateRange($chart_model['range']);
 		
 		// Normalize
-		$range['from_ts'] -= $range['from_ts'] % $chart_model['period'];
-		$range['from_string'] = date('Y-m-d H:i', $range['from_ts']);
-		$range['to_ts'] -= $range['to_ts'] % $chart_model['period'];
-		$range['to_string'] = date('Y-m-d H:i', $range['to_ts']);
+		if($chart_model['period'] == 86400) {
+			$ts = new DateTime();
+			
+			$ts->setTimestamp($range['from_ts']);
+			$ts->setTime(0,0,0);
+			$range['from_ts'] = $ts->getTimestamp();
+			$range['from_string'] = $ts->format('Y-m-d H:i:s');
+			
+			$ts->setTimestamp($range['to_ts']);
+			$ts->setTime(23,59,59);
+			$range['to_ts'] = $ts->getTimestamp();
+			$range['to_string'] = $ts->format('Y-m-d H:i:s');
+			
+		} else {
+			$range['from_ts'] -= $range['from_ts'] % $chart_model['period'];
+			$range['from_string'] = date('Y-m-d H:i', $range['from_ts']);
+			$range['to_ts'] -= $range['to_ts'] % $chart_model['period'];
+			$range['to_string'] = date('Y-m-d H:i', $range['to_ts']);
+		}
 		
 		$unit = 'minute';
 		$step = 1;
@@ -598,7 +613,7 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 				if (empty($series_label))
 					$series_label[] = $metric->name;
 				
-				$series_label = implode(' | ', $series_label);
+				$series_label = implode(' :: ', $series_label);
 				
 				if (!array_key_exists($series_label, $results))
 					$results[$series_label] = array_fill_keys($chart_model['xaxis'], null);

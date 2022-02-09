@@ -456,6 +456,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	 * @return Extension_DevblocksContext|DevblocksExtensionManifest
 	 */
 	public static function getByAlias($alias, $as_instance=false) {
+		$alias = trim($alias);
 		$aliases = self::getAliasesForAllContexts();
 		
 		// First, try the fully-qualified ID
@@ -4697,16 +4698,16 @@ class _DevblocksSortHelper {
 				if(!isset($a_test[$prop]) && !isset($b_test[$prop]))
 					return 0;
 
-				@$a_test = $a_test[$prop];
-				@$b_test = $b_test[$prop];
+				$a_test = $a_test[$prop] ?? null;
+				$b_test = $b_test[$prop] ?? null;
 
 			} else {
 				if(!isset($a_test->$prop) && !isset($b_test->$prop)) {
 					return 0;
 				}
 
-				@$a_test = $a_test->$prop;
-				@$b_test = $b_test->$prop;
+				$a_test = $a_test->$prop ?? null;
+				$b_test = $b_test->$prop ?? null;
 			}
 		}
 

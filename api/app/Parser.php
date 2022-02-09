@@ -1218,6 +1218,8 @@ class CerberusParser {
 				
 				if(null != ($subject = $result->getKeyPath('__return.set.email_subject'))) {
 					$model->setSubject($subject);
+					$model->getMessage()->headers['subject'] = $subject;
+					$model->updateThreadHeaders();
 				}
 				
 				if(null != ($body = $result->getKeyPath('__return.set.email_body'))) {
@@ -1238,6 +1240,7 @@ class CerberusParser {
 						
 						$model->getMessage()->raw_headers = '';
 						$model->getMessage()->build();
+						$model->updateThreadHeaders();
 					}
 				}
 				
@@ -1755,6 +1758,8 @@ class CerberusParser {
 				DAO_Ticket::LAST_MESSAGE_ID => $model->getMessageId(),
 				DAO_Ticket::GROUP_ID => $deliver_to_group->id, // this triggers move rules
 				DAO_Ticket::BUCKET_ID => $deliver_to_bucket->id ?? $deliver_to_group->getDefaultBucket()->id, // this triggers move rules
+				DAO_Ticket::LAST_OPENED_AT => time(),
+				DAO_Ticket::LAST_OPENED_DELTA => time(),
 			);
 			
 			// Spam probabilities
@@ -1836,33 +1841,9 @@ class CerberusParser {
 	}
 	
 	static function convertEncoding($text, $charset=null) {
-		$has_iconv = extension_loaded('iconv') ? true : false;
-		$charset = DevblocksPlatform::strLower($charset);
+		$has_iconv = extension_loaded('iconv');
 		
-		// Otherwise, fall back to mbstring's auto-detection
-		mb_detect_order('iso-2022-jp-ms, iso-2022-jp, utf-8, iso-8859-1, windows-1252');
-		
-		// Normalize charsets
-		switch($charset) {
-			case 'us-ascii':
-				$charset = 'ascii';
-				break;
-				
-			case 'win-1252':
-				$charset = 'windows-1252';
-				break;
-				
-			case 'ks_c_5601-1987':
-			case 'ks_c_5601-1992':
-			case 'ks_c_5601-1998':
-			case 'ks_c_5601-2002':
-				$charset = 'cp949';
-				break;
-				
-			case NULL:
-				$charset = mb_detect_encoding($text);
-				break;
-		}
+		$charset = DevblocksPlatform::services()->string()->detectEncoding($text, $charset);
 		
 		// If we're starting with Windows-1252, convert some special characters
 		if(0 == strcasecmp($charset, 'windows-1252')) {

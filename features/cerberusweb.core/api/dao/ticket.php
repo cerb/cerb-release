@@ -21,6 +21,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	const CREATED_DATE = 'created_date';
 	const ELAPSED_RESOLUTION_FIRST = 'elapsed_resolution_first';
 	const ELAPSED_RESPONSE_FIRST = 'elapsed_response_first';
+	const ELAPSED_STATUS_OPEN = 'elapsed_status_open';
 	const FIRST_MESSAGE_ID = 'first_message_id';
 	const FIRST_OUTGOING_MESSAGE_ID = 'first_outgoing_message_id';
 	const FIRST_WROTE_ID = 'first_wrote_address_id';
@@ -29,6 +30,8 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	const IMPORTANCE = 'importance';
 	const INTERESTING_WORDS = 'interesting_words';
 	const LAST_MESSAGE_ID = 'last_message_id';
+	const LAST_OPENED_AT = 'last_opened_at';
+	const LAST_OPENED_DELTA = 'last_opened_delta';
 	const LAST_WROTE_ID = 'last_wrote_address_id';
 	const MASK = 'mask';
 	const NUM_MESSAGES = 'num_messages';
@@ -69,6 +72,11 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			;
 		$validation
 			->addField(self::ELAPSED_RESPONSE_FIRST)
+			->uint(4)
+			->setEditable(false)
+			;
+		$validation
+			->addField(self::ELAPSED_STATUS_OPEN)
 			->uint(4)
 			->setEditable(false)
 			;
@@ -118,6 +126,15 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			->id()
 			->setEditable(false)
 			->addValidator($validation->validators()->contextId(CerberusContexts::CONTEXT_MESSAGE))
+			;
+		$validation
+			->addField(self::LAST_OPENED_AT)
+			->timestamp()
+			;
+		$validation
+			->addField(self::LAST_OPENED_DELTA)
+			->timestamp()
+			->setEditable(false)
 			;
 		$validation
 			->addField(self::LAST_WROTE_ID)
@@ -739,6 +756,8 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			DAO_Ticket::FIRST_MESSAGE_ID => 0,
 			DAO_Ticket::FIRST_WROTE_ID => 0,
 			DAO_Ticket::LAST_MESSAGE_ID => 0,
+			DAO_Ticket::LAST_OPENED_AT => 0,
+			DAO_Ticket::LAST_OPENED_DELTA => time(),
 			DAO_Ticket::LAST_WROTE_ID => 0,
 			DAO_Ticket::FIRST_OUTGOING_MESSAGE_ID => 0,
 			DAO_Ticket::ELAPSED_RESPONSE_FIRST => 0,
@@ -766,6 +785,14 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				$fields[DAO_Ticket::FIRST_OUTGOING_MESSAGE_ID] = $message_id;
 				$fields[DAO_Ticket::ELAPSED_RESPONSE_FIRST] = max($message->created_date - $ticket->created_date, 0);
 			}
+		}
+		
+		// Reindex last opened delta
+		if(Model_Ticket::STATUS_OPEN == $ticket->status_id) {
+			$sql = sprintf("SELECT MAX(created) FROM context_activity_log WHERE activity_point IN ('ticket.status.open','ticket.moved') AND target_context = 'cerberusweb.contexts.ticket' AND target_context_id = %d", $id);
+			$opened_delta = intval($db->GetOneMaster($sql));
+			$fields[DAO_Ticket::LAST_OPENED_AT] = $opened_delta;
+			$fields[DAO_Ticket::LAST_OPENED_DELTA] = $opened_delta;
 		}
 
 		// Reindex the earliest close date from activity log
@@ -813,7 +840,8 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		
 		$sql = "SELECT id , mask, subject, status_id, group_id, bucket_id, org_id, owner_id, importance, first_message_id, first_outgoing_message_id, last_message_id, ".
 			"first_wrote_address_id, last_wrote_address_id, created_date, updated_date, closed_at, reopen_at, spam_training, ".
-			"spam_score, interesting_words, num_messages, num_messages_in, num_messages_out, elapsed_response_first, elapsed_resolution_first ".
+			"spam_score, interesting_words, num_messages, num_messages_in, num_messages_out, elapsed_response_first, elapsed_resolution_first, ".
+ 			"last_opened_at, last_opened_delta, elapsed_status_open ".
 			"FROM ticket ".
 			$where_sql.
 			$sort_sql.
@@ -842,6 +870,8 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			$object->first_message_id = intval($row['first_message_id']);
 			$object->first_outgoing_message_id = intval($row['first_outgoing_message_id']);
 			$object->last_message_id = intval($row['last_message_id']);
+			$object->last_opened_at = intval($row['last_opened_at']);
+			$object->last_opened_delta = intval($row['last_opened_delta']);
 			$object->group_id = intval($row['group_id']);
 			$object->bucket_id = intval($row['bucket_id']);
 			$object->org_id = intval($row['org_id']);
@@ -862,6 +892,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			$object->num_messages_out = intval($row['num_messages_out']);
 			$object->elapsed_response_first = $row['elapsed_response_first'];
 			$object->elapsed_resolution_first = $row['elapsed_resolution_first'];
+			$object->elapsed_status_open = $row['elapsed_status_open'];
 			$objects[$object->id] = $object;
 		}
 		
@@ -1333,6 +1364,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	}
 	
 	static function processUpdateEvents($ids, $change_fields) {
+		$metrics = DevblocksPlatform::services()->metrics();
 
 		// We only care about these fields, so abort if they aren't referenced
 
@@ -1356,11 +1388,11 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		if(false == ($models = DAO_Ticket::getIds($ids)))
 			return;
 		
-		foreach($models as $id => $model) {
+		foreach($models as $id => $model) { /* @var $model Model_Ticket */
 			if(!isset($before_models[$id]))
 				continue;
 			
-			$before_model = (object) $before_models[$id];
+			$before_model = (object) $before_models[$id]; /* @var $before_model Model_Ticket */
 			
 			/*
 			 * Owner changed
@@ -1442,6 +1474,38 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				@$to_bucket = DAO_Bucket::get($model->bucket_id);
 				
 				if($to_group && $to_bucket) {
+					// If we moved the ticket, but it's remaining open, then log a metric here
+					if(
+						Model_Ticket::STATUS_OPEN == $model->status_id
+						&& Model_Ticket::STATUS_OPEN == $before_model->status_id
+					) {
+						if($before_model->last_opened_delta) {
+							$elapsed_time_open = time() - $before_model->last_opened_delta;
+							
+							$metrics->increment(
+								'cerb.tickets.open.elapsed',
+								$elapsed_time_open,
+								[
+									'group_id' => $before_model->group_id,
+									'bucket_id' => $before_model->bucket_id,
+								]
+							);
+							
+							// Add the sample to the ticket record
+							DAO_Ticket::incrementElapsedTimeOpen($model->id, $elapsed_time_open);
+						}
+						
+						// Reset the last opened metric for the new group/bucket
+						$model->last_opened_delta = time();
+						
+						DAO_Ticket::update(
+							$model->id,
+							[
+								DAO_Ticket::LAST_OPENED_DELTA => $model->last_opened_delta,
+							]
+						);
+					}
+					
 					$entry = [
 						//{{actor}} moved ticket {{target}} to {{group}} {{bucket}}
 						'message' => 'activities.ticket.moved',
@@ -1508,6 +1572,38 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				} else {
 					$status_to = 'open';
 					$activity_point = 'ticket.status.open';
+					
+					$model->last_opened_at = time();
+					$model->last_opened_delta = time();
+					
+					DAO_Ticket::update(
+						$model->id,
+						[
+							DAO_Ticket::LAST_OPENED_AT => $model->last_opened_at,
+							DAO_Ticket::LAST_OPENED_DELTA => $model->last_opened_delta,
+						],
+						false
+					);
+				}
+				
+				// If the ticket is transitioning from open to non-open
+				if(
+					Model_Ticket::STATUS_OPEN == $before_model->status_id
+					&& Model_Ticket::STATUS_OPEN != $model->status_id
+					&& $before_model->last_opened_delta
+				) {
+					$elapsed_time_open = time() - $before_model->last_opened_delta;
+					
+					$metrics->increment(
+						'cerb.tickets.open.elapsed',
+						$elapsed_time_open,
+						[
+							'group_id' => $before_model->group_id,
+							'bucket_id' => $before_model->bucket_id,
+						]
+					);
+					
+					DAO_Ticket::incrementElapsedTimeOpen($model->id, $elapsed_time_open);
 				}
 				
 				if(!empty($status_to) && !empty($activity_point)) {
@@ -1543,6 +1639,15 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			"num_messages_out = (SELECT count(id) FROM message WHERE message.ticket_id = ticket.id AND message.is_outgoing=1) ".
 			"WHERE ticket.id = %d",
 			$id
+		));
+	}
+	
+	static function incrementElapsedTimeOpen(int $ticket_id, int $delta) {
+		$db = DevblocksPlatform::services()->database();
+		
+		$db->ExecuteMaster(sprintf("UPDATE ticket SET elapsed_status_open = elapsed_status_open + %d WHERE id = %d",
+			$delta,
+			$ticket_id
 		));
 	}
 	
@@ -1839,6 +1944,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			"t.first_message_id as %s, ".
 			"t.first_outgoing_message_id as %s, ".
 			"t.last_message_id as %s, ".
+			"t.last_opened_at as %s, ".
 			"t.created_date as %s, ".
 			"t.updated_date as %s, ".
 			"t.closed_at as %s, ".
@@ -1850,6 +1956,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			"t.num_messages_out as %s, ".
 			"t.elapsed_response_first as %s, ".
 			"t.elapsed_resolution_first as %s, ".
+			"t.elapsed_status_open as %s, ".
 			"t.owner_id as %s, ".
 			"t.importance as %s, ".
 			"t.group_id as %s, ".
@@ -1864,6 +1971,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				SearchFields_Ticket::TICKET_FIRST_MESSAGE_ID,
 				SearchFields_Ticket::TICKET_FIRST_OUTGOING_MESSAGE_ID,
 				SearchFields_Ticket::TICKET_LAST_MESSAGE_ID,
+				SearchFields_Ticket::TICKET_LAST_OPENED_AT,
 				SearchFields_Ticket::TICKET_CREATED_DATE,
 				SearchFields_Ticket::TICKET_UPDATED_DATE,
 				SearchFields_Ticket::TICKET_CLOSED_AT,
@@ -1875,6 +1983,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				SearchFields_Ticket::TICKET_NUM_MESSAGES_OUT,
 				SearchFields_Ticket::TICKET_ELAPSED_RESPONSE_FIRST,
 				SearchFields_Ticket::TICKET_ELAPSED_RESOLUTION_FIRST,
+				SearchFields_Ticket::TICKET_ELAPSED_STATUS_OPEN,
 				SearchFields_Ticket::TICKET_OWNER_ID,
 				SearchFields_Ticket::TICKET_IMPORTANCE,
 				SearchFields_Ticket::TICKET_GROUP_ID,
@@ -1962,6 +2071,20 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		);
 		$db->ExecuteMaster($sql);
 		
+		// Elapsed status open
+		
+		$total_elapsed_open = $db->GetOneMaster(sprintf("SELECT SUM(elapsed_status_open) FROM ticket WHERE id IN (%s)",
+			implode(',', $from_ids),
+		));
+		
+		if($total_elapsed_open) {
+			$sql = sprintf("UPDATE ticket SET elapsed_status_open = elapsed_status_open + %d WHERE id = %d",
+				$total_elapsed_open,
+				$to_id
+			);
+			$db->ExecuteMaster($sql);
+		}
+		
 		// Mail queue
 		$sql = sprintf("UPDATE mail_queue SET ticket_id = %d WHERE ticket_id IN (%s)",
 			$to_id,
@@ -1998,11 +2121,14 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				DAO_Ticket::FIRST_MESSAGE_ID => 0,
 				DAO_Ticket::FIRST_OUTGOING_MESSAGE_ID => 0,
 				DAO_Ticket::LAST_MESSAGE_ID => 0,
+				DAO_Ticket::LAST_OPENED_AT => 0,
+				DAO_Ticket::LAST_OPENED_DELTA => 0,
 				DAO_Ticket::NUM_MESSAGES => 0,
 				DAO_Ticket::NUM_MESSAGES_IN => 0,
 				DAO_Ticket::NUM_MESSAGES_OUT => 0,
 				DAO_Ticket::ELAPSED_RESPONSE_FIRST => 0,
 				DAO_Ticket::ELAPSED_RESOLUTION_FIRST => 0,
+				DAO_Ticket::ELAPSED_STATUS_OPEN => 0,
 			];
 			DAO_Ticket::update($ticket_id, $fields, false);
 			
@@ -2205,6 +2331,7 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 	const TICKET_FIRST_MESSAGE_ID = 't_first_message_id';
 	const TICKET_FIRST_OUTGOING_MESSAGE_ID = 't_first_outgoing_message_id';
 	const TICKET_LAST_MESSAGE_ID = 't_last_message_id';
+	const TICKET_LAST_OPENED_AT = 't_last_opened_at';
 	const TICKET_FIRST_WROTE_ID = 't_first_wrote_address_id';
 	const TICKET_LAST_WROTE_ID = 't_last_wrote_address_id';
 	const TICKET_CREATED_DATE = 't_created_date';
@@ -2219,6 +2346,7 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 	const TICKET_NUM_MESSAGES_OUT = 't_num_messages_out';
 	const TICKET_ELAPSED_RESPONSE_FIRST = 't_elapsed_response_first';
 	const TICKET_ELAPSED_RESOLUTION_FIRST = 't_elapsed_resolution_first';
+	const TICKET_ELAPSED_STATUS_OPEN = 't_elapsed_status_open';
 	const TICKET_GROUP_ID = 't_group_id';
 	const TICKET_BUCKET_ID = 't_bucket_id';
 	const TICKET_ORG_ID = 't_org_id';
@@ -2630,6 +2758,7 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 			SearchFields_Ticket::TICKET_FIRST_MESSAGE_ID => new DevblocksSearchField(SearchFields_Ticket::TICKET_FIRST_MESSAGE_ID, 't', 'first_message_id', null, null, true),
 			SearchFields_Ticket::TICKET_FIRST_OUTGOING_MESSAGE_ID => new DevblocksSearchField(SearchFields_Ticket::TICKET_FIRST_OUTGOING_MESSAGE_ID, 't', 'first_outgoing_message_id', null, null, true),
 			SearchFields_Ticket::TICKET_LAST_MESSAGE_ID => new DevblocksSearchField(SearchFields_Ticket::TICKET_LAST_MESSAGE_ID, 't', 'last_message_id', null, null, true),
+			SearchFields_Ticket::TICKET_LAST_OPENED_AT => new DevblocksSearchField(SearchFields_Ticket::TICKET_LAST_OPENED_AT, 't', 'last_opened_at', $translate->_('ticket.last_opened_at'), Model_CustomField::TYPE_DATE, true),
 			
 			SearchFields_Ticket::TICKET_FIRST_WROTE_ID => new DevblocksSearchField(SearchFields_Ticket::TICKET_FIRST_WROTE_ID, 't', 'first_wrote_address_id', $translate->_('ticket.first_wrote'), Model_CustomField::TYPE_NUMBER, true),
 			SearchFields_Ticket::TICKET_LAST_WROTE_ID => new DevblocksSearchField(SearchFields_Ticket::TICKET_LAST_WROTE_ID, 't', 'last_wrote_address_id', $translate->_('ticket.last_wrote'), Model_CustomField::TYPE_NUMBER, true),
@@ -2651,6 +2780,7 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 			SearchFields_Ticket::TICKET_NUM_MESSAGES_OUT => new DevblocksSearchField(SearchFields_Ticket::TICKET_NUM_MESSAGES_OUT, 't', 'num_messages_out',$translate->_('ticket.num_messages_out'), Model_CustomField::TYPE_NUMBER, true),
 			SearchFields_Ticket::TICKET_ELAPSED_RESPONSE_FIRST => new DevblocksSearchField(SearchFields_Ticket::TICKET_ELAPSED_RESPONSE_FIRST, 't', 'elapsed_response_first',$translate->_('ticket.elapsed_response_first'), Model_CustomField::TYPE_NUMBER, true),
 			SearchFields_Ticket::TICKET_ELAPSED_RESOLUTION_FIRST => new DevblocksSearchField(SearchFields_Ticket::TICKET_ELAPSED_RESOLUTION_FIRST, 't', 'elapsed_resolution_first',$translate->_('ticket.elapsed_resolution_first'), Model_CustomField::TYPE_NUMBER, true),
+			SearchFields_Ticket::TICKET_ELAPSED_STATUS_OPEN => new DevblocksSearchField(SearchFields_Ticket::TICKET_ELAPSED_STATUS_OPEN, 't', 'elapsed_status_open',$translate->_('ticket.elapsed_status_open'), Model_CustomField::TYPE_NUMBER, true),
 			SearchFields_Ticket::TICKET_SPAM_TRAINING => new DevblocksSearchField(SearchFields_Ticket::TICKET_SPAM_TRAINING, 't', 'spam_training',$translate->_('ticket.spam_training'), null, true),
 			SearchFields_Ticket::TICKET_SPAM_SCORE => new DevblocksSearchField(SearchFields_Ticket::TICKET_SPAM_SCORE, 't', 'spam_score',$translate->_('ticket.spam_score'), Model_CustomField::TYPE_NUMBER, true),
 			SearchFields_Ticket::TICKET_INTERESTING_WORDS => new DevblocksSearchField(SearchFields_Ticket::TICKET_INTERESTING_WORDS, 't', 'interesting_words',$translate->_('ticket.interesting_words'), null, true),
@@ -2725,6 +2855,8 @@ class Model_Ticket {
 	public $first_message_id;
 	public $first_outgoing_message_id;
 	public $last_message_id;
+	public $last_opened_at;
+	public $last_opened_delta;
 	public $first_wrote_address_id;
 	public $last_wrote_address_id;
 	public $created_date;
@@ -2739,6 +2871,7 @@ class Model_Ticket {
 	public $num_messages_out;
 	public $elapsed_response_first;
 	public $elapsed_resolution_first;
+	public $elapsed_status_open;
 	
 	private $_org = null;
 	private $_owner = null;
@@ -3497,6 +3630,14 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Ticket::VIRTUAL_GROUPS_OF_WORKER),
 				),
+			'lastOpenedAt' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_DATE,
+					'options' => [
+						'param_key' => SearchFields_Ticket::TICKET_LAST_OPENED_AT,
+						'select_key' => 't.last_opened_at',
+					],
+				),
 			'mask' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
@@ -3665,6 +3806,11 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
 					'options' => array('param_key' => SearchFields_Ticket::TICKET_SUBJECT, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+				),
+			'timeSpentOpen' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_NUMBER_SECONDS,
+					'options' => array('param_key' => SearchFields_Ticket::TICKET_ELAPSED_STATUS_OPEN),
 				),
 			'updated' =>
 				array(
@@ -3893,6 +4039,12 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 					$oper,
 					array_keys($values)
 				);
+			
+			case 'timeSpentOpen':
+				$tokens = CerbQuickSearchLexer::getHumanTimeTokensAsNumbers($tokens);
+				
+				$field_key = SearchFields_Ticket::TICKET_ELAPSED_STATUS_OPEN;
+				return DevblocksSearchCriteria::getNumberParamFromTokens($field_key, $tokens);
 			
 			case 'watchers':
 				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_Ticket::VIRTUAL_WATCHERS, $tokens);
@@ -4253,6 +4405,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				
 			case SearchFields_Ticket::TICKET_ELAPSED_RESOLUTION_FIRST:
 			case SearchFields_Ticket::TICKET_ELAPSED_RESPONSE_FIRST:
+			case SearchFields_Ticket::TICKET_ELAPSED_STATUS_OPEN:
 				$sep = ' or ';
 				$values = is_array($values) ? $values : array($values);
 				
@@ -4305,6 +4458,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				
 			case SearchFields_Ticket::TICKET_ELAPSED_RESPONSE_FIRST:
 			case SearchFields_Ticket::TICKET_ELAPSED_RESOLUTION_FIRST:
+			case SearchFields_Ticket::TICKET_ELAPSED_STATUS_OPEN:
 				$now = time();
 				$then = intval(@strtotime($value, $now));
 				$value = $then - $now;
@@ -4592,6 +4746,12 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			'value' => $model->getStatusText(),
 		];
 		
+		$properties['last_opened_at'] = [
+			'label' => mb_ucfirst($translate->_('ticket.last_opened_at')),
+			'type' => Model_CustomField::TYPE_DATE,
+			'value' => $model->last_opened_at,
+		];
+		
 		$properties['mask'] = [
 			'label' => mb_ucfirst($translate->_('ticket.mask')),
 			'type' => Model_CustomField::TYPE_SINGLE_LINE,
@@ -4679,6 +4839,12 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			'label' => mb_ucfirst($translate->_('ticket.elapsed_resolution_first')),
 			'type' => 'time_secs',
 			'value' => $model->elapsed_resolution_first,
+		);
+		
+		$properties['elapsed_status_open'] = array(
+			'label' => mb_ucfirst($translate->_('ticket.elapsed_status_open')),
+			'type' => 'time_secs',
+			'value' => $model->elapsed_status_open,
 		);
 		
 		$properties['spam_score'] = array(
@@ -4847,6 +5013,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			'created' => $prefix.$translate->_('common.created'),
 			'elapsed_response_first' => $prefix.$translate->_('ticket.elapsed_response_first'),
 			'elapsed_resolution_first' => $prefix.$translate->_('ticket.elapsed_resolution_first'),
+			'elapsed_status_open' => $prefix.$translate->_('ticket.elapsed_status_open'),
 			'id' => $prefix.$translate->_('common.id'),
 			'importance' => $prefix.$translate->_('common.importance'),
 			'mask' => $prefix.$translate->_('ticket.mask'),
@@ -4869,6 +5036,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			'created' => Model_CustomField::TYPE_DATE,
 			'elapsed_response_first' => 'time_secs',
 			'elapsed_resolution_first' => 'time_secs',
+			'elapsed_status_open' => 'time_secs',
 			'id' => 'id',
 			'importance' => Model_CustomField::TYPE_NUMBER,
 			'mask' => Model_CustomField::TYPE_SINGLE_LINE,
@@ -4909,8 +5077,10 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			$token_values['created'] = $ticket->created_date;
 			$token_values['elapsed_response_first'] = $ticket->elapsed_response_first;
 			$token_values['elapsed_resolution_first'] = $ticket->elapsed_resolution_first;
+			$token_values['elapsed_status_open'] = $ticket->elapsed_status_open;
 			$token_values['id'] = $ticket->id;
 			$token_values['importance'] = $ticket->importance;
+			$token_values['last_opened_at'] = $ticket->last_opened_at;
 			$token_values['mask'] = $ticket->mask;
 			$token_values['num_messages'] = $ticket->num_messages;
 			$token_values['num_messages_in'] = $ticket->num_messages_in;
@@ -5090,6 +5260,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			'created' => DAO_Ticket::CREATED_DATE,
 			'elapsed_response_first' => DAO_Ticket::ELAPSED_RESPONSE_FIRST,
 			'elapsed_resolution_first' => DAO_Ticket::ELAPSED_RESOLUTION_FIRST,
+			'elapsed_status_open' => DAO_Ticket::ELAPSED_STATUS_OPEN,
 			'group_id' => DAO_Ticket::GROUP_ID,
 			'id' => DAO_Ticket::ID,
 			'importance' => DAO_Ticket::IMPORTANCE,
@@ -5153,6 +5324,9 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 		
 		if(array_key_exists('elapsed_resolution_first', $keys))
 			$keys['elapsed_resolution_first']['notes'] = "The number of seconds between the creation of this ticket and its first resolution";
+		
+		if(array_key_exists('elapsed_status_open', $keys))
+			$keys['elapsed_status_open']['notes'] = "The number of seconds spent in the open status (excluding a currently open status)";
 		
 		$keys['bucket_id']['notes'] = "The ID of the [bucket](/docs/records/types/bucket/) containing this ticket";
 		$keys['closed']['notes'] = "The date/time this ticket was first set to status `closed`";

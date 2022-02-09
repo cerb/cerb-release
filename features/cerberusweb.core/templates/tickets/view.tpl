@@ -184,9 +184,9 @@
 					{$wrote_label|truncate:45:'...':true:true}
 				</a>
 			</td>
-		{elseif $column=="t_created_date" || $column=="t_updated_date" || $column=="t_reopen_at" || $column=="t_closed_at"}
+		{elseif in_array($column, ['t_created_date', 't_updated_date', 't_reopen_at', 't_closed_at', 't_last_opened_at'])}
 		<td data-column="{$column}" data-timestamp="{$result.$column}"><abbr title="{$result.$column|devblocks_date}">{$result.$column|devblocks_prettytime}</abbr></td>
-		{elseif $column=="t_elapsed_response_first" || $column=="t_elapsed_resolution_first"}
+		{elseif in_array($column, ['t_elapsed_response_first', 't_elapsed_resolution_first', 't_elapsed_status_open'])}
 		<td data-column="{$column}">
 			{if !empty($result.$column)}{$result.$column|devblocks_prettysecs:2}{/if}
 		</td>

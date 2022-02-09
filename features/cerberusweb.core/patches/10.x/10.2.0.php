@@ -1,5 +1,6 @@
-<?php
+<?php /** @noinspection SqlResolve */
 $db = DevblocksPlatform::services()->database();
+$queue = DevblocksPlatform::services()->queue();
 $logger = DevblocksPlatform::services()->log();
 $tables = $db->metaTables();
 
@@ -42,6 +43,21 @@ if(!isset($tables['queue_message'])) {
 	$db->ExecuteMaster($sql) or die("[MySQL Error] " . $db->ErrorMsgMaster());
 	
 	$tables['queue_message'] = 'queue_message';
+}
+
+// ===========================================================================
+// Add new queues
+
+if(!$db->GetOneMaster("SELECT 1 FROM queue WHERE name = 'cerb.update.migrations'")) {
+	// Configure the scheduler job
+	$db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.migrations', 'enabled', '1')");
+	$db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.migrations', 'duration', '5')");
+	$db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.migrations', 'term', 'm')");
+	$db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.migrations', 'lastrun', '0')");
+	$db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.migrations', 'locked', '0')");
+	
+	// Add default queues
+	$db->ExecuteWriter("INSERT IGNORE INTO queue (name, created_at, updated_at) VALUES ('cerb.update.migrations', UNIX_TIMESTAMP(), UNIX_TIMESTAMP())");
 }
 
 // ===========================================================================
@@ -361,6 +377,15 @@ $db->ExecuteWriter(sprintf("INSERT IGNORE INTO metric (name, description, dimens
 	$db->qstr('cerb.mail.transport.failures'),
 	$db->qstr('Unsuccessful outbound mail deliveries by transport and sender email'),
 	$db->qstr("record/transport_id:\n  record_type: mail_transport\nrecord/sender_id:\n  record_type: address"),
+	time(),
+	time()
+));
+
+$db->ExecuteWriter(sprintf("INSERT IGNORE INTO metric (name, description, dimensions_kata, created_at, updated_at) ".
+	"VALUES (%s, %s, %s, %d, %d)",
+	$db->qstr('cerb.tickets.open.elapsed'),
+	$db->qstr('Time elapsed in the open status for tickets by group and bucket'),
+	$db->qstr("record/group_id:\n  record_type: group\nrecord/bucket_id:\n  record_type: bucket"),
 	time(),
 	time()
 ));
@@ -703,6 +728,70 @@ if(!$logo_id && file_exists(APP_STORAGE_PATH . '/logo')) {
 		}
 		
 		rename(APP_STORAGE_PATH . '/logo', APP_STORAGE_PATH . '/logo.old');
+	}
+}
+
+// ===========================================================================
+// Add `last_opened_at` and `last_opened_delta` to ticket
+
+if(!isset($tables['ticket']))
+	return FALSE;
+
+list($columns,) = $db->metaTable('ticket');
+
+$changes = [];
+
+if(!array_key_exists('last_opened_at', $columns)) {
+	$changes[] = 'ADD COLUMN last_opened_at INT UNSIGNED NOT NULL DEFAULT 0';
+	$changes[] = 'ADD INDEX last_opened_and_status (last_opened_at,status_id)';
+}
+
+if(!array_key_exists('last_opened_delta', $columns)) {
+	$changes[] = 'ADD COLUMN last_opened_delta INT UNSIGNED NOT NULL DEFAULT 0';
+}
+
+if(!array_key_exists('elapsed_status_open', $columns)) {
+	$changes[] = 'ADD COLUMN elapsed_status_open INT UNSIGNED NOT NULL DEFAULT 0';
+	$changes[] = 'ADD INDEX elapsed_status_open (elapsed_status_open)';
+}
+
+if($changes) {
+	$db->ExecuteMaster("ALTER TABLE ticket " . implode(', ', $changes));
+	
+	// Prime the last_opened_delta field for all open tickets
+	if(
+		!array_key_exists('last_opened_at', $columns)
+		|| !array_key_exists('last_opened_delta', $columns)
+	) {
+		$db->ExecuteMaster("update ticket set last_opened_at=created_date, last_opened_delta=created_date where status_id=0");
+		$db->ExecuteMaster("create temporary table _tmp_ticket_last_opened select ticket.id as ticket_id,ifnull((select max(created) from context_activity_log where activity_point in ('ticket.status.open','ticket.moved') and target_context = 'cerberusweb.contexts.ticket' and target_context_id=ticket.id),created_date) as created from ticket where status_id = 0");
+		$db->ExecuteMaster("alter table _tmp_ticket_last_opened add primary key (ticket_id)");
+		$db->ExecuteMaster("update ticket inner join _tmp_ticket_last_opened lo on (lo.ticket_id=ticket.id) set last_opened_delta=lo.created, last_opened_at=lo.created");
+		$db->ExecuteMaster("drop table _tmp_ticket_last_opened");
+	}
+	
+	if(!array_key_exists('elapsed_status_open', $columns)) {
+		$ptr_ticket_id = $db->GetOneMaster('SELECT MAX(id) FROM ticket');
+		
+		// Enqueue jobs for retroactively calculating the field
+		$jobs = [];
+		$limit = 25000;
+		
+		while($ptr_ticket_id > 0) {
+			$jobs[] = [
+				'job' => 'dao.ticket.rebuild.elapsed_status_open',
+				'params' => [
+					'to_id' => intval($ptr_ticket_id),
+					'from_id' => intval(max($ptr_ticket_id - $limit,0))
+				]
+			];
+			
+			$ptr_ticket_id -= ($limit + 1);
+		}
+		
+		if($jobs) {
+			$queue->enqueue('cerb.update.migrations', $jobs);		
+		}
 	}
 }
 
