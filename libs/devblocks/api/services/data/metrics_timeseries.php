@@ -20,9 +20,18 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 				'minute',
 				'hour',
 				'day',
+				'month',
+				'week',
+				'year',
 			],
 			'range:' => [
+				'today',
+				'yesterday',
+				'"this week"',
 				'"this month"',
+				'"last week"',
+				'"last month"',
+				'"Jan 1 to Dec 31"',
 			],
 			'timeout:' => [
 				'20000'
@@ -66,25 +75,20 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		$chart_model = [
 			'type' => 'metrics.timeseries',
 			'series' => [],
-			'period' => 300,
+			'period' => 'day',
+			'period_unit' => 86400,
 			'range' => '-6 hours',
 			'xaxis' => [],
 			'timeout' => 20000,
 		];
 		
 		$allowed_periods = [
-			'300' => 300,
 			'minute' => 300,
-			'minutes' => 300,
-			'5min' => 300,
-			'3600' => 3600,
 			'hour' => 3600,
-			'hours' => 3600,
-			'1hr' => 3600,
-			'86400' => 86400,
 			'day' => 86400,
-			'days' => 86400,
-			'1d' => 86400,
+			'week' => 86400,
+			'month' => 86400,
+			'year' => 86400,
 		];
 		
 		$allowed_formats = [
@@ -117,7 +121,8 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 					return false;
 				}
 				
-				$chart_model['period'] = $allowed_periods[$period];
+				$chart_model['period'] = $period;
+				$chart_model['period_unit'] = $allowed_periods[$period];
 				
 			} else if($field->key == 'format') {
 				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
@@ -160,24 +165,24 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 						$function = DevblocksPlatform::strLower($value);
 						
 						$allowed_functions = [
-							'average',
-							'avg',
-							'count',
-							'max',
-							'min',
-							'samples',
-							'sum',
+							'average' => 'average',
+							'avg' => 'average',
+							'count' => 'count',
+							'max' => 'max',
+							'min' => 'max',
+							'samples' => 'count',
+							'sum' => 'sum',
 						];
 						
-						if(false === array_search($function, $allowed_functions)) {
+						if(!array_key_exists($function, $allowed_functions)) {
 							$error = sprintf("Unknown value for `function:` (%s). Must be one of: %s",
 								$function,
-								implode(', ', $allowed_functions)
+								implode(', ', array_keys($allowed_functions))
 							);
 							return false;
 						}
 						
-						$series_model['function'] = $value;
+						$series_model['function'] = $allowed_functions[$value];
 						
 					} else if($series_field->key == 'missing') {
 						CerbQuickSearchLexer::getOperStringFromTokens($series_field->tokens, $oper, $value);
@@ -339,24 +344,13 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		
 		$chart_model['timezone_location'] = $chart_model['timezone'];
 		
-		if (false == ($tz = DevblocksPlatform::services()->date()->parseTimezoneOffset($chart_model['timezone'], $error)))
-			return false;
-		
-		$chart_model['timezone_offset'] = $tz;
-		
 		$db = DevblocksPlatform::services()->database();
 		$platform_timezone = DevblocksPlatform::getTimezone();
 		
 		try {
 			// Override the platform timezone
-			if(array_key_exists('timezone_location', $chart_model)) {
-				DevblocksPlatform::setTimezone($chart_model['timezone_location']);
-			}
-			
-			// Override the database timezone
-			if(array_key_exists('timezone_offset', $chart_model)) {
-				@$db->QueryReader(sprintf("SET @@SESSION.time_zone = %s", $db->qstr($chart_model['timezone_offset'])));
-			}
+			DevblocksPlatform::setTimezone($chart_model['timezone_location']);
+			$db->SetReaderTimezone($chart_model['timezone_location']);
 			
 			return $this->_getData($chart_model, $error);
 			
@@ -366,14 +360,8 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 			
 		} finally {
 			// Restore the platform timezone
-			if(array_key_exists('timezone_location', $chart_model)) {
-				DevblocksPlatform::setTimezone($platform_timezone);
-			}
-			
-			// Restore the database timezone
-			if(array_key_exists('timezone_offset', $chart_model)) {
-				$db->QueryReader("SET @@SESSION.time_zone = @@GLOBAL.time_zone");
-			}
+			DevblocksPlatform::setTimezone($platform_timezone);
+			$db->ResetReaderTimezone();
 		}
 	}
 	
@@ -381,11 +369,17 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		$range = DevblocksPlatform::services()->date()->parseDateRange($chart_model['range']);
 		
 		// Normalize
-		if($chart_model['period'] == 86400) {
+		if($chart_model['period_unit'] == 86400) {
 			$ts = new DateTime();
 			
 			$ts->setTimestamp($range['from_ts']);
 			$ts->setTime(0,0,0);
+			
+			// Weeks need to start on Monday
+			if('week' == $chart_model['period']) {
+				$ts->modify('Monday this week');
+			}	
+			
 			$range['from_ts'] = $ts->getTimestamp();
 			$range['from_string'] = $ts->format('Y-m-d H:i:s');
 			
@@ -395,29 +389,66 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 			$range['to_string'] = $ts->format('Y-m-d H:i:s');
 			
 		} else {
-			$range['from_ts'] -= $range['from_ts'] % $chart_model['period'];
+			$range['from_ts'] -= $range['from_ts'] % $chart_model['period_unit'];
 			$range['from_string'] = date('Y-m-d H:i', $range['from_ts']);
-			$range['to_ts'] -= $range['to_ts'] % $chart_model['period'];
+			$range['to_ts'] -= $range['to_ts'] % $chart_model['period_unit'];
 			$range['to_string'] = date('Y-m-d H:i', $range['to_ts']);
 		}
 		
-		$unit = 'minute';
 		$step = 1;
-		$unit_format = '%Y-%m-%d %H:%M';
 		
-		if($chart_model['period'] == 300) {
-			$unit = 'minute';
-			$unit_format = '%Y-%m-%d %H:%M';
-			$step = 5;
-		} else if($chart_model['period'] == 3600) {
-			$unit = 'hour';
-			$unit_format = '%Y-%m-%d %H:00';
-		} else if($chart_model['period'] == 86400) {
-			$unit = 'day';
-			$unit_format = '%Y-%m-%d';
+		switch($chart_model['period']) {
+			case 'minute':
+				$unit = 'minute';
+				$unit_format_js = '%Y-%m-%d %H:%M';
+				$unit_format_php = 'Y-m-d H:i';
+				$step = 5;
+				break;
+				
+			case 'hour':
+				$unit = 'hour';
+				$unit_format_js = '%Y-%m-%d %H:00';
+				$unit_format_php = 'Y-m-d H:00';
+				break;
+				
+			case 'day':
+				$unit = 'day';
+				$unit_format_js = '%Y-%m-%d';
+				$unit_format_php = 'Y-m-d';
+				break;
+				
+			case 'week':
+				$unit = 'week';
+				$unit_format_js = '%Y-%m-%d';
+				$unit_format_php = 'Y-m-d';
+				break;
+				
+			case 'month':
+				$unit = 'month';
+				$unit_format_js = '%Y-%m';
+				$unit_format_php = 'Y-m';
+				break;
+				
+			case 'year':
+				$unit = 'year';
+				$unit_format_js = '%Y';
+				$unit_format_php = 'Y';
+				break;
+				
+			default:
+				$error = "`period:` is invalid.";
+				return false;
 		}
 		
-		$chart_model['xaxis'] = DevblocksPlatform::dateLerpArray([$range['from_string'], $range['to_string']], $unit, $step);
+		$chart_model['xaxis'] = DevblocksPlatform::services()->date()->formatTimestamps(
+			DevblocksPlatform::dateLerpArray([$range['from_string'], $range['to_string']], $unit, $step, 1001),
+			$unit_format_php
+		);
+		
+		if(count($chart_model['xaxis']) > 1000) {
+			$error = "Exceeded the limit of 1000 x-axis ticks. Reduce the `range:` or use a larger `period:`";
+			return false;
+		}
 		
 		$results = [
 			'ts' => $chart_model['xaxis'],
@@ -427,7 +458,7 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		
 		// Group expanded series together
 		foreach(array_keys($chart_model['series']) as $series_idx) {
-			if(false === ($series_data = $this->_loadSeriesData($series_idx, $chart_model, $range, $unit_format, $error)))
+			if(false === ($series_data = $this->_loadSeriesData($series_idx, $chart_model, $range, $unit_format_php, $error)))
 				return false;
 			
 			$chart_model['groups'][] = array_keys($series_data);
@@ -443,7 +474,7 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 			'format_params' => [
 				'xaxis_key' => 'ts',
 				'xaxis_step' => $unit,
-				'xaxis_format' => $unit_format,
+				'xaxis_format' => $unit_format_js,
 			],
 		]];
 	}
@@ -506,11 +537,21 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		$func = DevblocksPlatform::strLower($series_model['function'] ?? 'count');
 		$sql_select_keys = 'bin';
 		$sql_group_by = 'bin';
-		$granularity = $chart_model['period']; // 300, 3600, 86400
+		$granularity = $chart_model['period_unit']; // 300, 3600, 86400
 		
 		// [TODO] Limit TOP(n) and BOTTOM(n)
 		
-		$sql = sprintf("SELECT %s, %s AS value FROM metric_value WHERE metric_id = %d AND granularity = %d AND bin BETWEEN %d AND %d %s GROUP BY %s",
+		if('year' == $chart_model['period']) {
+			$sql_select_keys = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(bin), '%Y-01-01 00:00:00')) AS bin";
+			
+		} else if('month' == $chart_model['period']) {
+			$sql_select_keys = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(bin), '%Y-%m-01 00:00:00')) AS bin";
+			
+		} else if('week' == $chart_model['period']) {
+			$sql_select_keys = "UNIX_TIMESTAMP(STR_TO_DATE(CONCAT(YEARWEEK(FROM_UNIXTIME(bin),1),' Monday'),'%x%v %W')) AS bin";	
+		}
+		
+		$sql = sprintf("SELECT %s, %s AS value FROM metric_value WHERE metric_value.metric_id = %d AND metric_value.granularity = %d AND metric_value.bin BETWEEN %d AND %d %s GROUP BY %s",
 			'%s',
 			'%s',
 			$metric->id,
@@ -523,10 +564,10 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		
 		// Metric types
 		if('gauge' == $metric->type) {
-			if(in_array($func, ['avg', 'average'])) {
+			if($func == 'average') {
 			$sql_select_func = 'SUM(sum/samples)';				
 				
-			} else if(in_array($func, ['sum', 'total'])) {
+			} else if($func == 'sum') {
 				$sql_select_func = 'SUM(sum)';
 				
 			} else if($func == 'min') {
@@ -535,7 +576,7 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 			} else if($func == 'max') {
 				$sql_select_func = 'SUM(max)';
 				
-			} else if(in_array($func, ['count', 'samples'])) {
+			} else if($func == 'count') {
 				$sql_select_func = 'SUM(samples)';
 				
 			} else {
@@ -543,10 +584,10 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 			}
 			
 		} else { // Counter
-			if(in_array($func, ['avg', 'average'])) {
+			if($func == 'average') {
 				$sql_select_func = 'AVG(sum/samples)';
 				
-			} else if(in_array($func, ['sum', 'total'])) {
+			} else if($func == 'sum') {
 				$sql_select_func = 'SUM(sum)';
 				
 			} else if($func == 'min') {
@@ -555,7 +596,7 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 			} else if($func == 'max') {
 				$sql_select_func = 'MAX(max)';
 				
-			} else if(in_array($func, ['count', 'samples'])) {
+			} else if($func == 'count') {
 				$sql_select_func = 'SUM(samples)';
 				
 			} else {
@@ -676,12 +717,10 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 				if (!array_key_exists($series_label, $results))
 					$results[$series_label] = array_fill_keys($chart_model['xaxis'], null);
 				
-				// [TODO] Aggregate periods (e.g. 3x 5 min = 15 mins)
-				if (86400 == $granularity) {
-					$bin = gmstrftime($unit_format, $row['bin']);
-				} else {
-					$bin = strftime($unit_format, $row['bin']);
-				}
+				$dt = new DateTime();
+				$dt->setTimestamp($row['bin']);
+				
+				$bin = $dt->format($unit_format);
 				
 				$results[$series_label][$bin] = floatval($row['value']);
 			}

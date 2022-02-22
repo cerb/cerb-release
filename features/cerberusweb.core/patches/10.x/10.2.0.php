@@ -483,7 +483,7 @@ if(!$db->GetOneMaster("select 1 from card_widget where record_type = 'cerb.conte
 				"width_units": "4",
 				"zone": "content",
 				"extension_params": {
-					"data_query": "type:metrics.timeseries\r\nrange:\"-24 hours to now\"\r\nperiod:3600\r\nseries.samples:(\r\n  label:Samples\r\n  metric:{{record_name}}\r\n  function:count\r\n)\r\nseries.sum:(\r\n  label:Sum\r\n  metric:{{record_name}}\r\n  function:sum\r\n)\r\nseries.avg:(\r\n  label:Average\r\n  metric:{{record_name}}\r\n  function:avg\r\n)\r\nseries.min:(\r\n  label:Min\r\n  metric:{{record_name}}\r\n  function:min\r\n)\r\nseries.avg:(\r\n  label:Max\r\n  metric:{{record_name}}\r\n  function:max\r\n)\r\nformat:timeseries",
+					"data_query": "type:metrics.timeseries\r\nrange:\"-24 hours to now\"\r\nperiod:hour\r\nseries.samples:(\r\n  label:Samples\r\n  metric:{{record_name}}\r\n  function:count\r\n)\r\nseries.sum:(\r\n  label:Sum\r\n  metric:{{record_name}}\r\n  function:sum\r\n)\r\nseries.avg:(\r\n  label:Average\r\n  metric:{{record_name}}\r\n  function:avg\r\n)\r\nseries.min:(\r\n  label:Min\r\n  metric:{{record_name}}\r\n  function:min\r\n)\r\nseries.avg:(\r\n  label:Max\r\n  metric:{{record_name}}\r\n  function:max\r\n)\r\nformat:timeseries",
 					"chart_as": "line",
 					"xaxis_label": "",
 					"yaxis_label": "",
@@ -505,6 +505,9 @@ if(!$db->GetOneMaster("select 1 from card_widget where record_type = 'cerb.conte
 	} catch (Exception_DevblocksValidationError $e) {
 		DevblocksPlatform::logError($e->getMessage());
 	}
+	
+} else {
+	$db->ExecuteMaster("UPDATE card_widget SET extension_params_json=replace(extension_params_json,'period:3600','period:hour') WHERE name = 'Statistics' AND record_type = 'cerb.contexts.metric' AND extension_params_json LIKE '%period:3600%'");
 }
 
 // ===========================================================================
@@ -681,6 +684,21 @@ if($columns['type'] && in_array(strtolower($columns['type']['type']), ['varchar(
 }
 
 // ===========================================================================
+// Add `timezone` to calendars
+
+if(!isset($tables['calendar']))
+	return FALSE;
+
+list($columns,) = $db->metaTable('calendar');
+
+if(!array_key_exists('timezone', $columns)) {
+	$db->ExecuteMaster("ALTER TABLE calendar ADD COLUMN timezone varchar(128) not null default ''");
+	
+	// Default worker-owned calendars to their timezone
+	$db->ExecuteMaster("UPDATE calendar INNER JOIN worker ON (calendar.owner_context = 'cerberusweb.contexts.worker' AND calendar.owner_context_id=worker.id) SET calendar.timezone=worker.timezone");
+}
+
+// ===========================================================================
 // Add `extension_kata` to resources
 
 if(!isset($tables['resource']))
@@ -844,12 +862,33 @@ $db->ExecuteMaster("UPDATE profile_widget set extension_params_json = replace(ex
 $db->ExecuteMaster("UPDATE profile_widget set extension_params_json = replace(extension_params_json,'color:black;','color:var(--cerb-color-text);') where profile_tab_id in (select id from profile_tab where context = 'cerberusweb.contexts.ticket') and name IN ('Status','Owner')");
 
 // ===========================================================================
+// Fix 'Time spent by' reports to use seconds vs mins
+
+if(array_key_exists('workspace_widget', $tables)) {
+	$db->qstr("UPDATE workspace_widget SET params_json = replace(params_json, 'number.minutes', 'number.seconds') where extension_id = 'cerb.workspace.widget.chart.timeseries' and label like 'Time Spent by %'");
+}
+
+// ===========================================================================
 // Add an `is_pinned` field to comments
 
 list($columns,) = $db->metaTable('comment');
 
 if(!array_key_exists('is_pinned', $columns)) {
 	$db->ExecuteMaster("ALTER TABLE comment ADD COLUMN is_pinned TINYINT NOT NULL DEFAULT 0");
+}
+
+// ===========================================================================
+// Add `worker_view_model.params_timezone`
+
+if(!array_key_exists('worker_view_model', $tables)) {
+	$logger->error("The 'worker_view_model' table does not exist.");
+	return FALSE;
+}
+
+list($columns, $indexes) = $db->metaTable('worker_view_model');
+
+if(!array_key_exists('params_timezone', $columns)) {
+	$db->ExecuteMaster("ALTER TABLE worker_view_model ADD COLUMN params_timezone varchar(255) not null default ''");
 }
 
 // ===========================================================================

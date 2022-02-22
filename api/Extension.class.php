@@ -497,7 +497,7 @@ abstract class Extension_CalendarDatasource extends DevblocksExtension {
 	}
 	
 	abstract function renderConfig(Model_Calendar $calendar, $params, $series_prefix);
-	abstract function getData(Model_Calendar $calendar, array $params=[], $params_prefix=null, $date_range_from=null, $date_range_to=null);
+	abstract function getData(Model_Calendar $calendar, array $params=[], $params_prefix=null, $date_range_from=null, $date_range_to=null, $timezone=null);
 };
 
 abstract class Extension_CardWidget extends DevblocksExtension {
@@ -857,8 +857,18 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 			],
 			[
 				'caption' => 'log:',
-				'snippet' => "log: \${1:Your log message}",
-				'description' => "Append debug output to the automation log",
+				'snippet' => "log: \${1:This is a debug message}",
+				'description' => "Log a message with debug severity",
+			],
+			[
+				'caption' => 'log.error:',
+				'snippet' => "log.error: \${1:This is an error message}",
+				'description' => "Log a message with error severity",
+			],
+			[
+				'caption' => 'log.warn:',
+				'snippet' => "log.warn: \${1:This is a warning message}",
+				'description' => "Log a message with warning severity",
 			],
 			[
 				'caption' => 'metric.increment:',

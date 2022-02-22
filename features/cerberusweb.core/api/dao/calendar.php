@@ -5,6 +5,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 	const OWNER_CONTEXT = 'owner_context';
 	const OWNER_CONTEXT_ID = 'owner_context_id';
 	const PARAMS_JSON = 'params_json';
+	const TIMEZONE = 'timezone';
 	const UPDATED_AT = 'updated_at';
 	
 	const CACHE_ALL = 'cerb_calendars_all';
@@ -39,6 +40,12 @@ class DAO_Calendar extends Cerb_ORMHelper {
 			->addField(self::PARAMS_JSON)
 			->string()
 			->setMaxLength(16777215)
+			;
+		$validation
+			->addField(self::TIMEZONE)
+			->string()
+			->setMaxLength(128)
+			->addValidator($validation->validators()->timezone())
 			;
 		$validation
 			->addField(self::UPDATED_AT)
@@ -171,7 +178,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
 		// SQL
-		$sql = "SELECT id, name, owner_context, owner_context_id, params_json, updated_at ".
+		$sql = "SELECT id, name, owner_context, owner_context_id, params_json, timezone, updated_at ".
 			"FROM calendar ".
 			$where_sql.
 			$sort_sql.
@@ -278,6 +285,7 @@ class DAO_Calendar extends Cerb_ORMHelper {
 			$object->name = $row['name'];
 			$object->owner_context = $row['owner_context'];
 			$object->owner_context_id = $row['owner_context_id'];
+			$object->timezone = $row['timezone'];
 			$object->updated_at = $row['updated_at'];
 			
 			if(!empty($row['params_json']) && false !== ($params_json = json_decode($row['params_json'], true)))
@@ -364,12 +372,14 @@ class DAO_Calendar extends Cerb_ORMHelper {
 			"calendar.owner_context as %s, ".
 			"calendar.owner_context_id as %s, ".
 			"calendar.params_json as %s, ".
+			"calendar.timezone as %s, ".
 			"calendar.updated_at as %s ",
 				SearchFields_Calendar::ID,
 				SearchFields_Calendar::NAME,
 				SearchFields_Calendar::OWNER_CONTEXT,
 				SearchFields_Calendar::OWNER_CONTEXT_ID,
 				SearchFields_Calendar::PARAMS_JSON,
+				SearchFields_Calendar::TIMEZONE,
 				SearchFields_Calendar::UPDATED_AT
 			);
 			
@@ -462,6 +472,7 @@ class SearchFields_Calendar extends DevblocksSearchFields {
 	const OWNER_CONTEXT = 'c_owner_context';
 	const OWNER_CONTEXT_ID = 'c_owner_context_id';
 	const PARAMS_JSON = 'c_params_json';
+	const TIMEZONE = 'c_timezone';
 	const UPDATED_AT = 'c_updated_at';
 
 	const VIRTUAL_CONTEXT_LINK = '*_context_link';
@@ -573,6 +584,7 @@ class SearchFields_Calendar extends DevblocksSearchFields {
 			self::OWNER_CONTEXT => new DevblocksSearchField(self::OWNER_CONTEXT, 'calendar', 'owner_context', $translate->_('common.owner_context'), null, true),
 			self::OWNER_CONTEXT_ID => new DevblocksSearchField(self::OWNER_CONTEXT_ID, 'calendar', 'owner_context_id', $translate->_('common.owner_context_id'), null, true),
 			self::PARAMS_JSON => new DevblocksSearchField(self::PARAMS_JSON, 'calendar', 'params_json', $translate->_('dao.calendar.params_json'), null, false),
+			self::TIMEZONE => new DevblocksSearchField(self::TIMEZONE, 'calendar', 'timezone', $translate->_('common.timezone'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::UPDATED_AT => new DevblocksSearchField(self::UPDATED_AT, 'calendar', 'updated_at', $translate->_('common.updated'), Model_CustomField::TYPE_DATE, true),
 
 			self::VIRTUAL_CONTEXT_LINK => new DevblocksSearchField(self::VIRTUAL_CONTEXT_LINK, '*', 'context_link', $translate->_('common.links'), null, false),
@@ -601,13 +613,17 @@ class Model_Calendar {
 	public $owner_context;
 	public $owner_context_id;
 	public $params;
+	public $timezone;
 	public $updated_at;
 	
-	function getEvents($date_from, $date_to, $sorted=true) {
+	function getEvents($date_from, $date_to, $sorted=true, $timezone=null) {
+		if(!$timezone)
+			$timezone = $this->timezone;
+		
 		if(isset($this->params['manual_disabled']) && !empty($this->params['manual_disabled'])) {
-			$calendar_events = array();
+			$calendar_events = [];
 		} else {
-			$calendar_events = $this->_getSelfEvents($date_from, $date_to);
+			$calendar_events = $this->_getSelfEvents($date_from, $date_to, $timezone);
 		}
 		
 		// Load data from each extension
@@ -624,11 +640,11 @@ class Model_Calendar {
 			if(null == ($datasource_extension = Extension_CalendarDatasource::get($series['datasource'])))
 				continue;
 			
-			$series_events = $datasource_extension->getData($this, $series, $series_prefix, $date_from, $date_to);
+			$series_events = $datasource_extension->getData($this, $series, $series_prefix, $date_from, $date_to, $timezone);
 			
 			foreach($series_events as $time => $events) {
 				if(!isset($calendar_events[$time]))
-					$calendar_events[$time] = array();
+					$calendar_events[$time] = [];
 				
 				foreach($events as $event)
 					$calendar_events[$time][] = $event;
@@ -647,7 +663,7 @@ class Model_Calendar {
 		return $calendar_events;
 	}
 	
-	private function _getSelfEvents($date_from, $date_to) {
+	private function _getSelfEvents($date_from, $date_to, $timezone=null) {
 		$calendar_events = array();
 		
 		@$color_available = $this->params['color_available'] ?: '#A0D95B';
@@ -659,7 +675,7 @@ class Model_Calendar {
 		// Get recurring events
 		if(is_array($recurrings))
 		foreach($recurrings as $recurring) {
-			$events = $recurring->generateRecurringEvents($date_from, $date_to);
+			$events = $recurring->generateRecurringEvents($date_from, $date_to, $timezone);
 
 			if(is_array($events))
 			foreach($events as $event) {
@@ -686,20 +702,20 @@ class Model_Calendar {
 		
 		foreach($results as $row) {
 			// If the event spans multiple days, split them up into distinct events
-			$ts_pointer = strtotime('midnight', $row['date_start']);
-			$day_range = array();
-			
-			while($ts_pointer <= $row['date_end']) {
-				$day_range[] = $ts_pointer;
-				$ts_pointer = strtotime('tomorrow', $ts_pointer);
-			}
+			$day_range = DevblocksPlatform::dateLerpArray(
+				[
+					date('Y-m-d 00:00:00', strtotime('midnight', $row['date_start'])),
+					date('Y-m-d 23:59:59', strtotime('23:59:59', $row['date_end']))
+				],
+				'day'
+			);
 			
 			foreach($day_range as $epoch) {
-				$day_start = strtotime('midnight', $epoch);
-				$day_end = strtotime('23:59:59', $epoch);
+				$day_start = $epoch;
+				$day_end = strtotime('+1 day -1 second', $epoch);
 				
 				if(!isset($calendar_events[$epoch]))
-					$calendar_events[$epoch] = array();
+					$calendar_events[$epoch] = [];
 				
 				$event_start = $row['date_start'];
 				$event_end = $row['date_end'];
@@ -712,7 +728,7 @@ class Model_Calendar {
 				if($event_end > $day_end)
 					$event_end = $day_end;
 				
-				$calendar_events[$epoch][] = array(
+				$calendar_events[$epoch][] = [
 					'context' => CerberusContexts::CONTEXT_CALENDAR_EVENT,
 					'context_id' => $row['id'],
 					'label' => $row['name'],
@@ -724,7 +740,7 @@ class Model_Calendar {
 						CerberusContexts::CONTEXT_CALENDAR_EVENT,
 						$row['id']
 					),
-				);
+				];
 			}
 		}
 		
@@ -741,7 +757,7 @@ class Model_Calendar {
 			if(is_array($schedule))
 			foreach($schedule as $event) {
 				$start = $event['ts'];
-				$end = @$event['ts_end'] ?: $start;
+				$end = ($event['ts_end'] ?? null) ?: $start;
 				
 				$start_mins = intval(floor(($start - $date_from)/60));
 				$end_mins = intval(floor(($end - $date_from)/60));
@@ -851,7 +867,7 @@ class Model_CalendarAvailability {
 					
 					// We are busy all day
 					if(false === $next_block) {
-						if($offset > 0 && $bit) {
+						if($bit) {
 							$event_start = $ts + ($offset * 60);
 							$event_end = strtotime('11:59:59pm', $event_start);
 
@@ -902,6 +918,7 @@ class Model_CalendarAvailability {
 	function occludeCalendarEvents(&$calendar_events) {
 		if(is_array($calendar_events))
 		foreach($calendar_events as $ts => $day_schedule) {
+			$dirty = false;
 			if(is_array($day_schedule))
 			foreach($day_schedule as $idx => $event) {
 				if(empty($event['is_available']))
@@ -911,8 +928,66 @@ class Model_CalendarAvailability {
 				$for = max(1, ceil(($event['ts_end'] - $event['ts'])/60));
 				$mins = substr($this->_mins, $at, $for);
 				
-				if(false === strpos($mins, '1'))
+				$available_for = substr_count($mins, '1');
+				
+				$pos_start = 0;
+				$pos_end = $for;
+				
+				// Completely unavailable this day
+				if(0 == $available_for) {
 					unset($calendar_events[$ts][$idx]);
+					
+				// Partially unavailable this day (occulted)
+				} else if($available_for != $for) {
+					// Our start time is occulted
+					if(
+						'0' == $mins[0] 
+						&& false !== ($pos_start = strpos($mins, '1')) 
+					) {
+						$dirty = true;
+						$duration = $pos_start-1;
+						$event['ts'] += 60 * $duration;
+						$calendar_events[$ts][$idx]['ts'] = $event['ts'];
+					}
+					
+					// Our end time is occulted
+					if(
+						'0' == substr($mins,-1,1) 
+						&& false !== ($pos_end = strrpos($mins, '1'))
+					) {
+						$dirty = true;
+						$duration = $for-$pos_end-2;
+						$event['ts_end']-= 60 * $duration;
+						$calendar_events[$ts][$idx]['ts_end'] = $event['ts_end'];
+					}
+					
+					$target_event =& $calendar_events[$ts][$idx];
+					
+					$pos = $pos_start + 1;
+					
+					// While we have busy events within our availability
+					while(false !== ($from_pos = strpos($mins, '0', $pos))) {
+						if(false === ($to_pos = strpos($mins, '1', $from_pos+1)) || $to_pos >= $pos_end)
+							break;
+						
+						$dirty = true;
+						
+						$new_event = $target_event;
+						$new_event['ts'] = $this->_start + 60 * ($at + $to_pos - 1);
+						$calendar_events[$ts][] = $new_event;
+						
+						$target_event['ts_end'] -= 60 * ($for-$from_pos-1);
+						
+						$target_event =& $calendar_events[$ts][count($calendar_events[$ts])-1];
+						
+						$pos = $to_pos+1;
+					}
+				}
+			}
+			
+			// If we occulted any events, re-sort on start time
+			if($dirty) {
+				DevblocksPlatform::sortObjects($calendar_events[$ts], '[ts]');
 			}
 		}
 	}
@@ -934,8 +1009,9 @@ class View_Calendar extends C4_AbstractView implements IAbstractView_Subtotals, 
 
 		$this->view_columns = array(
 			SearchFields_Calendar::NAME,
-			SearchFields_Calendar::UPDATED_AT,
+			SearchFields_Calendar::TIMEZONE,
 			SearchFields_Calendar::VIRTUAL_OWNER,
+			SearchFields_Calendar::UPDATED_AT,
 		);
 		
 		$this->addColumnsHidden(array(
@@ -1060,6 +1136,8 @@ class View_Calendar extends C4_AbstractView implements IAbstractView_Subtotals, 
 	function getQuickSearchFields() {
 		$search_fields = SearchFields_Calendar::getFields();
 		
+		$timezones = DevblocksPlatform::services()->date()->getTimezones();
+		
 		$fields = array(
 			'text' => 
 				array(
@@ -1093,6 +1171,14 @@ class View_Calendar extends C4_AbstractView implements IAbstractView_Subtotals, 
 						'key' => 'name',
 						'limit' => 25,
 					]
+				),
+			'timezone' => 
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'options' => array('param_key' => SearchFields_Calendar::TIMEZONE, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL),
+					'examples' => array(
+						['type' => 'list', 'values' => array_combine($timezones, $timezones), 'label_delimiter' => '/', 'key_delimiter' => '/'],
+					)
 				),
 			'updated' => 
 				array(
@@ -1226,6 +1312,7 @@ class View_Calendar extends C4_AbstractView implements IAbstractView_Subtotals, 
 
 		switch($field) {
 			case SearchFields_Calendar::NAME:
+			case SearchFields_Calendar::TIMEZONE:
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
 				
@@ -1366,6 +1453,12 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 			],
 		);
 		
+		$properties['timezone'] = [
+			'label' => DevblocksPlatform::translateCapitalized('common.timezone'),
+			'type' => Model_CustomField::TYPE_SINGLE_LINE,
+			'value' => $model->timezone,
+		];
+		
 		$properties['updated'] = array(
 			'label' => DevblocksPlatform::translateCapitalized('common.updated'),
 			'type' => Model_CustomField::TYPE_DATE,
@@ -1417,6 +1510,7 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 	function getDefaultProperties() {
 		return array(
 			'owner__label',
+			'timezone',
 			'updated_at',
 		);
 	}
@@ -1445,6 +1539,7 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 			'id' => $prefix.$translate->_('common.id'),
 			'name' => $prefix.$translate->_('common.name'),
 			'owner__label' => $prefix.$translate->_('common.owner'),
+			'timezone' => $prefix.$translate->_('common.timezone'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
 		);
@@ -1455,6 +1550,7 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 			'id' => Model_CustomField::TYPE_NUMBER,
 			'name' => Model_CustomField::TYPE_SINGLE_LINE,
 			'owner__label' =>'context_url',
+			'timezone' => Model_CustomField::TYPE_SINGLE_LINE,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 			'record_url' => Model_CustomField::TYPE_URL,
 		);
@@ -1480,6 +1576,7 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 			$token_values['_label'] = $calendar->name;
 			$token_values['id'] = $calendar->id;
 			$token_values['name'] = $calendar->name;
+			$token_values['timezone'] = $calendar->timezone;
 			$token_values['updated_at'] = $calendar->updated_at;
 			
 			// Custom fields
@@ -1504,6 +1601,7 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 			'name' => DAO_Calendar::NAME,
 			'owner__context' => DAO_Calendar::OWNER_CONTEXT,
 			'owner_id' => DAO_Calendar::OWNER_CONTEXT_ID,
+			'timezone' => DAO_Calendar::TIMEZONE,
 			'updated_at' => DAO_Calendar::UPDATED_AT,
 		];
 	}
@@ -1667,7 +1765,7 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 				$calendar = DAO_Calendar::get($context_id);
 
 				$calendar_events = $calendar->getEvents($calendar_scope['date_range_from'], $calendar_scope['date_range_to']);
-				$events = array();
+				$events = [];
 				
 				if("events_occluded" == $token) {
 					$availability = $calendar->computeAvailability($calendar_scope['date_range_from'], $calendar_scope['date_range_to'], $calendar_events);
@@ -1827,6 +1925,11 @@ class Context_Calendar extends Extension_DevblocksContext implements IDevblocksC
 			
 			$owners_menu = Extension_DevblocksContext::getOwnerTree();
 			$tpl->assign('owners_menu', $owners_menu);
+			
+			// Timezones
+			
+			$timezones = DevblocksPlatform::services()->date()->getTimezones();
+			$tpl->assign('timezones', $timezones);
 			
 			// Datasources
 			

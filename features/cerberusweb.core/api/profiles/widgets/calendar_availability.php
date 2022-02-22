@@ -14,8 +14,7 @@ class ProfileWidget_CalendarAvailability extends Extension_ProfileWidget {
 		
 		switch($action) {
 			case 'showCalendarAvailabilityTab':
-				$this->_profileWidgetAction_showCalendarAvailabilityTab($model);
-				break;
+				return $this->_profileWidgetAction_showCalendarAvailabilityTab($model);
 		}
 		return false;
 	}
@@ -81,7 +80,7 @@ class ProfileWidget_CalendarAvailability extends Extension_ProfileWidget {
 		$tpl->assign('context', $context);
 		$tpl->assign('context_id', $context_id);
 		
-		$start_on_mon = @$calendar->params['start_on_mon'] ? true : false;
+		$start_on_mon = (bool)($calendar->params['start_on_mon'] ?? false);
 		
 		$calendar_properties = DevblocksCalendarHelper::getCalendar($month, $year, $start_on_mon);
 		$tpl->assign('calendar_properties', $calendar_properties);
@@ -135,7 +134,7 @@ class ProfileWidget_CalendarAvailability extends Extension_ProfileWidget {
 		$tpl->assign('context_id', $context_id);
 		$tpl->assign('widget', $model);
 		
-		$start_on_mon = @$calendar->params['start_on_mon'] ? true : false;
+		$start_on_mon = (bool)($calendar->params['start_on_mon'] ?? false);
 		
 		$calendar_properties = DevblocksCalendarHelper::getCalendar($month, $year, $start_on_mon);
 		$tpl->assign('calendar_properties', $calendar_properties);

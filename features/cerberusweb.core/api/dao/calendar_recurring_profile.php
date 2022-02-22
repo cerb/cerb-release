@@ -584,9 +584,14 @@ class Model_CalendarRecurringProfile {
 		return $this->_calendar_model;
 	}
 	
-	function generateRecurringEvents($date_from, $date_to) {
-		$calendar_events = array();
-
+	function generateRecurringEvents($date_from, $date_to, $timezone=null) {
+		$calendar_events = [];
+		
+		if(!$this->tz)
+			$this->tz = $timezone ?: DevblocksPlatform::getTimezone();
+		
+		$tz = new DateTimeZone($this->tz);
+		
 		// Commencement date for recurring event
 		if($this->recur_start && $this->recur_start > $date_to)
 			return [];
@@ -640,14 +645,19 @@ class Model_CalendarRecurringProfile {
 				}
 				
 				if($passed) {
-					$timezone = new DateTimeZone($this->tz);
-					$datetime = new DateTime(date('Y-m-d', $day), $timezone);
+					$datetime = new DateTime(date('Y-m-d', $day), $tz);
 					
 					$datetime->modify($this->event_start ?: 'midnight');
 					$event_start_local = $datetime->getTimestamp();
 					
 					$datetime->modify($this->event_end ?: 'midnight');
 					$event_end_local = $datetime->getTimestamp();
+					
+					// If the event ends before it starts (6p-2a), advance the end time by a day
+					if($event_end_local < $event_start_local) {
+						$datetime->modify('+1 day');
+						$event_end_local = $datetime->getTimestamp();
+					}
 					
 					// If the generated event starts before the recurring event begins, skip
 					if($this->recur_start && $event_start_local < $this->recur_start)
@@ -657,18 +667,42 @@ class Model_CalendarRecurringProfile {
 					if($this->recur_end && $event_start_local > $this->recur_end)
 						continue;
 					
-					$calendar_events[] = array(
-						'context' => CerberusContexts::CONTEXT_CALENDAR_EVENT_RECURRING,
-						'context_id' => $this->id,
-						'label' => $this->event_name,
-						'ts' => $event_start_local,
-						'ts_end' => $event_end_local,
-						'is_available' => $this->is_available,
-						'link' => sprintf("ctx://%s:%d",
-							CerberusContexts::CONTEXT_CALENDAR_EVENT_RECURRING,
-							$this->id
-						),
+					// If the recurring event spans multiple days, split them up into distinct events
+					
+					$day_range = DevblocksPlatform::dateLerpArray(
+						[
+							date('Y-m-d 00:00:00', strtotime('midnight', $event_start_local)),
+							date('Y-m-d 23:59:59', strtotime('23:59:59', $event_end_local))
+						],
+						'day'
 					);
+					
+					foreach($day_range as $epoch) {
+						$day_start = $epoch;
+						$day_end = strtotime('+1 day -1 second', $epoch);
+						
+						$event_start = $event_start_local;
+						$event_end = $event_end_local;
+						
+						if($event_start < $day_start)
+							$event_start = $day_start;
+						
+						if($event_end > $day_end)
+							$event_end = $day_end;
+						
+						$calendar_events[] = [
+							'context' => CerberusContexts::CONTEXT_CALENDAR_EVENT_RECURRING,
+							'context_id' => $this->id,
+							'label' => $this->event_name,
+							'ts' => $event_start,
+							'ts_end' => $event_end,
+							'is_available' => $this->is_available,
+							'link' => sprintf("ctx://%s:%d",
+								CerberusContexts::CONTEXT_CALENDAR_EVENT_RECURRING,
+								$this->id
+							),
+						];
+					}
 				}
 			}
 			
@@ -1493,7 +1527,7 @@ class Context_CalendarRecurringProfile extends Extension_DevblocksContext implem
 			} else {
 				$model = new Model_CalendarRecurringProfile();
 				$model->is_available = 0;
-				$model->tz = DevblocksPlatform::getTimezone();
+				$model->tz = '';
 				
 				if(false != ($view = C4_AbstractViewLoader::getView($view_id))) {
 					switch(get_class($view)) {
