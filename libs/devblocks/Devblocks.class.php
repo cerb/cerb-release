@@ -529,8 +529,13 @@ class DevblocksPlatform extends DevblocksEngine {
 		$values = [];
 		
 		try {
-			$tick = new DateTime(null);
+			$tick = new DateTime();
 			$tick->setTimestamp($ts);
+			
+			if(false === ($interval = DateInterval::createFromDateString(sprintf('+%d %s', $step, $unit)))) {
+				return [];
+			}
+			
 		} catch (Exception $e) {
 			return [];
 		}
@@ -544,7 +549,7 @@ class DevblocksPlatform extends DevblocksEngine {
 			if($limit && ++$counter >= $limit)
 				break;
 			
-			$tick->add(DateInterval::createFromDateString(sprintf('+%d %s', $step, $unit)));
+			$tick->add($interval);
 			
 			if(end($values) == $tick->getTimestamp())
 				$tick->add(DateInterval::createFromDateString(sprintf('+%d %s', $step+1, $unit)));
@@ -2179,15 +2184,15 @@ class DevblocksPlatform extends DevblocksEngine {
 				break;
 				
 			case 'number':
-				$label = number_format($number, 0);
+				$label = number_format(floatval($number), 0);
 				break;
 				
 			case 'decimal':
-				$label = number_format($number, 2);
+				$label = number_format(floatval($number), 2);
 				break;
 			
 			case 'percent':
-				$label = number_format($number) . '%';
+				$label = number_format(floatval($number)) . '%';
 				break;
 			
 			// [TODO] Currency
