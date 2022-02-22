@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375
+class ComposerStaticInit04fab1c899b3aad62b7cd7e1003ccdd4
 {
     public static $files = array (
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
@@ -982,11 +982,13 @@ class ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375
         'PharIo\\Version\\AbstractVersionConstraint' => __DIR__ . '/..' . '/phar-io/version/src/constraints/AbstractVersionConstraint.php',
         'PharIo\\Version\\AndVersionConstraintGroup' => __DIR__ . '/..' . '/phar-io/version/src/constraints/AndVersionConstraintGroup.php',
         'PharIo\\Version\\AnyVersionConstraint' => __DIR__ . '/..' . '/phar-io/version/src/constraints/AnyVersionConstraint.php',
+        'PharIo\\Version\\BuildMetaData' => __DIR__ . '/..' . '/phar-io/version/src/BuildMetaData.php',
         'PharIo\\Version\\ExactVersionConstraint' => __DIR__ . '/..' . '/phar-io/version/src/constraints/ExactVersionConstraint.php',
         'PharIo\\Version\\Exception' => __DIR__ . '/..' . '/phar-io/version/src/exceptions/Exception.php',
         'PharIo\\Version\\GreaterThanOrEqualToVersionConstraint' => __DIR__ . '/..' . '/phar-io/version/src/constraints/GreaterThanOrEqualToVersionConstraint.php',
         'PharIo\\Version\\InvalidPreReleaseSuffixException' => __DIR__ . '/..' . '/phar-io/version/src/exceptions/InvalidPreReleaseSuffixException.php',
         'PharIo\\Version\\InvalidVersionException' => __DIR__ . '/..' . '/phar-io/version/src/exceptions/InvalidVersionException.php',
+        'PharIo\\Version\\NoBuildMetaDataException' => __DIR__ . '/..' . '/phar-io/version/src/exceptions/NoBuildMetaDataException.php',
         'PharIo\\Version\\NoPreReleaseSuffixException' => __DIR__ . '/..' . '/phar-io/version/src/exceptions/NoPreReleaseSuffixException.php',
         'PharIo\\Version\\OrVersionConstraintGroup' => __DIR__ . '/..' . '/phar-io/version/src/constraints/OrVersionConstraintGroup.php',
         'PharIo\\Version\\PreReleaseSuffix' => __DIR__ . '/..' . '/phar-io/version/src/PreReleaseSuffix.php',
@@ -1065,17 +1067,13 @@ class ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375
         'SebastianBergmann\\CodeCoverage\\Report\\Xml\\Totals' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/Report/Xml/Totals.php',
         'SebastianBergmann\\CodeCoverage\\Report\\Xml\\Unit' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/Report/Xml/Unit.php',
         'SebastianBergmann\\CodeCoverage\\StaticAnalysisCacheNotConfiguredException' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/Exception/StaticAnalysisCacheNotConfiguredException.php',
-        'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\Cache' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/Cache.php',
         'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\CacheWarmer' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/CacheWarmer.php',
-        'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\CachingCoveredFileAnalyser' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/CachingCoveredFileAnalyser.php',
-        'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\CachingUncoveredFileAnalyser' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/CachingUncoveredFileAnalyser.php',
+        'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\CachingFileAnalyser' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/CachingFileAnalyser.php',
         'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\CodeUnitFindingVisitor' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/CodeUnitFindingVisitor.php',
-        'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\CoveredFileAnalyser' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/CoveredFileAnalyser.php',
         'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\ExecutableLinesFindingVisitor' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/ExecutableLinesFindingVisitor.php',
+        'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\FileAnalyser' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/FileAnalyser.php',
         'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\IgnoredLinesFindingVisitor' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/IgnoredLinesFindingVisitor.php',
-        'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\ParsingCoveredFileAnalyser' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/ParsingCoveredFileAnalyser.php',
-        'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\ParsingUncoveredFileAnalyser' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/ParsingUncoveredFileAnalyser.php',
-        'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\UncoveredFileAnalyser' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/UncoveredFileAnalyser.php',
+        'SebastianBergmann\\CodeCoverage\\StaticAnalysis\\ParsingFileAnalyser' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/StaticAnalysis/ParsingFileAnalyser.php',
         'SebastianBergmann\\CodeCoverage\\TestIdMissingException' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/Exception/TestIdMissingException.php',
         'SebastianBergmann\\CodeCoverage\\UnintentionallyCoveredCodeException' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/Exception/UnintentionallyCoveredCodeException.php',
         'SebastianBergmann\\CodeCoverage\\Version' => __DIR__ . '/..' . '/phpunit/php-code-coverage/src/Version.php',
@@ -1201,7 +1199,6 @@ class ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375
         'SebastianBergmann\\Type\\VoidType' => __DIR__ . '/..' . '/sebastian/type/src/VoidType.php',
         'SebastianBergmann\\Version' => __DIR__ . '/..' . '/sebastian/version/src/Version.php',
         'Smarty' => __DIR__ . '/..' . '/smarty/smarty/libs/Smarty.class.php',
-        'SmartyBC' => __DIR__ . '/..' . '/smarty/smarty/libs/SmartyBC.class.php',
         'SmartyCompilerException' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smartycompilerexception.php',
         'SmartyException' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smartyexception.php',
         'Smarty_Autoloader' => __DIR__ . '/..' . '/smarty/smarty/libs/Autoloader.php',
@@ -1241,7 +1238,6 @@ class ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375
         'Smarty_Internal_Compile_If' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_if.php',
         'Smarty_Internal_Compile_Ifclose' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_if.php',
         'Smarty_Internal_Compile_Include' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_include.php',
-        'Smarty_Internal_Compile_Include_Php' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_include_php.php',
         'Smarty_Internal_Compile_Insert' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_insert.php',
         'Smarty_Internal_Compile_Ldelim' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_ldelim.php',
         'Smarty_Internal_Compile_Make_Nocache' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_make_nocache.php',
@@ -1254,7 +1250,6 @@ class ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375
         'Smarty_Internal_Compile_Private_Modifier' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_private_modifier.php',
         'Smarty_Internal_Compile_Private_Object_Block_Function' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_private_object_block_function.php',
         'Smarty_Internal_Compile_Private_Object_Function' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_private_object_function.php',
-        'Smarty_Internal_Compile_Private_Php' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_private_php.php',
         'Smarty_Internal_Compile_Private_Print_Expression' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_private_print_expression.php',
         'Smarty_Internal_Compile_Private_Registered_Block' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_private_registered_block.php',
         'Smarty_Internal_Compile_Private_Registered_Function' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_compile_private_registered_function.php',
@@ -1335,7 +1330,6 @@ class ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375
         'Smarty_Internal_Resource_Extends' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_resource_extends.php',
         'Smarty_Internal_Resource_File' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_resource_file.php',
         'Smarty_Internal_Resource_Php' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_resource_php.php',
-        'Smarty_Internal_Resource_Registered' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_resource_registered.php',
         'Smarty_Internal_Resource_Stream' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_resource_stream.php',
         'Smarty_Internal_Resource_String' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_resource_string.php',
         'Smarty_Internal_Runtime_CacheModify' => __DIR__ . '/..' . '/smarty/smarty/libs/sysplugins/smarty_internal_runtime_cachemodify.php',
@@ -1389,10 +1383,10 @@ class ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInitc65b73bd1f43bc775fd3f6b9f185a375::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit04fab1c899b3aad62b7cd7e1003ccdd4::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit04fab1c899b3aad62b7cd7e1003ccdd4::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit04fab1c899b3aad62b7cd7e1003ccdd4::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInit04fab1c899b3aad62b7cd7e1003ccdd4::$classMap;
 
         }, null, ClassLoader::class);
     }
