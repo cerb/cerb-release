@@ -110,6 +110,13 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 				$suggestions['query.required:' . $of_path] = $of_suggestions;
 				
 				if('subtotal:' == $of_path) {
+					// Merge virtual grouping suggestions
+					if(isset($context_ext)) {
+						if($context_ext->id == CerberusContexts::CONTEXT_TICKET) {
+							$of_suggestions = array_merge($of_suggestions, SearchFields_Ticket::getVirtualSubtotalKeys());
+						}
+					}
+					
 					$suggestions['by:'] = $of_suggestions;
 					$suggestions['by.count:'] = $of_suggestions;
 					$suggestions['by.avg:'] = $of_suggestions;
@@ -308,8 +315,10 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 				// Handle limits and orders
 				list($by, $limit) = array_pad(explode('~', $by, 2), 2, null);
 				
-				if(false == ($subtotal_field = $search_class::getFieldForSubtotalKey($by, $subtotals_context->id, $query_fields, $search_fields, $search_class::getPrimaryKey())))
-					continue;
+				if(false == ($subtotal_field = $search_class::getFieldForSubtotalKey($by, $subtotals_context->id, $query_fields, $search_fields, $search_class::getPrimaryKey()))) {
+					$error = sprintf("Unknown `by:` field: %s", $by);
+					return false;
+				}
 				
 				// If it's a date time-step, allow the full range
 				if(is_null($limit) && array_key_exists('timestamp_step', $subtotal_field)) {
@@ -525,8 +534,13 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 					break;
 			}
 			
-			if(false !== ($by_labels = $search_class::getLabelsForKeyValues($key_select, $values)))
-				$labels[$key_select] = $by_labels;
+			// Labels
+			if(array_key_exists('get_labels_callback', $by) && is_callable($by['get_labels_callback'])) {
+				$labels[$key_select] = $by['get_labels_callback']($values);
+			} else {
+				if(false !== ($by_labels = $search_class::getLabelsForKeyValues($key_select, $values)))
+					$labels[$key_select] = $by_labels;
+			}
 			
 			// Queries
 			foreach($values as $value) {
