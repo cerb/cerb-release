@@ -508,14 +508,17 @@ class Model_ProjectBoard {
 		
 		// [TODO] Set this earlier (and expanded)
 		$dict->set('column__context', Context_ProjectBoardColumn::ID);
-		$dict->set('column_id', $this->id);
+		$dict->set('column_id', $column ? $column->id : 0);
 		
 		// Try the column first
-		$sheet_schema = $column->getCardSheet($dict);
+		$sheet_schema = null;
+		
+		if($column)
+			$sheet_schema = $column->getCardSheet($dict);
 		
 		// Then try the board
 		if(!$sheet_schema) {
-			if(false == ($board = $column->getProjectBoard()))
+			if(!$column || false == ($board = $column->getProjectBoard()))
 				return null;
 			
 			$sheet_schema = $board->getCardSheet($dict);
@@ -570,7 +573,7 @@ class Model_ProjectBoard {
 		$rows = $sheets->getRows($sheet_schema, [$dict]);
 		$tpl->assign('rows', $rows);
 		
-		$html = $tpl->fetch('devblocks:cerberusweb.core::events/form_interaction/worker/responses/respond_sheet_fieldsets.tpl');
+		$html = $tpl->fetch('devblocks:cerb.project_boards::boards/board/card_sheet.tpl');
 		
 		echo $html;
 	}
@@ -859,17 +862,17 @@ class View_ProjectBoard extends C4_AbstractView implements IAbstractView_Subtota
 				break;
 				
 			case SearchFields_ProjectBoard::VIRTUAL_CONTEXT_LINK:
-				@$context_links = DevblocksPlatform::importGPC($_POST['context_link'],'array',array());
+				$context_links = DevblocksPlatform::importGPC($_POST['context_link'] ?? null, 'array', []);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$context_links);
 				break;
 				
 			case SearchFields_ProjectBoard::VIRTUAL_HAS_FIELDSET:
-				@$options = DevblocksPlatform::importGPC($_POST['options'],'array',array());
+				$options = DevblocksPlatform::importGPC($_POST['options'] ?? null, 'array', []);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$options);
 				break;
 				
 			case SearchFields_ProjectBoard::VIRTUAL_WATCHERS:
-				@$worker_ids = DevblocksPlatform::importGPC($_POST['worker_id'],'array',array());
+				$worker_ids = DevblocksPlatform::importGPC($_POST['worker_id'] ?? null, 'array', []);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$worker_ids);
 				break;
 				

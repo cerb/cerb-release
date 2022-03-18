@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2022031001);
-define("APP_VERSION", '10.2.1');
+define("APP_BUILD", 2022031701);
+define("APP_VERSION", '10.2.2');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -1001,9 +1001,9 @@ class CerberusContexts {
 			// Plugin-provided tokens
 			$token_extension_mfts = DevblocksPlatform::getExtensions('cerberusweb.snippet.token', false);
 			foreach($token_extension_mfts as $mft) { /* @var $mft DevblocksExtensionManifest */
-				@$token = $mft->params['token'];
-				@$label = $mft->params['label'];
-				@$contexts = $mft->params['contexts'][0];
+				$token = $mft->params['token'] ?? null;
+				$label = $mft->params['label'] ?? null;
+				$contexts = $mft->params['contexts'][0] ?? null;
 
 				if(empty($token) || empty($label) || !is_array($contexts))
 					continue;
@@ -1655,7 +1655,7 @@ class CerberusContexts {
 
 		// Variables
 
-		@$vars = $entry['variables'];
+		$vars = $entry['variables'] ?? null;
 
 		// Do we need to translate any token variables/urls?
 		$matches = null;
@@ -2268,7 +2268,7 @@ class CerberusContexts {
 
 				foreach($new_models as $context_id => $new_model) {
 					$old_model = $old_models[$context_id];
-					$new_model->custom_fields = @$values[$context_id] ?: [];
+					$new_model->custom_fields = ($values[$context_id] ?? null) ?: [];
 					$actor = null;
 
 					if(isset($old_model['_actor'])) {
@@ -2858,7 +2858,7 @@ class Cerb_DevblocksSessionHandler implements IDevblocksHandler_Session {
 				// If the cookie is going to expire at a future date, extend it
 				if($maxlifetime) {
 					$url_writer = DevblocksPlatform::services()->url();
-					setcookie('Devblocks', $id, time()+$maxlifetime, '/', NULL, $url_writer->isSSL(), true);
+					setcookie('Devblocks', $id, time()+$maxlifetime, '/', '', $url_writer->isSSL(), true);
 				}
 
 				$db->ExecuteMaster(sprintf("UPDATE devblocks_session SET updated=%d, refreshed_at=%d WHERE session_token = %s",
@@ -3255,7 +3255,7 @@ class CerbLoginWorkerAuthState {
 			$email,
 			time()+30*86400,
 			$url_writer->write('c=login',false,false),
-			null,
+			'',
 			$url_writer->isSSL(),
 			true
 		);
@@ -5541,7 +5541,7 @@ class _CerbApplication_Packages {
 		if(false === (@$package_data = json_decode($package_json, true)))
 			return;
 		
-		if(false == (@$library_meta = $package_data['package']['library']))
+		if(false == ($library_meta = ($package_data['package']['library'] ?? null)))
 			return;
 		
 		$db->ExecuteMaster(sprintf("INSERT INTO package_library (uri, name, description, instructions, point, updated_at, package_json) ".

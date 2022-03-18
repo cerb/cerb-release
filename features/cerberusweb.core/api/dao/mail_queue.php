@@ -334,11 +334,11 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 		
 		if(is_array($results))
 		foreach($results as $draft) {
-			if(!isset($out[$draft->ticket_id]))
-				$out[$draft->ticket_id] = [];
-			
 			// Only use the newest draft per ticket
-			if(isset($out[$draft->ticket_id]) && $out[$draft->ticket_id]->updated > $draft->updated)
+			if(
+				array_key_exists($draft->ticket_id, $out)
+				&& $out[$draft->ticket_id]->updated > $draft->updated
+			)
 				continue;
 			
 			unset($draft->params);
@@ -1396,12 +1396,12 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 				break;
 				
 			case SearchFields_MailQueue::IS_QUEUED:
-				@$bool = DevblocksPlatform::importGPC($_POST['bool'],'integer',1);
+				$bool = DevblocksPlatform::importGPC($_POST['bool'] ?? null, 'integer',1);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$bool);
 				break;
 				
 			case SearchFields_MailQueue::WORKER_ID:
-				@$worker_id = DevblocksPlatform::importGPC($_POST['worker_id'],'array',[]);
+				$worker_id = DevblocksPlatform::importGPC($_POST['worker_id'] ?? null, 'array',[]);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$worker_id);
 				break;
 		}

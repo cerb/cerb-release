@@ -554,6 +554,9 @@ class Model_ProjectBoardColumn {
 		
 		$links = DAO_ContextLink::getAllContextLinks(Context_ProjectBoardColumn::ID, $this->id, true);
 		
+		// Remove cards not in the links
+		$this->cards = array_intersect($this->cards, array_keys($links));
+		
 		// Append links that aren't in the sorted cards
 		$this->cards = array_merge(
 			$this->cards,
@@ -1009,17 +1012,17 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 				break;
 				
 			case SearchFields_ProjectBoardColumn::VIRTUAL_CONTEXT_LINK:
-				@$context_links = DevblocksPlatform::importGPC($_POST['context_link'],'array',array());
+				$context_links = DevblocksPlatform::importGPC($_POST['context_link'] ?? null, 'array', []);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$context_links);
 				break;
 				
 			case SearchFields_ProjectBoardColumn::VIRTUAL_HAS_FIELDSET:
-				@$options = DevblocksPlatform::importGPC($_POST['options'],'array',array());
+				$options = DevblocksPlatform::importGPC($_POST['options'] ?? null, 'array', []);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$options);
 				break;
 				
 			case SearchFields_ProjectBoardColumn::VIRTUAL_WATCHERS:
-				@$worker_ids = DevblocksPlatform::importGPC($_POST['worker_id'],'array',array());
+				$worker_ids = DevblocksPlatform::importGPC($_POST['worker_id'] ?? null, 'array', []);
 				$criteria = new DevblocksSearchCriteria($field,$oper,$worker_ids);
 				break;
 				
@@ -1269,7 +1272,7 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 				$links = [];
 				
 				foreach($value as &$tuple) {
-					@list($context, $id) = explode(':', $tuple, 2);
+					list($context, $id) = array_pad(explode(':', $tuple, 2), 2, null);
 					
 					if(false == ($context_ext = Extension_DevblocksContext::getByAlias($context, false))) {
 						$error = sprintf("has a card with an invalid context (%s)", $tuple);
@@ -1402,7 +1405,7 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 				$tokens = explode(' ', trim($edit));
 				
 				foreach($tokens as $token) {
-					@list($k,$v) = explode(':', $token);
+					list($k,$v) = array_pad(explode(':', $token, 2), 2, null);
 					
 					if(empty($k) || empty($v))
 						continue;

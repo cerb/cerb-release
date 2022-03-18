@@ -26,7 +26,8 @@ class _DevblocksSessionManager {
 		if(null == $instance) {
 			$url_writer = DevblocksPlatform::services()->url();
 			
-			@session_destroy();
+			if(PHP_SESSION_ACTIVE == session_status())
+				session_destroy();
 			
 			$handler_class = DevblocksPlatform::getHandlerSession();
 			
@@ -87,7 +88,7 @@ class _DevblocksSessionManager {
 	function clear($id=null) {
 		if(is_null($id)) {
 			$this->visit = null;
-			setcookie('Devblocks', null, 0, '/', null);
+			setcookie('Devblocks', null, 0, '/', '');
 			session_unset();
 			session_destroy();
 		} else {

@@ -156,7 +156,7 @@ class DAO_Attachment extends Cerb_ORMHelper {
 					$link = ltrim($link, '-');
 				}
 			
-			@list($link_context, $link_id) = explode(':', $link, 2);
+			list($link_context, $link_id) = array_pad(explode(':', $link, 2), 2, null);
 			
 			if(false == ($link_context_ext = Extension_DevblocksContext::getByAlias($link_context, false)))
 				continue;
@@ -171,23 +171,62 @@ class DAO_Attachment extends Cerb_ORMHelper {
 	
 	private static function _updateContent($ids, &$fields) {
 		if(!isset($fields['_content']))
-			return;
+			return false;
 			
-		@$content = $fields['_content'];
+		$content = $fields['_content'] ?? null;
 		unset($fields['_content']);
 		
-		// If base64 encoded
-		if(DevblocksPlatform::strStartsWith($content, 'data:')) {
-			if(false !== ($idx = strpos($content, ';base64,'))) {
-				$content = base64_decode(substr($content, $idx + strlen(';base64,')));
+		$mime_type = DevblocksPlatform::strLower($fields[DAO_Attachment::MIME_TYPE] ?? null);
+		
+		// If an automation resource
+		if('application/vnd.cerb.uri' == $mime_type) {
+			if(DevblocksPlatform::strStartsWith($content, 'cerb:')) {
+				$fields[DAO_Attachment::MIME_TYPE] = '';
+				
+				if(false == ($uri_parts = DevblocksPlatform::services()->ui()->parseURI($content)))
+					return false;
+				
+				if(!CerberusContexts::isSameContext($uri_parts['context'], CerberusContexts::CONTEXT_AUTOMATION_RESOURCE))
+					return false;
+				
+				if(false == ($resource = DAO_AutomationResource::getByToken($uri_parts['context_id'])))
+					return false;
+				
+				// Stream the automation resource to attachment storage
+				
+				$fp_read = DevblocksPlatform::getTempFile();
+				$fp_read_file = DevblocksPlatform::getTempFileInfo($fp_read);
+				
+				if(false == ($resource->getFileContents($fp_read)))
+					return false;
+				
+				$fields[DAO_Attachment::MIME_TYPE] = $resource->mime_type;
+				$fields[DAO_Attachment::STORAGE_SHA1HASH] = sha1_file($fp_read_file);
+				
+				foreach($ids as $id) {
+					fseek($fp_read, 0);
+					Storage_Attachments::put($id, $fp_read);
+				}
+				
+				fclose($fp_read);
+			}
+			
+		} else { 
+			// If base64 encoded
+			if(DevblocksPlatform::strStartsWith($content, 'data:')) {
+				if(false !== ($idx = strpos($content, ';base64,'))) {
+					$content = base64_decode(substr($content, $idx + strlen(';base64,')));
+				}
+			}
+			
+			$fields[self::STORAGE_SHA1HASH] = sha1($content);
+			
+			foreach($ids as $id) {
+				Storage_Attachments::put($id, $content);
 			}
 		}
 		
-		$fields[self::STORAGE_SHA1HASH] = sha1($content);
-		
-		foreach($ids as $id) {
-			Storage_Attachments::put($id, $content);
-		}
+		return true;
 	}
 	
 	static public function onBeforeUpdateByActor($actor, &$fields, $id=null, &$error=null) {
@@ -391,9 +430,9 @@ class DAO_Attachment extends Cerb_ORMHelper {
 		if(!is_array($context_ids))
 			$context_ids = [$context_ids];
 
-		$context_ids = DevblocksPlatform::sanitizeArray($context_ids, 'int');
+		$context_ids = DevblocksPlatform::sanitizeArray($context_ids, 'int', ['nonzero']);
 		
-		if(empty($context) && empty($context_ids))
+		if(empty($context) || empty($context_ids))
 			return [];
 		
 		$db = DevblocksPlatform::services()->database();
@@ -767,7 +806,7 @@ class SearchFields_Attachment extends DevblocksSearchFields {
 	static private function _getWhereSQLFromAttachmentLinks(DevblocksSearchCriteria $param, $pkey) {
 		// Handle nested quick search filters first
 		if($param->operator == DevblocksSearchCriteria::OPER_CUSTOM) {
-			@list($alias, $query) = explode(':', $param->value, 2);
+			list($alias, $query) = array_pad(explode(':', $param->value, 2), 2, null);
 			
 			if(empty($alias) || (false == ($ext = Extension_DevblocksContext::getByAlias(str_replace('.', ' ', $alias), true))))
 				return;
@@ -816,7 +855,7 @@ class SearchFields_Attachment extends DevblocksSearchFields {
 		
 		if(is_array($param->value))
 		foreach($param->value as $context_data) {
-			@list($context, $context_id) = explode(':', $context_data, 2);
+			list($context, $context_id) = array_pad(explode(':', $context_data, 2), 2, null);
 	
 			if(empty($context))
 				return;
@@ -976,9 +1015,9 @@ class Storage_Attachments extends Extension_DevblocksStorageSchema {
 	}
 	
 	function saveConfig() {
-		@$active_storage_profile = DevblocksPlatform::importGPC($_POST['active_storage_profile'],'string','');
-		@$archive_storage_profile = DevblocksPlatform::importGPC($_POST['archive_storage_profile'],'string','');
-		@$archive_after_days = DevblocksPlatform::importGPC($_POST['archive_after_days'],'integer',0);
+		$active_storage_profile = DevblocksPlatform::importGPC($_POST['active_storage_profile'] ?? null, 'string','');
+		$archive_storage_profile = DevblocksPlatform::importGPC($_POST['archive_storage_profile'] ?? null, 'string','');
+		$archive_after_days = DevblocksPlatform::importGPC($_POST['archive_after_days'] ?? null, 'integer',0);
 		
 		if(!empty($active_storage_profile))
 			$this->setParam('active_storage_profile', $active_storage_profile);
@@ -1632,12 +1671,12 @@ class View_Attachment extends C4_AbstractView implements IAbstractView_Subtotals
 				break;
 				
 			case SearchFields_Attachment::VIRTUAL_CONTEXT_LINK:
-				@$context_links = DevblocksPlatform::importGPC($_POST['context_link'],'array',array());
+				$context_links = DevblocksPlatform::importGPC($_POST['context_link'] ?? null, 'array', []);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$context_links);
 				break;
 				
 			case SearchFields_Attachment::VIRTUAL_HAS_FIELDSET:
-				@$options = DevblocksPlatform::importGPC($_POST['options'],'array',array());
+				$options = DevblocksPlatform::importGPC($_POST['options'] ?? null, 'array', []);
 				$criteria = new DevblocksSearchCriteria($field,DevblocksSearchCriteria::OPER_IN,$options);
 				break;
 				
@@ -1995,8 +2034,8 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 		
 		$keys['attach']['type'] = 'links';
 		$keys['attach']['notes'] = 'An array of `type:id` tuples to attach this file to';
-		$keys['content']['notes'] = 'The content of this file. For binary, base64-encode in [data URI format](https://en.wikipedia.org/wiki/Data_URI_scheme)';
-		$keys['mime_type']['notes'] = 'The MIME type of this file (e.g. `image/png`); defaults to `application/octet-stream`';
+		$keys['content']['notes'] = 'The optional content of this file. For binary, base64-encode in [data URI format](https://en.wikipedia.org/wiki/Data_URI_scheme). For `application/vnd.cerb.uri` this should be a URI like `cerb:automation_resource:3ed620aa-a4b5-11ec-89ea-6b1bb00ef554`';
+		$keys['mime_type']['notes'] = 'The MIME type of this file (e.g. `image/png`); defaults to `application/octet-stream`. Can be `application/vnd.cerb.uri` for an [automation resource](/docs/records/types/automation_resource/) URI in `content`.';
 		$keys['name']['notes'] = 'The filename';
 		
 		$keys['url_download'] = [
@@ -2040,7 +2079,7 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 				$tuple = ltrim($tuple, '-');
 			}
 			
-			@list($context, $id) = explode(':', $tuple, 2);
+			list($context, $id) = array_pad(explode(':', $tuple, 2), 2, null);
 			
 			if(false == ($context_ext = Extension_DevblocksContext::getByAlias($context, false))) {
 				$error = sprintf("has a link with an invalid context (%s)", $tuple);
@@ -2089,7 +2128,7 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 		switch($token) {
 			default:
 				if($token === 'on' || false != ($on_prefix = DevblocksPlatform::strStartsWith($token, ['on.','on:']))) {
-					@list($record_identifier, $record_expands) = explode(':', $token);
+					list($record_identifier, $record_expands) = array_pad(explode(':', $token), 2, null);
 					
 					if(false == ($record_alias = DevblocksPlatform::services()->string()->strAfter($record_identifier, '.'))) {
 						if(false != ($links = $this->_lazyLoadAttach($context_id,$record_expands)) && is_array($links))
@@ -2138,7 +2177,7 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 				]);
 			}
 			
-			@$record_expands = $context_expands[$result_context] ?: $context_expands['*'];
+			$record_expands = ($context_expands[$result_context] ?? null) ?: $context_expands['*'] ?? null;
 			
 			if($record_expands) {
 				foreach(DevblocksPlatform::parseCsvString($record_expands) as $expand_key) {

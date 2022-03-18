@@ -393,7 +393,13 @@ class _DevblocksAutomationService {
 			return false;
 		
 		$started_at = microtime(true) * 1000;
-		$time_limit_ms = $automation->getPolicy()->getTimeoutMs();
+		
+		if(null == ($policy = $automation->getPolicy())) {
+			$error = 'Invalid automation policy';
+			return false;
+		}
+		
+		$time_limit_ms = $policy->getTimeoutMs();
 		$elapsed_ms = 0;
 		$is_timed_out = false;
 		
@@ -480,8 +486,8 @@ class _DevblocksAutomationService {
 	}
 	
 	private function _getNodeFromType($type) {
-		@list($name,) = explode('/', $type, 2); // remove aliases
-		@list($name,) = explode('@', $name, 2); // remove annotations
+		list($name,) = array_pad(explode('/', $type, 2), 2, null); // remove aliases
+		list($name,) = array_pad(explode('@', $name, 2), 2, null); // remove annotations
 		
 		return $name;
 	}
@@ -827,8 +833,8 @@ class CerbAutomationPolicy {
 					continue;
 				
 				foreach($rules as $rule_key => $rule_data) {
-					@list($rule_type, $rule_annotations) = explode('@', $rule_key, 2);
-					@list($rule_type, $rule_id) = explode('/', $rule_type, 2);
+					list($rule_type, $rule_annotations) = array_pad(explode('@', $rule_key, 2), 2, null);
+					list($rule_type, $rule_id) = array_pad(explode('/', $rule_type, 2), 2, null);
 					
 					$rule_type = DevblocksPlatform::strLower($rule_type);
 					
@@ -856,8 +862,8 @@ class CerbAutomationPolicy {
 					continue;
 				
 				foreach($rules as $rule_key => $rule_data) {
-					@list($rule_type, $rule_annotations) = explode('@', $rule_key, 2);
-					@list($rule_type, $rule_id) = explode('/', $rule_type, 2);
+					list($rule_type, $rule_annotations) = array_pad(explode('@', $rule_key, 2), 2, null);
+					list($rule_type, $rule_id) = array_pad(explode('/', $rule_type, 2), 2, null);
 					
 					$rule_type = DevblocksPlatform::strLower($rule_type);
 					
