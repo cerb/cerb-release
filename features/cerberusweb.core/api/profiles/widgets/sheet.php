@@ -49,7 +49,7 @@ class ProfileWidget_Sheet extends Extension_ProfileWidget {
 			return false;
 		}
 		
-		if(false === ($results = $data->executeQuery($query, [], $error, $cache_secs)))
+		if(false === ($results = $data->executeQuery($query, $dict->getDictionary(), $error, $cache_secs)))
 			return false;
 		
 		return $results;
@@ -84,7 +84,9 @@ class ProfileWidget_Sheet extends Extension_ProfileWidget {
 				$sheets = DevblocksPlatform::services()->sheet();
 				
 				$sheet_kata = DevblocksPlatform::importGPC($model->extension_params['sheet_kata'] ?? null, 'string', null);
-				$sheet = $sheets->parse($sheet_kata, $error);
+				
+				if(false == ($sheet = $sheets->parse($sheet_kata, $error)))
+					return;
 				
 				$sheets->addType('card', $sheets->types()->card());
 				$sheets->addType('date', $sheets->types()->date());

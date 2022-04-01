@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2022031701);
-define("APP_VERSION", '10.2.2');
+define("APP_BUILD", 2022040101);
+define("APP_VERSION", '10.2.3');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -293,8 +293,7 @@ class CerberusApplication extends DevblocksApplication {
 		// Requirements
 
 		// PHP Version
-		if(version_compare(PHP_VERSION,"7.4") >=0) {
-		} else {
+		if(version_compare(PHP_VERSION,"7.4") < 0) {
 			$errors[] = sprintf("Cerb %s requires PHP 7.4 or later. Your server PHP version is %s",
 				APP_VERSION,
 				PHP_VERSION
@@ -302,9 +301,8 @@ class CerberusApplication extends DevblocksApplication {
 		}
 
 		// Mailparse version
-		if(version_compare(phpversion('mailparse'),"3.0.2") >=0) {
-		} else {
-			$errors[] = sprintf("Cerb %s requires mailparse 3.0.2 or later. Your mailparse extension version is %s",
+		if(version_compare(phpversion('mailparse'),"3.1.3") < 0) {
+			$errors[] = sprintf("Cerb %s requires mailparse 3.1.3 or later. Your mailparse extension version is %s",
 				APP_VERSION,
 				phpversion('mailparse')
 			);
@@ -312,15 +310,13 @@ class CerberusApplication extends DevblocksApplication {
 
 		// File Uploads
 		$ini_file_uploads = ini_get("file_uploads");
-		if($ini_file_uploads == 1 || strcasecmp($ini_file_uploads,"on")==0) {
-		} else {
+		if(!($ini_file_uploads == 1 || strcasecmp($ini_file_uploads,"on")==0)) {
 			$errors[] = 'file_uploads is disabled in your php.ini file. Please enable it.';
 		}
 
 		// Memory Limit
 		$memory_limit = ini_get("memory_limit");
-		if ($memory_limit == '' || $memory_limit == -1) { // empty string means failure or not defined, assume no compiled memory limits
-		} else {
+		if(!($memory_limit == '' || $memory_limit == -1)) { // empty string means failure or not defined, assume no compiled memory limits
 			$ini_memory_limit = DevblocksPlatform::parseBytesString($memory_limit);
 			if($ini_memory_limit < 16777216) {
 				$errors[] = 'memory_limit must be 16M or larger (32M recommended) in your php.ini file.  Please increase it.';
@@ -328,102 +324,104 @@ class CerberusApplication extends DevblocksApplication {
 		}
 
 		// Extension: MySQLi
-		if(extension_loaded("mysqli")) {
-		} else {
+		if(!extension_loaded("mysqli")) {
 			$errors[] = "The 'mysqli' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: MySQLnd
-		if(extension_loaded("mysqlnd")) {
-		} else {
+		if(!extension_loaded("mysqlnd")) {
 			$errors[] = "The 'mysqlnd' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: Sessions
-		if(extension_loaded("session")) {
-		} else {
+		if(!extension_loaded("session")) {
 			$errors[] = "The 'Session' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: cURL
-		if(extension_loaded("curl")) {
-		} else {
+		if(!extension_loaded("curl")) {
 			$errors[] = "The 'cURL' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: PCRE
-		if(extension_loaded("pcre")) {
-		} else {
+		if(!extension_loaded("pcre")) {
 			$errors[] = "The 'PCRE' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: GD
-		if(extension_loaded("gd") && function_exists('imagettfbbox')) {
-		} else {
+		if(!extension_loaded("gd") && function_exists('imagettfbbox')) {
 			$errors[] = "The 'GD' PHP extension (with FreeType library support) is required.  Please enable them.";
 		}
 
 		// Extension: MailParse
-		if(extension_loaded("mailparse")) {
-		} else {
+		if(!extension_loaded("mailparse")) {
 			$errors[] = "The 'MailParse' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: mbstring
-		if(extension_loaded("mbstring")) {
-		} else {
+		if(!extension_loaded("mbstring")) {
 			$errors[] = "The 'mbstring' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: XML
-		if(extension_loaded("xml")) {
-		} else {
+		if(!extension_loaded("xml")) {
 			$errors[] = "The 'XML' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: SimpleXML
-		if(extension_loaded("simplexml")) {
-		} else {
+		if(!extension_loaded("simplexml")) {
 			$errors[] = "The 'SimpleXML' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: DOM
-		if(extension_loaded("dom")) {
-		} else {
+		if(!extension_loaded("dom")) {
 			$errors[] = "The 'DOM' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: SPL
-		if(extension_loaded("spl")) {
-		} else {
+		if(!extension_loaded("spl")) {
 			$errors[] = "The 'SPL' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: ctype
-		if(extension_loaded("ctype")) {
-		} else {
+		if(!extension_loaded("ctype")) {
 			$errors[] = "The 'ctype' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: JSON
-		if(extension_loaded("json")) {
-		} else {
+		if(!extension_loaded("json")) {
 			$errors[] = "The 'JSON' PHP extension is required.  Please enable it.";
 		}
 
 		// Extension: OpenSSL
-		if(extension_loaded("openssl")) {
-		} else {
+		if(!extension_loaded("openssl")) {
 			$errors[] = "The 'openssl' PHP extension is required.  Please enable it.";
 		}
 		
 		// Extension: YAML
-		if(extension_loaded("yaml")) {
-		} else {
+		if(!extension_loaded("yaml")) {
 			$errors[] = "The 'yaml' PHP extension is required.  Please enable it.";
 		}
 
 		return $errors;
+	}
+	
+	public static function respondNotFound() {
+		$tpl = DevblocksPlatform::services()->template();
+		$settings = DevblocksPlatform::services()->pluginSettings();
+		$translate = DevblocksPlatform::getTranslationService();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		$tpl->assign('settings', $settings);
+		$tpl->assign('session', $_SESSION ?? []);
+		$tpl->assign('translate', $translate);
+		
+		if($active_worker) {
+			$tpl->assign('pref_dark_mode', DAO_WorkerPref::get($active_worker->id, 'dark_mode', 0));
+		}
+		
+		$message = $tpl->fetch('devblocks:cerberusweb.core::404_page.tpl');
+		DevblocksPlatform::dieWithHttpErrorHtml($message, 404);
 	}
 	
 	static function kataSchemas() : _CerbApplication_KataSchemas {
@@ -1990,6 +1988,10 @@ class CerberusContexts {
 	}
 
 	static public function logActivity($activity_point, $target_context, $target_context_id, &$entry_array, $actor_context=null, $actor_context_id=null, $also_notify_worker_ids=[], $also_notify_ignore_self=false) {
+		$activity_point = strval($activity_point);
+		$target_context = strval($target_context);
+		$target_context_id = intval($target_context_id);
+		
 		if(null != ($target_ctx = Extension_DevblocksContext::get($target_context))
 			&& $target_ctx instanceof Extension_DevblocksContext) {
 				$target_meta = $target_ctx->getMeta($target_context_id);
@@ -2201,7 +2203,6 @@ class CerberusContexts {
 
 		if(!empty($load_ids)) {
 			$models = CerberusContexts::getModels($context, $load_ids);
-			$custom_fields = DAO_CustomField::getByContext($context);
 			$values = DAO_CustomFieldValue::getValuesByContextIds($context, $load_ids);
 
 			foreach($models as $model_id => $model) {
@@ -2210,17 +2211,11 @@ class CerberusContexts {
 				// `custom_` keys
 				$model->custom_fields = $custom_field_values;
 				
-				// Custom field URI keys
-				$model->customfields = array_combine(
-					array_map(fn($k) => $custom_fields[$k]->uri ?? $k, array_keys($custom_field_values)),
-					$custom_field_values
-				);
-				
 				// Actor
 				$model->_actor = $actor;
 
 				self::$_context_checkpoints[$context][$model_id] =
-					json_decode(json_encode($model), true);
+					DevblocksPlatform::objectToArray($model);
 			}
 		}
 	}
@@ -2281,16 +2276,15 @@ class CerberusContexts {
 						$dict_new = DevblocksDictionaryDelegate::getDictionaryFromModel($new_model, $context);
 						$dict_old = DevblocksDictionaryDelegate::getDictionaryFromModel($old_model, $context);
 						
-						$initial_state = array_merge(
-							$dict_new->getDictionary(null, false, 'record_'),
-							$dict_old->getDictionary(null, false, 'was_record_')
-						);
+						$dict = DevblocksDictionaryDelegate::instance([
+							'is_new' => self::_wasJustCreated($context, $context_id),
+							'actor__context' => $actor['context'],
+							'actor_id' => $actor['context_id'],
+						]);
+						$dict->mergeKeys('record_', $dict_new->getDictionary('', false));
+						$dict->mergeKeys('was_record_', $dict_old->getDictionary('', false));
 						
-						$initial_state['is_new'] = self::_wasJustCreated($context, $context_id);
-						$initial_state['actor__context'] = $actor['context'];
-						$initial_state['actor_id'] = $actor['context_id'];
-						
-						$dict = DevblocksDictionaryDelegate::instance($initial_state);
+						$initial_state = $dict->getDictionary();
 						
 						$error = null;
 						
@@ -2631,7 +2625,7 @@ class Context_Application extends Extension_DevblocksContext implements IDevbloc
 
 		switch($token) {
 			default:
-				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$defaults = $this->_lazyLoadDefaults($token, $dictionary);
 				$values = array_merge($values, $defaults);
 				break;
 		}

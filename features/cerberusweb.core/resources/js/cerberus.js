@@ -1832,6 +1832,7 @@ var ajax = new cAjaxCalls();
 					{ value: "raw", meta: "filter" },
 					{ value: "reduce(func,initial)", snippet: "reduce((carry,v) => carry + v)", meta: "filter" },
 					{ value: "regexp", meta: "filter" },
+					{ value: "repeat", meta: "filter" },
 					{ value: "replace('this', 'that')", meta: "filter" },
 					{ value: "reverse", meta: "filter" },
 					{ value: "round(0, 'common')", meta: "filter" },
@@ -2965,6 +2966,7 @@ var ajax = new cAjaxCalls();
 					{ value: "raw", meta: "filter" },
 					{ value: "reduce(func,initial)", snippet: "reduce((carry,v) => carry + v)", meta: "filter" },
 					{ value: "regexp", meta: "filter" },
+					{ value: "repeat", meta: "filter" },
 					{ value: "replace('this', 'that')", meta: "filter" },
 					{ value: "reverse", meta: "filter" },
 					{ value: "round(0, 'common')", meta: "filter" },
@@ -5530,7 +5532,7 @@ var ajax = new cAjaxCalls();
 			// Add remove icons with events
 			$ul.find('li').each(function() {
 				var $li = $(this);
-				var $close = $('<span class="glyphicons glyphicons-circle-remove"></span>').appendTo($li);
+				$('<span class="glyphicons glyphicons-circle-remove"></span>').appendTo($li);
 			});
 			
 			// Abstractly create new bubbles
@@ -5557,11 +5559,11 @@ var ajax = new cAjaxCalls();
 							;
 						
 						if(icon_url && icon_url.length > 0) {
-							var $img = $('<img class="cerb-avatar">').attr('src',icon_url).prependTo($li);
+							$('<img class="cerb-avatar">').attr('src',icon_url).prependTo($li);
 						}
 						
 						$('<input type="hidden">').attr('name', field_name).attr('title', $label).attr('value', $value).appendTo($li);
-						var $a = $('<span class="glyphicons glyphicons-circle-remove"></span>').appendTo($li);
+						$('<span class="glyphicons glyphicons-circle-remove"></span>').appendTo($li);
 						$ul.append($li);
 					}
 				}
@@ -5612,7 +5614,7 @@ var ajax = new cAjaxCalls();
 					
 					$trigger.on('cerb-chooser-saved', function() {
 						// If we have zero bubbles, show autocomplete
-						if(0 === $ul.find('>li')) {
+						if(0 === $ul.find('>li').length) {
 							$button.show();
 						} else { // otherwise, hide it.
 							$button.hide();

@@ -287,7 +287,6 @@ class UmScApp extends Extension_CommunityPortal {
 				imagejpeg($im,null,85);
 				imagedestroy($im);
 				exit;
-				break;
 			
 			case 'captcha.check':
 				$entered = DevblocksPlatform::importGPC($_REQUEST['captcha'],'string','');
@@ -300,8 +299,6 @@ class UmScApp extends Extension_CommunityPortal {
 				
 				echo 'false';
 				exit;
-				
-				break;
 			
 			default:
 				// Build the menu
@@ -336,7 +333,11 @@ class UmScApp extends Extension_CommunityPortal {
 				$tpl->assign('module', $controller);
 				$tpl->assign('module_response', new DevblocksHttpResponse($stack));
 				
-				$tpl->display('devblocks:cerberusweb.support_center:portal_' . ChPortalHelper::getCode() . ':support_center/index.tpl');
+				try {
+					$tpl->display('devblocks:cerberusweb.support_center:portal_' . ChPortalHelper::getCode() . ':support_center/index.tpl');
+				} catch (Exception $e) {
+					DevblocksPlatform::logError($e->getMessage());
+				}
 				break;
 		}
 	}
@@ -585,15 +586,22 @@ class UmScApp extends Extension_CommunityPortal {
 		$tpl->assign('view_id', $view_id);
 		
 		if(false == ($portal = DAO_CommunityTool::get($portal_id)))
-			return;
+			DevblocksPlatform::dieWithHttpError(null, 404);
 		
 		if(!Context_CommunityTool::isWriteableByActor($portal, $active_worker))
-			return;
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		// Pull from filesystem for editing
 		$content = '';
 		if(null != ($plugin = DevblocksPlatform::getPlugin($plugin_id))) {
-			$path = $plugin->getStoragePath() . '/templates/' . $template_path;
+			$basepath = $plugin->getStoragePath() . '/templates/';
+		
+			if(false == ($path = realpath($plugin->getStoragePath() . '/templates/' . $template_path)))
+				DevblocksPlatform::dieWithHttpError(null, 403);
+			
+			if(!DevblocksPlatform::strStartsWith($path, $basepath))
+				DevblocksPlatform::dieWithHttpError(null, 403);
+			
 			if(file_exists($path)) {
 				$content = file_get_contents($path);
 			}

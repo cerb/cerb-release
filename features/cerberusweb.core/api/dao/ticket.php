@@ -4113,6 +4113,12 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 	private function _sortByBucketOrder($a, $b) {
 		$buckets = DAO_Bucket::getAll();
 		
+		if(!array_key_exists($a, $buckets))
+			return 1;
+		
+		if(!array_key_exists($b, $buckets))
+			return -1;
+		
 		if($buckets[$a]->is_default)
 			return -1;
 		
@@ -5624,7 +5630,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 				break;
 				
 			default:
-				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$defaults = $this->_lazyLoadDefaults($token, $dictionary);
 				$values = array_merge($values, $defaults);
 				break;
 		}

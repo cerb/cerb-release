@@ -88,13 +88,15 @@ class Page_Custom extends CerberusPageExtension {
 		
 		if($inst instanceof Extension_PageSection) {
 			if(false === ($inst->handleActionForPage($action, 'pageAction'))) {
-				trigger_error(
-					sprintf('Call to undefined page action `%s::%s`',
-						get_class($inst),
-						$action
-					),
-					E_USER_NOTICE
-				);
+				if(!DEVELOPMENT_MODE_SECURITY_SCAN) {
+					trigger_error(
+						sprintf('Call to undefined page action `%s::%s`',
+							get_class($inst),
+							$action
+						),
+						E_USER_NOTICE
+					);
+				}
 				DevblocksPlatform::dieWithHttpError(null, 404);
 			}
 		}
@@ -117,14 +119,16 @@ class Page_Custom extends CerberusPageExtension {
 		
 		if($extension instanceof Extension_WorkspaceWidget) {
 			if(false === ($extension->invoke($action, $workspace_widget))) {
-				trigger_error(
-					sprintf('Call to undefined workspace widget action `%s::%s`',
-						get_class($extension),
-						$action
-					),
-					E_USER_NOTICE
-				);
-				DevblocksPlatform::dieWithHttpError(null, 404);
+				if(!DEVELOPMENT_MODE_SECURITY_SCAN) {
+					trigger_error(
+						sprintf('Call to undefined workspace widget action `%s::%s`',
+							get_class($extension),
+							$action
+						),
+						E_USER_NOTICE
+					);
+					DevblocksPlatform::dieWithHttpError(null, 404);
+				}
 			}
 		}
 	}
@@ -320,8 +324,7 @@ class Page_Custom extends CerberusPageExtension {
 		$active_worker = CerberusApplication::getActiveWorker();
 
 		$tab_id = DevblocksPlatform::importGPC($_REQUEST['id'] ?? null, 'integer', 0);
-		$request = DevblocksPlatform::importGPC($_REQUEST['request'] ?? null, 'string', '');
-
+		
 		if(null == ($tab = DAO_WorkspaceTab::get($tab_id)))
 			DevblocksPlatform::dieWithHttpError(null, 404);
 		
@@ -333,7 +336,6 @@ class Page_Custom extends CerberusPageExtension {
 		
 		$tpl->assign('page', $page);
 		$tpl->assign('tab', $tab);
-		$tpl->assign('request', $request);
 
 		if(null != ($tab_extension = $tab->getExtension())) {
 			$tab_extension->renderTab($page, $tab);

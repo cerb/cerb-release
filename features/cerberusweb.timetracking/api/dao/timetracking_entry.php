@@ -1534,7 +1534,7 @@ class Context_TimeTracking extends Extension_DevblocksContext implements IDevblo
 		
 		switch($token) {
 			default:
-				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$defaults = $this->_lazyLoadDefaults($token, $dictionary);
 				$values = array_merge($values, $defaults);
 				break;
 		}
@@ -1638,8 +1638,8 @@ class Context_TimeTracking extends Extension_DevblocksContext implements IDevblo
 				
 				// If we're linking a context during creation
 				
-				@$link_context = DevblocksPlatform::strLower($_SESSION['timetracking_context']);
-				@$link_context_id = intval($_SESSION['timetracking_context_id']);
+				$link_context = DevblocksPlatform::strLower($_SESSION['timetracking_context'] ?? null);
+				$link_context_id = intval($_SESSION['timetracking_context_id'] ?? null);
 				
 				/* If the session was empty, don't set these since they may have been
 				 * previously set by the abstract context peek code.

@@ -38,7 +38,11 @@ class Page_Profiles extends CerberusPageExtension {
 			$section_uri = 'worker';
 		
 		// Subpage
-		$subpage = Extension_PageSection::getExtensionByPageUri($this->manifest->id, $section_uri, true);
+		if(null == ($subpage = Extension_PageSection::getExtensionByPageUri($this->manifest->id, $section_uri, true))) {
+			$tpl->display('devblocks:cerberusweb.core::404.tpl');
+			DevblocksPlatform::dieWithHttpError(null, 404);
+		}
+		
 		$tpl->assign('subpage', $subpage);
 		
 		$tpl->display('devblocks:cerberusweb.core::profiles/index.tpl');
@@ -293,13 +297,15 @@ class Page_Profiles extends CerberusPageExtension {
 		
 		if($inst instanceof Extension_PageSection) {
 			if(false === ($inst->handleActionForPage($action, 'profileAction'))) {
-				trigger_error(
-					sprintf('Call to undefined profile action `%s::%s`',
-						get_class($inst),
-						$action
-					),
-					E_USER_NOTICE
-				);
+				if(!DEVELOPMENT_MODE_SECURITY_SCAN) {
+					trigger_error(
+						sprintf('Call to undefined profile action `%s::%s`',
+							get_class($inst),
+							$action
+						),
+						E_USER_NOTICE
+					);
+				}
 				DevblocksPlatform::dieWithHttpError(null, 404);
 			}
 		}
@@ -403,6 +409,9 @@ class Page_Profiles extends CerberusPageExtension {
 		$context = DevblocksPlatform::importGPC($_REQUEST['context'] ?? null,'string','');
 		$context_id = DevblocksPlatform::importGPC($_REQUEST['context_id'] ?? null, 'integer',0);
 		
+		if(null == Extension_DevblocksContext::get($context))
+			DevblocksPlatform::dieWithHttpError(null, 404);
+		
 		if(false == ($profile_tab = DAO_ProfileTab::get($tab_id)))
 			return;
 		
@@ -432,13 +441,15 @@ class Page_Profiles extends CerberusPageExtension {
 		
 		if($extension instanceof Extension_ProfileTab) {
 			if(false === ($extension->invoke($action, $profile_tab))) {
-				trigger_error(
-					sprintf('Call to undefined profile tab action `%s::%s`',
-						get_class($extension),
-						$action
-					),
-					E_USER_NOTICE
-				);
+				if(!DEVELOPMENT_MODE_SECURITY_SCAN) {
+					trigger_error(
+						sprintf('Call to undefined profile tab action `%s::%s`',
+							get_class($extension),
+							$action
+						),
+						E_USER_NOTICE
+					);
+				}
 			}
 		}
 	}
@@ -460,13 +471,15 @@ class Page_Profiles extends CerberusPageExtension {
 		
 		if($extension instanceof Extension_ProfileWidget) {
 			if(false === ($extension->invoke($action, $profile_widget))) {
-				trigger_error(
-					sprintf('Call to undefined profile widget action `%s::%s`',
-						get_class($extension),
-						$action
-					),
-					E_USER_NOTICE
-				);
+				if(!DEVELOPMENT_MODE_SECURITY_SCAN) {
+					trigger_error(
+						sprintf('Call to undefined profile widget action `%s::%s`',
+							get_class($extension),
+							$action
+						),
+						E_USER_NOTICE
+					);
+				}
 			}
 		}
 	}
@@ -714,7 +727,7 @@ class ProfileTab_Dashboard extends Extension_ProfileTab {
 		$zones = DevblocksPlatform::importGPC($_POST['zones'] ?? null, 'array', []);
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(403);
+			DevblocksPlatform::dieWithHttpError(null, 403);
 		
 		if(!$active_worker->is_superuser)
 			DevblocksPlatform::dieWithHttpError(null, 403);

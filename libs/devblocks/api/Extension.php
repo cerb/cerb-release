@@ -534,9 +534,9 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	 * @internal
 	 * 
 	 * @param string $context
-	 * @return Extension_DevblocksContext
+	 * @return Extension_DevblocksContext|false
 	 */
-	public static function get($context, $as_instance=true) {
+	public static function get(string $context, $as_instance=true) {
 		static $_cache = [];
 		
 		if($as_instance && isset($_cache[$context]))
@@ -1150,6 +1150,11 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 			);
 		}
 		
+		$view_id = DevblocksPlatform::strTruncate(
+			DevblocksPlatform::strAlphaNum($view_id, '_', '_'),
+			255
+		);
+		
 		if(null == ($view = C4_AbstractViewLoader::getView($view_id))) {
 			if(null == ($view = $this->getChooserView($view_id))) /* @var $view C4_AbstractViewModel */
 				return;
@@ -1586,7 +1591,8 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 				$token_values['_context'],
 				$token_values['id'],
 				false,
-				$custom_fields
+				$custom_fields,
+				$token_values
 			);
 			
 			// Also write URIs
@@ -1595,7 +1601,8 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 				$token_values['_context'],
 				$token_values['id'],
 				true,
-				$custom_fields
+				$custom_fields,
+				$token_values
 			);
 			
 			$token_values = array_merge($token_values, $custom_values);
@@ -1605,18 +1612,27 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		return $token_values;
 	}
 	
-	protected function _lazyLoadDefaults($token, $context, $context_id) {
+	protected function _lazyLoadDefaults($token, array $dictionary=[]) {
 		if(!$token)
 			return [];
 		
-		$context_ext = Extension_DevblocksContext::get($context, true);
+		$context = $dictionary['_context'] ?? null;
+		$context_id = $dictionary['id'] ?? null;
+		
+		if(!$context || !$context_id)
+			return [];
+		
+		if(false == ($context_ext = Extension_DevblocksContext::getByAlias($context, true)))
+			return [];
+		
+		$context = $context_ext->id;
 		
 		if('customfields' == $token && $context_ext->hasOption('custom_fields')) {
-			return $this->_lazyLoadCustomFields($token, $context, $context_id, true);
+			return $this->_lazyLoadCustomFields($token, $context, $context_id, true, null, $dictionary);
 			
 		// @deprecated
 		} else if(('custom' == $token || DevblocksPlatform::strStartsWith($token, 'custom_')) && $context_ext->hasOption('custom_fields')) {
-			return $this->_lazyLoadCustomFields($token, $context, $context_id, false);
+			return $this->_lazyLoadCustomFields($token, $context, $context_id, false, null, $dictionary);
 		
 		} else if(($token === 'links' || DevblocksPlatform::strStartsWith($token, ['links.','links:','links~'])) && $context_ext->hasOption('links')) {
 			return $this->_lazyLoadLinks($token, $context, $context_id);
@@ -1633,36 +1649,29 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 			return $this->_lazyLoadAttachments($token, $context, $context_id);
 		}
 		
-		// Is the key a custom field URI for this record type
-		$custom_field_uris = array_column(DAO_CustomField::getByContext($context), 'id', 'uri');
-		
-		// If we directly matched a custom field URI, load custom fields
-		if(array_key_exists($token, $custom_field_uris)) {
-			return $this->_lazyLoadCustomFields($token, $context, $context_id, true);
+		if(!array_key_exists('customfields', $dictionary)) {
+			// Is the key a custom field URI for this record type
+			$custom_field_uris = array_column(DAO_CustomField::getByContext($context), 'id', 'uri');
 			
-		} else {
-			// Is the 
-			$prefixes = array_keys($custom_field_uris);
-			
-			// Longest prefixes first
-			usort($prefixes, function($a, $b) {
-				$len_a = strlen($a);
-				$len_b = strlen($b);
+			// If we directly matched a custom field URI, load custom fields
+			if(array_key_exists($token, $custom_field_uris)) {
+				return $this->_lazyLoadCustomFields($token, $context, $context_id, true, null, $dictionary);
 				
-				if($len_a == $len_b)
-					return 0;
+			} else {
+				$prefixes = array_keys($custom_field_uris);
 				
-				return ($len_a > $len_b) ? -1 : 1;
-			});
-			
-			$prefix = DevblocksPlatform::strStartsWith(
-				$token,
-				array_map(fn($k) => $k . '_', $prefixes)
-			);
-			
-			// If we matched a custom field prefix, load custom fields
-			if($prefix)
-				return $this->_lazyLoadCustomFields($token, $context, $context_id, true);
+				// Longest prefixes first
+				usort($prefixes, fn($a, $b) => strlen($a) <=> strlen($b));
+				
+				$prefix = DevblocksPlatform::strStartsWith(
+					$token,
+					array_map(fn($k) => $k . '_', $prefixes)
+				);
+				
+				// If we matched a custom field prefix, load custom fields
+				if($prefix)
+					return $this->_lazyLoadCustomFields($token, $context, $context_id, true, null, $dictionary);
+			}
 		}
 		
 		return [];
@@ -1831,7 +1840,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	/**
 	 * @internal
 	 */
-	protected function _lazyLoadCustomFields($token, $context, $context_id, $as_keys=true, $field_values=null) {
+	protected function _lazyLoadCustomFields($token, $context, $context_id, $as_keys=true, $field_values=null, array $dictionary=[]) {
 		$fields = DAO_CustomField::getByContext($context);
 		$token_values = [];
 		
@@ -1867,6 +1876,10 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 			if(!$as_keys) {
 				$token_values['custom'][$cf_id] = '';
 			}
+			
+			// If we already had a value for this key, keep it
+			if(array_key_exists($key_prefix, $dictionary))
+				$field_values[$cf_id] = $dictionary[$key_prefix];
 			
 			$token_values[$key_prefix] = '';
 			
@@ -1908,7 +1921,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 
 					if(!isset($token_values[$token])) {
 						$dict = new DevblocksDictionaryDelegate($token_values);
-						$dict->$token;
+						$dict->get($token);
 						$token_values = $dict->getDictionary();
 					}
 					break;
@@ -1919,7 +1932,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 
 					if(!isset($token_values[$token])) {
 						$dict = new DevblocksDictionaryDelegate($token_values);
-						$dict->$token;
+						$dict->get($token);
 						$token_values = $dict->getDictionary();
 					}
 					break;

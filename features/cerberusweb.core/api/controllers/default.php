@@ -38,16 +38,12 @@ class Controller_Default extends DevblocksControllerExtension {
 			}
 		}
 		
-		@$action = array_shift($path);
+		$action = array_shift($path);
 		
-		if(!is_null($action))
-		switch($action) {
-			default:
-				if($page->isVisible()) {
-					if(false == ($page->invoke($action))) {
-					}
-				}
-				break;
+		if(!is_null($action)) {
+			if($page->isVisible()) {
+				$page->invoke($action);
+			}
 		}
 	}
 	
@@ -69,7 +65,7 @@ class Controller_Default extends DevblocksControllerExtension {
 		if(empty($controller)) {
 			if(is_a($active_worker, 'Model_Worker')) {
 				$controller = 'pages';
-				$path = array('pages');
+				$path = ['pages'];
 				
 				// Find the worker's first page
 				
@@ -112,12 +108,17 @@ class Controller_Default extends DevblocksControllerExtension {
 		
 		if(empty($page)) {
 			$tpl->assign('settings', $settings);
-			$tpl->assign('session', $_SESSION);
+			$tpl->assign('session', $_SESSION ?? []);
 			$tpl->assign('translate', $translate);
 			$tpl->assign('visit', $visit);
-			$message = $tpl->fetch('devblocks:cerberusweb.core::404.tpl');
 			
-			DevblocksPlatform::dieWithHttpError($message, 404);
+			if($active_worker) {
+				$tpl->assign('pref_dark_mode', DAO_WorkerPref::get($active_worker->id, 'dark_mode', 0));
+			}
+				
+			$message = $tpl->fetch('devblocks:cerberusweb.core::404_page.tpl');
+			
+			DevblocksPlatform::dieWithHttpErrorHtml($message, 404);
 			return;
 		}
 		

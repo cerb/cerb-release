@@ -262,7 +262,7 @@ class DAO_ClassifierClass extends Cerb_ORMHelper {
 			$object->dictionary_size = $row['dictionary_size'];
 			$object->training_count = $row['training_count'];
 			
-			@$slots_json = json_decode($row['slots_json']);
+			$slots_json = json_decode($row['slots_json'] ?? '');
 			$object->attribs = is_array($slots_json) ? $slots_json : [];
 			
 			$objects[$object->id] = $object;
@@ -1109,7 +1109,7 @@ class Context_ClassifierClass extends Extension_DevblocksContext implements IDev
 		
 		switch($token) {
 			default:
-				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$defaults = $this->_lazyLoadDefaults($token, $dictionary);
 				$values = array_merge($values, $defaults);
 				break;
 		}

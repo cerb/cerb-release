@@ -134,7 +134,6 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 							'view_id' => $view_id,
 						]);
 						return;
-						break;
 						
 					case 'build':
 						$name = DevblocksPlatform::importGPC($_POST['name'] ?? null, 'string', '');
@@ -194,7 +193,6 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 							'view_id' => $view_id,
 						));
 						return;
-						break;
 				}
 			}
 			
@@ -223,11 +221,24 @@ class PageSection_ProfilesProjectBoard extends Extension_PageSection {
 		$from_column_id = DevblocksPlatform::importGPC($_POST['from'] ?? null, 'integer',0);
 		$to_column_id = DevblocksPlatform::importGPC($_POST['to'] ?? null, 'integer',0);
 		
+ 		$active_worker = CerberusApplication::getActiveWorker();
+		
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		$active_worker = CerberusApplication::getActiveWorker();
+		// Make sure the context exists is legitimate
+		if(false == ($card_context_ext = Extension_DevblocksContext::get($card_context)))
+			return;
 		
+		// Make sure the card record exists
+		if(false == $card_context_ext->getModelObject($card_id))
+			return;
+		
+		// Make sure the source column exists
+		if(false == (DAO_ProjectBoardColumn::get($from_column_id)))
+			return;
+		
+		// Make sure the destination column exists
 		if(false == ($to_column = DAO_ProjectBoardColumn::get($to_column_id)))
 			return;
 		

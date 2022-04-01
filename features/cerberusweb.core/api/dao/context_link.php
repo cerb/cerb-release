@@ -524,8 +524,11 @@ class DAO_ContextLink extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		$ext_src_context = Extension_DevblocksContext::get($src_context);
-		$ext_dst_context = Extension_DevblocksContext::get($dst_context);
+		if(false == ($ext_src_context = Extension_DevblocksContext::get($src_context)))
+			return false;
+		
+		if(false == ($ext_dst_context = Extension_DevblocksContext::get($dst_context)))
+			return false;
 		
 		if(false == $src_context_meta)
 			@$src_context_meta = $ext_src_context->getMeta($src_context_id);
@@ -579,7 +582,7 @@ class DAO_ContextLink extends Cerb_ORMHelper {
 					'message' => 'activities.watcher.unfollow',
 					'variables' => array(
 						'target_object' => mb_convert_case($ext_src_context->manifest->name, MB_CASE_LOWER),
-						'target' => $src_context_meta['name'],
+						'target' => $src_context_meta['name'] ?? '',
 						),
 					'urls' => array(
 						'target' => sprintf("ctx://%s:%d", $src_context, $src_context_id),
@@ -595,7 +598,7 @@ class DAO_ContextLink extends Cerb_ORMHelper {
 					'variables' => array(
 						'watcher' => $watcher_worker->getName(),
 						'target_object' => mb_convert_case($ext_src_context->manifest->name, MB_CASE_LOWER),
-						'target' => $src_context_meta['name'],
+						'target' => $src_context_meta['name'] ?? '',
 						),
 					'urls' => array(
 						'target' => sprintf("ctx://%s:%d", $src_context, $src_context_id),
@@ -612,9 +615,9 @@ class DAO_ContextLink extends Cerb_ORMHelper {
 				'message' => 'activities.connection.unlink',
 				'variables' => array(
 					'target_object' => mb_convert_case($ext_src_context->manifest->name, MB_CASE_LOWER),
-					'target' => $src_context_meta['name'],
+					'target' => $src_context_meta['name'] ?? '',
 					'link_object' => mb_convert_case($ext_dst_context->manifest->name, MB_CASE_LOWER),
-					'link' => $dst_context_meta['name'],
+					'link' => $dst_context_meta['name'] ?? '',
 					),
 				'urls' => array(
 					'target' => sprintf("ctx://%s:%d", $src_context, $src_context_id),
@@ -628,9 +631,9 @@ class DAO_ContextLink extends Cerb_ORMHelper {
 				'message' => 'activities.connection.unlink',
 				'variables' => array(
 					'target_object' => mb_convert_case($ext_dst_context->manifest->name, MB_CASE_LOWER),
-					'target' => $dst_context_meta['name'],
+					'target' => $dst_context_meta['name'] ?? '',
 					'link_object' => mb_convert_case($ext_src_context->manifest->name, MB_CASE_LOWER),
-					'link' => $src_context_meta['name'],
+					'link' => $src_context_meta['name'] ?? '',
 					),
 				'urls' => array(
 					'target' => sprintf("ctx://%s:%d", $dst_context, $dst_context_id),

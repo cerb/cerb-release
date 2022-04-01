@@ -263,7 +263,7 @@ class DAO_Classifier extends Cerb_ORMHelper {
 			$object->updated_at = $row['updated_at'];
 			$object->dictionary_size = $row['dictionary_size'];
 			
-			if(false != ($params_json = json_decode($row['params_json'], true)))
+			if(false != ($params_json = json_decode($row['params_json'] ?? '', true)))
 				$object->params = $params_json;
 			
 			$objects[$object->id] = $object;
@@ -1142,7 +1142,7 @@ class Context_Classifier extends Extension_DevblocksContext implements IDevblock
 		
 		switch($token) {
 			default:
-				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$defaults = $this->_lazyLoadDefaults($token, $dictionary);
 				$values = array_merge($values, $defaults);
 				break;
 		}

@@ -593,6 +593,12 @@ abstract class C4_AbstractView {
 						if(false == (CerbQuickSearchLexer::getOperStringFromTokens($p->tokens, $oper, $value)))
 							break;
 						
+						// Fail on invalid timezones
+						if(!DevblocksPlatform::services()->date()->isValidTimezoneLocation($value)) {
+							$error = sprintf("`%s` is an invalid timezone.", $value);
+							return false;
+						}
+						
 						$params_timezone = $value;
 						
 						unset($fields[$k]);
@@ -1983,7 +1989,7 @@ abstract class C4_AbstractView {
 	}
 
 	function doPage($page) {
-		$this->renderPage = $page;
+		$this->renderPage = intval($page);
 	}
 
 	function doRemoveCriteria($key) {
@@ -2264,6 +2270,9 @@ abstract class C4_AbstractView {
 			];
 			$suggestions['subtotal:'] = $this->getQueryAutocompleteFieldSuggestions(null, true);
 		}
+		
+		// Timezone
+		$suggestions['set.timezone:'] = DevblocksPlatform::services()->date()->getTimezones();
 		
 		// Saved searches
 		
@@ -4005,7 +4014,7 @@ class CerbQuickSearchLexer {
 					break;
 					
 				case 'T_PARENTHETICAL_CLOSE':
-					$start = array_pop($opens);
+					$start = intval(array_pop($opens));
 					$len = key($tokens)-$start+1;
 					$cut = array_splice($tokens, $start, $len, array([]));
 					

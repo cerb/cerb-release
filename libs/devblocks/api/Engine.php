@@ -545,8 +545,17 @@ abstract class DevblocksEngine {
 		$location = "";
 
 		// Read the relative URL into an array
-		if(isset($_SERVER['HTTP_X_REWRITE_URL'])) { // IIS Rewrite
-			$location = $_SERVER['HTTP_X_REWRITE_URL'];
+		if( // Legacy IIS Rewrite
+			APP_OPT_IIS_LEGACY_REWRITE
+			&& isset($_SERVER['HTTP_X_REWRITE_URL'])
+		) {
+			$location = $_SERVER['HTTP_X_REWRITE_URL'];		
+		} elseif( // IIS Rewrite
+			array_key_exists('IIS_WasUrlRewritten', $_SERVER)
+			&& '1' == $_SERVER['IIS_WasUrlRewritten']
+			&& array_key_exists('UNENCODED_URL', $_SERVER)
+		) {
+			$location = $_SERVER['UNENCODED_URL'];
 		} elseif(isset($_SERVER['REQUEST_URI'])) { // Apache + Nginx
 			$location = $_SERVER['REQUEST_URI'];
 		} elseif(isset($_SERVER['REDIRECT_URL'])) { // Apache mod_rewrite (breaks on CGI)
@@ -600,12 +609,10 @@ abstract class DevblocksEngine {
 		}
 
 		// Resource / Proxy
-		switch(current($parts)) {
-			case 'resource':
-				$resource_request = new DevblocksHttpRequest($parts);
-				$controller = new Controller_Resource();
-				$controller->handleRequest($resource_request);
-				break;
+		if('resource' == current($parts)) {
+			$resource_request = new DevblocksHttpRequest($parts);
+			$controller = new Controller_Resource();
+			$controller->handleRequest($resource_request);
 		}
 
 		$method = DevblocksPlatform::strUpper(@$_SERVER['REQUEST_METHOD']);
@@ -635,19 +642,19 @@ abstract class DevblocksEngine {
 		
 		// Security: IP Whitelist
 		
-		if(!in_array($controller_uri, array('sso', 'oauth', 'portal')) && defined('APP_SECURITY_FIREWALL_ALLOWLIST') && !empty(APP_SECURITY_FIREWALL_ALLOWLIST)) {
+		if(!in_array($controller_uri, ['sso', 'oauth', 'portal']) && defined('APP_SECURITY_FIREWALL_ALLOWLIST') && !empty(APP_SECURITY_FIREWALL_ALLOWLIST)) {
 			@$remote_addr = DevblocksPlatform::getClientIp();
 			$valid_ips = DevblocksPlatform::parseCsvString(APP_SECURITY_FIREWALL_ALLOWLIST);
 			
 			if(!DevblocksPlatform::isIpAuthorized($remote_addr, $valid_ips)) {
-				DevblocksPlatform::dieWithHttpError(sprintf("<h1>403 Forbidden for %s</h1>", $remote_addr), 403);
+				DevblocksPlatform::dieWithHttpError(sprintf("Forbidden for %s", $remote_addr), 403);
 			}
 		}
 		
 		// Security: CSRF
 		
 		// Exclude public controllers
-		if(!in_array($controller_uri, array('cron', 'oauth', 'portal', 'rest', 'sso', 'webhooks'))) {
+		if(!in_array($controller_uri, ['cron', 'oauth', 'portal', 'rest', 'sso', 'webhooks'])) {
 			
 			// ...and we're not in DEVELOPMENT_MODE
 			if(!DEVELOPMENT_MODE_ALLOW_CSRF) {
@@ -665,20 +672,23 @@ abstract class DevblocksEngine {
 					if ($origin) {
 						// If origin doesn't match, freak out
 						if ($base_url != (rtrim($origin, '/') . '/')) {
-							error_log(sprintf("[Cerb] CSRF Block: Origin (%s) doesn't match (%s)", $origin, $base_url), E_USER_WARNING);
+							if(!DEVELOPMENT_MODE_SECURITY_SCAN)
+								error_log(sprintf("[Cerb] CSRF Block: Origin (%s) doesn't match (%s)", $origin, $base_url), E_USER_WARNING);
 							DevblocksPlatform::dieWithHttpError("Access denied", 403);
 						}
 						
 					} elseif ($referer) {
 						// Referer of a POST doesn't match, freak out
 						if (!DevblocksPlatform::strStartsWith($referer, $base_url)) {
-							error_log(sprintf("[Cerb] CSRF Block: Referer (%s) doesn't match (%s)", $referer, $base_url), E_USER_WARNING);
+							if(!DEVELOPMENT_MODE_SECURITY_SCAN)
+								error_log(sprintf("[Cerb] CSRF Block: Referer (%s) doesn't match (%s)", $referer, $base_url), E_USER_WARNING);
 							DevblocksPlatform::dieWithHttpError("Access denied", 403);
 						}
 						
 					} else {
 						// No origin or referer, reject
-						error_log(sprintf("[Cerb] CSRF Block: No origin or referrer."), E_USER_WARNING);
+						if(!DEVELOPMENT_MODE_SECURITY_SCAN)
+							error_log(sprintf("[Cerb] CSRF Block: No origin or referrer."), E_USER_WARNING);
 						DevblocksPlatform::dieWithHttpError("Access denied", 403);
 					}
 				}
@@ -721,15 +731,19 @@ abstract class DevblocksEngine {
 					: $controllers[APP_DEFAULT_CONTROLLER];
 
 				// Instance our manifest
-				if(!empty($controller_mft)) {
+				if($controller_mft instanceof DevblocksExtensionManifest) {
 					$controller = $controller_mft->createInstance();
+				} else { 
+					$controller = null;
 				}
 				
 				if($controller instanceof DevblocksHttpRequestHandler) {
 					$controller->handleRequest($request);
+					
+					$response = DevblocksPlatform::getHttpResponse();
 
 					// [JAS]: If we didn't write a new response, repeat the request
-					if(null == ($response = DevblocksPlatform::getHttpResponse())) {
+					if(null == $response) {
 						$response = new DevblocksHttpResponse($request->path);
 						DevblocksPlatform::setHttpResponse($response);
 					}
@@ -745,8 +759,6 @@ abstract class DevblocksEngine {
 
 				break;
 		}
-
-		return;
 	}
 
 	static function update() {

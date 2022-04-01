@@ -87,12 +87,25 @@ class Controller_Avatars extends DevblocksControllerExtension {
 	}
 	
 	private function _fetchImageFromUrl($url) {
+		$validation = DevblocksPlatform::services()->validation();
 		$response = array('status'=>true, 'imageData'=>null);
 		
 		try {
 			if(empty($url))
 				throw new DevblocksException("No URL provided");
 		
+			$error = null;
+			$values = ['url' => $url];
+			
+			$validation
+				->addField('url', 'URL')
+				->url()
+				->setRequired(true)
+			;
+			
+			if(!$validation->validateAll($values, $error))
+				throw new DevblocksException($error);
+			
 			$ch = DevblocksPlatform::curlInit($url);
 			$output = DevblocksPlatform::curlExec($ch);
 			$info = curl_getinfo($ch);
@@ -273,7 +286,13 @@ class Controller_Avatars extends DevblocksControllerExtension {
 	}
 	
 	private function _renderFilePng($file) {
-		$contents = file_get_contents($file);
+		$base_path = APP_PATH . '/features/cerberusweb.core/resources/images/avatars/';
+		$file_path = realpath($file);
+		
+		if(!DevblocksPlatform::strStartsWith($file_path, $base_path))
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
+		$contents = file_get_contents($file_path);
 		
 		// Set headers
 		header('Pragma: cache');

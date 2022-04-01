@@ -645,7 +645,11 @@ class Model_CalendarRecurringProfile {
 				}
 				
 				if($passed) {
-					$datetime = new DateTime(date('Y-m-d', $day), $tz);
+					try {
+						$datetime = new DateTime(date('Y-m-d', $day), $tz);
+					} catch (Exception $e) {
+						continue;
+					}
 					
 					$datetime->modify($this->event_start ?: 'midnight');
 					$event_start_local = $datetime->getTimestamp();
@@ -1455,7 +1459,7 @@ class Context_CalendarRecurringProfile extends Extension_DevblocksContext implem
 		
 		switch($token) {
 			default:
-				$defaults = $this->_lazyLoadDefaults($token, $context, $context_id);
+				$defaults = $this->_lazyLoadDefaults($token, $dictionary);
 				$values = array_merge($values, $defaults);
 				break;
 		}

@@ -276,10 +276,22 @@ class _DevblocksCacheManager {
 class DevblocksCacheEngine_Disk extends Extension_DevblocksCacheEngine {
 	const ID = 'devblocks.cache.engine.disk';
 	
-	function setConfig(array $config) {
-		if(!isset($config['cache_dir']))
-			$config['cache_dir'] = APP_TEMP_PATH . DIRECTORY_SEPARATOR;
+	private function _getCacheDir() {
+		return APP_TEMP_PATH . DIRECTORY_SEPARATOR;
+	}
+	
+	private function _getCacheFileByKey($key) {
+		$cache_dir = $this->_getCacheDir();
 		
+		if(empty($cache_dir))
+			return NULL;
+		
+		$cache_file_path = $cache_dir . $this->_getFilename($key);
+		
+		return $cache_file_path;
+	}
+	
+	function setConfig(array $config) {
 		if(!isset($config['key_prefix']))
 			$config['key_prefix'] = 'cache--';
 		
@@ -293,17 +305,10 @@ class DevblocksCacheEngine_Disk extends Extension_DevblocksCacheEngine {
 	}
 	
 	function testConfig(array $config) {
-		if(!isset($config['cache_dir']))
-			$config['cache_dir'] = APP_TEMP_PATH . DIRECTORY_SEPARATOR;
+		$cache_dir = $this->_getCacheDir();
 		
-		if(!isset($config['key_prefix']))
-			$config['key_prefix'] = 'cache--';
-		
-		if(!isset($config['cache_dir']) || empty($config['cache_dir']))
-			return "DevblocksCacheEngine_Disk requires the 'cache_dir' option.";
-
-		if(!is_writeable($config['cache_dir']))
-			return sprintf("Devblocks requires write access to %s", $config['cache_dir']);
+		if(!is_writeable($cache_dir))
+			return sprintf("Cerb requires write access to %s", $cache_dir);
 		
 		return true;
 	}
@@ -330,23 +335,25 @@ class DevblocksCacheEngine_Disk extends Extension_DevblocksCacheEngine {
 		$key_prefix = $this->_config['key_prefix'] ?? null;
 		$salt_suffix = '--' . substr(sha1(APP_DB_PASS ?? null),-8);
 		
-		$safe_key = preg_replace("/[^A-Za-z0-9_\-]/",'_', $key);
+		$safe_key = DevblocksPlatform::strAlphaNum($key, '-', '_');
 		return $key_prefix . $safe_key . $salt_suffix;
 	}
 	
 	function load($key, &$tags=[]) {
-		$cache_dir = $this->_config['cache_dir'] ?? null;
-		
-		if(empty($cache_dir))
-			return NULL;
-		
-		$cache_file_path = $cache_dir . $this->_getFilename($key);
+		if(false == ($cache_file_path = $this->_getCacheFileByKey($key)))
+			return null;
 		
 		if(!file_exists($cache_file_path))
 			return NULL;
 		
+		$cache_basedir = $this->_getCacheDir();
+		$cache_file_path = realpath($cache_file_path);
+		
+		if(!DevblocksPlatform::strStartsWith($cache_file_path, $cache_basedir))
+			return null;
+		
 		if(false === ($fp = fopen($cache_file_path, 'r')))
-			return NULL;
+			return null;
 		
 		flock($fp, LOCK_SH);
 		
@@ -363,7 +370,7 @@ class DevblocksCacheEngine_Disk extends Extension_DevblocksCacheEngine {
 			// If expired, kill it
 			if(intval($wrapper['__cache_until']) < time()) {
 				self::remove($key);
-				return NULL;
+				return null;
 			}
 		}
 		
@@ -377,12 +384,8 @@ class DevblocksCacheEngine_Disk extends Extension_DevblocksCacheEngine {
 	}
 	
 	function save($data, $key, $tags=[], $ttl=0) {
-		$cache_dir = $this->_config['cache_dir'] ?? null;
-		
-		if(empty($cache_dir))
+		if(false == ($cache_file = $this->_getCacheFileByKey($key)))
 			return false;
-		
-		$cache_file = $cache_dir . $this->_getFilename($key);
 		
 		$wrapper = [
 			'__data' => $data,
@@ -414,12 +417,15 @@ class DevblocksCacheEngine_Disk extends Extension_DevblocksCacheEngine {
 	}
 	
 	function remove($key) {
-		$cache_dir = $this->_config['cache_dir'] ?? null;
-		
-		if(empty($cache_dir))
+		if(false == ($file = $this->_getCacheFileByKey($key)))
 			return false;
 		
-		$file = $cache_dir . $this->_getFilename($key);
+		$cache_basedir = $this->_getCacheDir();
+		$file = realpath($file);
+		
+		if(!DevblocksPlatform::strStartsWith($file, $cache_basedir))
+			return null;
+		
 		if(file_exists($file) && is_writeable($file))
 			@unlink($file);
 		
@@ -427,7 +433,7 @@ class DevblocksCacheEngine_Disk extends Extension_DevblocksCacheEngine {
 	}
 	
 	function clean() {
-		$cache_dir = $this->_config['cache_dir'] ?? null;
+		$cache_dir = $this->_getCacheDir();
 		
 		$files = scandir($cache_dir);
 		unset($files['.']);

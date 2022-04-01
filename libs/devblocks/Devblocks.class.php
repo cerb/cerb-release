@@ -705,39 +705,28 @@ class DevblocksPlatform extends DevblocksEngine {
 				default:
 				case 'b':
 					return $value;
-					break;
 				case 'k':
 				case 'kb':
 					return $value * 1000;
-					break;
 				case 'kib':
 					return $value * 1024;
-					break;
 				case 'm':
 				case 'mb':
 					return $value * pow(1000,2);
-					break;
 				case 'mib':
 					return $value * pow(1024,2);
-					break;
 				case 'g':
 				case 'gb':
 					return $value * pow(1000,3);
-					break;
 				case 'gib':
 					return $value * pow(1024,3);
-					break;
 				case 't':
 				case 'tb':
 					return $value * pow(1000,4);
-					break;
 				case 'tib':
 					return $value * pow(1024,4);
-					break;
 			}
 		}
-		
-		return FALSE;
 	}
 	
 	/**
@@ -749,6 +738,7 @@ class DevblocksPlatform extends DevblocksEngine {
 	 * @test DevblocksPlatformTest
 	 */
 	static function parseCrlfString($string, $keep_blanks=false, $trim_lines=true) {
+		$string = strval($string);
 		$string = str_replace("\r\n","\n",$string);
 		$parts = preg_split("/[\r\n]/", $string);
 		
@@ -1614,9 +1604,7 @@ class DevblocksPlatform extends DevblocksEngine {
 		
 		$purifier = new HTMLPurifier($config);
 		
-		$dirty_html = @$purifier->purify($dirty_html);
-		
-		return $dirty_html;
+		return $purifier->purify($dirty_html);
 	}
 	
 	/**
@@ -1772,6 +1760,10 @@ class DevblocksPlatform extends DevblocksEngine {
 			return false;
 		
 		return $feed;
+	}
+	
+	public static function strTruncate($string, int $length) {
+		return DevblocksPlatform::services()->string()->truncate($string, $length);
 	}
 	
 	static function strEscapeHtml($string) {
@@ -3718,19 +3710,29 @@ class DevblocksPlatform extends DevblocksEngine {
 	}
 	
 	static function dieWithHttpError($message, $status_code=500) {
-		if(php_sapi_name() != 'cli')
-		switch($status_code) {
-			case 403: // Forbidden
-			case 404: // Not found
-			case 500: // Internal server error
-			case 501: // Not implemented
-			case 503: // Service unavailable
-				http_response_code($status_code);
-				break;
+		$message = DevblocksPlatform::strEscapeHtml($message);
+		self::dieWithHttpErrorRaw($message, $status_code);
+	}
+	
+	static function dieWithHttpErrorHtml($message, $status_code=500) {
+		self::dieWithHttpErrorRaw($message, $status_code);
+	}
+	
+	static function dieWithHttpErrorRaw($message, $status_code=500) {
+		if(php_sapi_name() != 'cli') {
+			switch ($status_code) {
+				case 403: // Forbidden
+				case 404: // Not found
+				case 500: // Internal server error
+				case 501: // Not implemented
+				case 503: // Service unavailable
+					http_response_code($status_code);
+					break;
 				
-			default:
-				http_response_code($status_code);
-				break;
+				default:
+					http_response_code($status_code);
+					break;
+			}
 		}
 		
 		die($message);

@@ -51,7 +51,11 @@ class ChConfigurationPage extends CerberusPageExtension  {
 		}
 
 		// Subpage
-		$subpage = Extension_PageSection::getExtensionByPageUri($this->manifest->id, $section_uri, true);
+		if(null == ($subpage = Extension_PageSection::getExtensionByPageUri($this->manifest->id, $section_uri, true))) {
+			$tpl->display('devblocks:cerberusweb.core::404.tpl');
+			DevblocksPlatform::dieWithHttpError(null, 404);
+		}
+		
 		$tpl->assign('subpage', $subpage);
 		
 		$tpl->display('devblocks:cerberusweb.core::configuration/index.tpl');
@@ -81,13 +85,15 @@ class ChConfigurationPage extends CerberusPageExtension  {
 		
 		if($inst instanceof Extension_PageSection) {
 			if(false === ($inst->handleActionForPage($action, 'configAction'))) {
-				trigger_error(
-					sprintf('Call to undefined config action `%s::%s`',
-						get_class($inst),
-						$action
-					),
-					E_USER_NOTICE
-				);
+				if(!DEVELOPMENT_MODE_SECURITY_SCAN) {
+					trigger_error(
+						sprintf('Call to undefined config action `%s::%s`',
+							get_class($inst),
+							$action
+						),
+						E_USER_NOTICE
+					);
+				}
 				DevblocksPlatform::dieWithHttpError(null, 404);
 			}
 		}

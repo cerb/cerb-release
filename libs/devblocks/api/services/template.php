@@ -97,13 +97,29 @@ class _DevblocksTemplateManager {
 			
 			// Security policy
 			$security = new Smarty_Security($instance);
-			$security->secure_dir = array();
-			$security->trusted_uri = array(
-				'#devblocks:.*$#i',
-			);
+			$security->secure_dir = [];
+			$security->trusted_uri = [];
+			$security->allow_constants = false;
 			$security->allow_super_globals = false;
-			$security->php_functions = array(
+			$security->allowed_tags = [
+				'assign',
+				'capture',
+				'captureclose',
+				'else',
+				'elseif',
+				'foreach',
+				'foreachclose',
+				'if',
+				'ifclose',
+				'include',
+			];
+			$security->disabled_tags = [
+				'assign',
+				'fetch',
+			];
+			$security->php_functions = [
 				'array_keys',
+				'ceil',
 				'empty',
 				'explode',
 				'implode',
@@ -115,8 +131,8 @@ class _DevblocksTemplateManager {
 				'strcasecmp',
 				'substr',
 				'uniqid',
-			);
-			$security->php_modifiers = array(
+			];
+			$security->php_modifiers = [
 				'array_keys',
 				'count',
 				'explode',
@@ -126,14 +142,14 @@ class _DevblocksTemplateManager {
 				'nl2br',
 				'sort',
 				'trim',
-			);
-			$security->static_classes = array(
+			];
+			$security->static_classes = [
 				'Model_CustomField',
 				'Model_Ticket',
-			);
-			$security->streams = array(
+			];
+			$security->streams = [
 				'none'
-			);
+			];
 			$security->disabled_special_smarty_vars = ["template_object"];			
 			$instance->enableSecurity($security);
 			
@@ -456,13 +472,20 @@ class _DevblocksSmartyTemplateResource extends Smarty_Resource_Custom {
 			
 		if(null == ($plugin = @$plugins[$plugin_id])) /* @var $plugin DevblocksPluginManifest */
 			return false;
+		
+		// If not in DB, check plugin's relative path on disk
+		$basepath = $plugin->getStoragePath() . '/templates/';
+		
+		if(false == ($path = realpath($plugin->getStoragePath() . '/templates/' . $tpl_path)))
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
+		if(!DevblocksPlatform::strStartsWith($path, $basepath))
+			DevblocksPlatform::dieWithHttpError(null, 403);
 
 		// Only check the DB if the template may be overridden
-		// [TODO] Alternatively, keep a cache of override paths
 		if(isset($plugin->manifest_cache['templates'])) {
 			foreach($plugin->manifest_cache['templates'] as $v) {
 				if(0 == strcasecmp($v['path'], $tpl_path)) {
-					// [TODO] Use cache
 					// Check if template is overloaded in DB/cache
 					$matches = DAO_DevblocksTemplate::getWhere(sprintf("plugin_id = %s AND path = %s %s",
 						Cerb_ORMHelper::qstr($plugin_id),
@@ -480,9 +503,6 @@ class _DevblocksSmartyTemplateResource extends Smarty_Resource_Custom {
 			}
 		}
 			
-		// If not in DB, check plugin's relative path on disk
-		$path = $plugin->getStoragePath() . '/templates/' . $tpl_path;
-		
 		if(false == ($source = @file_get_contents($path)))
 			return false;
 		

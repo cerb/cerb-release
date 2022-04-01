@@ -187,6 +187,7 @@ class _DevblocksTemplateBuilder {
 				'permalink',
 				'quote',
 				'regexp',
+				'repeat',
 				'secs_pretty',
 				'sha1',
 				'spaceless',
@@ -721,12 +722,10 @@ class DevblocksDictionaryDelegate implements JsonSerializable, IteratorAggregate
 	
 			$local = $this->getDictionary($context_data['prefix'], false);
 			
-			$loaded_values = $context->lazyLoadContextValues($token, $local);
-			
 			// Push the context into the stack so we can track ancestry
 			CerberusContexts::pushStack($context_data['context']);
 			
-			if(!is_array($loaded_values))
+			if(false == ($loaded_values = $context->lazyLoadContextValues($token, $local)) || !is_array($loaded_values))
 				continue;
 			
 			foreach($loaded_values as $k => $v) {
@@ -1695,6 +1694,7 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFilter('permalink', [$this, 'filter_permalink']),
 			new \Twig\TwigFilter('quote', [$this, 'filter_quote']),
 			new \Twig\TwigFilter('regexp', [$this, 'filter_regexp']),
+			new \Twig\TwigFilter('repeat', [$this, 'filter_repeat']),
 			new \Twig\TwigFilter('secs_pretty', [$this, 'filter_secs_pretty']),
 			new \Twig\TwigFilter('sha1', [$this, 'filter_sha1']),
 			new \Twig\TwigFilter('split_crlf', [$this, 'filter_split_crlf']),
@@ -2045,6 +2045,16 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 		}
 		
 		return $string;
+	}
+	
+	function filter_repeat($string, $times) : string {
+		if($string instanceof Twig\Markup)
+			$string = strval($string);
+		
+		if(!is_string($string))
+			return '';
+		
+		return str_repeat($string, $times);
 	}
 	
 	function filter_secs_pretty($string, $precision=0) {
