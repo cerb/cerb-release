@@ -39,7 +39,7 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2022042801);
+define("APP_BUILD", 2022042901);
 define("APP_VERSION", '10.2.4');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
@@ -3531,6 +3531,38 @@ class Cerb_ORMHelper extends DevblocksORMHelper {
 };
 
 class _CerbApplication_KataAutocompletions {
+	function fromSchema(array $schema) {
+		$autocompletions = [];
+		
+		// Crawl schema to create automation suggestions
+		
+		$recurse = function($object, $stack=[]) use (&$recurse, &$autocompletions) {
+			$parent_key = $stack ? (implode(':', $stack) . ':') : '';
+			
+			foreach($object['attributes'] ?? [] as $attribute_key => $attribute) {
+				$stack[] = $attribute_key;
+				$attribute_types = $attribute['types'] ?? []; 
+				
+				if(array_key_exists('object', $attribute_types)) {
+					$autocompletions[$parent_key][] = $attribute_key . ':';
+					$recurse($attribute['types']['object'], $stack);
+					
+				} else if(array_key_exists('bool', $attribute_types)) {
+					$autocompletions[$parent_key][] = $attribute_key . '@bool:';
+					
+				} else {
+					$autocompletions[$parent_key][] = $attribute_key . ':';
+				}
+				
+				array_pop($stack);
+			}
+		};
+		
+		$recurse($schema['schema']);
+		
+		return $autocompletions;
+	}
+	
 	function automationEvent() {
 		return [
 			'' => [
@@ -4011,6 +4043,35 @@ class _CerbApplication_KataSchemas {
                                 types:
                                   # [TODO] URL
                                   string:
+                      on_error:
+                        ref: commands
+                      on_simulate:
+                        ref: commands
+                      on_success:
+                        ref: commands
+                      output:
+                        types:
+                          string:
+              
+              kata.parse:
+                multiple@bool: yes
+                types:
+                  object:
+                    attributes:
+                      inputs:
+                        types:
+                          object:
+                            attributes:
+                              kata:
+                                types:
+                                  list:
+                                  string:
+                              dict:
+                                types:
+                                  list:
+                              schema:
+                                types:
+                                  list:
                       on_error:
                         ref: commands
                       on_simulate:
