@@ -1320,6 +1320,12 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 						'score' => 1999,
 						'description' => "The record fields to set",
 					],
+					[
+						'caption' => 'disable_events:',
+						'snippet' => "disable_events@bool: \${1:yes}",
+						'score' => 900,
+						'description' => "Don't trigger automations or behaviors after creating this record",
+					],
 					'expand:',
 				],
 				'(.*):record.create:inputs:fields:' => [
@@ -1402,6 +1408,12 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 						'score' => 1998,
 						'description' => "The record fields to update",
 					],
+					[
+						'caption' => 'disable_events:',
+						'snippet' => "disable_events@bool: \${1:yes}",
+						'score' => 900,
+						'description' => "Don't trigger automations or behaviors after modifying this record",
+					],
 					'expand:',
 				],
 				'(.*):record.update:inputs:fields:' => [
@@ -1432,6 +1444,12 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 						'snippet' => "record_query_params:\n\t\${1:}",
 						'score' => 1998,
 						'description' => "The key/value pairs to substitute in the query",
+					],
+					[
+						'caption' => 'disable_events:',
+						'snippet' => "disable_events@bool: \${1:yes}",
+						'score' => 900,
+						'description' => "Don't trigger automations or behaviors after creating or modifying this record",
 					],
 					[
 						'caption' => 'fields:',

@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2022071301);
-define("APP_VERSION", '10.2.5');
+define("APP_BUILD", 2022081501);
+define("APP_VERSION", '10.2.6');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -3874,6 +3874,8 @@ class _CerbApplication_KataSchemas {
                           list:
                           string:
                       type_options:
+                        types:
+                          list:
                       type:
                         types:
                           string:      
@@ -4268,6 +4270,9 @@ class _CerbApplication_KataSchemas {
                         types:
                           object:
                             attributes:
+                              disable_events:
+                                types:
+                                  bool:
                               expand:
                                 types:
                                   string:
@@ -4378,6 +4383,9 @@ class _CerbApplication_KataSchemas {
                         types:
                           object:
                             attributes:
+                              disable_events:
+                                types:
+                                  bool:
                               expand:
                                 types:
                                   string:
@@ -4410,6 +4418,9 @@ class _CerbApplication_KataSchemas {
                         types:
                           object:
                             attributes:
+                              disable_events:
+                                types:
+                                  bool:
                               fields:
                                 types:
                                   list:
@@ -4639,6 +4650,7 @@ class _CerbApplication_KataSchemas {
                             attributes:
                               key:
                                 types:
+                                  list:
                                   string:
                       output:
                         types:
