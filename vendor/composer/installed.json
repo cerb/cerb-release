@@ -213,17 +213,17 @@
         },
         {
             "name": "donatj/phpuseragentparser",
-            "version": "v1.6.1",
-            "version_normalized": "1.6.1.0",
+            "version": "v1.7.0",
+            "version_normalized": "1.7.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/donatj/PhpUserAgent.git",
-                "reference": "264cf23eda626c223d21535584c33794be0ea338"
+                "reference": "a35900b93530715f8669c10e49756adde5c8e6fc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/donatj/PhpUserAgent/zipball/264cf23eda626c223d21535584c33794be0ea338",
-                "reference": "264cf23eda626c223d21535584c33794be0ea338",
+                "url": "https://api.github.com/repos/donatj/PhpUserAgent/zipball/a35900b93530715f8669c10e49756adde5c8e6fc",
+                "reference": "a35900b93530715f8669c10e49756adde5c8e6fc",
                 "shasum": ""
             },
             "require": {
@@ -235,7 +235,7 @@
                 "ext-json": "*",
                 "phpunit/phpunit": "~4.8|~9"
             },
-            "time": "2022-06-08T16:36:31+00:00",
+            "time": "2022-08-06T15:41:58+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -269,7 +269,7 @@
             ],
             "support": {
                 "issues": "https://github.com/donatj/PhpUserAgent/issues",
-                "source": "https://github.com/donatj/PhpUserAgent/tree/v1.6.1"
+                "source": "https://github.com/donatj/PhpUserAgent/tree/v1.7.0"
             },
             "funding": [
                 {
@@ -2172,17 +2172,17 @@
         },
         {
             "name": "smarty/smarty",
-            "version": "v4.1.1",
-            "version_normalized": "4.1.1.0",
+            "version": "v4.2.0",
+            "version_normalized": "4.2.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/smarty-php/smarty.git",
-                "reference": "71036be8be02bf93735c47b0b745f722efbc729f"
+                "reference": "97aeb14c6fc2fb733938809926e2f9d6c581a70d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/smarty-php/smarty/zipball/71036be8be02bf93735c47b0b745f722efbc729f",
-                "reference": "71036be8be02bf93735c47b0b745f722efbc729f",
+                "url": "https://api.github.com/repos/smarty-php/smarty/zipball/97aeb14c6fc2fb733938809926e2f9d6c581a70d",
+                "reference": "97aeb14c6fc2fb733938809926e2f9d6c581a70d",
                 "shasum": ""
             },
             "require": {
@@ -2192,7 +2192,7 @@
                 "phpunit/phpunit": "^8.5 || ^7.5",
                 "smarty/smarty-lexer": "^3.1"
             },
-            "time": "2022-05-17T12:56:28+00:00",
+            "time": "2022-08-01T21:57:38+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -2235,7 +2235,7 @@
             "support": {
                 "forum": "https://github.com/smarty-php/smarty/discussions",
                 "issues": "https://github.com/smarty-php/smarty/issues",
-                "source": "https://github.com/smarty-php/smarty/tree/v4.1.1"
+                "source": "https://github.com/smarty-php/smarty/tree/v4.2.0"
             },
             "install-path": "../smarty/smarty"
         },
@@ -2320,24 +2320,24 @@
         },
         {
             "name": "symfony/css-selector",
-            "version": "v5.4.3",
-            "version_normalized": "5.4.3.0",
+            "version": "v5.4.11",
+            "version_normalized": "5.4.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/css-selector.git",
-                "reference": "b0a190285cd95cb019237851205b8140ef6e368e"
+                "reference": "c1681789f059ab756001052164726ae88512ae3d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/css-selector/zipball/b0a190285cd95cb019237851205b8140ef6e368e",
-                "reference": "b0a190285cd95cb019237851205b8140ef6e368e",
+                "url": "https://api.github.com/repos/symfony/css-selector/zipball/c1681789f059ab756001052164726ae88512ae3d",
+                "reference": "c1681789f059ab756001052164726ae88512ae3d",
                 "shasum": ""
             },
             "require": {
                 "php": ">=7.2.5",
                 "symfony/polyfill-php80": "^1.16"
             },
-            "time": "2022-01-02T09:53:40+00:00",
+            "time": "2022-06-27T16:58:25+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -2369,7 +2369,7 @@
             "description": "Converts CSS selectors to XPath expressions",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/css-selector/tree/v5.4.3"
+                "source": "https://github.com/symfony/css-selector/tree/v5.4.11"
             },
             "funding": [
                 {
