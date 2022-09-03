@@ -8,7 +8,8 @@ use Lcobucci\JWT\Signer\Ecdsa\SignatureConverter;
 
 use const OPENSSL_KEYTYPE_EC;
 
-abstract class Ecdsa extends OpenSSL
+/** @deprecated Deprecated since v4.2 */
+abstract class UnsafeEcdsa extends OpenSSL
 {
     private SignatureConverter $converter;
 
@@ -17,7 +18,7 @@ abstract class Ecdsa extends OpenSSL
         $this->converter = $converter;
     }
 
-    public static function create(): Ecdsa
+    public static function create(): UnsafeEcdsa
     {
         return new static(new MultibyteStringConverter());  // @phpstan-ignore-line
     }
@@ -39,7 +40,7 @@ abstract class Ecdsa extends OpenSSL
         );
     }
 
-    /** {@inheritdoc} */
+    // phpcs:ignore SlevomatCodingStandard.Functions.UnusedParameter.UnusedParameter
     final protected function guardAgainstIncompatibleKey(int $type, int $lengthInBits): void
     {
         if ($type !== OPENSSL_KEYTYPE_EC) {
@@ -48,16 +49,7 @@ abstract class Ecdsa extends OpenSSL
                 self::KEY_TYPE_MAP[$type],
             );
         }
-
-        $expectedKeyLength = $this->expectedKeyLength();
-
-        if ($lengthInBits !== $expectedKeyLength) {
-            throw InvalidKeyProvided::incompatibleKeyLength($expectedKeyLength, $lengthInBits);
-        }
     }
-
-    /** @internal */
-    abstract public function expectedKeyLength(): int;
 
     /**
      * Returns the length of each point in the signature, so that we can calculate and verify R and S points properly
