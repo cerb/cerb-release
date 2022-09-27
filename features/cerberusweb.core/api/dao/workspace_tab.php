@@ -456,6 +456,7 @@ class SearchFields_WorkspaceTab extends DevblocksSearchFields {
 	
 	const VIRTUAL_CONTEXT_LINK = '*_context_link';
 	const VIRTUAL_HAS_FIELDSET = '*_has_fieldset';
+	const VIRTUAL_PAGE_SEARCH = '*_page_search';
 	
 	static private $_fields = null;
 	
@@ -474,11 +475,12 @@ class SearchFields_WorkspaceTab extends DevblocksSearchFields {
 		switch($param->field) {
 			case self::VIRTUAL_CONTEXT_LINK:
 				return self::_getWhereSQLFromContextLinksField($param, CerberusContexts::CONTEXT_WORKSPACE_TAB, self::getPrimaryKey());
-				break;
 				
 			case self::VIRTUAL_HAS_FIELDSET:
 				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_CUSTOM_FIELDSET, sprintf('SELECT context_id FROM context_to_custom_fieldset WHERE context = %s AND custom_fieldset_id IN (%s)', Cerb_ORMHelper::qstr(CerberusContexts::CONTEXT_WORKSPACE_TAB), '%s'), self::getPrimaryKey());
-				break;
+			
+			case self::VIRTUAL_PAGE_SEARCH:
+				return self::_getWhereSQLFromVirtualSearchField($param, CerberusContexts::CONTEXT_WORKSPACE_PAGE, 'workspace_tab.workspace_page_id');
 				
 			default:
 				if('cf_' == substr($param->field, 0, 3)) {
@@ -486,13 +488,14 @@ class SearchFields_WorkspaceTab extends DevblocksSearchFields {
 				} else {
 					return $param->getWhereSQL(self::getFields(), self::getPrimaryKey());
 				}
-				break;
 		}
 	}
 	
 	static function getFieldForSubtotalKey($key, $context, array $query_fields, array $search_fields, $primary_key) {
 		switch($key) {
 			case 'page':
+			case 'workspace':
+			case 'workspace.id':
 				$key = 'page.id';
 				break;
 		}
@@ -504,17 +507,14 @@ class SearchFields_WorkspaceTab extends DevblocksSearchFields {
 		switch($key) {
 			case SearchFields_WorkspaceTab::EXTENSION_ID:
 				return parent::_getLabelsForKeyExtensionValues(Extension_WorkspaceTab::POINT);
-				break;
 				
 			case SearchFields_WorkspaceTab::ID:
 				$models = DAO_WorkspaceTab::getIds($values);
 				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
-				break;
 				
 			case SearchFields_WorkspaceTab::WORKSPACE_PAGE_ID:
 				$models = DAO_WorkspacePage::getIds($values);
 				return array_column(DevblocksPlatform::objectsToArrays($models), 'name', 'id');
-				break;
 		}
 		
 		return parent::getLabelsForKeyValues($key, $values);
@@ -546,6 +546,7 @@ class SearchFields_WorkspaceTab extends DevblocksSearchFields {
 			
 			self::VIRTUAL_CONTEXT_LINK => new DevblocksSearchField(self::VIRTUAL_CONTEXT_LINK, '*', 'context_link', $translate->_('common.links'), null, false),
 			self::VIRTUAL_HAS_FIELDSET => new DevblocksSearchField(self::VIRTUAL_HAS_FIELDSET, '*', 'has_fieldset', $translate->_('common.fieldset'), null, false),
+			self::VIRTUAL_PAGE_SEARCH => new DevblocksSearchField(self::VIRTUAL_PAGE_SEARCH, '*', 'page_search', null, null, false),
 		);
 		
 		// Custom Fields
@@ -774,6 +775,7 @@ class View_WorkspaceTab extends C4_AbstractView implements IAbstractView_Subtota
 		$this->addColumnsHidden(array(
 			SearchFields_WorkspaceTab::VIRTUAL_CONTEXT_LINK,
 			SearchFields_WorkspaceTab::VIRTUAL_HAS_FIELDSET,
+			SearchFields_WorkspaceTab::VIRTUAL_PAGE_SEARCH,
 		));
 		
 		$this->doResetCriteria();
@@ -937,6 +939,22 @@ class View_WorkspaceTab extends C4_AbstractView implements IAbstractView_Subtota
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
 					'options' => array('param_key' => SearchFields_WorkspaceTab::UPDATED_AT),
 				),
+			'workspace' =>
+				[
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => ['param_key' => SearchFields_WorkspaceTab::VIRTUAL_PAGE_SEARCH],
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKSPACE_PAGE, 'q' => ''],
+					]
+				],
+			'workspace.id' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
+					'options' => array('param_key' => SearchFields_WorkspaceTab::WORKSPACE_PAGE_ID),
+					'examples' => [
+						['type' => 'chooser', 'context' => 'cerberusweb.contexts.workspace.page', 'q' => ''],
+					]
+				),
 		);
 		
 		// Add quick search links
@@ -961,18 +979,17 @@ class View_WorkspaceTab extends C4_AbstractView implements IAbstractView_Subtota
 		switch($field) {
 			case 'fieldset':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, '*_has_fieldset');
-				break;
 			
+			case 'workspace':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_WorkspaceTab::VIRTUAL_PAGE_SEARCH);
+				
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
 					return DevblocksSearchCriteria::getContextLinksParamFromTokens($field, $tokens);
 				
 				$search_fields = $this->getQuickSearchFields();
 				return DevblocksSearchCriteria::getParamFromQueryFieldTokens($field, $tokens, $search_fields);
-				break;
 		}
-		
-		return false;
 	}
 	
 	function render() {
@@ -1021,6 +1038,13 @@ class View_WorkspaceTab extends C4_AbstractView implements IAbstractView_Subtota
 				
 			case SearchFields_WorkspaceTab::VIRTUAL_HAS_FIELDSET:
 				$this->_renderVirtualHasFieldset($param);
+				break;
+			
+			case SearchFields_WorkspaceTab::VIRTUAL_PAGE_SEARCH:
+				echo sprintf("%s matches <b>%s</b>",
+					DevblocksPlatform::strEscapeHtml(DevblocksPlatform::translateCapitalized('common.workspace')),
+					DevblocksPlatform::strEscapeHtml($param->value)
+				);
 				break;
 		}
 	}
@@ -1488,8 +1512,6 @@ class Context_WorkspaceTab extends Extension_DevblocksContext implements IDevblo
 		$active_worker = CerberusApplication::getActiveWorker();
 		$context = CerberusContexts::CONTEXT_WORKSPACE_TAB;
 		
-		$model = null;
-		
 		$tpl->assign('view_id', $view_id);
 		
 		if($context_id) {
@@ -1507,6 +1529,7 @@ class Context_WorkspaceTab extends Extension_DevblocksContext implements IDevblo
 					if($v)
 					switch($k) {
 						case 'page.id':
+						case 'workspace.id':
 							$model->workspace_page_id = intval($v);
 							break;
 					}
