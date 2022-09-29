@@ -5,7 +5,7 @@
  * (RFC 4880).
  *
  * @package OpenPGP
- * @version 0.3.0
+ * @version 0.5.0
  * @author  Arto Bendiken <arto.bendiken@gmail.com>
  * @author  Stephen Paul Weber <singpolyma@singpolyma.net>
  * @see     http://github.com/bendiken/openpgp-php
@@ -18,7 +18,7 @@
  * @see http://tools.ietf.org/html/rfc4880
  */
 class OpenPGP {
-  const VERSION = array(0, 4, 0);
+  const VERSION = array(0, 5, 0);
 
   /**
    * @see http://tools.ietf.org/html/rfc4880#section-6
@@ -44,8 +44,13 @@ class OpenPGP {
     $header = self::header($header);
     $text = str_replace(array("\r\n", "\r"), array("\n", ''), $text);
     if (($pos1 = strpos($text, $header)) !== FALSE &&
-        ($pos1 = strpos($text, "\n\n", $pos1 += strlen($header))) !== FALSE &&
-        ($pos2 = strpos($text, "\n=", $pos1 += 2)) !== FALSE) {
+        ($pos1 = strpos($text, "\n\n", $pos1 += strlen($header))) !== FALSE) {
+      $pos2 = strpos($text, "\n=", $pos1 += 2);
+      if ($pos2 === FALSE) {
+        trigger_error("Invalid ASCII armor, missing CRC");
+        $pos2 = strpos($text, "-----END");
+        if ($pos2 === FALSE) return NULL;
+      }
       return base64_decode($text = substr($text, $pos1, $pos2 - $pos1));
     }
   }
@@ -1600,6 +1605,13 @@ class OpenPGP_CompressedDataPacket extends OpenPGP_Packet implements IteratorAgg
   public $algorithm;
   /* see http://tools.ietf.org/html/rfc4880#section-9.3 */
   static $algorithms = array(0 => 'Uncompressed', 1 => 'ZIP', 2 => 'ZLIB', 3 => 'BZip2');
+
+  function __construct($m=NULL, $algorithm=1) {
+    parent::__construct();
+    $this->algorithm = $algorithm;
+    $this->data = $m ? $m : new OpenPGP_Message();
+  }
+
   function read() {
     $this->algorithm = ord($this->read_byte());
     $this->data = $this->read_bytes($this->length);

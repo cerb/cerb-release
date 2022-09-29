@@ -4,21 +4,21 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit5f6d865f5738d8af3bfd777eda3b8cd9
+class ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7
 {
     public static $files = array (
         'e69f7f6ee287b969198c3c9d6777bd38' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/bootstrap.php',
         '25072dd6e2470089de65ae7bf11d3109' => __DIR__ . '/..' . '/symfony/polyfill-php72/bootstrap.php',
         'f598d06aa772fa33d905e87be6398fb1' => __DIR__ . '/..' . '/symfony/polyfill-intl-idn/bootstrap.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
-        'a4a119a56e50fbb293281d9a48007e0e' => __DIR__ . '/..' . '/symfony/polyfill-php80/bootstrap.php',
         'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
         'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
-        '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
+        'a4a119a56e50fbb293281d9a48007e0e' => __DIR__ . '/..' . '/symfony/polyfill-php80/bootstrap.php',
         '23c18046f52bef3eea034657bafda50f' => __DIR__ . '/..' . '/symfony/polyfill-php81/bootstrap.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         'decc78cc4436b1292c6c0d151b19445c' => __DIR__ . '/..' . '/phpseclib/phpseclib/phpseclib/bootstrap.php',
+        '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
         'def43f6c87e4f8dfd0c9e1b1bab14fe8' => __DIR__ . '/..' . '/symfony/polyfill-iconv/bootstrap.php',
         'da5f6548f070d3d306f90eee42dd5de6' => __DIR__ . '/..' . '/donatj/phpuseragentparser/src/UserAgentParser.php',
         '2cffec82183ee1cea088009cef9a6fc3' => __DIR__ . '/..' . '/ezyang/htmlpurifier/library/HTMLPurifier.composer.php',
@@ -55,6 +55,7 @@ class ComposerStaticInit5f6d865f5738d8af3bfd777eda3b8cd9
             'Symfony\\Polyfill\\Iconv\\' => 23,
             'Symfony\\Polyfill\\Ctype\\' => 23,
             'Symfony\\Component\\CssSelector\\' => 30,
+            'StellaMaris\\Clock\\' => 18,
         ),
         'R' => 
         array (
@@ -164,6 +165,10 @@ class ComposerStaticInit5f6d865f5738d8af3bfd777eda3b8cd9
         'Symfony\\Component\\CssSelector\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/css-selector',
+        ),
+        'StellaMaris\\Clock\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/stella-maris/clock/src',
         ),
         'RobRichards\\XMLSecLibs\\' => 
         array (
@@ -730,10 +735,10 @@ class ComposerStaticInit5f6d865f5738d8af3bfd777eda3b8cd9
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit5f6d865f5738d8af3bfd777eda3b8cd9::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit5f6d865f5738d8af3bfd777eda3b8cd9::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit5f6d865f5738d8af3bfd777eda3b8cd9::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInit5f6d865f5738d8af3bfd777eda3b8cd9::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7::$classMap;
 
         }, null, ClassLoader::class);
     }

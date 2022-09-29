@@ -2,29 +2,29 @@
     "packages": [
         {
             "name": "brick/math",
-            "version": "0.9.3",
-            "version_normalized": "0.9.3.0",
+            "version": "0.10.2",
+            "version_normalized": "0.10.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brick/math.git",
-                "reference": "ca57d18f028f84f777b2168cd1911b0dee2343ae"
+                "reference": "459f2781e1a08d52ee56b0b1444086e038561e3f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brick/math/zipball/ca57d18f028f84f777b2168cd1911b0dee2343ae",
-                "reference": "ca57d18f028f84f777b2168cd1911b0dee2343ae",
+                "url": "https://api.github.com/repos/brick/math/zipball/459f2781e1a08d52ee56b0b1444086e038561e3f",
+                "reference": "459f2781e1a08d52ee56b0b1444086e038561e3f",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "php": "^7.1 || ^8.0"
+                "php": "^7.4 || ^8.0"
             },
             "require-dev": {
                 "php-coveralls/php-coveralls": "^2.2",
-                "phpunit/phpunit": "^7.5.15 || ^8.5 || ^9.0",
-                "vimeo/psalm": "4.9.2"
+                "phpunit/phpunit": "^9.0",
+                "vimeo/psalm": "4.25.0"
             },
-            "time": "2021-08-15T20:50:18+00:00",
+            "time": "2022-08-10T22:54:19+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -49,16 +49,12 @@
             ],
             "support": {
                 "issues": "https://github.com/brick/math/issues",
-                "source": "https://github.com/brick/math/tree/0.9.3"
+                "source": "https://github.com/brick/math/tree/0.10.2"
             },
             "funding": [
                 {
                     "url": "https://github.com/BenMorel",
                     "type": "github"
-                },
-                {
-                    "url": "https://tidelift.com/funding/github/packagist/brick/math",
-                    "type": "tidelift"
                 }
             ],
             "install-path": "../brick/math"
@@ -1023,34 +1019,34 @@
         },
         {
             "name": "lcobucci/clock",
-            "version": "2.0.0",
-            "version_normalized": "2.0.0.0",
+            "version": "2.2.0",
+            "version_normalized": "2.2.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/lcobucci/clock.git",
-                "reference": "353d83fe2e6ae95745b16b3d911813df6a05bfb3"
+                "reference": "fb533e093fd61321bfcbac08b131ce805fe183d3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/lcobucci/clock/zipball/353d83fe2e6ae95745b16b3d911813df6a05bfb3",
-                "reference": "353d83fe2e6ae95745b16b3d911813df6a05bfb3",
+                "url": "https://api.github.com/repos/lcobucci/clock/zipball/fb533e093fd61321bfcbac08b131ce805fe183d3",
+                "reference": "fb533e093fd61321bfcbac08b131ce805fe183d3",
                 "shasum": ""
             },
             "require": {
-                "php": "^7.4 || ^8.0"
+                "php": "^8.0",
+                "stella-maris/clock": "^0.1.4"
             },
             "require-dev": {
-                "infection/infection": "^0.17",
-                "lcobucci/coding-standard": "^6.0",
-                "phpstan/extension-installer": "^1.0",
+                "infection/infection": "^0.26",
+                "lcobucci/coding-standard": "^8.0",
+                "phpstan/extension-installer": "^1.1",
                 "phpstan/phpstan": "^0.12",
                 "phpstan/phpstan-deprecation-rules": "^0.12",
                 "phpstan/phpstan-phpunit": "^0.12",
                 "phpstan/phpstan-strict-rules": "^0.12",
-                "phpunit/php-code-coverage": "9.1.4",
-                "phpunit/phpunit": "9.3.7"
+                "phpunit/phpunit": "^9.5"
             },
-            "time": "2020-08-27T18:56:02+00:00",
+            "time": "2022-04-19T19:34:17+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -1071,7 +1067,7 @@
             "description": "Yet another clock abstraction",
             "support": {
                 "issues": "https://github.com/lcobucci/clock/issues",
-                "source": "https://github.com/lcobucci/clock/tree/2.0.x"
+                "source": "https://github.com/lcobucci/clock/tree/2.2.0"
             },
             "funding": [
                 {
@@ -1970,26 +1966,25 @@
         },
         {
             "name": "ramsey/uuid",
-            "version": "4.2.3",
-            "version_normalized": "4.2.3.0",
+            "version": "4.5.1",
+            "version_normalized": "4.5.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ramsey/uuid.git",
-                "reference": "fc9bb7fb5388691fd7373cd44dcb4d63bbcf24df"
+                "reference": "a161a26d917604dc6d3aa25100fddf2556e9f35d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ramsey/uuid/zipball/fc9bb7fb5388691fd7373cd44dcb4d63bbcf24df",
-                "reference": "fc9bb7fb5388691fd7373cd44dcb4d63bbcf24df",
+                "url": "https://api.github.com/repos/ramsey/uuid/zipball/a161a26d917604dc6d3aa25100fddf2556e9f35d",
+                "reference": "a161a26d917604dc6d3aa25100fddf2556e9f35d",
                 "shasum": ""
             },
             "require": {
-                "brick/math": "^0.8 || ^0.9",
+                "brick/math": "^0.8.8 || ^0.9 || ^0.10",
+                "ext-ctype": "*",
                 "ext-json": "*",
-                "php": "^7.2 || ^8.0",
-                "ramsey/collection": "^1.0",
-                "symfony/polyfill-ctype": "^1.8",
-                "symfony/polyfill-php80": "^1.14"
+                "php": "^8.0",
+                "ramsey/collection": "^1.0"
             },
             "replace": {
                 "rhumsaa/uuid": "self.version"
@@ -2001,18 +1996,18 @@
                 "doctrine/annotations": "^1.8",
                 "ergebnis/composer-normalize": "^2.15",
                 "mockery/mockery": "^1.3",
-                "moontoast/math": "^1.1",
                 "paragonie/random-lib": "^2",
                 "php-mock/php-mock": "^2.2",
                 "php-mock/php-mock-mockery": "^1.3",
                 "php-parallel-lint/php-parallel-lint": "^1.1",
                 "phpbench/phpbench": "^1.0",
-                "phpstan/extension-installer": "^1.0",
-                "phpstan/phpstan": "^0.12",
-                "phpstan/phpstan-mockery": "^0.12",
-                "phpstan/phpstan-phpunit": "^0.12",
+                "phpstan/extension-installer": "^1.1",
+                "phpstan/phpstan": "^1.8",
+                "phpstan/phpstan-mockery": "^1.1",
+                "phpstan/phpstan-phpunit": "^1.1",
                 "phpunit/phpunit": "^8.5 || ^9",
-                "slevomat/coding-standard": "^7.0",
+                "ramsey/composer-repl": "^1.4",
+                "slevomat/coding-standard": "^8.4",
                 "squizlabs/php_codesniffer": "^3.5",
                 "vimeo/psalm": "^4.9"
             },
@@ -2024,12 +2019,9 @@
                 "paragonie/random-lib": "Provides RandomLib for use with the RandomLibAdapter",
                 "ramsey/uuid-doctrine": "Allows the use of Ramsey\\Uuid\\Uuid as Doctrine field type."
             },
-            "time": "2021-09-25T23:10:38+00:00",
+            "time": "2022-09-16T03:22:46+00:00",
             "type": "library",
             "extra": {
-                "branch-alias": {
-                    "dev-main": "4.x-dev"
-                },
                 "captainhook": {
                     "force-install": true
                 }
@@ -2055,7 +2047,7 @@
             ],
             "support": {
                 "issues": "https://github.com/ramsey/uuid/issues",
-                "source": "https://github.com/ramsey/uuid/tree/4.2.3"
+                "source": "https://github.com/ramsey/uuid/tree/4.5.1"
             },
             "funding": [
                 {
@@ -2116,17 +2108,17 @@
         },
         {
             "name": "singpolyma/openpgp-php",
-            "version": "dev-cerb",
-            "version_normalized": "dev-cerb",
+            "version": "0.5.0",
+            "version_normalized": "0.5.0.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/jstanden/openpgp-php.git",
-                "reference": "93b8db8a63d987c4b06f0414ec63d6a0c08da07d"
+                "url": "https://github.com/singpolyma/openpgp-php.git",
+                "reference": "69292f6a46ed7f687083bfb8974b161a41ab213c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/jstanden/openpgp-php/zipball/93b8db8a63d987c4b06f0414ec63d6a0c08da07d",
-                "reference": "93b8db8a63d987c4b06f0414ec63d6a0c08da07d",
+                "url": "https://api.github.com/repos/singpolyma/openpgp-php/zipball/69292f6a46ed7f687083bfb8974b161a41ab213c",
+                "reference": "69292f6a46ed7f687083bfb8974b161a41ab213c",
                 "shasum": ""
             },
             "require": {
@@ -2139,7 +2131,7 @@
             "suggest": {
                 "ext-mcrypt": "required if you use encryption cast5"
             },
-            "time": "2020-12-22T20:44:03+00:00",
+            "time": "2021-05-26T00:35:20+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -2147,6 +2139,7 @@
                     "lib/"
                 ]
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "Unlicense"
             ],
@@ -2162,20 +2155,21 @@
             ],
             "description": "Pure-PHP implementation of the OpenPGP Message Format (RFC 4880)",
             "support": {
-                "source": "https://github.com/jstanden/openpgp-php/tree/cerb"
+                "issues": "https://github.com/singpolyma/openpgp-php/issues",
+                "source": "https://github.com/singpolyma/openpgp-php/tree/0.5.0"
             },
             "funding": [
                 {
-                    "type": "github",
-                    "url": "https://github.com/singpolyma"
+                    "url": "https://github.com/singpolyma",
+                    "type": "github"
                 },
                 {
-                    "type": "liberapay",
-                    "url": "https://liberapay.com/singpolyma"
+                    "url": "https://liberapay.com/singpolyma",
+                    "type": "liberapay"
                 },
                 {
-                    "type": "patreon",
-                    "url": "https://www.patreon.com/singpolyma"
+                    "url": "https://www.patreon.com/singpolyma",
+                    "type": "patreon"
                 }
             ],
             "install-path": "../singpolyma/openpgp-php"
@@ -2248,6 +2242,52 @@
                 "source": "https://github.com/smarty-php/smarty/tree/v4.2.1"
             },
             "install-path": "../smarty/smarty"
+        },
+        {
+            "name": "stella-maris/clock",
+            "version": "0.1.6",
+            "version_normalized": "0.1.6.0",
+            "source": {
+                "type": "git",
+                "url": "git@gitlab.com:stella-maris/clock.git",
+                "reference": "a94228dac03c9a8411198ce8c8dacbbe99c930c3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://gitlab.com/api/v4/projects/stella-maris%2Fclock/repository/archive.zip?sha=a94228dac03c9a8411198ce8c8dacbbe99c930c3",
+                "reference": "a94228dac03c9a8411198ce8c8dacbbe99c930c3",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.0|^8.0"
+            },
+            "time": "2022-09-27T15:03:11+00:00",
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "StellaMaris\\Clock\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andreas Heigl",
+                    "role": "Maintainer"
+                }
+            ],
+            "description": "A pre-release of the proposed PSR-20 Clock-Interface",
+            "homepage": "https://gitlab.com/stella-maris/clock",
+            "keywords": [
+                "clock",
+                "datetime",
+                "point in time",
+                "psr20"
+            ],
+            "install-path": "../stella-maris/clock"
         },
         {
             "name": "swiftmailer/swiftmailer",
@@ -3136,17 +3176,17 @@
         },
         {
             "name": "twig/twig",
-            "version": "dev-3.3.8-cerb",
-            "version_normalized": "dev-3.3.8-cerb",
+            "version": "dev-3.4.3-cerb",
+            "version_normalized": "dev-3.4.3-cerb",
             "source": {
                 "type": "git",
                 "url": "https://github.com/jstanden/Twig.git",
-                "reference": "4f1e2865d4d9ac6722854fc97027a9b8bd831963"
+                "reference": "dd8e6b65ef33f0341522f255d752d93bc3323905"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/jstanden/Twig/zipball/4f1e2865d4d9ac6722854fc97027a9b8bd831963",
-                "reference": "4f1e2865d4d9ac6722854fc97027a9b8bd831963",
+                "url": "https://api.github.com/repos/jstanden/Twig/zipball/dd8e6b65ef33f0341522f255d752d93bc3323905",
+                "reference": "dd8e6b65ef33f0341522f255d752d93bc3323905",
                 "shasum": ""
             },
             "require": {
@@ -3158,11 +3198,12 @@
                 "psr/container": "^1.0",
                 "symfony/phpunit-bridge": "^4.4.9|^5.0.9|^6.0"
             },
-            "time": "2022-02-22T05:21:55+00:00",
+            "time": "2022-09-28T19:21:21+00:00",
+            "default-branch": true,
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "3.3-dev"
+                    "dev-master": "3.4-dev"
                 }
             },
             "installation-source": "dist",
@@ -3202,7 +3243,7 @@
                 "templating"
             ],
             "support": {
-                "source": "https://github.com/jstanden/Twig/tree/3.3.8-cerb"
+                "source": "https://github.com/jstanden/Twig/tree/3.4.3-cerb"
             },
             "funding": [
                 {

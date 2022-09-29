@@ -182,8 +182,10 @@ class OpenPGP_Crypt_RSA {
       $keys = new self($keys);
     }
 
+    $session_key = NULL;
     foreach($message as $p) {
       if($p instanceof OpenPGP_AsymmetricSessionKeyPacket) {
+        $session_key = $p;
         if($keys instanceof Crypt_RSA) {
           $sk = self::try_decrypt_session($keys, substr($p->encrypted_data, 2));
         } else if(strlen(str_replace('0', '', $p->keyid)) < 1) {
@@ -202,6 +204,8 @@ class OpenPGP_Crypt_RSA {
         if($r) return $r;
       }
     }
+
+    if (!$session_key) throw new Exception("Not an asymmetrically encrypted message");
 
     return NULL; /* Failed */
   }
