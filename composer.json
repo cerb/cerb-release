@@ -18,14 +18,10 @@
 	],
 	"config": {
 		"platform": {
-			"php": "7.4"
+			"php": "8.0"
 		}
 	},
 	"repositories": [
-		{
-			"type": "vcs",
-			"url": "https://github.com/jstanden/openpgp-php"
-		},
 		{
 			"type": "vcs",
 			"url": "https://github.com/jstanden/horde-imap"
@@ -36,7 +32,7 @@
 		}
 	],
 	"require" : {
-		"php": ">=7.4",
+		"php": ">=8.0",
 		"ext-curl": "*",
 		"ext-dom": "*",
 		"ext-gd": "*",
@@ -60,12 +56,12 @@
 		"guzzlehttp/guzzle": "~6.5.8",
 		"phpseclib/phpseclib": "~2.0",
 		"tijsverkoyen/css-to-inline-styles": "^2.2",
-		"ezyang/htmlpurifier": "^4.11",
+		"ezyang/htmlpurifier": "^4.16",
 		"erusev/parsedown": "^1.7",
 		"erusev/parsedown-extra": "^0.7.1",
 		"donatj/phpuseragentparser": "^1.0",
-		"twig/twig" : "dev-3.3.8-cerb",
-		"singpolyma/openpgp-php": "dev-cerb",
+		"twig/twig" : "dev-3.4.3-cerb",
+		"singpolyma/openpgp-php": "^0.5.0",
 		"horde/imap-client": "dev-2.30.4-cerb",
 		"ramsey/uuid": "^4.1",
 		"enshrined/svg-sanitize": "^0.15"
