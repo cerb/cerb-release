@@ -106,6 +106,10 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 					'axes' => [],
 					'groups' => [],
 				],
+				'tooltip' => [
+					'show' => true,
+					'grouped' => true,
+				]
 			];
 			
 			if($chart['data']['type'] ?? null)
@@ -169,6 +173,17 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 				// [TODO] Lerp
 				if('timeseries' == ($chart['axis']['x']['type'] ?? null)) {
 					sort($x_labels);
+					
+				} else if(
+					'category' == ($chart['axis']['x']['type'] ?? null)
+					&& array_key_exists('categories', $chart['axis']['x'])
+					&& is_array($chart['axis']['x']['categories'])
+				) {
+					$order = array_flip(array_values($chart['axis']['x']['categories']));
+					
+					usort($x_labels, function($a, $b) use ($order) {
+						return ($order[$a] ?? PHP_INT_MAX) <=> ($order[$b] ?? PHP_INT_MAX);
+					});
 				}
 				
 				if('scatter' == ($chart['data']['type'] ?? null)) {
@@ -216,6 +231,13 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 						// Skip the `x` series
 						if($key == $xkey)
 							continue;
+						
+						if(!array_key_exists($xkey, $datasets[$dataset_key]))
+							throw new Exception_DevblocksValidationError(sprintf('`data:series:%s:x_key:` (%s) must be one of: %s',
+								$dataset_key,
+								$xkey,
+							implode(', ', array_keys($datasets[$dataset_key]))
+							));
 						
 						$series = array_values(array_merge($x_labels, array_combine($datasets[$dataset_key][$xkey], $values)));
 					} else {
@@ -280,6 +302,14 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 				}
 				
 				$chart_json['data']['groups'][] = $group;
+			}
+			
+			if(array_key_exists('tooltip', $chart)) {
+				if(array_key_exists('show', $chart['tooltip']))
+					$chart_json['tooltip']['show'] = boolval($chart['tooltip']['show']);
+					
+				if(array_key_exists('grouped', $chart['tooltip']))
+					$chart_json['tooltip']['grouped'] = boolval($chart['tooltip']['grouped']);
 			}
 			
 			$tpl->assign('chart_json', json_encode($chart_json));
@@ -415,10 +445,20 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 				case 'dataQuery':
 					$data = DevblocksPlatform::services()->data();
 					
+					if(!array_key_exists('query', $data_params)) {
+						$error = 'A dataset `dataQuery:query:` is required.';
+						return null;
+					}
+					
+					if(!is_string($data_params['query'])) {
+						$error = 'A dataset `dataQuery:query:` must be text.';
+						return null;
+					}
+					
 					if(!($query_results = $data->executeQuery($data_params['query'], $data_params['query_params'] ?? [], $error)))
 						return null;
 					
-					if('scatterplot' == $query_results['_']['format']) {
+					if(in_array($query_results['_']['format'], ['categories','scatterplot'])) {
 						$datasets[$dataset_name] = array_combine(
 							array_map(
 								fn($arr) => current($arr),
