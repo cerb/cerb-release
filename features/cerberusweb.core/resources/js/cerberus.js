@@ -224,8 +224,10 @@ var cerbAutocompleteSuggestions = {
 	kataSchemaChart: {
 		'': [
 			'axis:',
+			'color:',
 			'data:',
 			'grid:',
+			'legend:',
 			'tooltip:'
 		],
 
@@ -299,6 +301,56 @@ var cerbAutocompleteSuggestions = {
 			'timeseries'
 		],
 		
+		'color:': [
+			'patterns:',	
+		],
+		'color:patterns:': [
+			{
+				'caption': 'category10:',
+				'snippet': '\${1:category10}@csv: #1f77b4, #ff7f0e, #2ca02c, #d62728, #9467bd, #8c564b, #e377c2, #7f7f7f, #bcbd22, #17becf',
+			},
+			{
+				'caption': 'rainbow6:',
+				'snippet': '\${1:rainbow6}@csv: #6e40aa, #ee4395, #ff8c38, #aff05b, #28ea8d, #2f96e0',
+			},
+			{
+				'caption': 'rainbow12:',
+				'snippet': '\${1:rainbow12}@csv: #6e40aa, #b83cb0, #f6478d, #ff6956, #f59f30, #c4d93e, #83f557, #38f17a, #19d3b5, #29a0dd, #5069d9, #6e40aa',
+			},
+			{
+				'caption': 'blues5:',
+				'snippet': '\${1:blues5}@csv: #08519c, #3182bd, #6baed6, #bdd7e7, #eff3ff',
+			},
+			{
+				'caption': 'blues9:',
+				'snippet': '\${1:blues9}@csv: #08306b, #08519c, #2171b5, #4292c6, #6baed6, #9ecae1, #c6dbef, #deebf7, #f7fbff',
+			},
+			{
+				'caption': 'reds5:',
+				'snippet': '\${1:reds5}@csv: #a50f15, #de2d26, #fb6a4a, #fcae91, #fee5d9',
+			},
+			{
+				'caption': 'reds9:',
+				'snippet': '\${1:reds9}@csv: #67000d, #a50f15, #cb181d, #ef3b2c, #fb6a4a, #fc9272, #fcbba1, #fee0d2, #fff5f0',
+			},
+			{
+				'caption': 'greens5:',
+				'snippet': '\${1:greens5}@csv: #006d2c, #31a354, #74c476, #bae4b3, #edf8e9',
+			},
+			{
+				'caption': 'greens9:',
+				'snippet': '\${1:greens9}@csv: #00441b, #006d2c, #238b45, #41ab5d, #74c476, #a1d99b, #c7e9c0, #e5f5e0, #f7fcf5',
+			},
+			{
+				'caption': 'grays5:',
+				'snippet': '\${1:grays5}@csv: #252525, #636363, #969696, #cccccc, #f7f7f7',
+			},
+			{
+				'caption': 'grays9:',
+				'snippet': '\${1:grays9}@csv: #ffffff, #f0f0f0, #d9d9d9, #bdbdbd, #969696, #737373, #525252, #252525, #000000',
+			},
+		],
+		
 		'data:': [
 			'series:',
 			'stacks:',
@@ -341,6 +393,15 @@ var cerbAutocompleteSuggestions = {
 			'0:',
 		],
 		
+		'legend:': [
+			'show@bool: yes',
+			'sorted@bool: yes',
+		],
+		'legend:show:': [
+			'yes',
+			'no',
+		],
+		
 		'tooltip:': [
 			'grouped@bool: yes',
 			'show@bool: yes',
@@ -374,6 +435,7 @@ var cerbAutocompleteSuggestions = {
 			],
 			'data:series:(.*?):': [
 				'name:',
+				'color_pattern:',
 				'x_key:',
 				'y_axis:',
 				'y_type:'
@@ -490,6 +552,7 @@ var cerbAutocompleteSuggestions = {
 				'caption': 'query_params:',
 				'snippet': "query_params:\n  ${1:key}: ${2:value}"
 			},
+			'cache_secs: 300'
 		],
 		
 		'manual:': [
@@ -5896,17 +5959,20 @@ var ajax = new cAjaxCalls();
 				});
 				
 				$autocomplete.autocomplete("instance")._renderItem = function(ul, item) {
-					var $div = $("<div/>").text(item.label);
+					var $div = $("<div/>").css('display', 'flex');
 					var $li = $("<li/>").append($div);
 					
+					var $label = $('<div/>').css('flex','1 1 100%').prependTo($div);
+					$('<div/>').text(item.label).css('font-weight','bold').appendTo($label);
+					
 					if(item.icon) {
-						var $img = $('<img class="cerb-avatar" style="height:28px;width:28px;border-radius:28px;float:left;margin-right:5px;">').attr('src',item.icon).prependTo($div);
-						$li.css('min-height','32px');
+						var $icon = $('<div/>').css('flex','1 1 32px').prependTo($div);
+						$('<img class="cerb-avatar" style="height:28px;width:28px;border-radius:28px;float:left;margin-right:5px;">').attr('src',item.icon).prependTo($icon);
 					}
 					
 					if(typeof item.meta == 'object') {
 						for(var k in item.meta) {
-							$('<div/>').append($('<small/>').text(item.meta[k])).appendTo($li);
+							$('<div/>').append($('<small/>').text(item.meta[k])).appendTo($label);
 						}
 					}
 					

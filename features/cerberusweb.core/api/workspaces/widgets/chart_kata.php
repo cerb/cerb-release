@@ -53,6 +53,7 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 		$tpl = DevblocksPlatform::services()->template();
 		$kata = DevblocksPlatform::services()->kata();
 		$active_worker = CerberusApplication::getActiveWorker();
+		$validation = DevblocksPlatform::services()->validation();
 		
 		$datasets_kata = DevblocksPlatform::importGPC($widget->params['datasets_kata'] ?? '', 'string');
 		$chart_kata = DevblocksPlatform::importGPC($widget->params['chart_kata'] ?? '', 'string');
@@ -70,7 +71,9 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 			'spline',
 			'step',
 		];
-
+		
+		$is_dark_mode = DAO_WorkerPref::get($active_worker->id,'dark_mode',0);
+		
 		try {
 			$error = null;
 			
@@ -90,9 +93,27 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 			
 			$datasets = $this->_loadDatasets($datasets_kata, $chart_dict, $error);
 			
-			$chart_dict->set('datasets', $datasets);
-			
 			$chart = $kata->formatTree($chart_kata, $chart_dict, $error);
+			
+			// Dark and light defaults
+			
+			if($is_dark_mode) {
+				$default_color_pattern =
+					$chart['color']['patterns']['default_dark']
+					?? $chart['color']['patterns']['default']
+					?? [
+						//'#6e40aa', '#b83cb0', '#f6478d', '#ff6956', '#f59f30', '#c4d93e', '#83f557', '#38f17a', '#19d3b5', '#29a0dd', '#5069d9', '#6e40aa'
+						"#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"
+					]
+				;
+				
+			} else {
+				$default_color_pattern = $chart['color']['patterns']['default']
+					?? [
+						"#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"
+					]
+				;
+			}
 			
 			$chart_json = [
 				'size' => [
@@ -102,9 +123,16 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 					'type' => 'line',
 					'columns' => [],
 					'names' => [],
+					'colors' => [],
 					'types' => [],
 					'axes' => [],
 					'groups' => [],
+				],
+				'color' => [
+					'pattern' => $default_color_pattern,
+				],
+				'legend' => [
+					'show' => true,
 				],
 				'tooltip' => [
 					'show' => true,
@@ -202,6 +230,8 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 			
 			$x_labels = array_fill_keys($x_labels, 0);
 			
+			$color_groups = [];
+			
 			foreach($chart['data']['series'] ?? [] as $dataset_key => $dataset_params) {
 				if(!array_key_exists($dataset_key, $datasets)) {
 					throw new Exception_DevblocksValidationError(sprintf(
@@ -224,6 +254,28 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 				
 				$series_count = count(array_filter(array_keys($datasets[$dataset_key] ?? []), fn($k) => $k != $xkey));
 				
+				$color_group = $chart['data']['series'][$dataset_key]['color_pattern'] ?? null;
+				$color_pattern = null;
+				
+				// Try dark mode first
+				if($is_dark_mode) {
+					if($color_pattern = $chart['color']['patterns'][$color_group . '_dark'] ?? null)
+						$color_group .= '_dark';
+				}
+				
+				// Or use the color pattern name
+				if(!$color_pattern)
+					$color_pattern = $chart['color']['patterns'][$color_group] ?? null;
+				
+				if($color_group && !$color_pattern)
+					throw new Exception_DevblocksValidationError(sprintf("Unknown `color:patterns:%s:`", $color_group));
+				
+				if($color_pattern && !$validation->validators()->colorsHex()($color_pattern, $error))
+					throw new Exception_DevblocksValidationError(sprintf("`color:patterns:%s:` %s", $color_group, $error));
+					
+				if($color_group && !array_key_exists($color_group, $color_groups))
+					$color_groups[$color_group] = [];
+				
 				foreach($datasets[$dataset_key] as $key => $values) {
 					$series = [];
 					
@@ -239,7 +291,9 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 							implode(', ', array_keys($datasets[$dataset_key]))
 							));
 						
-						$series = array_values(array_merge($x_labels, array_combine($datasets[$dataset_key][$xkey], $values)));
+						if(count($datasets[$dataset_key][$xkey]) == count($values))
+							$series = array_values(array_merge($x_labels, array_combine($datasets[$dataset_key][$xkey], $values)));
+						
 					} else {
 						if(is_array($values)) {
 							$series = $values;
@@ -247,6 +301,8 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 							$series = [$values];
 						}
 					}
+					
+					$series_key = $dataset_key . '__' . $key;
 					
 					if(1 == $series_count) {
 						$series_name = $dataset_name ?: $key;
@@ -256,19 +312,31 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 						$series_name = $key;
 					}
 					
-					$series_key = $dataset_key . '_' . $key;
-					
-					if(!array_key_exists($series_key, $chart_json['data']['names'] ?? []))
-						$chart_json['data']['names'][$series_key] = $series_name;
-					
-					$chart_json['data']['columns'][] = [$series_key, ...$series];
-					
-					if($ytype)
-						$chart_json['data']['types'][$series_key] = $ytype;
-					
-					if($yaxis == 'y2') {
-						$chart_json['data']['axes'][$series_key] = $yaxis;
-						$chart_json['axis']['y2']['show'] = true;
+					if(!DevblocksPlatform::strEndsWith($key,'__click')) {
+						if($color_group && !DevblocksPlatform::strEndsWith($key, '_x')) {
+							if(!array_key_exists($key, $color_groups[$color_group]))
+								$color_groups[$color_group][$key] = $color_pattern[count($color_groups[$color_group]) % count($color_pattern)];
+							
+							if(!array_key_exists($series_key, $chart_json['data']['colors'] ?? []))
+								$chart_json['data']['colors'][$series_key] = $color_groups[$color_group][$key];
+						}
+						
+						if(!array_key_exists($series_key, $chart_json['data']['names'] ?? []))
+							$chart_json['data']['names'][$series_key] = $series_name;
+						
+						$chart_json['data']['columns'][] = [$series_key, ...$series];
+						
+						if($ytype)
+							$chart_json['data']['types'][$series_key] = $ytype;
+						
+						if($yaxis == 'y2') {
+							$chart_json['data']['axes'][$series_key] = $yaxis;
+							$chart_json['axis']['y2']['show'] = true;
+						}
+						
+					} else {
+						$chart_json['data']['click_search'][$series_key] = [...$series];
+						
 					}
 				}
 				
@@ -278,12 +346,19 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 							continue;
 						
 						// [TODO] Right now this forces the suffix
-						$chart_json['data']['xs'][$dataset_key . '_' . $k] = $dataset_key . '_' . $k . '_x';
+						$chart_json['data']['xs'][$dataset_key . '__' . $k] = $dataset_key . '__' . $k . '_x';
 					}
 					
 				} else {
 					unset($datasets[$dataset_key][$xkey]);
 				}
+			}
+			
+			// Sort legend by dataset names
+			if($chart['legend']['sorted'] ?? false) {
+				usort($chart_json['data']['columns'], function($a, $b) use ($chart_json) {
+					return ($chart_json['data']['names'][$a[0]] ?? '') <=> ($chart_json['data']['names'][$b[0]] ?? '');
+				});			
 			}
 			
 			foreach($chart['data']['stacks'] ?? [] as $dataset_keys) {
@@ -297,11 +372,17 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 						continue;
 					
 					foreach(array_keys($datasets[$dataset_key]) as $k) {
-						$group[] = $dataset_key . '_' . $k;
+						if(!DevblocksPlatform::strEndsWith($k, '__click'))
+							$group[] = $dataset_key . '__' . $k;
 					}
 				}
 				
 				$chart_json['data']['groups'][] = $group;
+			}
+			
+			if(array_key_exists('legend', $chart)) {
+				if(array_key_exists('show', $chart['legend']))
+					$chart_json['legend']['show'] = boolval($chart['legend']['show']);
 			}
 			
 			if(array_key_exists('tooltip', $chart)) {
@@ -361,7 +442,15 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 			echo DevblocksPlatform::strFormatJson([
 				'error' => 'ERROR: ' . $error,
 			]);
+			
 		} else {
+			// We don't need to show click series meta in the results
+			foreach($datasets as $dataset_key => $dataset_series) {
+				$datasets[$dataset_key] = array_filter($dataset_series, function ($k) {
+					return !DevblocksPlatform::strEndsWith($k, '__click');
+				}, ARRAY_FILTER_USE_KEY);
+			}
+			
 			echo DevblocksPlatform::strFormatJson($datasets);
 		}
 	}
@@ -404,6 +493,13 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 		$datasets_kata = $kata->formatTree($datasets_kata, $chart_dict, $error);
 		
 		$datasets = [];
+		
+		$allowed_data_query_formats = [
+			'categories',
+			'pie',
+			'scatterplot',
+			'timeseries',
+		];
 		
 		foreach($datasets_kata ?? [] as $key => $data_params) {
 			list($dataset_type, $dataset_name) = array_pad(explode('/', $key, 2), 2, null);
@@ -455,23 +551,55 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 						return null;
 					}
 					
-					if(!($query_results = $data->executeQuery($data_params['query'], $data_params['query_params'] ?? [], $error)))
+					if(!($query_results = $data->executeQuery($data_params['query'], $data_params['query_params'] ?? [], $error, intval($data_params['cache_secs'] ?? 0))))
 						return null;
 					
-					if(in_array($query_results['_']['format'], ['categories','scatterplot'])) {
-						$datasets[$dataset_name] = array_combine(
-							array_map(
-								fn($arr) => current($arr),
-								$query_results['data']
-							),
-							array_map(
-								fn($arr) => array_slice($arr, 1),
-								$query_results['data']
-							)
+					$query_format = DevblocksPlatform::strLower($query_results['_']['format'] ?? '');
+					
+					if(!in_array($query_format, $allowed_data_query_formats)) {
+						$error = sprintf('A dataset `dataQuery:query:format:` (%s) must be one of: %s',
+							$query_format,
+							implode(', ', $allowed_data_query_formats)
 						);
+						return null;
+					}
+					
+					switch($query_format) {
+						case 'categories':
+						case 'pie':
+						case 'scatterplot':
+							$datasets[$dataset_name] = array_combine(
+								array_map(
+									fn($arr) => current($arr),
+									$query_results['data']
+								),
+								array_map(
+									fn($arr) => array_slice($arr, 1),
+									$query_results['data']
+								)
+							);
+							break;
 						
-					} else {
-						$datasets[$dataset_name] = $query_results['data'];
+						case 'timeseries':
+							$datasets[$dataset_name] = $query_results['data'];
+							break;
+					}
+					
+					if('categories' == $query_format) {
+						if($results = $this->_dataQueryQueriesFromCategories($query_results, $datasets[$dataset_name])) {
+							foreach($results as $k => $v)
+								$datasets[$dataset_name][$k] = $v;
+						}
+					} else if('pie' == $query_format) {
+						if($results = $this->_dataQueryQueriesFromPie($query_results, $datasets[$dataset_name])) {
+							foreach($results as $k => $v)
+								$datasets[$dataset_name][$k] = $v;
+						}
+					} else if('timeseries' == $query_format) {
+						if($results = $this->_dataQueryQueriesFromTimeseries($query_results, $datasets[$dataset_name])) {
+							foreach($results as $k => $v)
+								$datasets[$dataset_name][$k] = $v;
+						}
 					}
 					break;
 				
@@ -489,5 +617,85 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget {
 		}
 		
 		return $datasets;
+	}
+	
+	private function _dataQueryQueriesFromCategories(array $query_results, array $series=[]) : array {
+		$results = [];
+		
+		$x_labels = [];
+		
+		if($query_results['_']['format_params']['xaxis_key'] ?? null)
+			$x_labels = array_flip(array_slice($query_results['data'][0], 1));
+		
+		$series_keys = array_column(array_slice($query_results['data'], 1), '0');
+		
+		foreach($series_keys as $series_key) {
+			$results[$series_key . '__click'] = array_fill_keys($x_labels, '');
+		}
+		
+		foreach($query_results['_']['series'] ?? [] as $x_label => $y_series) {
+			foreach($y_series as $y_series_k => $y_series_v) {
+				if (!DevblocksPlatform::strStartsWith($y_series_k, '_')) {
+					if(
+						array_key_exists($x_label, $x_labels)
+						&& array_key_exists('query', $y_series_v)
+					) {
+						$results[$y_series_k . '__click'][$x_labels[$x_label]] = $query_results['_']['context'] . ' ' . $y_series_v['query'];
+					}
+				}
+			}
+		}
+		
+		return $results;
+	}
+	
+	private function _dataQueryQueriesFromPie(array $query_results, array $series=[]) : array {
+		$results = [];
+		
+		if(
+			!array_key_exists('series', $query_results['_'])
+			|| !array_key_exists('context', $query_results['_'])
+		)
+			return [];
+		
+		foreach(array_keys($series) as $series_key) {
+			if(
+				array_key_exists($series_key, $query_results['_']['series'])
+				&& array_key_exists('query', $query_results['_']['series'][$series_key])
+			) {
+				$results[$series_key . '__click'] = $query_results['_']['context'] . ' ' . $query_results['_']['series'][$series_key]['query'];
+			}
+		}
+		
+		return $results;
+	}
+	
+	private function _dataQueryQueriesFromTimeseries(array $query_results, array $series=[]) : array {
+		$results = [];
+
+		$x_labels = [];
+		
+		if($query_results['_']['format_params']['xaxis_key'] ?? null) {
+			$xaxis_key = array_key_first($query_results['data']);
+			$x_labels = array_flip($query_results['data'][$xaxis_key]);
+		}
+
+		$series_keys = array_keys(array_slice($query_results['data'], 1, null, true));
+		
+		foreach($series_keys as $series_key) {
+			$results[$series_key . '__click'] = array_fill_keys($x_labels, '');
+		}
+		
+		foreach($query_results['_']['series'] ?? [] as $x_label => $y_series) {
+			foreach($y_series as $y_series_k => $y_series_v) {
+				if(array_key_exists('query', $y_series_v)) {
+					if(array_key_exists($y_series_k, $x_labels)) {
+						$results[$x_label . '__click'][$x_labels[$y_series_k]] = $query_results['_']['context'] . ' ' . $y_series_v['query'];
+					}
+				}
+			}
+		}
+		
+		return $results;
 	}
 };

@@ -523,6 +523,22 @@ class Model_TwitterMessage {
 	public $created_date;
 	public $is_closed;
 	public $content;
+	
+	public function getAccount() {
+		if(!$this->connected_account_id)
+			return null;
+		
+		return DAO_ConnectedAccount::get($this->connected_account_id);
+	}
+	
+	public function getProfileImageProxyUrl() {
+		if(!$this->user_profile_image_url)
+			return null;
+		
+		$url_writer = DevblocksPlatform::services()->url();
+		
+		return $url_writer->writeImageProxyUrl($this->user_profile_image_url);
+	}
 };
 
 class View_TwitterMessage extends C4_AbstractView implements IAbstractView_Subtotals, IAbstractView_QuickSearch {
