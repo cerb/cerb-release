@@ -55,6 +55,14 @@ class _DevblocksServices {
 	}
 	
 	/**
+	 *
+	 * @return _DevblocksChartService
+	 */
+	function chart() {
+		return _DevblocksChartService::getInstance();
+	}
+	
+	/**
 	 * 
 	 * @return _DevblocksClassLoadManager
 	 */
@@ -1868,11 +1876,16 @@ class DevblocksPlatform extends DevblocksEngine {
 		
 		// Detect Markdown links
 		$out = preg_replace_callback('@\[(.*?)\]\((.*?)\)@', function($matches) use ($as_html, &$replacements) {
+			// If the label matches the link
 			if(rtrim($matches[1],'/') == rtrim($matches[2],'/'))
 				return $matches[2];
 			
 			$url_label = $matches[1];
 			$url = $matches[2];
+			
+			// Ignore if dimensions (100,200)
+			if(preg_match('/^\d+,\d+$/', $url))
+				return $matches[0];
 			
 			return sprintf('%s <%s>',
 				$url_label,

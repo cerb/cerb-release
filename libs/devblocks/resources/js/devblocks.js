@@ -696,7 +696,7 @@ function DevblocksClass() {
 				}
 				
 				// If our previous token is a tag, and we're on the same line, autocomplete inline
-				if(token.type === 'text') {
+				if(token.type === 'text' && 0 !== token_column) {
 					iter.stepBackward();
 					var prevToken = iter.getCurrentToken();
 					var prevTokenLine = editor.session.getLine(iter.getCurrentTokenRow());
@@ -739,12 +739,11 @@ function DevblocksClass() {
 						continue;
 					}
 
-					if(token.type === 'meta.tag' && 0 === token_column) {
-						var token_value = token.value;
+					var token_value = token.value;
+					var tag_trimmed = token_value.trimStart();
+					var tag_indent = " ".repeat(token_value.length - tag_trimmed.length);
 
-						var tag_trimmed = token_value.trimStart();
-						var tag_indent = " ".repeat(token_value.length - tag_trimmed.length);
-						
+					if(token.type === 'meta.tag' && 0 === token_column) {
 						if(null === current_indent) {
 							current_indent = tag_indent;
 							results.push(tag_trimmed);
@@ -754,6 +753,18 @@ function DevblocksClass() {
 							current_indent = tag_indent;
 						}
 						
+						// If we hit the root, stop early
+						if(0 === current_indent.length)
+							break;
+						
+					// If we're typing a tag name on a new line, use this ident
+					} else if(token.type === 'text' && 0 === token_column) {
+						if(null === current_indent) {
+							current_indent = tag_indent;
+						} else if (tag_indent.length < current_indent.length) {
+							current_indent = tag_indent;
+						}
+
 						// If we hit the root, stop early
 						if(0 === current_indent.length)
 							break;
@@ -1010,6 +1021,10 @@ function DevblocksClass() {
 		lineIsKataField: function(row, editor) {
 			var token = editor.session.getTokenAt(row, 0);
 			return token && 'meta.tag' === token.type;
+		},
+		lineIsComment: function(row, editor) {
+			var currentLine = editor.session.getLine(row);
+			return null != currentLine.match(/\s*#(.*)/i);
 		},
 		iterToKataParent: function(iter, editor) {
 			var refLineRow = iter.getCurrentTokenRow();
