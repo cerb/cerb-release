@@ -491,16 +491,25 @@ var cerbAutocompleteSuggestions = {
 		
 		'legend:': [
 			'show@bool: yes',
-			'sorted@bool: yes',
+			'style:',
 		],
 		'legend:show:': [
 			'yes',
 			'no',
 		],
+		'legend:style:': [
+			'compact:',
+			'table:',
+		],
+		'legend:style:table:': [
+			'data@bool: yes',
+			'stats@csv: sum, avg, max, min',
+		],
 		
 		'tooltip:': [
 			'grouped@bool: yes',
 			'show@bool: yes',
+			'ratios@bool: yes',
 		],
 		'tooltip:grouped:': [
 			'yes',
@@ -3731,6 +3740,11 @@ var ajax = new cAjaxCalls();
 						.css('top', (editor.offsetTop - editor.scrollTop + pos.top + 15) + 'px')
 						.css('left', (editor.offsetLeft - editor.scrollLeft + pos.left + 5) + 'px')
 					;
+				},
+				
+				close: function(event) {
+					if('autocompleteclose' === event.type)
+						event.originalEvent.stopPropagation();
 				}
 			})
 			.autocomplete( "instance" )._renderItem = function( ul, item ) {

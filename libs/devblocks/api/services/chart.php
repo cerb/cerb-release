@@ -91,7 +91,7 @@ class _DevblocksChartService {
 					'pattern' => $default_color_pattern,
 				],
 				'legend' => [
-					'show' => true,
+					'show' => false,
 				],
 				'tooltip' => [
 					'show' => true,
@@ -205,8 +205,10 @@ class _DevblocksChartService {
 				);
 			}
 			
-			$x_labels = array_replace($x_labels, $datasets_kata[$dataset_key][$x_key] ?? []);
+			$x_labels = array_replace($x_labels, array_flip($datasets_kata[$dataset_key][$x_key] ?? []));
 		}
+		
+		$x_labels = array_keys($x_labels);
 		
 		if($x_labels) {
 			$x_labels = array_unique($x_labels);
@@ -366,13 +368,6 @@ class _DevblocksChartService {
 			}
 		}
 		
-		// Sort legend by dataset names
-		if($chart_kata['legend']['sorted'] ?? false) {
-			usort($chart_json['data']['columns'], function($a, $b) use ($chart_json) {
-				return ($chart_json['data']['names'][$a[0]] ?? '') <=> ($chart_json['data']['names'][$b[0]] ?? '');
-			});
-		}
-		
 		foreach($chart_kata['data']['stacks'] ?? [] as $dataset_keys) {
 			if(!is_array($dataset_keys))
 				continue;
@@ -512,9 +507,51 @@ class _DevblocksChartService {
 	}
 	
 	private function _parseChartLegend(array $chart_kata, array &$chart_json) : void {
-		if(array_key_exists('legend', $chart_kata)) {
-			if(array_key_exists('show', $chart_kata['legend']))
-				$chart_json['legend']['show'] = boolval($chart_kata['legend']['show']);
+		// If we're hiding the legend, do nothing
+		if(
+			array_key_exists('show', $chart_kata['legend'] ?? []) 
+			&& !$chart_kata['legend']['show']
+		)
+			return;
+		
+		if(
+			!array_key_exists('legend', $chart_kata)
+			|| !array_key_exists('style', $chart_kata['legend']) 
+			|| !$chart_kata['legend']['style']
+		) {
+			$legend_style = [
+				'compact' => [],
+			];
+		} else {
+			$legend_style = $chart_kata['legend']['style'];
+		}
+		
+		if(array_key_exists('table', $legend_style)) {
+			$chart_json['legend']['style'] = [
+				'table' => [
+					'data' => boolval($chart_kata['legend']['style']['table']['data'] ?? false)
+				]
+			];
+			
+			$stats = $chart_kata['legend']['style']['table']['stats'] ?? [];
+			
+			if(!is_array($stats))
+				$stats = [$stats];
+			
+			$stats = array_intersect($stats, ['sum','avg','min','max']);
+			
+			if($stats)
+				$chart_json['legend']['style']['table']['stats'] = $stats;
+			
+		} else if(array_key_exists('compact', $legend_style)) {
+			$chart_json['legend']['style'] = [
+				'compact' => [],
+			];
+			
+		} else {
+			$chart_json['legend']['style'] = [
+				'hidden' => [],
+			];
 		}
 	}
 	
@@ -525,6 +562,9 @@ class _DevblocksChartService {
 			
 			if(array_key_exists('grouped', $chart_kata['tooltip']))
 				$chart_json['tooltip']['grouped'] = boolval($chart_kata['tooltip']['grouped']);
+			
+			if(array_key_exists('ratios', $chart_kata['tooltip']))
+				$chart_json['tooltip']['ratios'] = boolval($chart_kata['tooltip']['ratios']);
 		}
 	}	
 }
