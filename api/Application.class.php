@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2022112601);
-define("APP_VERSION", '10.3.4');
+define("APP_BUILD", 2023011301);
+define("APP_VERSION", '10.3.5');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -2353,7 +2353,7 @@ class CerberusContexts {
 						$handlers = $record_changed_events->getKata($dict, $error);
 						
 						if(false === $handlers && $error) {
-							error_log('[KATA] Invalid record.changed KATA: ' . $error);
+							DevblocksPlatform::logError('[KATA] Invalid record.changed KATA: ' . $error);
 							$handlers = [];
 						}
 						
@@ -2393,21 +2393,60 @@ class CerberusContexts {
 									);
 									
 								} else if($behavior->event_point == Event_MailAssignedInGroup::ID && $new_model instanceof Model_Ticket) {
+									$behavior_bot = $behavior->getBot();
+									
+									if(
+										$behavior_bot->owner_context != CerberusContexts::CONTEXT_GROUP
+										|| $behavior_bot->owner_context_id != $new_model->group_id
+									)
+										return false;
+
 									// If the owner changed
 									if($old_model['owner_id'] != $new_model->owner_id) {
-										return Event_MailAssignedInGroup::trigger($new_model->id, $new_model->group_id);
+										$event_model = new Model_DevblocksEvent(
+											Event_MailAssignedInGroup::ID,
+											[
+												'context_id' => $new_model->id,
+											]
+										);
 									}
 									
 								} else if($behavior->event_point == Event_MailMovedToGroup::ID && $new_model instanceof Model_Ticket) {
+									$behavior_bot = $behavior->getBot();
+									
+									if(
+										$behavior_bot->owner_context != CerberusContexts::CONTEXT_GROUP
+										|| $behavior_bot->owner_context_id != $new_model->group_id
+									)
+										return false;
+
 									// If the ticket moved group/bucket
 									if($old_model['group_id'] != $new_model->group_id || $old_model['bucket_id'] != $new_model->bucket_id) {
-										return Event_MailMovedToGroup::trigger($new_model->id, $new_model->group_id);
+										$event_model = new Model_DevblocksEvent(
+											Event_MailMovedToGroup::ID,
+											[
+												'context_id' => $new_model->id,
+											]
+										);
 									}
 									
 								} else if($behavior->event_point == Event_MailClosedInGroup::ID && $new_model instanceof Model_Ticket) {
+									$behavior_bot = $behavior->getBot();
+									
+									if(
+										$behavior_bot->owner_context != CerberusContexts::CONTEXT_GROUP
+										|| $behavior_bot->owner_context_id != $new_model->group_id
+									)
+										return false;
+									
 									// If the status went closed
 									if($new_model->status_id == Model_Ticket::STATUS_CLOSED && $old_model['status_id'] != $new_model->status_id) {
-										return Event_MailClosedInGroup::trigger($new_model->id, $new_model->group_id);
+										$event_model = new Model_DevblocksEvent(
+											Event_MailClosedInGroup::ID,
+											[
+												'context_id' => $new_model->id,
+											]
+										);
 									}
 									
 								} else if($behavior->event_point == Event_CommentOnTicketInGroup::ID && $new_model instanceof Model_Comment) {
