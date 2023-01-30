@@ -29,8 +29,10 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 				'yesterday',
 				'"this week"',
 				'"this month"',
+				'"this year"',
 				'"last week"',
 				'"last month"',
+				'"last year"',
 				'"Jan 1 to Dec 31"',
 			],
 			'timeout:' => [
@@ -56,6 +58,7 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 					'average',
 					'avg',
 					'count',
+					'distinct',
 					'max',
 					'min',
 					'samples',
@@ -168,6 +171,7 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 							'average' => 'average',
 							'avg' => 'average',
 							'count' => 'count',
+							'distinct' => 'distinct',
 							'max' => 'max',
 							'min' => 'min',
 							'samples' => 'count',
@@ -299,7 +303,14 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 						$series_filter_fields = CerbQuickSearchLexer::getFieldsFromQuery($series_filter_query);
 						
 						foreach($series_filter_fields as $series_filter_field) {
-							CerbQuickSearchLexer::getOperArrayFromTokens($series_filter_field->tokens, $oper, $value);
+							// Parameterized filters
+							if('T_GROUP' == $series_filter_field->tokens[0]->type ?? null) {
+								$oper = DevblocksSearchCriteria::OPER_CUSTOM;
+								$value = CerbQuickSearchLexer::getTokensAsQuery($series_filter_field->tokens);
+								
+							} else {
+								CerbQuickSearchLexer::getOperArrayFromTokens($series_filter_field->tokens, $oper, $value);
+							}
 							
 							$series_model['query'][] = [
 								'key' => $series_filter_field->key,
@@ -531,21 +542,78 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 					case 'number':
 					case 'record':
 						if($filter['oper'] == DevblocksSearchCriteria::OPER_IN && is_array($filter['value']) && $filter['value']) {
-							if($metric_dimension)
-								$sql_wheres[] = sprintf('%s IN (%s)',
-									$db->escape($dim_key),
-									implode(',', $db->qstrArray($filter['value']))
+							// Verify all values are numeric
+							if(array_filter($filter['value'], fn($n) => !is_numeric($n))) {
+								$error = sprintf("Query filter `%s:` is must be a number or a list of numbers.",
+									$filter['key']
 								);
+								return false;
+							}
+							
+							$sql_wheres[] = sprintf('%s IN (%s)',
+								$db->escape($dim_key),
+								implode(',', $db->qstrArray(DevblocksPlatform::sanitizeArray($filter['value'], 'int')))
+							);
+							
+						// Deep search on records
+						} elseif ('record' == $metric_dimension['type'] && $filter['oper'] == DevblocksSearchCriteria::OPER_CUSTOM) {
+							if(!($context_ext = Extension_DevblocksContext::getByAlias($metric_dimension['params']['record_type'] ?? null, true))) {
+								$error = sprintf('Query filter `%s:` is an unknown record type (`%s`).',
+									$filter['key'],
+									$metric_dimension['params']['record_type'] ?? null
+								);
+								return false;
+							}
+							
+							$dao_class = $context_ext->getDaoClass();
+							$search_class = $context_ext->getSearchClass();
+							
+							if(!($view = $context_ext->getTempView())) {
+								$error = sprintf('Query filter `%s:` failed to initialize a worklist.',
+									$filter['key']
+								);
+								return false;
+							}
+							
+							$view->addParamsWithQuickSearch($filter['value'] ?? '', true);
+							$view->renderPage = 0;
+							$view->renderTotal = false;
+							
+							$query_parts = $dao_class::getSearchQueryComponents($view->view_columns, $view->getParams());
+							
+							$sql_subquery = sprintf("SELECT %s AS id %s%s",
+								$search_class::getPrimaryKey(),
+								$query_parts['join'],
+								$query_parts['where']
+							);
+							
+							$sql_wheres[] = sprintf('%s IN (%s)',
+								$db->escape($dim_key),
+								str_replace('%', '%%', $sql_subquery)
+							);
+							
+						// Error on unknown filter operators
+						} else {
+							$error = sprintf("Query filter `%s:` is must be a number or a list of numbers.",
+								$filter['key']
+							);
+							return false;
 						}
 						break;
 						
 					default:
 						if($filter['oper'] == DevblocksSearchCriteria::OPER_IN && is_array($filter['value']) && $filter['value']) {
-							if($metric_dimension)
-								$sql_wheres[] = sprintf('%s IN (SELECT id FROM metric_dimension WHERE name IN (%s))',
-									$db->escape($dim_key),
-									implode(',', $db->qstrArray($filter['value']))
-								);
+							$sql_wheres[] = sprintf('%s IN (SELECT id FROM metric_dimension WHERE name IN (%s))',
+								$db->escape($dim_key),
+								implode(',', $db->qstrArray($filter['value']))
+							);
+							
+						// Error on unknown filter operators
+						} else {
+							$error = sprintf("Query filter `%s:` is must be a string or a list of strings.",
+								$filter['key']
+							);
+							return false;
 						}
 						break;
 				}
@@ -553,20 +621,20 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		}
 		
 		$func = DevblocksPlatform::strLower($series_model['function'] ?? 'count');
-		$sql_select_keys = 'bin';
-		$sql_group_by = 'bin';
+		$sql_select_keys = 'bin AS ts_bin';
+		$sql_group_by = 'ts_bin';
 		$granularity = $chart_model['period_unit']; // 300, 3600, 86400
 		
 		// [TODO] Limit TOP(n) and BOTTOM(n)
 		
 		if('year' == $chart_model['period']) {
-			$sql_select_keys = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(bin), '%Y-01-01 00:00:00')) AS bin";
+			$sql_select_keys = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(bin), '%Y-01-01 00:00:00')) AS ts_bin";
 			
 		} else if('month' == $chart_model['period']) {
-			$sql_select_keys = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(bin), '%Y-%m-01 00:00:00')) AS bin";
+			$sql_select_keys = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(bin), '%Y-%m-01 00:00:00')) AS ts_bin";
 			
 		} else if('week' == $chart_model['period']) {
-			$sql_select_keys = "UNIX_TIMESTAMP(STR_TO_DATE(CONCAT(YEARWEEK(FROM_UNIXTIME(bin),1),' Monday'),'%x%v %W')) AS bin";	
+			$sql_select_keys = "UNIX_TIMESTAMP(STR_TO_DATE(CONCAT(YEARWEEK(FROM_UNIXTIME(bin),1),' Monday'),'%x%v %W')) AS ts_bin";	
 		}
 		
 		$sql = sprintf("SELECT %s, %s AS value FROM metric_value WHERE metric_value.metric_id = %d AND metric_value.granularity = %d AND metric_value.bin BETWEEN %d AND %d %s GROUP BY %s",
@@ -583,7 +651,7 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		// Metric types
 		if('gauge' == $metric->type) {
 			if($func == 'average') {
-			$sql_select_func = 'SUM(sum/samples)';				
+				$sql_select_func = 'SUM(sum/samples)';				
 				
 			} else if($func == 'sum') {
 				$sql_select_func = 'SUM(sum)';
@@ -596,6 +664,9 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 				
 			} else if($func == 'count') {
 				$sql_select_func = 'SUM(samples)';
+				
+			} else if($func == 'distinct') {
+				$sql_select_func = 'SUM(1)';
 				
 			} else {
 				return [];
@@ -616,6 +687,9 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 				
 			} else if($func == 'count') {
 				$sql_select_func = 'SUM(samples)';
+				
+			} else if($func == 'distinct') {
+				$sql_select_func = 'SUM(1)';
 				
 			} else {
 				return [];
@@ -736,7 +810,7 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 					$results[$series_label] = array_fill_keys($chart_model['xaxis'], null);
 				
 				$dt = new DateTime();
-				$dt->setTimestamp($row['bin']);
+				$dt->setTimestamp($row['ts_bin']);
 				
 				$bin = $dt->format($unit_format);
 				

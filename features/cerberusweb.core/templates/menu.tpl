@@ -73,8 +73,6 @@ $(function() {
 				}
 			}
 		})
-		.css('position', 'absolute')
-		.css('margin-top', '6px')
 	;
 	
 	$menu.sortable({
@@ -100,11 +98,15 @@ $(function() {
 	$menu
 		.find('> li.drag')
 		.hover(
-			function(e) {
+			function() {
 				var $this = $(this);
-				$this.find('[data-cerb-navmenu-submenu]').show();
+				$this
+					.find('[data-cerb-navmenu-submenu]')
+					.show()
+					.position({ my: "left top", at: "left bottom-2", of: $this, collision: "fit" })
+				;
 			},
-			function(e) {
+			function() {
 				var $this = $(this);
 				$this.find('[data-cerb-navmenu-submenu]').hide();
 			}
@@ -194,7 +196,8 @@ $(function() {
 						})
 					;
 
-					$search_menu.show().position({ my: "right top", at: "right bottom", of: $search_button, collision: "fit" })
+					$search_menu.show().position({ my: "right top", at: "right bottom", of: $search_button, collision: "fit" });
+					
 					$search_menu.focus().menu('focus', null, $search_menu.find('.ui-menu-item').first());
 				});
 				
