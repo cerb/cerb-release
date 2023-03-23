@@ -60,6 +60,21 @@ EOD;
 		$actual = DevblocksPlatform::services()->kata()->formatTree($kata, $error);
 		$expected = "This is a paragraph\non multiple lines\nwith two blanks at the end\n\n";
 		$this->assertEquals($expected, $actual['object']['string']);
+		
+		$kata_string = <<< EOD
+object:
+  string@text:
+    This is a paragraph
+    
+    on multiple lines
+    
+    with blank lines between
+EOD;
+		
+		$kata = DevblocksPlatform::services()->kata()->parse($kata_string, $error);
+		$actual = DevblocksPlatform::services()->kata()->formatTree($kata, $error);
+		$expected = "This is a paragraph\n\non multiple lines\n\nwith blank lines between";
+		$this->assertEquals($expected, $actual['object']['string']);
 	}
 	
 	function testKataRaw() {
@@ -418,6 +433,48 @@ object:
     more_nested:
       string: Cerb
 EOD;
+		
+		$this->assertEquals($expected, $actual);
+	}
+	
+	function testKataEmitTextBlockLeadingWhitespace() {
+		$data = [
+    	'record.update' => [
+				'inputs' => [
+					'fields' => [
+						'name' => 'automation.example.script',
+						'script' => "start:\n  return:\n    output: Testing!",
+					],
+				],
+			],
+    ];
+		
+		$actual = DevblocksPlatform::services()->kata()->emit($data);
+		
+		$expected = <<< EOD
+    record.update:
+      inputs:
+        fields:
+          name: automation.example.script
+          script@text:
+            start:
+              return:
+                output: Testing!
+    EOD;
+		
+		$this->assertEquals($expected, $actual);
+	}
+	
+	function testKataEmitEmptyKey() {
+		$data = [
+			'blank' => '',
+		];
+		
+		$actual = DevblocksPlatform::services()->kata()->emit($data);
+		
+		$expected = <<< EOD
+    blank@text:
+    EOD;
 		
 		$this->assertEquals($expected, $actual);
 	}

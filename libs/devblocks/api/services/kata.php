@@ -317,13 +317,16 @@ class _DevblocksKataService {
 						$output .= str_repeat('  ', $indent) . strval($v) . "\n";
 						
 					} else {
-						$lines = DevblocksPlatform::parseCrlfString($v);
+						$lines = DevblocksPlatform::parseCrlfString($v, true, false);
 						
 						if(count($lines) > 1) {
 							$output .= str_repeat('  ', $indent) . strval($k) . "@text:\n";
 							
 							foreach($lines as $line)
 								$output .= str_repeat('  ', $indent+1) . strval($line) . "\n";
+							
+						} else if(is_string($v) && 0 == strlen($v)) {
+							$output .= str_repeat('  ', $indent) . $k . "@text:" . "\n";
 							
 						} else if(is_integer($v)) {
 							$output .= str_repeat('  ', $indent) . strval($k) . "@int: " . intval($v) . "\n";
