@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7
+class ComposerStaticInite7482ecd5535b514b4bfad849fdd23bf
 {
     public static $files = array (
         'e69f7f6ee287b969198c3c9d6777bd38' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/bootstrap.php',
@@ -66,6 +66,7 @@ class ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7
         'P' => 
         array (
             'Psr\\Http\\Message\\' => 17,
+            'Psr\\Clock\\' => 10,
         ),
         'O' => 
         array (
@@ -96,6 +97,7 @@ class ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7
         ),
         'D' => 
         array (
+            'Doctrine\\Deprecations\\' => 22,
             'Doctrine\\Common\\Lexer\\' => 22,
             'Defuse\\Crypto\\' => 14,
         ),
@@ -186,14 +188,18 @@ class ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7
         array (
             0 => __DIR__ . '/..' . '/psr/http-message/src',
         ),
+        'Psr\\Clock\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/psr/clock/src',
+        ),
         'OneLogin\\' => 
         array (
             0 => __DIR__ . '/..' . '/onelogin/php-saml/src',
         ),
         'League\\Uri\\' => 
         array (
-            0 => __DIR__ . '/..' . '/league/uri/src',
-            1 => __DIR__ . '/..' . '/league/uri-interfaces/src',
+            0 => __DIR__ . '/..' . '/league/uri-interfaces/src',
+            1 => __DIR__ . '/..' . '/league/uri/src',
         ),
         'League\\OAuth2\\Server\\' => 
         array (
@@ -235,9 +241,13 @@ class ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7
         array (
             0 => __DIR__ . '/..' . '/egulias/email-validator/src',
         ),
+        'Doctrine\\Deprecations\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/doctrine/deprecations/lib/Doctrine/Deprecations',
+        ),
         'Doctrine\\Common\\Lexer\\' => 
         array (
-            0 => __DIR__ . '/..' . '/doctrine/lexer/lib/Doctrine/Common/Lexer',
+            0 => __DIR__ . '/..' . '/doctrine/lexer/src',
         ),
         'Defuse\\Crypto\\' => 
         array (
@@ -735,10 +745,10 @@ class ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInit80cb2a416a5e4b5562358cf92a2057b7::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInite7482ecd5535b514b4bfad849fdd23bf::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInite7482ecd5535b514b4bfad849fdd23bf::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInite7482ecd5535b514b4bfad849fdd23bf::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInite7482ecd5535b514b4bfad849fdd23bf::$classMap;
 
         }, null, ClassLoader::class);
     }
