@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2023032301);
-define("APP_VERSION", '10.3.7');
+define("APP_BUILD", 2023041201);
+define("APP_VERSION", '10.3.8');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -3740,11 +3740,13 @@ class _CerbApplication_KataAutocompletions {
 			'checkbox:' => [
 				'label:',
 				'default:',
+				'required@bool: yes',
 			],
 			'picklist:' => [
 				'label:',
 				'params:',
 				'default:',
+				'required@bool: yes',
 			],
 			'picklist:params:' => [
 				[
@@ -3756,6 +3758,7 @@ class _CerbApplication_KataAutocompletions {
 				'label:',
 				'params:',
 				'default:',
+				'required@bool: yes',
 			],
 			'text:params:' => [
 				'multiple@bool: no',
@@ -5750,6 +5753,9 @@ class _CerbApplication_KataSchemas {
                   types:
                     bit:
                     bool:
+                required:
+                  types:
+                    bool:
         chooser:
           multiple@bool: yes
           types:
@@ -5773,6 +5779,9 @@ class _CerbApplication_KataSchemas {
                         query:
                           types:
                             string:
+                required:
+                  types:
+                    bool:
         picklist:
           multiple@bool: yes
           types:
@@ -5793,6 +5802,9 @@ class _CerbApplication_KataSchemas {
                           types:
                             # [TODO] Each list item must be a string
                             list:
+                required:
+                  types:
+                    bool:
         text:
           multiple@bool: yes
           types:
@@ -5813,7 +5825,10 @@ class _CerbApplication_KataSchemas {
                           types:
                             bit:
                             bool:
-    EOD;		
+                required:
+                  types:
+                    bool:
+    EOD;
 	}
 	
 	function worklistExport() : string {
