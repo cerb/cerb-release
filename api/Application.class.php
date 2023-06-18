@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2023050801);
-define("APP_VERSION", '10.3.9');
+define("APP_BUILD", 2023061701);
+define("APP_VERSION", '10.3.10');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -2946,6 +2946,18 @@ class CerberusSettingsDefaults {
 class Cerb_DevblocksSessionHandler implements IDevblocksHandler_Session {
 	static $_data = null;
 
+	static function getStatelessUris() : array {
+		// No cookie for resources or icons
+		return [
+			'apple-touch-icon.png',
+			'apple-touch-icon-precomposed.png',
+			'favicon.ico',
+			'cron',
+			'portal',
+			'resource',
+		];
+	}
+	
 	static function open($save_path, $session_name) {
 		return true;
 	}
@@ -2975,9 +2987,14 @@ class Cerb_DevblocksSessionHandler implements IDevblocksHandler_Session {
 
 		if(null != (@$session = $db->GetRowReader(sprintf("SELECT session_id, refreshed_at, session_data FROM devblocks_session WHERE session_token = %s", $db->qstr($id))))) {
 			$maxlifetime = DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::SESSION_LIFESPAN, CerberusSettingsDefaults::SESSION_LIFESPAN);
+			$is_ajax = DevblocksPlatform::getHttpRequest()->is_ajax ?? false;
 
 			// Refresh the session cookie (move expiration forward) after 2.5 minutes have elapsed
-			if(array_key_exists('refreshed_at', $session) && (time() - $session['refreshed_at'] >= 150)) {
+			if(
+				!$is_ajax 
+				&& array_key_exists('refreshed_at', $session) 
+				&& (time() - $session['refreshed_at'] >= 150)
+			) {
 				// If the cookie is going to expire at a future date, extend it
 				if($maxlifetime) {
 					$url_writer = DevblocksPlatform::services()->url();
