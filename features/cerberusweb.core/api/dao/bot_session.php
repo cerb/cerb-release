@@ -61,8 +61,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	static function update($ids, $fields, $check_deltas=true) {
 		$db = DevblocksPlatform::services()->database();
 		
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
 		
 		self::updateWhere($fields, sprintf("session_id IN (%s)",
 			implode(',', $db->qstrArray($ids))
@@ -127,18 +126,16 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	 * @return Model_BotSession[]
 	 */
 	static function getIds(array $ids) : array {
-		if(!is_array($ids))
-			$ids = array($ids);
+		$db = DevblocksPlatform::services()->database();
+		
+		if(!is_array($ids)) $ids = [$ids];
 
-		if(empty($ids))
-			return array();
+		if(empty($ids)) return [];
 
 		if(!method_exists(get_called_class(), 'getWhere'))
-			return array();
+			return [];
 
-		$db = DevblocksPlatform::services()->database();
-
-		$models = array();
+		$models = [];
 
 		$results = static::getWhere(sprintf("session_id IN (%s)",
 			implode(',', $db->qstrArray($ids))
@@ -170,7 +167,7 @@ class DAO_BotSession extends Cerb_ORMHelper {
 			$object->session_id = $row['session_id'];
 			$object->updated_at = intval($row['updated_at']);
 			
-			@$session_data = json_decode($row['session_data'], true);
+			$session_data = json_decode($row['session_data'] ?? '', true);
 			$object->session_data = $session_data ?: [];
 			
 			$objects[$object->session_id] = $object;
@@ -186,11 +183,11 @@ class DAO_BotSession extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		
+		if(empty($ids)) return false;
 		
 		$ids_list = implode(',', $db->qstrArray($ids));
 		

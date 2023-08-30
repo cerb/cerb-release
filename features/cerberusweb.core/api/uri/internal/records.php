@@ -64,6 +64,8 @@ class PageSection_InternalRecords extends Extension_PageSection {
 					return $this->_internalAction_showPeekPopup();
 				case 'showPermalinkPopup':
 					return $this->_internalAction_showPermalinkPopup();
+				case 'viewExplore':
+					return $this->_internalAction_viewExplore();
 				case 'viewLogDelete':
 					return $this->_internalAction_viewLogDelete();
 			}
@@ -1272,6 +1274,14 @@ class PageSection_InternalRecords extends Extension_PageSection {
 		return true;
 	}
 	
+	private function _internalAction_viewExplore() {
+		$view_id = DevblocksPlatform::importGPC($_POST['view_id'] ?? null, 'string', '');
+		$explore_from = DevblocksPlatform::importGPC($_POST['explore_from'] ?? null, 'int', 0);
+		
+		$http_response = Cerb_ORMHelper::generateRecordExploreSet($view_id, $explore_from);
+		DevblocksPlatform::redirect($http_response);
+	}
+	
 	private function _internalAction_viewLogDelete() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -1291,7 +1301,7 @@ class PageSection_InternalRecords extends Extension_PageSection {
 		}
 		
 		if($view_id) {
-			if(false != ($view = C4_AbstractViewLoader::getView($view_id))) {
+			if(($view = C4_AbstractViewLoader::getView($view_id))) {
 				$view->render();
 			}
 		}

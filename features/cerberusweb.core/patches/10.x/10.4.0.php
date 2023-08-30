@@ -87,7 +87,7 @@ if(!$db->GetOneMaster("SELECT 1 FROM toolbar WHERE name = 'records.worklist'")) 
 		$db->qstr('records.worklist'),
 		$db->qstr('cerb.toolbar.records.worklist'),
 		$db->qstr('Viewing a worklist of records'),
-		$db->qstr(''),
+		$db->qstr("# interaction/customExplore:\n#   label: custom explore\n#   icon: play-button\n#   uri: cerb:automation:cerb.worklist.buttons.explore\n#   inputs:\n#     open_new_tab: yes\n#   class: action-always-show"),
 		time(),
 		time()
 	));
@@ -174,12 +174,17 @@ $db->ExecuteMaster(sprintf("UPDATE automation_event SET name = %s, description =
 // Update package library
 
 $packages = [
+	'cerb_connected_service_huggingface.json',
+	'cerb_connected_service_openai.json',
+	'cerb_connected_service_smartsheet.json',
 	'cerb_profile_tab_ticket_overview.json',
 	'cerb_profile_widget_ticket_owner.json',
 	'cerb_profile_widget_ticket_status.json',
 ];
 
 CerberusApplication::packages()->importToLibraryFromFiles($packages, APP_PATH . '/features/cerberusweb.core/packages/library/');
+
+$db->ExecuteMaster("DELETE FROM package_library WHERE uri = 'cerb_connected_service_twitter'");
 
 // ===========================================================================
 // Remove the old htmlpurifier cache

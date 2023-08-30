@@ -102,8 +102,8 @@ class DAO_ContextActivityLog extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		$context = CerberusContexts::CONTEXT_ACTIVITY_LOG;
 		self::_updateAbstract($context, $ids, $fields);
@@ -347,13 +347,14 @@ class DAO_ContextActivityLog extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		$ids_list = implode(',', $ids);
+		if(empty($ids)) return false;
+		
+		$ids_list = implode(',', self::qstrArray($ids));
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM context_activity_log WHERE id IN (%s)", $ids_list));
 		
@@ -751,11 +752,11 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 
 		$this->view_columns = array(
 			SearchFields_ContextActivityLog::CREATED,
+			SearchFields_ContextActivityLog::ID,
 		);
 		$this->addColumnsHidden(array(
 			SearchFields_ContextActivityLog::ACTOR_CONTEXT_ID,
 			SearchFields_ContextActivityLog::TARGET_CONTEXT_ID,
-			SearchFields_ContextActivityLog::ID,
 		));
 		
 		$this->doResetCriteria();
@@ -785,8 +786,8 @@ class View_ContextActivityLog extends C4_AbstractView implements IAbstractView_S
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_ContextActivityLog', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_ContextActivityLog', $ids, $total);
 	}
 	
 	function getDataSample($size) {

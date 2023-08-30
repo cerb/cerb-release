@@ -256,13 +256,17 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		$ids_list = implode(',', $ids);
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_MAIL_TRANSPORT;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM mail_transport WHERE id IN (%s)", $ids_list));
 		
@@ -272,17 +276,7 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 		self::clearCache();
 		DAO_Address::clearCache();
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_MAIL_TRANSPORT,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -290,7 +284,7 @@ class DAO_MailTransport extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_MailTransport::getFields();
 		
-		list($tables,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_MailTransport', $sortBy);
+		list(,$wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_MailTransport', $sortBy);
 		
 		$select_sql = sprintf("SELECT ".
 			"mail_transport.id as %s, ".
@@ -543,8 +537,8 @@ class View_MailTransport extends C4_AbstractView implements IAbstractView_Subtot
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_MailTransport', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_MailTransport', $ids, $total);
 	}
 	
 	function getDataSample($size) {

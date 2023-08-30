@@ -391,27 +391,21 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		$ids_list = implode(',', $ids);
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_DRAFT;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM mail_queue WHERE id IN (%s)", $ids_list));
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_DRAFT,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -1114,8 +1108,8 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_MailQueue', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_MailQueue', $ids, $total);
 	}
 	
 	function getDataSample($size) {

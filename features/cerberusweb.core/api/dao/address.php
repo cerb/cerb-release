@@ -443,36 +443,27 @@ class DAO_Address extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
-
-		if(empty($ids))
-			return;
-
 		$db = DevblocksPlatform::services()->database();
 		
-		$address_ids = implode(',', $ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_ADDRESS;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		// Addresses
-		$sql = sprintf("DELETE FROM address WHERE id IN (%s)", $address_ids);
-		if(false == ($db->ExecuteMaster($sql)))
+		if(!($db->ExecuteMaster(sprintf("DELETE FROM address WHERE id IN (%s)", $ids_list))))
 			return false;
 	
 		// Clear search records
 		$search = Extension_DevblocksSearchSchema::get(Search_Address::ID);
 		$search->delete($ids);
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_ADDRESS,
-					'context_ids' => $ids
-				)
-			)
-		);
-
+		parent::_deleteAbstractAfter($context, $ids);
 		self::clearCache();
 	}
 	
@@ -1492,8 +1483,8 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Address', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Address', $ids, $total);
 	}
 	
 	function getDataSample($size) {
@@ -2181,6 +2172,15 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 			'label' => mb_ucfirst($translate->_('common.updated')),
 			'type' => Model_CustomField::TYPE_DATE,
 			'value' => $model->updated,
+		);
+		
+		$properties['worker'] = array(
+			'label' => mb_ucfirst($translate->_('common.worker')),
+			'type' => Model_CustomField::TYPE_LINK,
+			'value' => $model->worker_id,
+			'params' => array(
+				'context' => CerberusContexts::CONTEXT_WORKER,
+			),
 		);
 		
 		return $properties;

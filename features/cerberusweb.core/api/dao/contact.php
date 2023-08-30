@@ -169,8 +169,8 @@ class DAO_Contact extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(!isset($fields[self::UPDATED_AT]))
 			$fields[self::UPDATED_AT] = time();
@@ -483,13 +483,17 @@ class DAO_Contact extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		$ids_list = implode(',', $ids);
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_CONTACT;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		// Clear address foreign keys to these contacts
 		$db->ExecuteMaster(sprintf("UPDATE address SET contact_id = 0 WHERE contact_id IN (%s)", $ids_list));
@@ -500,17 +504,7 @@ class DAO_Contact extends Cerb_ORMHelper {
 		$search = Extension_DevblocksSearchSchema::get(Search_Contact::ID);
 		$search->delete($ids);
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_CONTACT,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -1235,8 +1229,8 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Contact', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Contact', $ids, $total);
 	}
 	
 	function getDataSample($size) {

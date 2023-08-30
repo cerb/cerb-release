@@ -95,8 +95,8 @@ class DAO_Toolbar extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(!isset($fields[self::UPDATED_AT]))
 			$fields[self::UPDATED_AT] = time();
@@ -307,29 +307,21 @@ class DAO_Toolbar extends Cerb_ORMHelper {
 	static function delete($ids) {
 		$db = DevblocksPlatform::services()->database();
 		
-		if(!is_array($ids))
-			$ids = [$ids];
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		if(!$ids)
-			return true;
+		if(!$ids) return true;
+		
+		$context = CerberusContexts::CONTEXT_TOOLBAR;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		DAO_RecordChangeset::delete('toolbar', $ids);
 		
-		$ids_list = implode(',', $ids);
-		
 		$db->ExecuteMaster(sprintf("DELETE FROM toolbar WHERE id IN (%s)", $ids_list));
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_TOOLBAR,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		self::clearCache();
 		return true;
@@ -594,8 +586,8 @@ class View_Toolbar extends C4_AbstractView implements IAbstractView_Subtotals, I
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Toolbar', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Toolbar', $ids, $total);
 	}
 	
 	function getDataSample($size) {

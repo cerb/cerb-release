@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2023080401);
-define("APP_VERSION", '10.4.0');
+define("APP_BUILD", 2023083001);
+define("APP_VERSION", '10.4.1');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -458,7 +458,7 @@ class CerberusApplication extends DevblocksApplication {
 		return $errors;
 	}
 	
-	public static function respondWithErrorReason(CerbErrorReason $reason, $skip_session=false) : void {
+	public static function respondWithErrorReason(CerbErrorReason $reason, $skip_session=false) : never {
 		$tpl = DevblocksPlatform::services()->template();
 		$settings = DevblocksPlatform::services()->pluginSettings();
 		$translate = DevblocksPlatform::getTranslationService();
@@ -2275,6 +2275,13 @@ class CerberusContexts {
 
 		if(!($dao_class = $context_ext->getDaoClass()))
 			return $models;
+		
+		if(
+			method_exists($dao_class, 'clearCache')
+			&& is_callable($dao_class, 'clearCache')
+		) {
+			$dao_class::clearCache();
+		}
 
 		if(method_exists($dao_class, 'getIds')) {
 			$models = $dao_class::getIds($ids);
@@ -2288,19 +2295,44 @@ class CerberusContexts {
 
 	static private array $_context_creations = [];
 	
-	static function checkpointCreations($context, $id) {
+	static function checkpointCreations($context, $ids) {
 		if (php_sapi_name() == 'cli')
 			return;
 		
 		if (!DevblocksPlatform::services()->event()->isEnabled())
 			return;
 		
-		$id = DevblocksPlatform::importVar($id, 'integer');
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
+		if(empty($ids)) return;
 		
 		if(!array_key_exists($context, self::$_context_creations))
 			self::$_context_creations[$context] = [];
 		
-		self::$_context_creations[$context][$id] = true;
+		foreach($ids as $id)
+			self::$_context_creations[$context][$id] = true;
+	}
+	
+	static private array $_context_deletions = [];
+	
+	static function checkpointDeletions($context, $ids) {
+		if (php_sapi_name() == 'cli')
+			return;
+		
+		if (!DevblocksPlatform::services()->event()->isEnabled())
+			return;
+		
+		if(!is_array($ids))
+			$ids = [$ids];
+		
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
+		if(!array_key_exists($context, self::$_context_deletions))
+			self::$_context_deletions[$context] = [];
+		
+		foreach($ids as $id)
+			self::$_context_deletions[$context][$id] = true;
 	}
 	
 	static private array $_context_initial_checkpoints = [];
@@ -2312,8 +2344,12 @@ class CerberusContexts {
 		
 		if(!DevblocksPlatform::services()->event()->isEnabled())
 			return;
+		
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
+		if(empty($ids)) return;
 
-		$ids = DevblocksPlatform::importVar($ids, 'array:integer');
 		$actor = CerberusContexts::getCurrentActor();
 
 		if(!array_key_exists($context, self::$_context_initial_checkpoints))
@@ -2334,7 +2370,7 @@ class CerberusContexts {
 
 		$unseen_ids = array_diff($ids, array_keys(self::$_context_initial_checkpoints[$context]));
 
-		if(is_array($unseen_ids) && !empty($unseen_ids)) {
+		if(!empty($unseen_ids)) {
 			$models = CerberusContexts::getModels($context, $unseen_ids);
 			$values = DAO_CustomFieldValue::getValuesByContextIds($context, $unseen_ids);
 
@@ -2363,6 +2399,18 @@ class CerberusContexts {
 			return false;
 		
 		return array_key_exists($id, self::$_context_creations[$context]);
+	}
+
+	/**
+	 * @param string $context
+	 * @param int $id
+	 * @return bool
+	 */
+	private static function _wasJustDeleted(string $context, int $id) : bool {
+		if(!array_key_exists($context, self::$_context_deletions))
+			return false;
+		
+		return array_key_exists($id, self::$_context_deletions[$context]);
 	}
 
 	static function getCheckpoints($context, $ids) {
@@ -2399,7 +2447,6 @@ class CerberusContexts {
 		$record_changed_events = DAO_AutomationEvent::getByName('record.changed');
 		
 		foreach(self::$_context_initial_checkpoints as $context => &$old_models) {
-
 			// Do this in batches of 100 in order to save memory
 			$ids = array_keys($old_models);
 
@@ -2408,9 +2455,12 @@ class CerberusContexts {
 
 				$values = DAO_CustomFieldValue::getValuesByContextIds($context, $context_ids);
 
-				foreach($new_models as $context_id => $new_model) {
+				foreach($context_ids as $context_id) {
 					$old_model = $old_models[$context_id];
-					$new_model->custom_fields = ($values[$context_id] ?? null) ?: [];
+					
+					if(($new_model = $new_models[$context_id] ?? null))
+						$new_model->custom_fields = ($values[$context_id] ?? null) ?: [];
+					
 					$actor = null;
 
 					if(isset($old_model['_actor'])) {
@@ -2420,11 +2470,31 @@ class CerberusContexts {
 					
 					// Trigger automations
 					if($record_changed_events) {
-						$dict_new = DevblocksDictionaryDelegate::getDictionaryFromModel($new_model, $context);
+						$is_deleted = self::_wasJustDeleted($context, $context_id);
+						$is_created = self::_wasJustCreated($context, $context_id);
+						
+						$change_type = match(true) {
+							$is_deleted => 'deleted',
+							$is_created => 'created',
+							default => 'updated',
+						};
+						
 						$dict_old = DevblocksDictionaryDelegate::getDictionaryFromModel($old_model, $context);
+					
+						// If the record was deleted, clone the was/is dictionaries
+						if(is_null($new_model)) {
+							$dict_new =
+								$is_deleted
+								? clone $dict_old
+								: DevblocksDictionaryDelegate::instance([])
+							;
+						} else {
+							$dict_new = DevblocksDictionaryDelegate::getDictionaryFromModel($new_model, $context);
+						}
 						
 						$dict = DevblocksDictionaryDelegate::instance([
-							'is_new' => self::_wasJustCreated($context, $context_id),
+							'change_type' => $change_type,
+							'is_new' => $is_created, // @deprecated
 							'actor__context' => $actor['context'],
 							'actor_id' => $actor['context_id'],
 						]);
@@ -2448,7 +2518,11 @@ class CerberusContexts {
 							$initial_state,
 							$error,
 							null,
-							function(Model_TriggerEvent $behavior, array $handler) use ($context, $new_model, $old_model, $actor) {
+							function(Model_TriggerEvent $behavior, array $handler) use ($context, $new_model, $old_model, $actor, $is_deleted) {
+								// Don't run behaviors on deleted records
+								if($is_deleted)
+									return false;
+								
 								$events = DevblocksPlatform::services()->event();
 								$event_model = null;
 								
@@ -2591,6 +2665,7 @@ class CerberusContexts {
 		}
 
 		self::$_context_creations = [];
+		self::$_context_deletions = [];
 		self::$_context_initial_checkpoints = [];
 	}
 	
@@ -2603,7 +2678,7 @@ class CerberusContexts {
 			$context_mft = $context->manifest;
 			
 		} else if (is_string($context)) {
-			if(false == ($context_mft = Extension_DevblocksContext::get($context, false)))
+			if(!($context_mft = Extension_DevblocksContext::get($context, false)))
 				return false; /** @var $context_mft DevblocksExtensionManifest */
 			
 		} else {
@@ -3739,6 +3814,99 @@ class Cerb_ORMHelper extends DevblocksORMHelper {
 			}
 		}
 	}
+	
+	public static function generateRecordExploreSet(string $view_id, int $explore_from=0) : DevblocksHttpResponse {
+		$active_worker = CerberusApplication::getActiveWorker();
+		$url_writer = DevblocksPlatform::services()->url();
+		
+		if(!($view = C4_AbstractViewLoader::getView($view_id)))
+			CerberusApplication::respondWithErrorReason(CerbErrorReason::NotFound);
+		
+		$view->setAutoPersist(false);
+		
+		if(!($view_context = $view->getContext()))
+			CerberusApplication::respondWithErrorReason(CerbErrorReason::NotFound);
+		
+		if(!($record_type_mft = Extension_DevblocksContext::getByAlias($view_context)))
+			DevblocksPlatform::dieWithHttpError(null, 404);
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
+		
+		// Generate hash
+		$hash = md5($view_id.$active_worker->id.microtime(true).mt_rand(0,PHP_INT_MAX));
+		
+		// Page start
+		if(empty($explore_from)) {
+			$orig_pos = 1+($view->renderPage * $view->renderLimit);
+		} else {
+			$orig_pos = 1;
+		}
+		
+		$view->renderPage = 0;
+		$view->renderLimit = 250;
+		$pos = 0;
+		$max_pages = 4;
+		
+		// Smaller page limit for tickets and messages
+		if(in_array($record_type_mft->id, [CerberusContexts::CONTEXT_TICKET, CerberusContexts::CONTEXT_MESSAGE])) {
+			$max_pages = defined('APP_OPT_EXPLORE_MAX_PAGES') ? APP_OPT_EXPLORE_MAX_PAGES : 4;
+		}
+		
+		do {
+			$items = [];
+			$total = 0;
+			
+			$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels(
+				$view->getDataAsObjects(null, $total),
+				$record_type_mft->id,
+				[]
+			);
+			
+			if(!is_array($dicts))
+				$dicts = [];
+			
+			// Summary row
+			if(0 == $view->renderPage) {
+				$item = new Model_ExplorerSet();
+				$item->hash = $hash;
+				$item->pos = $pos++;
+				$item->params = [
+					'title' => $view->name,
+					'created' => time(),
+					'worker_id' => $active_worker->id,
+					'total' => min($total, $max_pages * $view->renderLimit),
+					'return_url' => $_SERVER['HTTP_REFERER'] ?? $url_writer->writeNoProxy('c=search&type=' . $record_type_mft->params['uri'], true),
+				];
+				$items[] = $item;
+				
+				$view->renderTotal = false; // speed up subsequent pages
+			}
+			
+			$record_url_key = 'record_url';
+			
+			foreach($dicts as $index => $dict) {
+				if($index == $explore_from)
+					$orig_pos = $pos;
+			
+				$item = new Model_ExplorerSet();
+				$item->hash = $hash;
+				$item->pos = $pos++;
+				$item->params = [
+					'id' => $dict->get('id'),
+					'url' => $dict->get($record_url_key),
+				];
+				$items[] = $item;
+			}
+			
+			DAO_ExplorerSet::createFromModels($items);
+			
+			$view->renderPage++;
+			
+		} while(!empty($dicts) && $view->renderPage < $max_pages);
+		
+		return new DevblocksHttpResponse(array('explore', $hash, $orig_pos));
+	}
 };
 
 class _CerbApplication_KataAutocompletions {
@@ -3871,6 +4039,8 @@ class _CerbApplication_KataAutocompletions {
 					],
 					'label:',
 					'icon:',
+					'icon_at:',
+					'keyboard:',
 					'tooltip:',
 					[
 						'caption' => 'hidden:',
@@ -3882,7 +4052,7 @@ class _CerbApplication_KataAutocompletions {
 					],
 					[
 						'caption' => 'class:',
-						'snippet' => 'class: some-css-class-name'
+						'snippet' => 'class: action-always-show'
 					],
 					'inputs:'
 				],
@@ -3899,6 +4069,12 @@ class _CerbApplication_KataAutocompletions {
 				],
 				'(.*):?interaction:inputs:' => [
 					'type' => 'automation-inputs'
+				],
+				'(.*):?interaction:toolbar:' => [
+					'k',
+					'ctrl+k',
+					'meta+k',
+					'shift+k',
 				],
 				'(.*):?interaction:uri:' => [
 					'type' => 'cerb-uri',
@@ -4307,6 +4483,9 @@ class _CerbApplication_KataSchemas {
                               length:
                                 types:
                                   number:
+                              length_split:
+                                types:
+                                  string:
                               offset:
                                 types:
                                   number:

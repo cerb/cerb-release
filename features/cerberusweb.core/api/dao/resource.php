@@ -105,8 +105,8 @@ class DAO_Resource extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(!isset($fields[self::UPDATED_AT]))
 			$fields[self::UPDATED_AT] = time();
@@ -354,29 +354,23 @@ class DAO_Resource extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_RESOURCE;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		Storage_Resource::delete($ids);
 		
-		$ids_list = implode(',', $ids);
-		
 		$db->ExecuteMaster(sprintf("DELETE FROM resource WHERE id IN (%s)", $ids_list));
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_RESOURCE,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -768,8 +762,8 @@ class View_Resource extends C4_AbstractView implements IAbstractView_Subtotals, 
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Resource', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Resource', $ids, $total);
 	}
 	
 	function getDataSample($size) {
@@ -1164,14 +1158,16 @@ class Storage_Resource extends Extension_DevblocksStorageSchema {
 	 * @return bool
 	 */
 	public static function delete($ids) {
-		if(!is_array($ids))
-			$ids = [$ids];
-		
 		$db = DevblocksPlatform::services()->database();
+		
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
+		if(empty($ids)) return false;
 		
 		$sql = sprintf("SELECT storage_extension, storage_key, storage_profile_id FROM resource WHERE id IN (%s)", implode(',',$ids));
 		
-		if(false == ($rs = $db->QueryReader($sql)))
+		if(!($rs = $db->QueryReader($sql)))
 			return false;
 		
 		// Delete the physical files

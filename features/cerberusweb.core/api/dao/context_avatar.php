@@ -78,8 +78,8 @@ class DAO_ContextAvatar extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		// Make a diff for the requested objects in batches
 		
@@ -322,31 +322,23 @@ class DAO_ContextAvatar extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-		
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_CONTEXT_AVATAR;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		Storage_ContextAvatar::delete($ids);
 		
-		$ids_list = implode(',', $ids);
-		
 		$db->ExecuteMaster(sprintf("DELETE FROM context_avatar WHERE id IN (%s)", $ids_list));
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_CONTEXT_AVATAR,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -698,14 +690,14 @@ class Storage_ContextAvatar extends Extension_DevblocksStorageSchema {
 	}
 	
 	public static function delete($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-		
 		$db = DevblocksPlatform::services()->database();
+		
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		$sql = sprintf("SELECT storage_extension, storage_key, storage_profile_id FROM context_avatar WHERE id IN (%s)", implode(',',$ids));
 		
-		if(false == ($rs = $db->QueryReader($sql)))
+		if(!($rs = $db->QueryReader($sql)))
 			return false;
 		
 		if(!($rs instanceof mysqli_result))

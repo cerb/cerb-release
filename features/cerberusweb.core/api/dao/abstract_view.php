@@ -45,7 +45,7 @@ abstract class C4_AbstractView {
 	public $_init_checksum = null;
 
 	function getContext() {
-		if(false == ($context_ext = Extension_DevblocksContext::getByViewClass(get_class($this))))
+		if(!($context_ext = Extension_DevblocksContext::getByViewClass(get_class($this))))
 			return null;
 		
 		return $context_ext->id;
@@ -57,7 +57,7 @@ abstract class C4_AbstractView {
 		return $context_mft->params['alias'] ?? $context_mft->id;
 	}
 	abstract function getData();
-	function getDataAsObjects($ids=null) { return []; }
+	function getDataAsObjects($ids=null, &$total=null) { return []; }
 	
 	function getPaging(array $results, int $total) {
 		$paging = [

@@ -72,8 +72,8 @@ class DAO_WebhookListener extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(!isset($fields[self::UPDATED_AT]))
 			$fields[self::UPDATED_AT] = time();
@@ -254,28 +254,19 @@ class DAO_WebhookListener extends Cerb_ORMHelper {
 	static function delete($ids) {
 		$db = DevblocksPlatform::services()->database();
 		
-		if(!is_array($ids))
-			$ids = [$ids];
-		
-		if(empty($ids))
-			return;
-		
+		if(!is_array($ids)) $ids = [$ids];
 		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
-		$ids_list = implode(',', $ids);
+		
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_WEBHOOK_LISTENER;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM webhook_listener WHERE id IN (%s)", $ids_list));
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_WEBHOOK_LISTENER,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -504,8 +495,8 @@ class View_WebhookListener extends C4_AbstractView implements IAbstractView_Subt
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_WebhookListener', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_WebhookListener', $ids, $total);
 	}
 	
 	function getDataSample($size) {

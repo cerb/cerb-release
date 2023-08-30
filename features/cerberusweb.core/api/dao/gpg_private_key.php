@@ -74,8 +74,8 @@ class DAO_GpgPrivateKey extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(!isset($fields[self::UPDATED_AT]))
 			$fields[self::UPDATED_AT] = time();
@@ -250,13 +250,15 @@ class DAO_GpgPrivateKey extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		$gpg = DevblocksPlatform::services()->gpg();
 		
-		if (!is_array($ids))
-			$ids = [$ids];
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		if (empty($ids))
-			return;
+		if(empty($ids)) return false;
 		
-		$ids_list = implode(',', $ids);
+		$context = Context_GpgPrivateKey::ID;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM gpg_private_key WHERE id IN (%s)", $ids_list));
 		
@@ -270,17 +272,7 @@ class DAO_GpgPrivateKey extends Cerb_ORMHelper {
 			}
 		}
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => Context_GpgPrivateKey::ID,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -531,8 +523,8 @@ class View_GpgPrivateKey extends C4_AbstractView implements IAbstractView_Subtot
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_GpgPrivateKey', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_GpgPrivateKey', $ids, $total);
 	}
 	
 	function getDataSample($size) {

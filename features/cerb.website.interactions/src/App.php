@@ -148,7 +148,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 					case 'logo':
 						$portal_schema = $this->_getPortalSchema();
 						
-						if(false == ($logo = $portal_schema->getLogo()))
+						if(!($logo = $portal_schema->getLogo()))
 							break;
 				
 						$this->_renderPortalImage($logo);
@@ -157,7 +157,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 					case 'favicon':
 						$portal_schema = $this->_getPortalSchema();
 						
-						if(false == ($icon = $portal_schema->getFavicon()))
+						if(!($icon = $portal_schema->getFavicon()))
 							break;
 				
 						$this->_renderPortalImage($icon);
@@ -199,7 +199,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 						if(!($hash===$hash_calc))
 							DevblocksPlatform::dieWithHttpError(null, 403);
 						
-						if(false != ($resource = \DAO_Resource::getByNameAndType($file, \ResourceType_PortalImage::ID))) {
+						if(($resource = \DAO_Resource::getByNameAndType($file, \ResourceType_PortalImage::ID))) {
 							$this->_renderPortalImage($resource);
 						}
 						break;
@@ -246,7 +246,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 	}
 	
 	private function _renderPortalImage(Model_Resource $resource) {
-		if(false == ($resource_type = $resource->getExtension()))
+		if(!($resource_type = $resource->getExtension()))
 			DevblocksPlatform::dieWithHttpError('Not found', 404);
 		
 		// Only portal images
@@ -278,18 +278,12 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 		$resource_content->writeBody();		
 	}
 	
-	private function _handleInteractionStart() {
+	private function _startInteractionAutomationSession(string $interaction, array $interaction_params=[], $continuation_token=null) : array {
 		$event_handler = DevblocksPlatform::services()->ui()->eventHandler();
 		
 		$portal = ChPortalHelper::getPortal();
 		$config = $this->getConfig();
 		$user_agent = DevblocksPlatform::getClientUserAgent();
-		
-		$interaction = DevblocksPlatform::importGPC($_POST['interaction'] ?? null, 'string');
-		
-		$interaction_params = DevblocksPlatform::strParseQueryString(
-			DevblocksPlatform::importGPC($_POST['interaction_params'] ?? null, 'string')
-		);
 		
 		$error = null;
 		
@@ -308,7 +302,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 		
 		$handler = null;
 		
-		if(false == ($handlers = $event_handler->parse($config[self::PARAM_AUTOMATIONS_KATA] ?? '', $toolbar_dict, $error))) {
+		if(!($handlers = $event_handler->parse($config[self::PARAM_AUTOMATIONS_KATA] ?? '', $toolbar_dict, $error))) {
 			error_log('Interaction error:' . $error);
 			DevblocksPlatform::dieWithHttpError("null automation results", 404);
 		}
@@ -344,16 +338,46 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 		// [TODO] Limit the continuation to this session/identity/visitor
 		$state_data = [
 			'trigger' => AutomationTrigger_InteractionWebsite::ID,
+			'interaction' => $interaction,
+			'interaction_params' => $interaction_params,
 			'dict' => $automation_results->getDictionary(),
 		];
 		
-		$continuation_token = DAO_AutomationContinuation::create([
-			DAO_AutomationContinuation::UPDATED_AT => time(),
-			DAO_AutomationContinuation::EXPIRES_AT => time() + 1200, // 20 mins
-			DAO_AutomationContinuation::STATE => $automation_results->getKeyPath('__exit'),
-			DAO_AutomationContinuation::STATE_DATA => json_encode($state_data),
-			DAO_AutomationContinuation::URI => $handler->name,
-		]);
+		if($continuation_token) {
+			DAO_AutomationContinuation::update($continuation_token, [
+				DAO_AutomationContinuation::UPDATED_AT => time(),
+				DAO_AutomationContinuation::STATE_DATA => json_encode($state_data),
+			]);
+			
+		} else {
+			$continuation_token = DAO_AutomationContinuation::create([
+				DAO_AutomationContinuation::UPDATED_AT => time(),
+				DAO_AutomationContinuation::EXPIRES_AT => time() + 1200, // 20 mins
+				DAO_AutomationContinuation::STATE => $automation_results->getKeyPath('__exit'),
+				DAO_AutomationContinuation::STATE_DATA => json_encode($state_data),
+				DAO_AutomationContinuation::URI => $handler->name,
+			]);
+		}
+		
+		return [
+			'token' => $continuation_token,
+			'state_data' => $state_data,
+		];
+	}
+	
+	private function _handleInteractionStart() {
+		$interaction = DevblocksPlatform::importGPC($_POST['interaction'] ?? null, 'string');
+		
+		$interaction_params = DevblocksPlatform::strParseQueryString(
+			DevblocksPlatform::importGPC($_POST['interaction_params'] ?? null, 'string')
+		);
+		
+		list($continuation_token,) = array_values(
+			$this->_startInteractionAutomationSession(
+				$interaction,
+				$interaction_params
+			)
+		);
 		
 		$tpl = DevblocksPlatform::services()->templateSandbox();
 		$tpl->assign('continuation_token', $continuation_token);
@@ -416,8 +440,22 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 		
 		$prompts = DevblocksPlatform::importGPC($_POST['prompts'] ?? null, 'array', []);
 		$is_submit = DevblocksPlatform::importGPC($_POST['__submit'] ?? null, 'bool', false);
+		$is_reset = DevblocksPlatform::importGPC($_POST['__reset'] ?? null, 'bool', false);
 		
 		unset($_POST);
+		
+		if($is_reset) {
+			if($continuation->root_token) {
+				// Exit this continuation
+				DAO_AutomationContinuation::update($continuation->token,[
+					DAO_AutomationContinuation::STATE => 'exit',
+				]);
+				$continuation = $continuation->getRoot();
+			}
+			
+			$this->_startInteractionAutomationSession($continuation->state_data['interaction'], $continuation->state_data['interaction_params'], $continuation->token);
+			$continuation = DAO_AutomationContinuation::getByToken($continuation->token);
+		}
 		
 		$initial_state = $continuation->state_data['dict'] ?? [];
 		

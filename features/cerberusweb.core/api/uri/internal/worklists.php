@@ -578,11 +578,11 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		
 		// Check prefs
 		
-		$pref_key = sprintf("worklist.%s.export_tokens",
+		$pref_key_prefix = sprintf("worklist.%s.",
 			$context_ext->manifest->getParam('uri', $context_ext->id)
 		);
 		
-		if(null == ($tokens = DAO_WorkerPref::getAsJson($active_worker->id, $pref_key))) {
+		if(null == ($tokens = DAO_WorkerPref::getAsJson($active_worker->id, $pref_key_prefix . 'export_tokens'))) {
 			$tokens = $context_ext->getCardProperties();
 			
 			// Push _label into the front of $tokens if not set
@@ -594,7 +594,7 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		
 		$tpl->assign('tokens', $tokens);
 		
-		$export_kata = <<< EOD
+		$export_kata_default = <<< EOD
 		# Enter worklist export KATA (use Ctrl+Space for autocompletion)
 		column/id:
 		
@@ -602,6 +602,8 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		  label: Label
 		  value@raw: {{_label|trim}}
 		EOD;
+		
+		$export_kata = DAO_WorkerPref::get($active_worker->id, $pref_key_prefix . 'export_kata', $export_kata_default);
 		
 		$tpl->assign('export_kata', $export_kata);
 		
@@ -646,18 +648,21 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 					throw new Exception_DevblocksAjaxError("Invalid worklist record type.");
 				
 				// Check prefs
+				
+				$pref_key_prefix = sprintf("worklist.%s.",
+					$context_ext->manifest->getParam('uri', $context_ext->id)
+				);
+				
 				if(!$export_mode) {
-					$pref_key = sprintf("worklist.%s.export_tokens",
-						$context_ext->manifest->getParam('uri', $context_ext->id)
-					);
-					
-					DAO_WorkerPref::setAsJson($active_worker->id, $pref_key, $tokens);
+					DAO_WorkerPref::setAsJson($active_worker->id, $pref_key_prefix . 'export_tokens', $tokens);
 					
 				} else if('kata' == $export_mode) {
 					$kata = DevblocksPlatform::services()->kata();
 					
 					if(!$kata->validate($export_kata, CerberusApplication::kataSchemas()->worklistExport(), $error))
 						throw new Exception_DevblocksAjaxError("Export KATA Error: " . $error);
+					
+					DAO_WorkerPref::set($active_worker->id, $pref_key_prefix . 'export_kata', $export_kata);
 				}
 				
 				if(!isset($_SESSION['view_export_cursors']))
@@ -790,7 +795,7 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		return $view;
 	}
 	
-	private function _getDictionariesFromView(C4_AbstractView $view, Extension_DevblocksContext $context_ext, array $cursor, &$count=0) {
+	private function _getDictionariesFromView(C4_AbstractView $view, Extension_DevblocksContext $context_ext, &$count=0) {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
 		// Rows
@@ -808,18 +813,13 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		// Models->Dictionaries
 		$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, $context_ext->id);
 		
-		// Bulk lazy load the tokens across all the dictionaries with a temporary cache
-		foreach($cursor['tokens'] as $token) {
-			DevblocksDictionaryDelegate::bulkLazyLoad($dicts, $token);
-		}
-		
 		foreach($dicts as $dict)
 			$dict->scrubKeys('_types');
 
 		return $dicts;
 	}
 	
-	private function _getExportColumnsKataFromCursor(array $cursor) {
+	private function _getExportColumnsKataFromCursor(array $cursor) : array {
 		$export_columns = [];
 		$error = null;
 		
@@ -838,13 +838,51 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 			if('column' != $column_type || !$column_name)
 				continue;
 			
+			foreach($column_data as $k => $v) {
+				list($k, $k_annotations) = array_pad(explode('@', $k, 2), 2, null);
+				
+				// Persist value annotations
+				if('value' == $k) {
+					$column_data['value'] = $v;
+					$column_data['annotations'] = $k_annotations;
+				}
+			}
+			
 			$export_columns[$column_name] = [
 				'label' => $column_data['label'] ?? DevblocksPlatform::strTitleCase($column_name),
 				'value' => $column_data['value'] ?? sprintf('{{%s}}', $column_name),
+				'annotations' => $column_data['annotations'] ?? '',
 			];
 		}
 		
 		return $export_columns;
+	}
+	
+	private function _getExportKataColumnValue($column_name, $column, DevblocksDictionaryDelegate $dict) : mixed {
+		$kata = DevblocksPlatform::services()->kata();
+		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		
+		if($column_name && is_array($column)) {
+			$column_value = $column['value'] ?? '';
+			
+			if($column['annotations'] ?? false) {
+				$value = $kata->formatTree(
+					['value@' . $column['annotations'] => $column_value],
+					$dict
+				)['value'] ?? '';
+				
+			} else if(is_array($column_value)) {
+				$value = $kata->formatTree($column_value, $dict);
+				
+			} else {
+				$value = $tpl_builder->build($column_value, $dict);
+			}
+			
+		} else {
+			$value = '';
+		}
+		
+		return $value;
 	}
 	
 	private function _viewIncrementExportAsCsv(array &$cursor) {
@@ -863,12 +901,10 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		
 		$count = 0;
 		
-		if(!($dicts = $this->_getDictionariesFromView($view, $context_ext, $cursor, $count)))
+		if(!($dicts = $this->_getDictionariesFromView($view, $context_ext, $count)))
 			$dicts = [];
 		
 		if('kata' == $cursor['export_mode']) {
-			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-			
 			$export_columns = $this->_getExportColumnsKataFromCursor($cursor);
 			
 			// If the first page, add headings
@@ -887,19 +923,19 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 				$fields = [];
 				
 				foreach($export_columns as $column_name => $column) {
-					if($column_name) {
-						$value = $tpl_builder->build($column['value'] ?? '', $dict);
-						$fields[] = $value;
-						
-					} else {
-						$fields[] = '';
-					}
+					$value = $this->_getExportKataColumnValue($column_name, $column, $dict);
+					$fields[] = is_scalar($value) ? $value : json_encode($value);
 				}
 				
 				fputcsv($fp, $fields);
 			}
 			
 		} else {
+			// Bulk lazy load the tokens across all the dictionaries with a temporary cache
+			foreach($cursor['tokens'] as $token) {
+				DevblocksDictionaryDelegate::bulkLazyLoad($dicts, $token);
+			}
+			
 			// If the first page
 			if(0 == $cursor['page']) {
 				// Headings
@@ -972,13 +1008,10 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		
 		$count = 0;
 		
-		if(!($dicts = $this->_getDictionariesFromView($view, $context_ext, $cursor, $count)))
+		if(!($dicts = $this->_getDictionariesFromView($view, $context_ext, $count)))
 			$dicts = [];
 		
 		if('kata' == $cursor['export_mode']) {
-			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-			$kata = DevblocksPlatform::services()->kata();
-			
 			$export_columns = $this->_getExportColumnsKataFromCursor($cursor);
 			
 			fputs($fp, "{\"results\": [\n");
@@ -989,12 +1022,7 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 				$object = [];
 				
 				foreach($export_columns as $column_name => $column) {
-					if(is_array($column['value'])) {
-						$value = $kata->formatTree($column['value'], $dict);
-					} else {
-						$value = $tpl_builder->build($column['value'] ?? '', $dict);
-					}
-					
+					$value = $this->_getExportKataColumnValue($column_name, $column, $dict);
 					$object[$column_name] = $value;
 				}
 			
@@ -1005,6 +1033,11 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 			fputs($fp, $json);
 			
 		} else {
+			// Bulk lazy load the tokens across all the dictionaries with a temporary cache
+			foreach($cursor['tokens'] as $token) {
+				DevblocksDictionaryDelegate::bulkLazyLoad($dicts, $token);
+			}
+			
 			// If the first page
 			if(0 == $cursor['page']) {
 				fputs($fp, "{\n\"fields\":");
@@ -1087,30 +1120,17 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		
 		$count = 0;
 		
-		if(!($dicts = $this->_getDictionariesFromView($view, $context_ext, $cursor, $count)))
+		if(!($dicts = $this->_getDictionariesFromView($view, $context_ext, $count)))
 			$dicts = [];
 		
 		if('kata' == $cursor['export_mode']) {
-			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-			$kata = DevblocksPlatform::services()->kata();
-			
 			$export_columns = $this->_getExportColumnsKataFromCursor($cursor);
 			
 			foreach($dicts as $dict) {
 				$object = [];
 				
 				foreach($export_columns as $column_name => $column) {
-					if($column_name) {
-						if(is_array($column['value'])) {
-							$value = $kata->formatTree($column['value'], $dict);
-						} else {
-							$value = $tpl_builder->build($column['value'] ?? '', $dict);
-						}
-						
-					} else {
-						$value = '';
-					}
-					
+					$value = $this->_getExportKataColumnValue($column_name, $column, $dict);
 					$object[$column_name] = $value;
 				}
 				
@@ -1119,7 +1139,10 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 			}
 			
 		} else {
-			// Rows
+			// Bulk lazy load the tokens across all the dictionaries with a temporary cache
+			foreach($cursor['tokens'] as $token) {
+				DevblocksDictionaryDelegate::bulkLazyLoad($dicts, $token);
+			}
 			
 			foreach($dicts as $dict) {
 				$object = [];
@@ -1168,12 +1191,10 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		
 		$count = 0;
 		
-		if(false == ($dicts = $this->_getDictionariesFromView($view, $context_ext, $cursor, $count)))
+		if(!($dicts = $this->_getDictionariesFromView($view, $context_ext, $count)))
 			$dicts = [];
 		
 		if('kata' == $cursor['export_mode']) {
-			$tpl_builder = DevblocksPlatform::services()->templateBuilder();
-			
 			$export_columns = $this->_getExportColumnsKataFromCursor($cursor);
 			
 			if(0 == $cursor['page']) {
@@ -1186,13 +1207,8 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 				$xml_result = simplexml_load_string("<result/>"); /* @var $xml SimpleXMLElement */
 				
 				foreach($export_columns as $column_name => $column) {
-					if($column_name) {
-						$value = $tpl_builder->build($column['value'] ?? '', $dict);
-					} else {
-						$value = '';
-					}
-					
-					$field = $xml_result->addChild("field", DevblocksPlatform::strEscapeHtml($value));
+					$value = $this->_getExportKataColumnValue($column_name, $column, $dict);
+					$field = $xml_result->addChild("field", DevblocksPlatform::strEscapeHtml(is_scalar($value) ? $value : json_encode($value)));
 					$field->addAttribute("key", $column_name);
 				}
 				
@@ -1201,6 +1217,11 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 			}
 			
 		} else {
+			// Bulk lazy load the tokens across all the dictionaries with a temporary cache
+			foreach($cursor['tokens'] as $token) {
+				DevblocksDictionaryDelegate::bulkLazyLoad($dicts, $token);
+			}
+			
 			$global_labels = $global_values = [];
 			CerberusContexts::getContext($context_ext->id, null, $global_labels, $global_values, null, true);
 			$global_types = $global_values['_types'];
@@ -1695,8 +1716,7 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 				$dict = new DevblocksDictionaryDelegate([]);
 				
 				foreach($parts as $idx => $part) {
-					$col = 'column_' . ($idx + 1); // 0-based to 1-based
-					$dict->$col = $part;
+					$dict->set('column_' . ($idx + 1), $part); // 0-based to 1-based
 				}
 				
 				// Meta
@@ -1721,11 +1741,11 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 					if($col == 'custom') {
 						@$val = $tpl_builder->build($column_custom[$idx], $dict);
 						
-						// Are we referencing a column number from the CSV file?
+					// Are we referencing a column number from the CSV file?
 					} elseif(is_numeric($col)) {
 						$val = $parts[$col];
 						
-						// Otherwise, use a literal value.
+					// Otherwise, use a literal value.
 					} else {
 						$val = $col;
 					}
@@ -1782,7 +1802,7 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 							break;
 						
 						case Model_CustomField::TYPE_LIST:
-							$value = $val;
+							$value = DevblocksPlatform::parseCrlfString($val);
 							break;
 						
 						case Model_CustomField::TYPE_MULTI_CHECKBOX:

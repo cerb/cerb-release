@@ -921,6 +921,7 @@ var cerbAutocompleteSuggestions = {
 				'label:',
 				'icon:',
 				'icon_at:',
+				'keyboard:',
 				'tooltip:',
 				{
 					'caption': 'hidden:',
@@ -932,7 +933,7 @@ var cerbAutocompleteSuggestions = {
 				},
 				{
 					'caption': 'class:',
-					'snippet': 'class: some-css-class-name'
+					'snippet': 'class: action-always-show'
 				},
 				'inputs:'
 			],
@@ -958,6 +959,12 @@ var cerbAutocompleteSuggestions = {
 			'(.*):?interaction:inputs:': {
 				'type': 'automation-inputs'
 			},
+			'(.*):?interaction:keyboard:': [
+				'k',
+				'ctrl+k',
+				'meta+k',
+				'shift+k',
+			],
 			'(.*):?interaction:uri:': {
 				'type': 'cerb-uri',
 				'params': {
@@ -2335,13 +2342,17 @@ var ajax = new cAjaxCalls();
 			options.error = function() {};
 		}
 
+		if(!options.hasOwnProperty('interaction_class') || 'string' !== typeof options.interaction_class) {
+			options.interaction_class = 'cerb-bot-trigger';
+		}
+
 		return this.each(function() {
 			var $toolbar = $(this);
 
 			$toolbar.on('cerb-toolbar--refreshed', function() {
 				// Interactions
 				$toolbar
-					.find('.cerb-bot-trigger')
+					.find('.' + options.interaction_class)
 					.cerbBotTrigger({
 						'caller': options.caller,
 						'mode': options.mode,
@@ -2414,7 +2425,7 @@ var ajax = new cAjaxCalls();
 						select: function(event, ui) {
 							event.stopPropagation();
 							var $li = $(ui.item);
-							if($li.is('.cerb-bot-trigger'))
+							if($li.is('.' + options.interaction_class))
 								$li.click();
 						}
 					})
@@ -3198,10 +3209,6 @@ var ajax = new cAjaxCalls();
 			var start = Math.max(0, this.editor.value.substring(0, this.editor.selectionStart).lastIndexOf('\n')+1);
 			this.editor.selectionStart = start;
 			this.prefixSelection(prefixWith);
-		},
-
-		prefixSelectedLines: function(prefixWith) {
-			// [TODO]
 		},
 
 		prefixSelection: function(prefixWith) {
@@ -4503,7 +4510,7 @@ var ajax = new cAjaxCalls();
 				e.editor.completer = new Autocomplete();
 			}
 
-			if('Return' === e.command.name) {
+			if('Submit' === e.command.name) {
 				e.editor.completer.getPopup().hide();
 				return;
 			}

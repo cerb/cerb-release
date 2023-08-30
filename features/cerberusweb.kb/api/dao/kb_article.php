@@ -172,8 +172,8 @@ class DAO_KbArticle extends Cerb_ORMHelper {
 	}
 
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(!isset($fields[self::UPDATED]))
 			$fields[self::UPDATED] = time();
@@ -288,36 +288,29 @@ class DAO_KbArticle extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
-		
-		if(empty($ids))
-			return;
-		
 		$db = DevblocksPlatform::services()->database();
 		
-		$id_string = implode(',', $ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_KB_ARTICLE;
+		$ids_list = implode(',', $ids);
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		// Articles
-		$db->ExecuteMaster(sprintf("DELETE FROM kb_article WHERE id IN (%s)", $id_string));
+		$db->ExecuteMaster(sprintf("DELETE FROM kb_article WHERE id IN (%s)", $ids_list));
 		
 		// Categories
-		$db->ExecuteMaster(sprintf("DELETE FROM kb_article_to_category WHERE kb_article_id IN (%s)", $id_string));
+		$db->ExecuteMaster(sprintf("DELETE FROM kb_article_to_category WHERE kb_article_id IN (%s)", $ids_list));
 		
 		// Search indexes
 		$search = Extension_DevblocksSearchSchema::get(Search_KbArticle::ID, true);
 		$search->delete($ids);
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_KB_ARTICLE,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 	}
 	
 	static function maint() {
@@ -1469,8 +1462,8 @@ class View_KbArticle extends C4_AbstractView implements IAbstractView_Subtotals,
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_KbArticle', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_KbArticle', $ids, $total);
 	}
 	
 	function getDataSample($size) {

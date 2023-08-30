@@ -381,8 +381,8 @@ class DAO_Group extends Cerb_ORMHelper {
 	 * @param array $fields
 	 */
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(!isset($fields[self::UPDATED]))
 			$fields[self::UPDATED] = time();
@@ -521,13 +521,16 @@ class DAO_Group extends Cerb_ORMHelper {
 	 * @param integer $id
 	 */
 	static function delete($id) {
-		if(empty($id))
-			return;
-		
-		if(false == ($deleted_group = DAO_Group::get($id)))
-			return;
-		
 		$db = DevblocksPlatform::services()->database();
+		
+		if(empty($id)) return false;
+		
+		if(!($deleted_group = DAO_Group::get($id)))
+			return false;
+		
+		$context = CerberusContexts::CONTEXT_GROUP;
+		
+		parent::_deleteAbstractBefore($context, [$id]);
 		
 		/*
 		 * Notify anything that wants to know when groups delete.
@@ -537,28 +540,28 @@ class DAO_Group extends Cerb_ORMHelper {
 			new Model_DevblocksEvent(
 				'group.delete',
 				array(
-					'group_ids' => array($id),
+					'group_ids' => [$id],
 				)
 			)
 		);
 		
 		// Move any records in these buckets to the default group/bucket
-		if(false != ($default_group = DAO_Group::getDefaultGroup()) && $default_group->id != $deleted_group->id) {
-			if(false != ($default_bucket = $default_group->getDefaultBucket())) {
+		if(($default_group = DAO_Group::getDefaultGroup()) && $default_group->id != $deleted_group->id) {
+			if(($default_bucket = $default_group->getDefaultBucket())) {
 				DAO_Ticket::updateWhere(array(DAO_Ticket::GROUP_ID => $default_group->id, DAO_Ticket::BUCKET_ID => $default_bucket->id), sprintf("%s = %d", DAO_Ticket::GROUP_ID, $deleted_group->id));		
 			}
 		}
 		
 		$sql = sprintf("DELETE FROM worker_group WHERE id = %d", $deleted_group->id);
-		if(false == ($db->ExecuteMaster($sql)))
+		if(!($db->ExecuteMaster($sql)))
 			return false;
 
 		$sql = sprintf("DELETE FROM group_setting WHERE group_id = %d", $deleted_group->id);
-		if(false == ($db->ExecuteMaster($sql)))
+		if(!($db->ExecuteMaster($sql)))
 			return false;
 		
 		$sql = sprintf("DELETE FROM worker_to_group WHERE group_id = %d", $deleted_group->id);
-		if(false == ($db->ExecuteMaster($sql)))
+		if(!($db->ExecuteMaster($sql)))
 			return false;
 
 		// Delete associated buckets
@@ -570,17 +573,7 @@ class DAO_Group extends Cerb_ORMHelper {
 			DAO_Bucket::delete($deleted_bucket->id);
 		}
 
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_GROUP,
-					'context_ids' => array($deleted_group->id)
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, [$id]);
 		
 		self::clearCache();
 		DAO_Bucket::clearCache();
@@ -1420,8 +1413,8 @@ class View_Group extends C4_AbstractView implements IAbstractView_Subtotals, IAb
 	}
 	
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Group', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Group', $ids, $total);
 	}
 	
 	function getDataSample($size) {

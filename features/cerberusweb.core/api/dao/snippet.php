@@ -112,8 +112,8 @@ class DAO_Snippet extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(!isset($fields[DAO_Snippet::UPDATED_AT]))
 			$fields[DAO_Snippet::UPDATED_AT] = time();
@@ -346,29 +346,19 @@ class DAO_Snippet extends Cerb_ORMHelper {
 	static function delete($ids) {
 		$db = DevblocksPlatform::services()->database();
 
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		$ids = DevblocksPlatform::sanitizeArray($ids, 'integer');
-			
-		if(empty($ids))
-			return;
+		if(empty($ids)) return false;
 		
-		$ids_list = implode(',', $ids);
+		$context = CerberusContexts::CONTEXT_SNIPPET;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM snippet WHERE id IN (%s)", $ids_list));
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_SNIPPET,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -964,8 +954,8 @@ class View_Snippet extends C4_AbstractView implements IAbstractView_Subtotals, I
 		return $objects;
 	}
 
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Snippet', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Snippet', $ids, $total);
 	}
 	
 	function getSubtotalFields() {
@@ -1636,7 +1626,7 @@ class Context_Snippet extends Extension_DevblocksContext implements IDevblocksCo
 	function getKeyMeta($with_dao_fields=true) {
 		$keys = parent::getKeyMeta($with_dao_fields);
 		
-		$keys['content']['notes'] = "The [template](/docs/bots/scripting/) of the snippet";
+		$keys['content']['notes'] = "The [template](/docs/scripting/) of the snippet";
 		$keys['context']['notes'] = "The [record type](/docs/records/types/) to add the profile tab to";
 		$keys['prompts_kata']['notes'] = "Prompted placeholders in [KATA](/docs/snippets/#prompts) format";
 		$keys['title']['notes'] = "The name of the snippet";

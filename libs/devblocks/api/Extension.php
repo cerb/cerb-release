@@ -212,7 +212,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 			return;
 		
 		if(!is_array($context_ids))
-			$context_ids = array($context_ids);
+			$context_ids = [$context_ids];
 
 		if(!isset(self::$_changed_contexts[$context]))
 			self::$_changed_contexts[$context] = [];
@@ -674,31 +674,33 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 	 * @internal
 	 * @deprecated 
 	 */
-	static function getPlaceholderTree($labels, $label_separator=' ', $key_separator=' ', $condense=true) {
+	static function getPlaceholderTree($labels, $label_separator=' ', $key_separator=' ', $condense=true, $with_custom_uris=true) {
 		// [TODO] Cache until records are edited
 		natcasesort($labels);
 		$custom_fields = DAO_CustomField::getAll();
 		
 		// Convert custom placeholder keys from IDs to URIs
 		// We can do this globally when behaviors are removed
-		$labels = array_combine(
-			array_map(
-				function($label) use ($custom_fields) {
-					return preg_replace_callback(
-						'#custom_(\d*)#',
-						function($matches) use ($custom_fields, $label) {
-							if(array_key_exists($matches[1], $custom_fields)) {
-								return $custom_fields[$matches[1]]->uri ?: $matches[0];
-							}
-							return $matches[0];
-						},
-						$label
-					);
-				},
-				array_keys($labels)
-			),
-			$labels
-		);
+		if($with_custom_uris) {
+			$labels = array_combine(
+				array_map(
+					function($label) use ($custom_fields) {
+						return preg_replace_callback(
+							'#custom_(\d*)#',
+							function($matches) use ($custom_fields, $label) {
+								if(array_key_exists($matches[1], $custom_fields)) {
+									return $custom_fields[$matches[1]]->uri ?: $matches[0];
+								}
+								return $matches[0];
+							},
+							$label
+						);
+					},
+					array_keys($labels)
+				),
+				$labels
+			);
+		}
 		
 		$keys = new DevblocksMenuItemPlaceholder();
 		
@@ -1203,35 +1205,35 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		
 		if($context_ext->hasOption('attachments')) {
 			$lazy_keys['attachments'] = [
-				'label' => '[Attachments](/docs/bots/behaviors/dictionaries/key-expansion/#attachments)',
+				'label' => '[Attachments](/docs/guide/developers/dictionaries/#key-expansion)',
 				'type' => 'Attachments',
 			];
 		}
 		
 		if($context_ext->hasOption('comments')) {
 			$lazy_keys['comments'] = [
-				'label' => '[Comments](/docs/bots/behaviors/dictionaries/key-expansion/#comments)',
+				'label' => '[Comments](/docs/guide/developers/dictionaries/#key-expansion)',
 				'type' => 'Comments',
 			];
 		}
 		
 		if($context_ext->hasOption('custom_fields')) {
 			$lazy_keys['custom_<id>'] = [
-				'label' => '[Custom Fields](/docs/bots/behaviors/dictionaries/key-expansion/#custom-fields)',
+				'label' => '[Custom Fields](/docs/guide/developers/dictionaries/#key-expansion)',
 				'type' => 'Mixed',
 			];
 		}
 		
 		if($context_ext->hasOption('links')) {
 			$lazy_keys['links'] = [
-				'label' => '[Links](/docs/bots/behaviors/dictionaries/key-expansion/#links)',
+				'label' => '[Links](/docs/guide/developers/dictionaries/#key-expansion)',
 				'type' => 'Links',
 			];
 		}
 		
 		if($context_ext->hasOption('watchers')) {
 			$lazy_keys['watchers'] = [
-				'label' => '[Watchers](/docs/bots/behaviors/dictionaries/key-expansion/#watchers)',
+				'label' => '[Watchers](/docs/guide/developers/dictionaries/#key-expansion)',
 				'type' => 'Watchers',
 			];
 		}

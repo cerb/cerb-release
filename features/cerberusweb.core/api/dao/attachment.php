@@ -646,13 +646,10 @@ class DAO_Attachment extends Cerb_ORMHelper {
 	static function delete($ids) {
 		$db = DevblocksPlatform::services()->database();
 		
-		if(!is_array($ids))
-			$ids = array($ids);
-		
+		if(!is_array($ids)) $ids = [$ids];
 		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		if(empty($ids))
-			return;
+		if(empty($ids)) return false;
 
 		if(false === Storage_Attachments::delete($ids))
 			return FALSE;
@@ -1113,7 +1110,7 @@ class Storage_Attachments extends Extension_DevblocksStorageSchema {
 		
 		$sql = sprintf("SELECT storage_extension, storage_key, storage_profile_id FROM attachment WHERE id IN (%s)", implode(',',$ids));
 		
-		if(false == ($rs = $db->QueryReader($sql)))
+		if(!($rs = $db->QueryReader($sql)))
 			return false;
 		
 		// Delete the physical files
@@ -1382,8 +1379,8 @@ class View_Attachment extends C4_AbstractView implements IAbstractView_Subtotals
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Attachment', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Attachment', $ids, $total);
 	}
 	
 	function getDataSample($size) {
@@ -2003,6 +2000,10 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 			
 			// Custom fields
 			$token_values = $this->_importModelCustomFieldsAsValues($attachment, $token_values);
+			
+			// URL
+			$url_writer = DevblocksPlatform::services()->url();
+			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=attachment&id=%d-%s",$attachment->id, DevblocksPlatform::strToPermalink($attachment->name)), true);
 		}
 		
 		return true;

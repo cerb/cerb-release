@@ -112,10 +112,8 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		$cache = DevblocksPlatform::services()->cache();
-		
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(!isset($fields[self::UPDATED_AT]))
 			$fields[self::UPDATED_AT] = time();
@@ -299,16 +297,17 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		$settings = DevblocksPlatform::services()->pluginSettings();
 
-		if(!is_array($ids))
-			$ids = [$ids];
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		if(empty($ids))
-			return;
+		if(empty($ids)) return false;
 		
 		if(is_array($ids))
 		foreach($ids as $id) {
 			$context = sprintf('contexts.custom_record.%d', $id);
 			$table_name = sprintf('custom_record_%d', $id);
+			
+			parent::_deleteAbstractBefore(CerberusContexts::CONTEXT_CUSTOM_RECORD, [$id]);
 			
 			$sql = sprintf("SELECT count(id) FROM %s",
 				$db->escape($table_name)
@@ -316,8 +315,7 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 			$count = $db->GetOneMaster($sql);
 			
 			// All records must be deleted first, or we refuse to delete the record type
-			if($count)
-				continue;
+			if($count) continue;
 			
 			// Drop the table
 			$sql = sprintf("DROP TABLE %s", $table_name);
@@ -329,7 +327,7 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 			]);
 			
 			// Remove the PHP class
-			@unlink(APP_STORAGE_PATH . sprintf('classes/abstract_record_%d', $id));
+			@unlink(APP_STORAGE_PATH . sprintf('/classes/abstract_record_%d.php', $id));
 			
 			// Delete custom record custom fields
 			
@@ -345,17 +343,7 @@ class DAO_CustomRecord extends Cerb_ORMHelper {
 			
 			$db->ExecuteMaster(sprintf("DELETE FROM custom_record WHERE id = %d", $id));
 			
-			// Fire event
-			$eventMgr = DevblocksPlatform::services()->event();
-			$eventMgr->trigger(
-				new Model_DevblocksEvent(
-					'context.delete',
-					array(
-						'context' => CerberusContexts::CONTEXT_CUSTOM_RECORD,
-						'context_ids' => [$id]
-					)
-				)
-			);
+			parent::_deleteAbstractAfter(CerberusContexts::CONTEXT_CUSTOM_RECORD, [$id]);
 		}
 		
 		self::clearCache();
@@ -637,8 +625,8 @@ class View_CustomRecord extends C4_AbstractView implements IAbstractView_Subtota
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_CustomRecord', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_CustomRecord', $ids, $total);
 	}
 	
 	function getDataSample($size) {

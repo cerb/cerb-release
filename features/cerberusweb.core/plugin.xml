@@ -80,7 +80,7 @@
 		<patch version="10.1.0" revision="1404" file="patches/10.x/10.1.0.php" />
 		<patch version="10.2.0" revision="1423" file="patches/10.x/10.2.0.php" />
 		<patch version="10.3.0" revision="1434" file="patches/10.x/10.3.0.php" />
-		<patch version="10.4.0" revision="1446" file="patches/10.x/10.4.0.php" />
+		<patch version="10.4.0" revision="1448" file="patches/10.x/10.4.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -3594,7 +3594,7 @@
 				</param>
 				<param key="alias" value="community_portal" />
 				<param key="dao_class" value="DAO_CommunityTool" />
-				<param key="view_class" value="View_CommunityTool" />
+				<param key="view_class" value="View_CommunityPortal" />
 				<param key="options">
 					<value>
 						<data key="cards" />
@@ -3962,6 +3962,16 @@
 		</extension>
 
 		<!-- Automation API commands -->
+
+		<extension point = "cerb.automation.api_command">
+			<id>cerb.commands.dataset.vector_similarity</id>
+			<name>cerb.commands.dataset.vector_similarity</name>
+			<class>
+				<file>api/automations/api_commands/cerb.commands.dataset.vector_similarity.php</file>
+				<name>ApiCommand_CerbDatasetVectorSimilarity</name>
+			</class>
+			<params />
+		</extension>
 
 		<extension point = "cerb.automation.api_command">
 			<id>cerb.commands.oauth2.token.validate</id>
@@ -4903,6 +4913,16 @@
 			<class>
 				<file>api/resources/types/cerb.resource.dataset.csv.php</file>
 				<name>ResourceType_DatasetCsv</name>
+			</class>
+			<params/>
+		</extension>
+
+		<extension point="cerb.resource.type">
+			<id>cerb.resource.dataset.jsonl</id>
+			<name>Dataset (.jsonl)</name>
+			<class>
+				<file>api/resources/types/cerb.resource.dataset.jsonl.php</file>
+				<name>ResourceType_DatasetJsonl</name>
 			</class>
 			<params/>
 		</extension>

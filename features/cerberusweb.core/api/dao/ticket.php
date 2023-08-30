@@ -2201,13 +2201,14 @@ class DAO_Ticket extends Cerb_ORMHelper {
 	 * @param array $ids
 	 */
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		$ids_list = implode(',', $ids);
+		if(empty($ids)) return false;
+		
+		$ids_list = implode(',', self::qstrArray($ids));
 		
 		$db->ExecuteMaster(sprintf("UPDATE ticket SET status_id = %d WHERE id IN (%s)", Model_Ticket::STATUS_DELETED, $ids_list));
 
@@ -3211,8 +3212,8 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Ticket', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Ticket', $ids, $total);
 	}
 	
 	function getDataSample($size) {

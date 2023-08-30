@@ -376,22 +376,27 @@ class DAO_WorkspacePage extends Cerb_ORMHelper {
 	}
 
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
+		
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 
-		if(empty($ids))
-			return;
-
-		$ids_list = implode(',', $ids);
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_WORKSPACE_TAB;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 
 		// Cascade delete tabs and lists
 		DAO_WorkspaceTab::deleteByPage($ids);
 		
 		// Delete pages
 		$db->ExecuteMaster(sprintf("DELETE FROM workspace_page WHERE id IN (%s)", $ids_list));
+		
+		parent::_deleteAbstractAfter($context, $ids);
 
 		self::clearCache();
-		
 		return true;
 	}
 
@@ -721,8 +726,8 @@ class View_WorkspacePage extends C4_AbstractView implements IAbstractView_QuickS
 		return $objects;
 	}
 
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_WorkspacePage', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_WorkspacePage', $ids, $total);
 	}
 	
 	function getDataSample($size) {

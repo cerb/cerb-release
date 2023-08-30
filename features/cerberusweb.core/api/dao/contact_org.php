@@ -137,8 +137,8 @@ class DAO_ContactOrg extends Cerb_ORMHelper {
 	 * @return Model_ContactOrg
 	 */
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(!isset($fields[self::UPDATED]))
 			$fields[self::UPDATED] = time();
@@ -305,50 +305,44 @@ class DAO_ContactOrg extends Cerb_ORMHelper {
 	 * @param array $ids
 	 */
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_ORG;
 		$id_list = implode(',', $ids);
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		// Orgs
 		$sql = sprintf("DELETE FROM contact_org WHERE id IN (%s)",
 			$id_list
 		);
-		if(false == ($db->ExecuteMaster($sql)))
+		if(!($db->ExecuteMaster($sql)))
 			return false;
 
 		// Clear any associated addresses
 		$sql = sprintf("UPDATE address SET contact_org_id = 0 WHERE contact_org_id IN (%s)",
 			$id_list
 		);
-		if(false == ($db->ExecuteMaster($sql)))
+		if(!($db->ExecuteMaster($sql)))
 			return false;
 		
 		// Clear any associated tickets
 		$sql = sprintf("UPDATE ticket SET org_id = 0 WHERE org_id IN (%s)",
 			$id_list
 		);
-		if(false == ($db->ExecuteMaster($sql)))
+		if(!($db->ExecuteMaster($sql)))
 			return false;
 		
 		// Clear search records
 		$search = Extension_DevblocksSearchSchema::get(Search_Org::ID);
 		$search->delete($ids);
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_ORG,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 	}
 	
 	static function maint() {
@@ -1040,8 +1034,8 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 		return $objects;
 	}
 
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_ContactOrg', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_ContactOrg', $ids, $total);
 	}
 	
 	function getDataSample($size) {

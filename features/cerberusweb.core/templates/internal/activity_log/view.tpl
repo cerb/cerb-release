@@ -29,6 +29,7 @@
 <input type="hidden" name="a" value="invoke">
 <input type="hidden" name="module" value="records">
 <input type="hidden" name="action" value="">
+<input type="hidden" name="explore_from" value="">
 <input type="hidden" name="_csrf_token" value="{$session.csrf_token}">
 
 <table cellpadding="1" cellspacing="0" border="0" width="100%" class="worklistBody">
@@ -125,7 +126,8 @@
 	</div>
 
 	<div style="float:left;" id="{$view->id}_actions">
-		{include file="devblocks:cerberusweb.core::internal/views/view_toolbar.tpl"}
+		{$view_toolbar = $view->getToolbar()}
+		{include file="devblocks:cerberusweb.core::internal/views/view_toolbar.tpl" view_toolbar=$view_toolbar}
 		{if $active_worker->is_superuser}
 		<button type="button" class="action-delete"><span class="glyphicons glyphicons-circle-remove"></span> {'common.delete'|devblocks_translate|capitalize}</button>
 		{/if}

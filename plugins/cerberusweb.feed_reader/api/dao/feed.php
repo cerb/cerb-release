@@ -153,19 +153,24 @@ class DAO_Feed extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		$ids_list = implode(',', $ids);
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_FEED;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		// [TODO] ...and all the items' associated content (comments/links/etc)
 		// [TODO] Use DAO_FeedItem::deleteByFeedId() to delete feed content
 		$db->ExecuteMaster(sprintf("DELETE FROM feed_item WHERE feed_id IN (%s)", $ids_list));
-		
 		$db->ExecuteMaster(sprintf("DELETE FROM feed WHERE id IN (%s)", $ids_list));
+		
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -394,8 +399,8 @@ class View_Feed extends C4_AbstractView implements IAbstractView_QuickSearch {
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Feed', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Feed', $ids, $total);
 	}
 	
 	function getDataSample($size) {
@@ -742,6 +747,10 @@ class Context_Feed extends Extension_DevblocksContext implements IDevblocksConte
 			
 			// Custom fields
 			$token_values = $this->_importModelCustomFieldsAsValues($feed, $token_values);
+			
+			// URL
+			$url_writer = DevblocksPlatform::services()->url();
+			$token_values['record_url'] = $url_writer->writeNoProxy(sprintf("c=profiles&type=feed&id=%d-%s",$feed->id, DevblocksPlatform::strToPermalink($feed->name)), true);
 		}
 		
 		return true;

@@ -281,27 +281,19 @@ class DAO_<?php echo $class_name; ?> extends Cerb_ORMHelper {
 	static function delete($ids) {
 		$db = DevblocksPlatform::services()->database();
     
-		if(!is_array($ids))
-            $ids = [$ids];
+		if(!is_array($ids)) $ids = [$ids];
+        $ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+
+		if(empty($ids)) return false;
 		
-		if(empty($ids))
-			return false;
+        $context = "<?php echo $ctx_ext_id; ?>";
+		$ids_list = implode(',', self::qstrArray($ids));
 		
-		$ids_list = implode(',', $ids);
-		
+        parent::_deleteAbstractBefore($context, $ids);
+        
 		$db->ExecuteMaster(sprintf("DELETE FROM <?php echo $table_name; ?> WHERE id IN (%s)", $ids_list));
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				[
-					'context' => '<?php echo $ctx_ext_id; ?>',
-					'context_ids' => $ids
-				]
-			)
-		);
+        parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -549,8 +541,8 @@ class View_<?php echo $class_name; ?> extends C4_AbstractView implements IAbstra
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_<?php echo $class_name; ?>', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_<?php echo $class_name; ?>', $ids, $total);
 	}
 	
 	function getDataSample($size) {
@@ -1437,8 +1429,9 @@ $(function() {
 	</div>
 	
 	<div style="float:left;" id="{$view->id}_actions">
-		{include file="devblocks:cerberusweb.core::internal/views/view_toolbar.tpl"}
-		<button type="button" class="action-always-show action-explore" onclick="this.form.explore_from.value=$(this).closest('form').find('tbody input:checkbox:checked:first').val();this.form.action.value='viewExplore';this.form.submit();"><span class="glyphicons glyphicons-play-button"></span> {'common.explore'|devblocks_translate|lower}</button>
+		{$view_toolbar = $view->getToolbar()}
+		{include file="devblocks:cerberusweb.core::internal/views/view_toolbar.tpl" view_toolbar=$view_toolbar}
+		{if !$view_toolbar['explore']}<button type="button" class="action-always-show action-explore" onclick="this.form.explore_from.value=$(this).closest('form').find('tbody input:checkbox:checked:first').val();this.form.action.value='viewExplore';this.form.submit();"><span class="glyphicons glyphicons-compass"></span> {'common.explore'|devblocks_translate|lower}</button>{/if}
 	</div>
 </div>
 {/if}
@@ -1656,78 +1649,11 @@ class PageSection_Profiles<?php echo $class_name; ?> extends Extension_PageSecti
 	}
 	
 	private function _profileAction_viewExplore() {
-		$view_id = DevblocksPlatform::importGPC($_POST['view_id'] ?? null, 'string');
-		
-		$active_worker = CerberusApplication::getActiveWorker();
-		$url_writer = DevblocksPlatform::services()->url();
-		
-		if('POST' != DevblocksPlatform::getHttpMethod())
-			DevblocksPlatform::dieWithHttpError(null, 405);
-		
-		// Generate hash
-		$hash = md5($view_id.$active_worker->id.time());
-		
-		// Loop through view and get IDs
-		$view = C4_AbstractViewLoader::getView($view_id);
-		$view->setAutoPersist(false);
-
-		// Page start
-		$explore_from = DevblocksPlatform::importGPC($_POST['explore_from'] ?? null, 'integer',0);
-		if(empty($explore_from)) {
-			$orig_pos = 1+($view->renderPage * $view->renderLimit);
-		} else {
-			$orig_pos = 1;
-		}
-
-		$view->renderPage = 0;
-		$view->renderLimit = 250;
-		$pos = 0;
-		
-		do {
-			$models = [];
-			list($results, $total) = $view->getData();
-
-			// Summary row
-			if(0==$view->renderPage) {
-				$model = new Model_ExplorerSet();
-				$model->hash = $hash;
-				$model->pos = $pos++;
-				$model->params = [
-					'title' => $view->name,
-					'created' => time(),
-//					'worker_id' => $active_worker->id,
-					'total' => $total,
-					'return_url' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $url_writer->writeNoProxy('c=search&type=<?php echo $table_name; ?>', true),
-				];
-				$models[] = $model;
-				
-				$view->renderTotal = false; // speed up subsequent pages
-			}
-			
-			if(is_array($results))
-			foreach($results as $opp_id => $row) {
-				if($opp_id==$explore_from)
-					$orig_pos = $pos;
-				
-				$url = $url_writer->writeNoProxy(sprintf("c=profiles&type=<?php echo $table_name; ?>&id=%d-%s", $row[SearchFields_<?php echo $class_name; ?>::ID], DevblocksPlatform::strToPermalink($row[SearchFields_<?php echo $class_name; ?>::NAME])), true);
-				
-				$model = new Model_ExplorerSet();
-				$model->hash = $hash;
-				$model->pos = $pos++;
-				$model->params = [
-					'id' => $row[SearchFields_<?php echo $class_name; ?>::ID],
-					'url' => $url,
-				];
-				$models[] = $model;
-			}
-			
-			DAO_ExplorerSet::createFromModels($models);
-			
-			$view->renderPage++;
-			
-		} while(!empty($results));
-		
-		DevblocksPlatform::redirect(new DevblocksHttpResponse(['explore',$hash,$orig_pos]));
+		$view_id = DevblocksPlatform::importGPC($_POST['view_id'] ?? null, 'string', '');
+		$explore_from = DevblocksPlatform::importGPC($_POST['explore_from'] ?? null, 'int', 0);
+  
+		$http_response = Cerb_ORMHelper::generateRecordExploreSet($view_id, $explore_from);
+		DevblocksPlatform::redirect($http_response);
 	}
 };
 </textarea>

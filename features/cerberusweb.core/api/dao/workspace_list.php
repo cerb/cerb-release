@@ -135,8 +135,8 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 			
 		if(!isset($fields[self::UPDATED_AT]))
 			$fields[self::UPDATED_AT] = time();
@@ -310,19 +310,19 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 			$object->workspace_tab_id = intval($row['workspace_tab_id']);
 			$object->workspace_tab_pos = $row['workspace_tab_pos'];
 			
-			if(false != (@$columns_json = json_decode($row['columns_json'], true)))
+			if(($columns_json = json_decode($row['columns_json'] ?? '', true)))
 				$object->columns = $columns_json;
 			
-			if(false != (@$options_json = json_decode($row['options_json'], true)))
+			if(($options_json = json_decode($row['options_json'] ?? '', true)))
 				$object->options = $options_json;
 			
-			if(false != (@$params_editable_json = json_decode($row['params_editable_json'], true)))
+			if(($params_editable_json = json_decode($row['params_editable_json'] ?? '', true)))
 				$object->params_editable = $params_editable_json;
 			
-			if(false != (@$params_required_json = json_decode($row['params_required_json'], true)))
+			if(($params_required_json = json_decode($row['params_required_json'] ?? '', true)))
 				$object->params_required = $params_required_json;
 			
-			if(false != (@$render_sort_json = json_decode($row['render_sort_json'], true)))
+			if(($render_sort_json = json_decode($row['render_sort_json'] ?? '', true)))
 				$object->render_sort = $render_sort_json;
 			
 			$objects[$object->id] = $object;
@@ -347,16 +347,19 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids))
-			$ids = [$ids];
-		
-		if(empty($ids))
-			return;
-		
 		$db = DevblocksPlatform::services()->database();
-		$ids_list = implode(',', $ids);
 		
-		if(false == ($db->ExecuteMaster(sprintf("DELETE FROM workspace_list WHERE id IN (%s)", $ids_list))))
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_WORKSPACE_WORKLIST;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
+
+		if(!($db->ExecuteMaster(sprintf("DELETE FROM workspace_list WHERE id IN (%s)", $ids_list))))
 			return false;
 		
 		// Delete worker view prefs
@@ -364,17 +367,7 @@ class DAO_WorkspaceList extends Cerb_ORMHelper {
 			$db->ExecuteMaster(sprintf("DELETE FROM worker_view_model WHERE view_id = 'cust_%d'", $id));
 		}
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_WORKSPACE_WORKLIST,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 	}
 	
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
@@ -680,8 +673,8 @@ class View_WorkspaceList extends C4_AbstractView implements IAbstractView_Subtot
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_WorkspaceList', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_WorkspaceList', $ids, $total);
 	}
 	
 	function getDataSample($size) {

@@ -1174,6 +1174,11 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 						'description' => "Read this many bytes from the content (omit to read the full content)",
 					],
 					[
+						'caption' => 'length_split:',
+						'snippet' => "length_split@json: \"\n\"",
+						'description' => "When using `length:` truncate at the last occurrence of this delimiter within the read bytes",
+					],
+					[
 						'caption' => 'offset:',
 						'snippet' => "offset: 4096",
 						'description' => "Start reading content after this many bytes",
@@ -1690,7 +1695,7 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					],
 					[
 						'caption' => 'delimiter:',
-						'snippet' => "delimiter: \${1:\:}",
+						'snippet' => "delimiter:",
 						'score' => 1998,
 					],
 				],
@@ -1846,7 +1851,7 @@ abstract class Extension_Toolbar extends DevblocksExtension {
 					],
 					[
 						'caption' => 'class:',
-						'snippet' => 'class: some-css-class-name'
+						'snippet' => 'class: action-always-show'
 					],
 					'inputs:'
 				],

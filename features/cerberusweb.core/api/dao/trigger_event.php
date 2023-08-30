@@ -530,15 +530,14 @@ class DAO_TriggerEvent extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-		
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		$ids_list = implode(',', $ids);
+		if(empty($ids)) return false;
+		
+		$ids_list = implode(',', self::qstrArray($ids));
 		
 		// [TODO] Use DAO_DecisionNode::deleteByTrigger() to cascade
 		$db->ExecuteMaster(sprintf("DELETE FROM decision_node WHERE trigger_id IN (%s)", $ids_list));
@@ -1602,8 +1601,8 @@ class View_TriggerEvent extends C4_AbstractView implements IAbstractView_Subtota
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_TriggerEvent', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_TriggerEvent', $ids, $total);
 	}
 	
 	function getDataSample($size) {

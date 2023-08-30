@@ -467,13 +467,15 @@ class DAO_Message extends Cerb_ORMHelper {
 	static function delete($ids) {
 		$db = DevblocksPlatform::services()->database();
 		
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		if(empty($ids))
-			return [];
+		if(empty($ids)) return false;
 		
-		$ids_list = implode(',', $ids);
+		$context = CerberusContexts::CONTEXT_MESSAGE;
+		$ids_list = implode(',', self::qstrArray($ids));
+
+		parent::_deleteAbstractBefore($context, $ids);
 
 		$messages = DAO_Message::getWhere(sprintf("%s IN (%s)",
 			DAO_Message::ID,
@@ -501,17 +503,7 @@ class DAO_Message extends Cerb_ORMHelper {
 			DAO_Ticket::rebuild($message->ticket_id);
 		}
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_MESSAGE,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 	}
 	
 	/** @noinspection SqlResolve */
@@ -1599,13 +1591,14 @@ class Storage_MessageContent extends Extension_DevblocksStorageSchema {
 	}
 
 	public static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
-		
 		$db = DevblocksPlatform::services()->database();
+		
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		$sql = sprintf("SELECT storage_extension, storage_key, storage_profile_id FROM message WHERE id IN (%s)", implode(',',$ids));
 
-		if(false == ($rs = $db->ExecuteMaster($sql)))
+		if(!($rs = $db->ExecuteMaster($sql)))
 			return false;
 		
 		// Delete the physical files
@@ -1887,8 +1880,8 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 		return $objects;
 	}
 
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Message', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Message', $ids, $total);
 	}
 	
 	function getSubtotalFields() {

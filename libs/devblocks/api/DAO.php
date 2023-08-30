@@ -604,10 +604,11 @@ abstract class DevblocksORMHelper {
      * @param int $option_bits
      */
 	static protected function _update($ids, string $table, array $fields, $idcol='id', $option_bits = 0) {
-		if(!is_array($ids))
-			$ids = array($ids);
-		
 		$db = DevblocksPlatform::services()->database();
+		
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
 		$sets = [];
 		
 		if(!is_array($fields) || empty($fields) || empty($ids))
@@ -746,6 +747,29 @@ abstract class DevblocksORMHelper {
 				}
 			}
 		}
+	}
+	
+	static protected function _deleteAbstractBefore($context, $ids) : void {
+		// Temporary kill-switch (remove in 10.5)
+		if(defined('APP_OPT_RECORD_CHANGED_NO_DELETE') && APP_OPT_RECORD_CHANGED_NO_DELETE)
+			return;
+		
+		CerberusContexts::checkpointChanges($context, $ids);
+		CerberusContexts::checkpointDeletions($context, $ids);
+	}
+	
+	static protected function _deleteAbstractAfter($context, $ids) : void {
+		// Fire event
+		$eventMgr = DevblocksPlatform::services()->event();
+		$eventMgr->trigger(
+			new Model_DevblocksEvent(
+				'context.delete',
+				array(
+					'context' => $context,
+					'context_ids' => $ids
+				)
+			)
+		);
 	}
 	
 	static protected function _mergeIds($context, $from_ids, $to_id) {
@@ -1704,13 +1728,14 @@ class DAO_Translation extends DevblocksORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		$ids_list = implode(',', $ids);
+		if(empty($ids)) return false;
+		
+		$ids_list = implode(',', Cerb_ORMHelper::qstrArray($ids));
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM translation WHERE id IN (%s)", $ids_list));
 		
@@ -2103,7 +2128,7 @@ class DAO_DevblocksStorageProfile extends DevblocksORMHelper {
 		if(empty($ids))
 			return;
 		
-		$ids_list = implode(',', $ids);
+		$ids_list = implode(',', Cerb_ORMHelper::qstrArray($ids));
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM devblocks_storage_profile WHERE id IN (%s)", $ids_list));
 		

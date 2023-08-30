@@ -223,8 +223,8 @@ class DAO_Comment extends Cerb_ORMHelper {
 	static function getContextIdsByContextAndIds($context, $ids) {
 		$db = DevblocksPlatform::services()->database();
 		
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(empty($ids))
 			return array();
@@ -345,13 +345,17 @@ class DAO_Comment extends Cerb_ORMHelper {
 	}
 	
 	static function delete($ids) {
-		if(!is_array($ids)) $ids = array($ids);
 		$db = DevblocksPlatform::services()->database();
 		
-		if(empty($ids))
-			return;
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
-		$ids_list = implode(',', $ids);
+		if(empty($ids)) return false;
+		
+		$context = CerberusContexts::CONTEXT_COMMENT;
+		$ids_list = implode(',', self::qstrArray($ids));
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		// Comments
 		$db->ExecuteMaster(sprintf("DELETE FROM comment WHERE id IN (%s)", $ids_list));
@@ -360,17 +364,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 		$search = Extension_DevblocksSearchSchema::get(Search_CommentContent::ID, true);
 		$search->delete($ids);
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_COMMENT,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		return true;
 	}
@@ -980,8 +974,8 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_Comment', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_Comment', $ids, $total);
 	}
 	
 	function getDataSample($size) {
@@ -1601,6 +1595,9 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 					
 				} else {
 					$values['record_url'] = $dict->get('target_record_url');
+					
+					if(!str_contains($values['record_url'], '#'))
+						$values['record_url'] .= '#comment' . $dict->get('id');
 				}
 				break;
 				

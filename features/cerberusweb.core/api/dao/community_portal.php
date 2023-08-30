@@ -144,8 +144,8 @@ class DAO_CommunityTool extends Cerb_ORMHelper {
 	}
 	
 	static function update($ids, $fields, $check_deltas=true) {
-		if(!is_array($ids))
-			$ids = array($ids);
+		if(!is_array($ids)) $ids = [$ids];
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		$params_json = $fields[self::_PARAMS_JSON] ?? '';
 		unset($fields[self::_PARAMS_JSON]);
@@ -353,39 +353,30 @@ class DAO_CommunityTool extends Cerb_ORMHelper {
 	}
 	
 	public static function delete($ids) {
-		if(!is_array($ids))
-			$ids = array($ids);
-		
 		$db = DevblocksPlatform::services()->database();
 		
+		if(!is_array($ids)) $ids = [$ids];
 		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
 		
 		if(empty($ids))
 			return false;
 		
+		$context = CerberusContexts::CONTEXT_PORTAL;
 		$ids_string = implode(',', $ids);
+		
+		parent::_deleteAbstractBefore($context, $ids);
 		
 		// Nuke portals
 		$sql = sprintf("DELETE FROM community_tool WHERE id IN (%s)", $ids_string);
-		if(false == ($db->ExecuteMaster($sql)))
+		if(!($db->ExecuteMaster($sql)))
 			return false;
 		
 		// Nuke portal config
 		$sql = "DELETE FROM community_tool_property WHERE tool_code NOT IN (SELECT code FROM community_tool)";
-		if(false == ($db->ExecuteMaster($sql)))
+		if(!($db->ExecuteMaster($sql)))
 			return false;
 		
-		// Fire event
-		$eventMgr = DevblocksPlatform::services()->event();
-		$eventMgr->trigger(
-			new Model_DevblocksEvent(
-				'context.delete',
-				array(
-					'context' => CerberusContexts::CONTEXT_PORTAL,
-					'context_ids' => $ids
-				)
-			)
-		);
+		parent::_deleteAbstractAfter($context, $ids);
 		
 		self::clearCache();
 		return true;
@@ -757,8 +748,8 @@ class View_CommunityPortal extends C4_AbstractView implements IAbstractView_Quic
 		return $objects;
 	}
 	
-	function getDataAsObjects($ids=null) {
-		return $this->_getDataAsObjects('DAO_CommunityTool', $ids);
+	function getDataAsObjects($ids=null, &$total=null) {
+		return $this->_getDataAsObjects('DAO_CommunityTool', $ids, $total);
 	}
 	
 	function getDataSample($size) {
