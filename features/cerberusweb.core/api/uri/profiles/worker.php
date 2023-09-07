@@ -85,7 +85,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_WORKER)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 				
-				if(false == ($model = DAO_Worker::get($id)))
+				if(!($model = DAO_Worker::get($id)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.record.not_found'));
 				
 				if(!Context_Worker::isDeletableByActor($model, $active_worker))
@@ -131,6 +131,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 				$group_memberships = DevblocksPlatform::importGPC($_POST['group_memberships'] ?? null, 'array');
 				
 				$existing_worker = DAO_Worker::get($id);
+				$profile_image_changed = false;
 				$error = null;
 				
 				// ============================================
@@ -183,7 +184,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 					if(!DAO_Worker::onBeforeUpdateByActor($active_worker, $fields, null, $error))
 						throw new Exception_DevblocksAjaxValidationError($error);
 					
-					if(false == ($id = DAO_Worker::create($fields)))
+					if(!($id = DAO_Worker::create($fields)))
 						return false;
 					
 					DAO_Worker::onUpdateByActor($active_worker, $fields, $id);
@@ -254,7 +255,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 					$calendar_id = DAO_Calendar::create($fields);
 					
 				} else {
-					if(false != ($calendar = DAO_Calendar::get($calendar_id))) {
+					if(($calendar = DAO_Calendar::get($calendar_id))) {
 						$calendar_id = intval($calendar->id);
 					} else {
 						$calendar_id = 0;
@@ -281,7 +282,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 				$label = null;
 				
 				if($id) {
-					if(false == ($updated_worker = DAO_Worker::get($id)))
+					if(!($updated_worker = DAO_Worker::get($id)))
 						throw new Exception_DevblocksAjaxValidationError("Failed to create the worker record.");
 					
 					// Passwords
@@ -329,7 +330,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 					
 					// Avatar image
 					$avatar_image = DevblocksPlatform::importGPC($_POST['avatar_image'] ?? null, 'string', '');
-					DAO_ContextAvatar::upsertWithImage(CerberusContexts::CONTEXT_WORKER, $updated_worker->id, $avatar_image);
+					$profile_image_changed = DAO_ContextAvatar::upsertWithImage(CerberusContexts::CONTEXT_WORKER, $updated_worker->id, $avatar_image);
 					
 					// Flush caches
 					DAO_WorkerRole::clearWorkerCache($updated_worker->id);
@@ -342,12 +343,23 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 				}
 			}
 			
-			echo json_encode([
+			$event_data = [
 				'status' => true,
 				'id' => $id,
 				'label' => $label,
 				'view_id' => $view_id,
-			]);
+			];
+			
+			if($profile_image_changed) {
+				$url_writer = DevblocksPlatform::services()->url();
+				$type = 'worker';
+				$event_data['record_image_url'] =
+					$url_writer->write(sprintf('c=avatars&type=%s&id=%d', rawurlencode($type), $id), true)
+					. '?v=' . time()
+				;
+			}
+			
+			echo json_encode($event_data);
 			return true;
 			
 		} catch (Exception_DevblocksAjaxValidationError $e) {

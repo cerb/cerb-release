@@ -1440,11 +1440,11 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 	function function_cerb_avatar_url($context, $id, $updated=0) {
 		$url_writer = DevblocksPlatform::services()->url();
 		
-		if(false == ($context_ext = Extension_DevblocksContext::getByAlias($context, true)))
-		if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+		if(!($context_ext = Extension_DevblocksContext::getByAlias($context, true)))
+		if(!($context_ext = Extension_DevblocksContext::get($context)))
 			return null;
 		
-		if(false == ($aliases = Extension_DevblocksContext::getAliasesForContext($context_ext->manifest)))
+		if(!($aliases = Extension_DevblocksContext::getAliasesForContext($context_ext->manifest)))
 			return null;
 		
 		$type = @$aliases['uri'] ?: $context_ext->manifest->id;
@@ -1472,7 +1472,7 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 	function function_cerb_file_url($id) {
 		$url_writer = DevblocksPlatform::services()->url();
 		
-		if(false == ($file = DAO_Attachment::get($id)))
+		if(!($file = DAO_Attachment::get($id)))
 			return null;
 		
 		return $url_writer->write(sprintf('c=files&id=%d&name=%s', $id, rawurlencode($file->name)), true, true);

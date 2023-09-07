@@ -90,7 +90,7 @@ class PageSection_ProfilesWorkerRole extends Extension_PageSection {
 				$error = null;
 				
 				if(empty($id)) { // New
-					$fields = array(
+					$fields = [
 						DAO_WorkerRole::NAME => $name,
 						DAO_WorkerRole::MEMBER_QUERY_WORKER => $member_query_worker,
 						DAO_WorkerRole::EDITOR_QUERY_WORKER => $editor_query_worker,
@@ -98,7 +98,7 @@ class PageSection_ProfilesWorkerRole extends Extension_PageSection {
 						DAO_WorkerRole::PRIVS_MODE => $privs_mode,
 						DAO_WorkerRole::PRIVS_JSON => json_encode($acl_privs),
 						DAO_WorkerRole::UPDATED_AT => time(),
-					);
+					];
 					
 					if(!DAO_WorkerRole::validate($fields, $error))
 						throw new Exception_DevblocksAjaxValidationError($error);
@@ -113,7 +113,7 @@ class PageSection_ProfilesWorkerRole extends Extension_PageSection {
 						C4_AbstractView::setMarqueeContextCreated($view_id, CerberusContexts::CONTEXT_ROLE, $id);
 					
 				} else { // Edit
-					$fields = array(
+					$fields = [
 						DAO_WorkerRole::NAME => $name,
 						DAO_WorkerRole::MEMBER_QUERY_WORKER => $member_query_worker,
 						DAO_WorkerRole::EDITOR_QUERY_WORKER => $editor_query_worker,
@@ -121,7 +121,7 @@ class PageSection_ProfilesWorkerRole extends Extension_PageSection {
 						DAO_WorkerRole::PRIVS_MODE => $privs_mode,
 						DAO_WorkerRole::PRIVS_JSON => json_encode($acl_privs),
 						DAO_WorkerRole::UPDATED_AT => time(),
-					);
+					];
 					
 					if(!DAO_WorkerRole::validate($fields, $error, $id))
 						throw new Exception_DevblocksAjaxValidationError($error);
@@ -140,14 +140,25 @@ class PageSection_ProfilesWorkerRole extends Extension_PageSection {
 				
 				// Avatar image
 				$avatar_image = DevblocksPlatform::importGPC($_POST['avatar_image'] ?? null, 'string', '');
-				DAO_ContextAvatar::upsertWithImage(CerberusContexts::CONTEXT_ROLE, $id, $avatar_image);
+				$profile_image_changed = DAO_ContextAvatar::upsertWithImage(CerberusContexts::CONTEXT_ROLE, $id, $avatar_image);
 				
-				echo json_encode(array(
+				$event_data = [
 					'status' => true,
 					'id' => $id,
 					'label' => $name,
 					'view_id' => $view_id,
-				));
+				];
+				
+				if($profile_image_changed) {
+					$url_writer = DevblocksPlatform::services()->url();
+					$type = 'role';
+					$event_data['record_image_url'] =
+						$url_writer->write(sprintf('c=avatars&type=%s&id=%d', rawurlencode($type), $id), true)
+						. '?v=' . time()
+					;
+				}
+				
+				echo json_encode($event_data);
 				return;
 			}
 			
