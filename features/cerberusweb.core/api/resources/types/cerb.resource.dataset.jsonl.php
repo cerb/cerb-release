@@ -32,13 +32,13 @@ class ResourceType_DatasetJsonl extends Extension_ResourceType {
 	
 	/**
 	 * @param Model_Resource $resource
-	 * @return Model_Resource_ContentData
+	 * @return Model_Resource_ContentData|null
 	 */
 	function getContentData(Model_Resource $resource) {
 		$content_data = new Model_Resource_ContentData();
 		
 		if(!($params = $resource->getExtensionParams()))
-			return null;
+			$params = [];
 		
 		if(array_key_exists(self::PARAM_MIME_TYPE, $params)) {
 			$content_data->headers[] = sprintf('Content-Type: %s', $params[self::PARAM_MIME_TYPE]);

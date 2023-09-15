@@ -71,6 +71,16 @@ if(!$db->GetOneMaster("SELECT 1 FROM automation_event WHERE name = 'mail.moved'"
 	));
 }
 
+if(!$db->GetOneMaster("SELECT 1 FROM automation_event WHERE name = 'record.merged'")) {
+	$db->ExecuteMaster(sprintf('INSERT IGNORE INTO automation_event (name, extension_id, description, automations_kata, updated_at) VALUES (%s,%s,%s,%s,%d)',
+		$db->qstr('record.merged'),
+		$db->qstr('cerb.trigger.record.merged'),
+		$db->qstr('After a set of records has been merged'),
+		$db->qstr(''),
+		time()
+	));
+}
+
 // ===========================================================================
 // Add new toolbars
 
@@ -183,6 +193,15 @@ $db->ExecuteMaster(sprintf("UPDATE automation_event SET name = %s, description =
 	$db->qstr('cerb.trigger.record.viewed'),
 	$db->qstr('record.profile.viewed'),
 ));
+
+// ===========================================================================
+// Add resource.cache_until
+
+list($columns, ) = $db->metaTable('resource');
+
+if(!array_key_exists('cache_until', $columns)) {
+	$db->ExecuteMaster('ALTER TABLE resource ADD COLUMN cache_until INT UNSIGNED NOT NULL DEFAULT 0, ADD INDEX (cache_until)');
+}
 
 // ===========================================================================
 // Update package library

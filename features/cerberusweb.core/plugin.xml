@@ -80,7 +80,7 @@
 		<patch version="10.1.0" revision="1404" file="patches/10.x/10.1.0.php" />
 		<patch version="10.2.0" revision="1423" file="patches/10.x/10.2.0.php" />
 		<patch version="10.3.0" revision="1434" file="patches/10.x/10.3.0.php" />
-		<patch version="10.4.0" revision="1449" file="patches/10.x/10.4.0.php" />
+		<patch version="10.4.0" revision="1451" file="patches/10.x/10.4.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -5313,6 +5313,23 @@
 			</class>
 			<params>
 				<param key="description" value="Allow or deny record merge requests" />
+				<param key="features">
+					<value>
+						<data key="inputs" />
+					</value>
+				</param>
+			</params>
+		</extension>
+
+		<extension point="cerb.automation.trigger">
+			<id>cerb.trigger.record.merged</id>
+			<name>record.merged</name>
+			<class>
+				<file>api/automations/triggers/record.merged.php</file>
+				<name>AutomationTrigger_RecordMerged</name>
+			</class>
+			<params>
+				<param key="description" value="After a set of records has been merged" />
 				<param key="features">
 					<value>
 						<data key="inputs" />
