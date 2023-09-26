@@ -156,7 +156,7 @@ class WgmCalls_EventActionPost extends Extension_DevblocksEventAction {
 		if(empty($created))
 			$created = time();
 		
-		$trigger = $dict->__trigger;
+		$trigger = $dict->__trigger; /* @var $trigger Model_TriggerEvent */
 		
 		$fields = array(
 			DAO_CallEntry::SUBJECT => $subject,
@@ -167,7 +167,7 @@ class WgmCalls_EventActionPost extends Extension_DevblocksEventAction {
 			DAO_CallEntry::IS_OUTGOING => $is_outgoing ? 1 : 0,
 		);
 		
-		if(false == ($call_id = DAO_CallEntry::create($fields)))
+		if(!($call_id = DAO_CallEntry::create($fields)))
 			return false;
 		
 		// Custom fields
@@ -180,15 +180,16 @@ class WgmCalls_EventActionPost extends Extension_DevblocksEventAction {
 		
 		// Comment content
 		if(!empty($comment)) {
-			$fields = array(
+			$fields = [
 				DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_BOT,
 				DAO_Comment::OWNER_CONTEXT_ID => $trigger->bot_id,
 				DAO_Comment::COMMENT => $comment,
 				DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_CALL,
 				DAO_Comment::CONTEXT_ID => $call_id,
 				DAO_Comment::CREATED => time(),
-			);
-			DAO_Comment::create($fields);
+			];
+			$comment_id = DAO_Comment::create($fields);
+			DAO_Comment::onUpdateByActor($trigger->getBot(), $fields, $comment_id);
 		}
 		
 		// Links

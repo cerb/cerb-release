@@ -77,7 +77,7 @@ class PageSection_ProfilesTimeTracking extends Extension_PageSection {
 			
 			// Date
 			$log_date = DevblocksPlatform::importGPC($_POST['log_date'] ?? null, 'string','now');
-			if(false == (@$log_date = strtotime($log_date)))
+			if(!(@$log_date = strtotime($log_date)))
 				$log_date = time();
 			
 			// Delete entries
@@ -85,7 +85,7 @@ class PageSection_ProfilesTimeTracking extends Extension_PageSection {
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_TIMETRACKING)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 				
-				if(false == ($model = DAO_TimeTrackingEntry::get($id)))
+				if(!($model = DAO_TimeTrackingEntry::get($id)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.record.not_found'));
 				
 				if(!Context_TimeTracking::isDeletableByActor($model, $active_worker))
@@ -109,11 +109,12 @@ class PageSection_ProfilesTimeTracking extends Extension_PageSection {
 				throw new Exception_DevblocksAjaxValidationError(sprintf('`%s` is not a valid duration', $time_actual));
 			
 			$time_actual_secs = $time_actual_ts - time();
+			$time_actual_mins = ceil($time_actual_secs/60);
 			
 			// New or modify
 			$fields = array(
 				DAO_TimeTrackingEntry::ACTIVITY_ID => intval($activity_id),
-				DAO_TimeTrackingEntry::TIME_ACTUAL_MINS => ceil($time_actual_secs/60),
+				DAO_TimeTrackingEntry::TIME_ACTUAL_MINS => $time_actual_mins,
 				DAO_TimeTrackingEntry::TIME_ACTUAL_SECS => $time_actual_secs,
 				DAO_TimeTrackingEntry::LOG_DATE => intval($log_date),
 				DAO_TimeTrackingEntry::IS_CLOSED => intval($is_closed),
@@ -169,15 +170,16 @@ class PageSection_ProfilesTimeTracking extends Extension_PageSection {
 								(!empty($comment) ? sprintf("%s: %s\n", DevblocksPlatform::translateCapitalized('common.comment'), $comment) : ''),
 								$url_writer->writeNoProxy(sprintf("c=profiles&type=time_tracking&id=%d", $id), true)
 							);
-							$fields = array(
+							$fields = [
 								DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_WORKER,
 								DAO_Comment::OWNER_CONTEXT_ID => $active_worker->id,
 								DAO_Comment::COMMENT => $context_comment,
 								DAO_Comment::CREATED => time(),
 								DAO_Comment::CONTEXT => $link_context,
 								DAO_Comment::CONTEXT_ID => intval($link_context_id),
-							);
-							DAO_Comment::create($fields);
+							];
+							$comment_id = DAO_Comment::create($fields);
+							DAO_Comment::onUpdateByActor($active_worker, $fields, $comment_id);
 						}
 						break;
 						

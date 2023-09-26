@@ -66,7 +66,7 @@ class PageSection_ProfilesFileBundle extends Extension_PageSection {
 				if(!$active_worker->hasPriv(sprintf("contexts.%s.delete", CerberusContexts::CONTEXT_FILE_BUNDLE)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 				
-				if(false == ($model = DAO_FileBundle::get($id)))
+				if(!($model = DAO_FileBundle::get($id)))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.record.not_found'));
 				
 				if(!Context_FileBundle::isDeletableByActor($model, $active_worker))
@@ -116,7 +116,7 @@ class PageSection_ProfilesFileBundle extends Extension_PageSection {
 					if(!DAO_FileBundle::onBeforeUpdateByActor($active_worker, $fields, null, $error))
 						throw new Exception_DevblocksAjaxValidationError($error);
 						
-					if(false == ($id = DAO_FileBundle::create($fields)))
+					if(!($id = DAO_FileBundle::create($fields)))
 						throw new Exception_DevblocksAjaxValidationError("An unexpected error occurred while creating the record.");
 					
 					DAO_FileBundle::onUpdateByActor($active_worker, $fields, $id);
@@ -141,20 +141,6 @@ class PageSection_ProfilesFileBundle extends Extension_PageSection {
 				
 				if(is_array($file_ids))
 					DAO_Attachment::setLinks(CerberusContexts::CONTEXT_FILE_BUNDLE, $id, $file_ids);
-				
-				// If we're adding a comment
-				
-				if(!empty($comment)) {
-					$fields = array(
-						DAO_Comment::CREATED => time(),
-						DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_FILE_BUNDLE,
-						DAO_Comment::CONTEXT_ID => $id,
-						DAO_Comment::COMMENT => $comment,
-						DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_WORKER,
-						DAO_Comment::OWNER_CONTEXT_ID => $active_worker->id,
-					);
-					DAO_Comment::create($fields);
-				}
 				
 				// Custom field saves
 				$field_ids = DevblocksPlatform::importGPC($_POST['field_ids'] ?? null, 'array', []);

@@ -2985,7 +2985,7 @@ class DevblocksEventHelper {
 	}
 	
 	static function runActionCreateCalendarEvent($params, DevblocksDictionaryDelegate $dict) {
-		$trigger = $dict->__trigger;
+		$trigger = $dict->__trigger; /* @var $trigger Model_TriggerEvent */
 
 		$calendars = [];
 		
@@ -3046,7 +3046,7 @@ class DevblocksEventHelper {
 				DAO_CalendarEvent::IS_AVAILABLE => !empty($is_available) ? 1 : 0,
 			);
 			
-			if(false == ($calendar_event_id = DAO_CalendarEvent::create($fields)))
+			if(!($calendar_event_id = DAO_CalendarEvent::create($fields)))
 				return false;
 			
 			// Custom fields
@@ -3059,15 +3059,16 @@ class DevblocksEventHelper {
 				
 			// Comment content
 			if(!empty($comment)) {
-				$fields = array(
+				$fields = [
 					DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_BOT,
 					DAO_Comment::OWNER_CONTEXT_ID => $trigger->bot_id,
 					DAO_Comment::COMMENT => $comment,
 					DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_CALENDAR_EVENT,
 					DAO_Comment::CONTEXT_ID => $calendar_event_id,
 					DAO_Comment::CREATED => time(),
-				);
-				DAO_Comment::create($fields);
+				];
+				$comment_id = DAO_Comment::create($fields);
+				DAO_Comment::onUpdateByActor($trigger->getBot(), $fields, $comment_id);
 			}
 			
 			// Set object variable
@@ -3188,6 +3189,7 @@ class DevblocksEventHelper {
 				$fields[DAO_Comment::CONTEXT] = $on_object->_context;
 				$fields[DAO_Comment::CONTEXT_ID] = $on_object->id;
 				$comment_id = DAO_Comment::create($fields);
+				DAO_Comment::onUpdateByActor($trigger->getBot(), $fields, $comment_id);
 				
 				// Connection
 				DevblocksEventHelper::runActionCreateRecordSetLinks(CerberusContexts::CONTEXT_COMMENT, $comment_id, $params, $dict);
@@ -4054,7 +4056,7 @@ class DevblocksEventHelper {
 	}
 	
 	static function runActionCreateMessageStickyNote($params, DevblocksDictionaryDelegate $dict, $default_on=null) {
-		$trigger = $dict->__trigger;
+		$trigger = $dict->__trigger; /* @var $trigger Model_TriggerEvent */
 		$event = $trigger->getEvent();
 		
 		// Template
@@ -4092,10 +4094,11 @@ class DevblocksEventHelper {
 					DAO_Comment::OWNER_CONTEXT_ID => $trigger->bot_id,
 				);
 				$note_id = DAO_Comment::create($fields);
+				DAO_Comment::onUpdateByActor($trigger->getBot(), $fields, $note_id);
 			}
 		}
 		
-		return isset($note_id) ? $note_id : false;
+		return $note_id ?? false;
 	}
 	
 	/*
@@ -4209,7 +4212,7 @@ class DevblocksEventHelper {
 	}
 	
 	static function runActionCreateTask($params, DevblocksDictionaryDelegate $dict, $default_on) {
-		@$trigger = $dict->__trigger;
+		@$trigger = $dict->__trigger; /* @var $trigger Model_TriggerEvent */
 
 		$due_date = $params['due_date'];
 
@@ -4237,7 +4240,7 @@ class DevblocksEventHelper {
 			DAO_Task::OWNER_ID => $owner_id,
 		);
 		
-		if(false == ($task_id = DAO_Task::create($fields)))
+		if(!($task_id = DAO_Task::create($fields)))
 			return false;
 		
 		// Custom fields
@@ -4250,15 +4253,16 @@ class DevblocksEventHelper {
 		
 		// Comment content
 		if(!empty($comment)) {
-			$fields = array(
+			$fields = [
 				DAO_Comment::OWNER_CONTEXT => CerberusContexts::CONTEXT_BOT,
 				DAO_Comment::OWNER_CONTEXT_ID => $trigger->bot_id,
 				DAO_Comment::COMMENT => $comment,
 				DAO_Comment::CONTEXT => CerberusContexts::CONTEXT_TASK,
 				DAO_Comment::CONTEXT_ID => $task_id,
 				DAO_Comment::CREATED => time(),
-			);
-			DAO_Comment::create($fields);
+			];
+			$comment_id = DAO_Comment::create($fields);
+			DAO_Comment::onUpdateByActor($trigger->getBot(), $fields, $comment_id);
 		}
 		
 		// Connection
