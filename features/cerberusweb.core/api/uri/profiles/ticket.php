@@ -1302,6 +1302,7 @@ EOD;
 		
 		$fields = [
 			DAO_Ticket::STATUS_ID => Model_Ticket::STATUS_CLOSED,
+			DAO_Ticket::UPDATED_DATE => time(),
 		];
 		
 		$models = DAO_Ticket::getIds($ticket_ids);
@@ -1355,6 +1356,7 @@ EOD;
 		
 		$fields = [
 			DAO_Ticket::STATUS_ID => Model_Ticket::STATUS_DELETED,
+			DAO_Ticket::UPDATED_DATE => time(),
 		];
 		
 		$models = DAO_Ticket::getIds($ticket_ids);
@@ -1401,7 +1403,6 @@ EOD;
 			if(!empty($update_fields))
 				DAO_Ticket::update($model->id, $update_fields);
 		}
-		return;
 	}
 	
 	private function _profileAction_viewMarkSpam() {
@@ -1539,6 +1540,7 @@ EOD;
 		
 		$fields = [
 			DAO_Ticket::STATUS_ID => Model_Ticket::STATUS_WAITING,
+			DAO_Ticket::UPDATED_DATE => time(),
 		];
 		
 		$models = DAO_Ticket::getIds($ticket_ids);
@@ -1593,6 +1595,7 @@ EOD;
 		
 		$fields = [
 			DAO_Ticket::STATUS_ID => Model_Ticket::STATUS_OPEN,
+			DAO_Ticket::UPDATED_DATE => time(),
 		];
 		
 		$models = DAO_Ticket::getIds($ticket_ids);

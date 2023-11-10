@@ -332,14 +332,21 @@ class DAO_Comment extends Cerb_ORMHelper {
 			$context_ids = array($context_ids);
 		
 		if(empty($context_ids))
-			return;
+			return true;
 			
 		$db = DevblocksPlatform::services()->database();
 		
-		$db->ExecuteMaster(sprintf("DELETE FROM comment WHERE context = %s AND context_id IN (%s) ",
+		$results = $db->GetArrayMaster(sprintf("SELECT id FROM comment WHERE context = %s AND context_id IN (%s) ",
 			$db->qstr($context),
 			implode(',', $context_ids)
 		));
+		
+		if(!$results)
+			return true;
+		
+		$ids = array_column($results, 'id');
+		
+		self::delete($ids);
 		
 		return true;
 	}
@@ -361,7 +368,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 		$db->ExecuteMaster(sprintf("DELETE FROM comment WHERE id IN (%s)", $ids_list));
 		
 		// Search index
-		$search = Extension_DevblocksSearchSchema::get(Search_CommentContent::ID, true);
+		$search = Extension_DevblocksSearchSchema::get(Search_CommentContent::ID);
 		$search->delete($ids);
 		
 		parent::_deleteAbstractAfter($context, $ids);
@@ -458,19 +465,6 @@ class DAO_Comment extends Cerb_ORMHelper {
 	}
 
 	static function maint() {
-		$db = DevblocksPlatform::services()->database();
-		$logger = DevblocksPlatform::services()->log();
-		$tables = DevblocksPlatform::getDatabaseTables();
-		
-		$db->ExecuteMaster("DELETE FROM attachment_link WHERE context = 'cerberusweb.contexts.comment' AND context_id NOT IN (SELECT id FROM comment)");
-		$logger->info('[Maint] Purged ' . $db->Affected_Rows() . ' comment attachment_link records.');
-
-		// Search indexes
-		if(isset($tables['fulltext_comment_content'])) {
-			$db->ExecuteMaster("DELETE FROM fulltext_comment_content WHERE id NOT IN (SELECT id FROM comment)");
-			$logger->info('[Maint] Purged ' . $db->Affected_Rows() . ' fulltext_comment_content records.');
-		}
-		
 		// Fire event
 		$eventMgr = DevblocksPlatform::services()->event();
 		$eventMgr->trigger(

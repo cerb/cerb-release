@@ -1069,6 +1069,7 @@ class DevblocksSearchEngineMysqlFulltext extends Extension_DevblocksSearchEngine
 		$tables = DevblocksPlatform::getDatabaseTables();
 		
 		$ns = $schema->getNamespace();
+		$id_key = $schema->getIdField();
 		
 		if(!is_array($ids)) $ids = [$ids];
 			
@@ -1081,12 +1082,13 @@ class DevblocksSearchEngineMysqlFulltext extends Extension_DevblocksSearchEngine
 			return true;
 		
 		/** @noinspection SqlResolve */
-		$result = $db->ExecuteMaster(sprintf("DELETE FROM fulltext_%s WHERE id IN (%s) ",
+		$result = $db->ExecuteMaster(sprintf("DELETE FROM fulltext_%s WHERE %s IN (%s) ",
 			$namespace,
+			$db->escape($id_key),
 			implode(',', $ids)
 		));
 		
-		$return = (false !== $result) ? true : false;
+		$return = false !== $result;
 		
 		if($result instanceof mysqli_result)
 			mysqli_free_result($result);
