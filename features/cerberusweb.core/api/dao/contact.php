@@ -1422,7 +1422,12 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 						'limit' => 25,
 					]
 				),
-			'org' => 
+			'mobile' =>
+				[
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'options' => ['param_key' => SearchFields_Contact::MOBILE, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX],
+				],
+			'org' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Contact::VIRTUAL_ORG_SEARCH),
@@ -1438,6 +1443,11 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 						['type' => 'chooser', 'context' => CerberusContexts::CONTEXT_ORG, 'q' => ''],
 					]
 				),
+			'phone' =>
+				[
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'options' => ['param_key' => SearchFields_Contact::PHONE, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX],
+				],
 			'timezone' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_TEXT,
@@ -1462,7 +1472,12 @@ class View_Contact extends C4_AbstractView implements IAbstractView_Subtotals, I
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
 					'options' => array('param_key' => SearchFields_Contact::UPDATED_AT),
 				),
-			'watchers' => 
+			'username' =>
+				[
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'options' => ['param_key' => SearchFields_Contact::USERNAME, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PREFIX],
+				],
+			'watchers' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
 					'options' => array('param_key' => SearchFields_Contact::VIRTUAL_WATCHERS),
