@@ -1161,7 +1161,9 @@ var cerbAutocompleteSuggestions = {
 				'snippet': 'record_uri@raw: cerb:${1:record_type}:${2:record_id}'
 			}
 		],
-
+		'columns:text:params:icon:image:': {
+			'type': 'icon'
+		},
 		// Cards
 		'columns:card:': [
 			'label:',
@@ -1194,6 +1196,9 @@ var cerbAutocompleteSuggestions = {
 				'snippet': 'record_uri@raw: cerb:${1:record_type}:${2:record_id}'
 			}
 		],
+		'columns:card:params:icon:image:': {
+			'type': 'icon'
+		},
 		'columns:card:params:image:': [
 			'yes',
 			'no'
@@ -1248,7 +1253,10 @@ var cerbAutocompleteSuggestions = {
 			'text_color@raw:',
 			'text_size@raw: 150%'
 		],
-
+		'columns:icon:params:image:': {
+			'type': 'icon'
+		},
+		
 		// Interaction
 		'columns:interaction:': [
 			'label:',
@@ -1289,6 +1297,8 @@ var cerbAutocompleteSuggestions = {
 			'href:',
 			'href_key:',
 			'href_template@raw:',
+			'href_new_tab@bool: yes',
+			'icon:',
 			'text:',
 			'text_key:',
 			'text_template@raw:',
@@ -1297,6 +1307,23 @@ var cerbAutocompleteSuggestions = {
 		'columns:link:params:bold:': [
 			'yes',
 			'no'
+		],
+		'columns:link:params:icon:': [
+			'at:',
+			'image:',
+			'image_key:',
+			'image_template@raw:',
+			{
+				'caption': 'record_uri:',
+				'snippet': 'record_uri@raw: cerb:${1:record_type}:${2:record_id}'
+			}
+		],
+		'columns:link:params:icon:image:': {
+			'type': 'icon'
+		},
+		'columns:link:params:icon:at:': [
+			'start',
+			'end'
 		],
 
 		// Markdown
