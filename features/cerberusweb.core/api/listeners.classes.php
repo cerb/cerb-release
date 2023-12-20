@@ -705,10 +705,6 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 				$this->_handleContextDelete($event);
 				break;
 				
-			case 'context.maint':
-				$this->_handleContextMaint($event);
-				break;
-				
 			case 'context_link.set':
 				$this->_handleContextLinkSet($event);
 				break;
@@ -772,162 +768,20 @@ class ChCoreEventListener extends DevblocksEventListenerExtension {
 		DAO_WorkspacePage::deleteByOwner($context, $context_ids);
 	}
 	
-	private function _handleContextMaint($event) {
-		$db = DevblocksPlatform::services()->database();
-		$logger = DevblocksPlatform::services()->log('Maint');
-		
-		$context = $event->params['context'] ?? null;
-		$context_table = $event->params['context_table'] ?? null;
-		$context_key = $event->params['context_key'] ?? null;
-
-		$context_index = $context_table . '.' . $context_key;
-		
-		$logger->info(sprintf("Running maintenance on context: %s", $context));
-		
-		// ===========================================================================
-		// Comments
-		
-		if($context != CerberusContexts::CONTEXT_COMMENT) {
-			$db->ExecuteMaster(sprintf("DELETE FROM comment WHERE context = %s AND context_id NOT IN (SELECT %s FROM %s)",
-				$db->qstr($context),
-				$db->escape($context_index),
-				$db->escape($context_table)
-			));
-			
-			if(null != ($deletes = $db->Affected_Rows()))
-				$logger->info(sprintf("Purged %d %s comments.", $deletes, $context));
-		}
-		
-		// ===========================================================================
-		// Context Activity Log
-
-		$db->ExecuteMaster(sprintf("DELETE FROM context_activity_log WHERE target_context = %s AND target_context_id NOT IN (SELECT %s FROM %s)",
-			$db->qstr($context),
-			$db->escape($context_index),
-			$db->escape($context_table)
-		));
-		if(null != ($deletes = $db->Affected_Rows()))
-			$logger->info(sprintf("Purged %d %s activity log entries.", $deletes, $context));
-		
-		// ===========================================================================
-		// Context Links
-		
-		$db->ExecuteMaster(sprintf("DELETE FROM context_link WHERE from_context = %s AND from_context_id NOT IN (SELECT %s FROM %s)",
-			$db->qstr($context),
-			$db->escape($context_index),
-			$db->escape($context_table)
-		));
-		if(null != ($deletes = $db->Affected_Rows()))
-			$logger->info(sprintf("Purged %d %s context link sources.", $deletes, $context));
-		
-		$db->ExecuteMaster(sprintf("DELETE FROM context_link WHERE to_context = %s AND to_context_id NOT IN (SELECT %s FROM %s)",
-			$db->qstr($context),
-			$db->escape($context_index),
-			$db->escape($context_table)
-		));
-		if(null != ($deletes = $db->Affected_Rows()))
-			$logger->info(sprintf("Purged %d %s context link targets.", $deletes, $context));
-		
-		// ===========================================================================
-		// Custom fields
-		
-		$db->ExecuteMaster(sprintf("DELETE FROM custom_field_stringvalue WHERE context = %s AND context_id NOT IN (SELECT %s FROM %s)",
-			$db->qstr($context),
-			$db->escape($context_index),
-			$db->escape($context_table)
-		));
-		if(null != ($deletes = $db->Affected_Rows()))
-			$logger->info(sprintf("Purged %d %s custom field strings.", $deletes, $context));
-		
-		$db->ExecuteMaster(sprintf("DELETE FROM custom_field_numbervalue WHERE context = %s AND context_id NOT IN (SELECT %s FROM %s)",
-			$db->qstr($context),
-			$db->escape($context_index),
-			$db->escape($context_table)
-		));
-		if(null != ($deletes = $db->Affected_Rows()))
-			$logger->info(sprintf("Purged %d %s custom field numbers.", $deletes, $context));
-		
-		$db->ExecuteMaster(sprintf("DELETE FROM custom_field_clobvalue WHERE context = %s AND context_id NOT IN (SELECT %s FROM %s)",
-			$db->qstr($context),
-			$db->escape($context_index),
-			$db->escape($context_table)
-		));
-		if(null != ($deletes = $db->Affected_Rows()))
-			$logger->info(sprintf("Purged %d %s custom field clobs.", $deletes, $context));
-		
-		$db->ExecuteMaster(sprintf("DELETE FROM custom_field_geovalue WHERE context = %s AND context_id NOT IN (SELECT %s FROM %s)",
-			$db->qstr($context),
-			$db->escape($context_index),
-			$db->escape($context_table)
-		));
-		if(null != ($deletes = $db->Affected_Rows()))
-			$logger->info(sprintf("Purged %d %s custom field geo points.", $deletes, $context));
-		
-		// ===========================================================================
-		// Notifications
-		
-		if($context != CerberusContexts::CONTEXT_NOTIFICATION) {
-			$db->ExecuteMaster(sprintf("DELETE FROM notification WHERE context = %s AND context_id NOT IN (SELECT %s FROM %s)",
-				$db->qstr($context),
-				$db->escape($context_index),
-				$db->escape($context_table)
-			));
-			
-			if(null != ($deletes = $db->Affected_Rows()))
-				$logger->info(sprintf("Purged %d %s notifications.", $deletes, $context));
-		}
-		
-		// ===========================================================================
-		// Bots
-		
-		if($context != CerberusContexts::CONTEXT_BOT) {
-			$rs = $db->QueryReader(sprintf("SELECT id FROM bot WHERE owner_context = %s AND owner_context_id NOT IN (SELECT %s FROM %s)",
-				$db->qstr($context),
-				$db->escape($context_index),
-				$db->escape($context_table)
-			));
-			
-			if($rs instanceof mysqli_result) {
-				$deletes = 0;
-				
-				while($row = mysqli_fetch_row($rs)) {
-					DAO_Bot::delete($row[0]);
-					$deletes++;
-				}
-				
-				if(null != ($deletes = $db->Affected_Rows()))
-					$logger->info(sprintf("Purged %d %s bots.", $deletes, $context));
-			}
-		}
-	}
-	
 	private function _handleCronMaint($event) {
 		DevblocksPlatform::services()->queue()->maint();
 		
-		DAO_Address::maint();
 		DAO_AutomationLog::maint();
 		DAO_BotSession::maint();
-		DAO_Bucket::maint();
-		DAO_Comment::maint();
 		DAO_ConfirmationCode::maint();
-		DAO_CustomField::maint();
 		DAO_ExplorerSet::maint();
-		DAO_Group::maint();
 		DAO_OAuthToken::maint();
-		DAO_Task::maint();
 		DAO_Ticket::maint();
-		DAO_Message::maint();
 		DAO_Worker::maint();
 		DAO_Notification::maint();
-		DAO_Snippet::maint();
-		DAO_ContactOrg::maint();
-		DAO_Contact::maint();
 		DAO_Attachment::maint();
-		DAO_WorkspacePage::maint();
-		DAO_WorkspaceTab::maint();
 		DAO_WorkerViewModel::flush();
 		DAO_ContextBulkUpdate::maint();
-		DAO_MailQueue::maint();
 		
 		DevblocksPlatform::services()->metrics()->maint();
 	}
