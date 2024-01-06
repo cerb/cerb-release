@@ -34,7 +34,7 @@
 	{/if}
 
 	<li class="tour-navmenu-search{if $page->id=='core.page.search'} selected{/if}" style="float:right;">
-		<a href="javascript:;" class="submenu"><span class="glyphicons glyphicons-search"></span> <span class="glyphicons glyphicons-chevron-down" style="{if $page->id=='core.page.search'}color:white;{else}{/if}"></span></a>
+		<a href="javascript:;" class="submenu" title="{{'common.search'|devblocks_translate|capitalize}} (/)"><span class="glyphicons glyphicons-search"></span> <span class="glyphicons glyphicons-chevron-down" style="{if $page->id=='core.page.search'}color:white;{else}{/if}"></span></a>
 	</li>
 </ul>
 <div style="clear:both;" class="navmenu-submenu cerb-no-print"></div>
@@ -160,10 +160,21 @@ $(function() {
 			if(null == $search_menu) {
 				// If not, show a spinner and fetch it via Ajax
 				genericAjaxGet('', 'c=search&a=getSearchMenu', function(html) {
+					if(typeof e == 'object' && e.status && 200 !== e.status)
+						return;
+
 					$search_menu = $(html)
 						.hide()
 						.insertAfter($search_button)
-						.menu()
+						.menu({
+							select: function(event, ui) {
+								event.stopPropagation();
+								var $li = $(ui.item);
+
+								if($li.is('.cerb-bot-trigger'))
+									$li.click();
+							}
+						})
 					;
 
 					$search_menu.find('li.cerb-bot-trigger')
@@ -208,6 +219,23 @@ $(function() {
 			}
 		})
 	;
+
+	{if $pref_keyboard_shortcuts}
+	$(document).keyup(function(e) {
+		if(!(191 === e.which))
+			return;
+
+		var $target = $(e.target);
+
+		if(!$target.is('BODY, .cerb-bot-interactions-menu'))
+			return;
+
+		e.preventDefault();
+		e.stopPropagation();
+
+		$search_button.closest('li').click();
+	});
+	{/if}
 });
 </script>
 {/if}
