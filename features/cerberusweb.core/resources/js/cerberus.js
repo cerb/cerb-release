@@ -1726,14 +1726,17 @@ $.fn.cerbDateInputHelper = function(options) {
 		
 		$this.datepicker({
 			showOn: 'button',
-			buttonText: '📅',
-			icon: 'calendar',
+			buttonText: '',
 			dateFormat: 'D, d M yy',
 			defaultDate: 'D, d M yy',
+			numberOfMonths: 1,
 			onSelect: function(dateText, inst) {
 				inst.input.addClass('changed').focus();
 			}
 		});
+		
+		let $icon = $('<span class="glyphicons glyphicons-calendar"/>');
+		$this.next('.ui-datepicker-trigger').append($icon);
 		
 		$this
 			.attr('placeholder', '+2 hours; +4 hours @Calendar; Jan 15 2018 2pm; 5pm America/New York')
@@ -4094,6 +4097,7 @@ var ajax = new cAjaxCalls();
 					$('<img/>')
 						.addClass('cerb-avatar')
 						.attr('src', item.image_url)
+						.attr('loading', 'lazy')
 						.appendTo($wrapper)
 					;
 				}
@@ -4482,6 +4486,7 @@ var ajax = new cAjaxCalls();
 						$('<img/>')
 							.addClass('cerb-avatar')
 							.attr('src', item.image_url)
+							.attr('loading', 'lazy')
 							.appendTo($wrapper)
 						;
 					}
