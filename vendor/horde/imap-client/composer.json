@@ -11,8 +11,8 @@
       "role": "lead"
     }
   ],
-  "version": "2.30.4",
-  "time": "2021-12-18",
+  "version": "2.30.6",
+  "time": "2022-06-25",
   "require": {
     "php": "^7.4 || ^8",
     "ext-hash": "*",
