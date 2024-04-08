@@ -93,6 +93,8 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 			
 			// Send events
 			if($check_deltas) {
+				self::processUpdateEvents($batch_ids, $fields);
+				
 				// Trigger an event about the changes
 				$eventMgr = DevblocksPlatform::services()->event();
 				$eventMgr->trigger(
@@ -110,6 +112,48 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		}
 		
 		self::clearCache();
+	}
+	
+	static function processUpdateEvents($ids, $change_fields) {
+		// We only care about these fields, so abort if they aren't referenced
+		
+		$observed_fields = array(
+			DAO_KbCategory::PARENT_ID,
+		);
+		
+		$used_fields = array_intersect($observed_fields, array_keys($change_fields));
+		
+		if(empty($used_fields))
+			return;
+		
+		// Load records only if they're needed
+		
+		if(!($before_models = CerberusContexts::getCheckpoints(CerberusContexts::CONTEXT_KB_CATEGORY, $ids)))
+			return;
+		
+		if(!($models = DAO_KbCategory::getIds($ids)))
+			return;
+		
+		foreach($models as $id => $model) {
+			if(!isset($before_models[$id]))
+				continue;
+			
+			$before_model = (object) $before_models[$id];
+			
+			/*
+			 * Parent changed
+			 */
+			
+			@$parent_id = $change_fields[DAO_KbCategory::PARENT_ID];
+			
+			if($parent_id == $before_model->parent_id)
+				unset($change_fields[DAO_KbCategory::PARENT_ID]);
+			
+			if(array_key_exists(DAO_KbCategory::PARENT_ID, $change_fields)) {
+				self::updateCategoryTree($id);
+			}
+		}
+		
 	}
 	
 	static function updateWhere($fields, $where) {
@@ -278,6 +322,25 @@ class DAO_KbCategory extends Cerb_ORMHelper {
 		$tree = self::getTree($root_id);
 		@$ids = array_merge(array($root_id),array_keys($tree));
 		return $ids;
+	}
+	
+	public static function updateCategoryTree(int $id) : void {
+		$db = DevblocksPlatform::services()->database();
+		
+		self::clearCache();
+		
+		$kb_ancestors = DAO_KbCategory::getAncestors($id);
+		$kb_descendents = DAO_KbCategory::getDescendents($id);
+		$kb_top_category_id = key($kb_ancestors);
+		
+		if(!$kb_top_category_id || !$kb_descendents)
+			return;
+		
+		$sql = sprintf("UPDATE kb_article_to_category SET kb_top_category_id = %d WHERE kb_category_id IN (%s)",
+			$kb_top_category_id,
+			implode(',', DevblocksPlatform::sanitizeArray($kb_descendents, 'int'))
+		);
+		$db->ExecuteWriter($sql);
 	}
 	
 	/**

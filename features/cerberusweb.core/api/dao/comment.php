@@ -155,11 +155,19 @@ class DAO_Comment extends Cerb_ORMHelper {
 		
 		$also_notify_worker_ids = array_keys(CerberusApplication::getWorkersByAtMentionsText($comment));
 		
+		$events_enabled = DevblocksPlatform::services()->event()->isEnabled();
+		
 		/*
 		 * Log the activity of a new comment being created
 		 */
 		
-		if(array_key_exists(self::CONTEXT, $fields) && array_key_exists(self::CONTEXT_ID, $fields)) {
+		if(
+			$events_enabled
+			&& array_key_exists(self::CONTEXT, $fields)
+			&& array_key_exists(self::CONTEXT_ID, $fields)
+			&& array_key_exists(self::OWNER_CONTEXT, $fields)
+			&& array_key_exists(self::OWNER_CONTEXT_ID, $fields)
+		) {
 			$context = Extension_DevblocksContext::get($fields[self::CONTEXT]);
 			
 			$meta = $context->getMeta($fields[self::CONTEXT_ID]);
@@ -176,7 +184,7 @@ class DAO_Comment extends Cerb_ORMHelper {
 					'target' => sprintf("ctx://%s:%d", $fields[self::CONTEXT], $fields[self::CONTEXT_ID]),
 				)
 			];
-			CerberusContexts::logActivity('comment.create', $fields[self::CONTEXT], $fields[self::CONTEXT_ID], $entry, null, null, $also_notify_worker_ids);
+			CerberusContexts::logActivity('comment.create', $fields[self::CONTEXT], $fields[self::CONTEXT_ID], $entry, $fields[self::OWNER_CONTEXT] ?? null, $fields[self::OWNER_CONTEXT_ID] ?? null, $also_notify_worker_ids);
 			
 			/*
 			 * Send a new comment event

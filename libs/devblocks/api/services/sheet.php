@@ -804,8 +804,13 @@ class _DevblocksSheetServiceTypes {
 								$icon_at = 'end';
 					}
 					
-					if($icon && $icon_at == 'start')
-						$value .= ' ' . $icon;
+					if($icon && $icon_at == 'start') {
+						$value .= sprintf('<a href="%s"%s>%s</a>',
+							$url,
+							$is_new_tab ? 'target="_blank"' : '',
+							$icon
+						) . ' ';
+					}
 					
 					$value .= sprintf('<a href="%s"%s>%s</a>',
 						$url,
@@ -813,8 +818,13 @@ class _DevblocksSheetServiceTypes {
 						DevblocksPlatform::strEscapeHtml($text)
 					);
 					
-					if($icon && $icon_at == 'end')
-						$value .= ' ' . $icon;
+					if($icon && $icon_at == 'end') {
+						$value .= ' ' . sprintf('<a href="%s"%s>%s</a>',
+							$url,
+							$is_new_tab ? 'target="_blank"' : '',
+							$icon
+						);
+					}
 				}
 			}
 			

@@ -259,45 +259,29 @@ class UmScApp extends Extension_CommunityPortal {
 				break;
 				
 			case 'captcha':
-				@$color = DevblocksPlatform::parseCsvString(DevblocksPlatform::importGPC($_REQUEST['color'],'string','40,40,40'));
-				@$bgcolor = DevblocksPlatform::parseCsvString(DevblocksPlatform::importGPC($_REQUEST['bgcolor'],'string','240,240,240'));
+				$bgcolor = array_fill(0, 3, mt_rand(120,240));
 				
-				// Sanitize colors
-				// [TODO] Sanitize numeric range for elements 0-2
-				if(3 != count($color))
-					$color = array(40,40,40);
-				if(3 != count($bgcolor))
-					$bgcolor = array(240,240,240);
-				
-				header('Cache-control: max-age=0', true); // 1 wk // , must-revalidate
-				header('Expires: ' . gmdate('D, d M Y H:i:s',time()-604800) . ' GMT'); // 1 wk
+				header('Pragma: no-cache');
+				header('Cache-Control: no-cache, must-revalidate');
 				header('Content-type: image/jpeg');
 
 				// Get CAPTCHA secret passphrase
 				$phrase = CerberusApplication::generatePassword(4);
 				$umsession->setProperty(UmScApp::SESSION_CAPTCHA, $phrase);
 				
-				if(false == ($im = imagecreate(150, 70)))
+				if(!($im = imagecreate(mt_rand(140,160), mt_rand(75,85))))
 					DevblocksPlatform::dieWithHttpError(null, 500);
 				
-				$background_color = imagecolorallocate($im, $bgcolor[0], $bgcolor[1], $bgcolor[2]);
-				$text_color = imagecolorallocate($im, $color[0], $color[1], $color[2]);
+				imagecolorallocate($im, $bgcolor[0], $bgcolor[1], $bgcolor[2]);
 				$font = DEVBLOCKS_PATH . 'resources/font/Oswald-Bold.ttf';
-				imagettftext($im, 28, mt_rand(0,20), 25, 60, $text_color, $font, $phrase);
-				imagejpeg($im,null,85);
-				imagedestroy($im);
-				exit;
-			
-			case 'captcha.check':
-				$entered = DevblocksPlatform::importGPC($_REQUEST['captcha'],'string','');
-				$captcha = $umsession->getProperty(UmScApp::SESSION_CAPTCHA, '');
 				
-				if(!empty($entered) && !empty($captcha) && 0 == strcasecmp($entered, $captcha)) {
-					echo 'true';
-					exit;
+				foreach(str_split($phrase) as $i => $c) {
+					$text_color = imagecolorallocate($im, mt_rand(0,75),mt_rand(0,75),mt_rand(0,75));
+					imagettftext($im, mt_rand(25,30), mt_rand(-15,15), 25*($i+1), 55+mt_rand(-10,10), $text_color, $font, $c);
 				}
 				
-				echo 'false';
+				imagejpeg($im,null,85);
+				imagedestroy($im);
 				exit;
 			
 			default:
@@ -622,6 +606,25 @@ class UmScApp extends Extension_CommunityPortal {
 };
 
 class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
+	public function renderConfigForm(Model_CommunityTool $instance) {
+		$tpl = DevblocksPlatform::services()->template();
+
+		$params = DAO_CommunityToolProperty::getAllByTool($instance->code);
+		$tpl->assign('params', $params);
+		
+		$tpl->display('devblocks:cerberusweb.support_center::portal/sc/profile/tabs/configuration/login/config.tpl');
+	}
+	
+	public function saveConfiguration(Model_CommunityTool $instance) {
+		$params = DevblocksPlatform::importGPC($_POST['params'] ?? null, 'array',[]);
+		
+		$value = intval($params['auth_register_disabled'] ?? null);
+		DAO_CommunityToolProperty::set($instance->code, 'auth.register.disabled', $value);
+		
+		$value = intval($params['auth_recover_disabled'] ?? null);
+		DAO_CommunityToolProperty::set($instance->code, 'auth.recover.disabled', $value);
+	}
+	
 	public function invoke(string $action) {
 		switch($action) {
 			case 'authenticate':
@@ -645,9 +648,13 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 		$stack = $response->path;
 		@$module = array_shift($stack);
 		
+		$params = DAO_CommunityToolProperty::getAllByTool(ChPortalHelper::getCode());
+		$tpl->assign('params', $params);
+		
 		switch($module) {
 			case 'register':
-				$tpl->assign('email', $umsession->getProperty('register.email',''));
+				if($params['auth.register.disabled'] ?? 0)
+					DevblocksPlatform::dieWithHttpError(null, 404);
 				
 				if(isset($stack[0]) && 0==strcasecmp('confirm',$stack[0])) {
 					$tpl->display("devblocks:cerberusweb.support_center:portal_".ChPortalHelper::getCode().":support_center/login/default/register_confirm.tpl");
@@ -656,6 +663,9 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 				}
 				break;
 			case 'forgot':
+				if($params['auth.recover.disabled'] ?? 0)
+					DevblocksPlatform::dieWithHttpError(null, 404);
+				
 				if(isset($stack[0]) && 0==strcasecmp('confirm',$stack[0])) {
 					$tpl->display("devblocks:cerberusweb.support_center:portal_".ChPortalHelper::getCode().":support_center/login/default/forgot_confirm.tpl");
 				} else {
@@ -675,29 +685,51 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
+		if(DAO_CommunityToolProperty::get(ChPortalHelper::getCode(), 'auth.register.disabled', 0))
+			DevblocksPlatform::dieWithHttpError(null, 404);
+		
 		$email = DevblocksPlatform::importGPC($_POST['email'] ?? null, 'string','');
+		$given_captcha = DevblocksPlatform::importGPC($_REQUEST['captcha'] ?? null,'string','');
+		$stored_captcha = $umsession->getProperty(UmScApp::SESSION_CAPTCHA, '');
+		
+		// Clear the CAPTCHA after comparison
+		$umsession->setProperty(UmScApp::SESSION_CAPTCHA, null);
 		
 		try {
 			// Validate
-			if(false == ($address_parsed = CerberusMail::parseRfcAddress($email)))
-				throw new Exception("The email address you provided is invalid.");
+			if(!($address_parsed = CerberusMail::parseRfcAddress($email)))
+				throw new Exception_DevblocksValidationError("The email address you provided is invalid.");
 			
 			// Check to see if the address is currently assigned to an account
-			if(null != ($address = DAO_Address::lookupAddress($email, false)) && !empty($address->contact_id))
-				throw new Exception("The provided email address is already associated with an account.");
+			if(null != ($address = DAO_Address::lookupAddress($address_parsed['email'], false)) && !empty($address->contact_id))
+				throw new Exception_DevblocksValidationError("The provided email address is already associated with an account.");
 				
 			if($address instanceof Model_Address && $address->is_banned)
-				throw new Exception("The provided email address is not available.");
+				throw new Exception_DevblocksValidationError("The provided email address is not available.");
 			
-			// Update the preferred email address
-			$umsession->setProperty('register.email', $email);
-				
+			// Check CAPTCHA
+			if(!$stored_captcha || !$given_captcha || 0 != strcasecmp($stored_captcha, $given_captcha))
+				throw new Exception_DevblocksValidationError("Your text did not match the image.");
+			
+			// If there's already a confirmation code in the past (t) mins
+			$past_confirmation = DAO_ConfirmationCode::getWhere(sprintf("%s = %s AND %s = %s AND %s > %d",
+				Cerb_ORMHelper::escape(DAO_ConfirmationCode::NAMESPACE_KEY),
+				Cerb_ORMHelper::qstr('support_center.login.register.verify'),
+				Cerb_ORMHelper::escape(DAO_ConfirmationCode::META_JSON),
+				Cerb_ORMHelper::qstr(json_encode(['email' => $address_parsed['email']])),
+				Cerb_ORMHelper::escape(DAO_ConfirmationCode::CREATED),
+				time()-1800
+			));
+			
+			if($past_confirmation)
+				throw new Exception_DevblocksValidationError("This email address is already pending registration. Please try again later.");
+			
 			// Send a confirmation code
 			$fields = array(
 				DAO_ConfirmationCode::CONFIRMATION_CODE => CerberusApplication::generatePassword(8),
 				DAO_ConfirmationCode::NAMESPACE_KEY => 'support_center.login.register.verify',
 				DAO_ConfirmationCode::META_JSON => json_encode(array(
-					'email' => $email,
+					'email' => $address_parsed['email'],
 				)),
 				DAO_ConfirmationCode::CREATED => time(),
 			);
@@ -708,10 +740,18 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 				"Your confirmation code: %s",
 				urlencode($fields[DAO_ConfirmationCode::CONFIRMATION_CODE])
 			);
-			CerberusMail::quickSend($email,"Please confirm your email address", $msg);
-				
-		} catch(Exception $e) {
+			CerberusMail::quickSend($address_parsed['email'],"Please confirm your email address", $msg);
+			
+			// Update the preferred email address
+			$tpl->assign('email', $address_parsed['email']);
+			
+		} catch(Exception_DevblocksValidationError $e) {
 			$tpl->assign('error', $e->getMessage());
+			DevblocksPlatform::setHttpResponse(new DevblocksHttpResponse(array('portal',ChPortalHelper::getCode(),'login','register')));
+			return;
+			
+		} catch(Throwable) {
+			$tpl->assign('error', 'An unexpected error occurred.');
 			DevblocksPlatform::setHttpResponse(new DevblocksHttpResponse(array('portal',ChPortalHelper::getCode(),'login','register')));
 			return;
 			
@@ -728,6 +768,10 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
+		if(DAO_CommunityToolProperty::get(ChPortalHelper::getCode(), 'auth.register.disabled', 0))
+			DevblocksPlatform::dieWithHttpError(null, 404);
+		
+		$email = DevblocksPlatform::importGPC($_POST['email'] ?? null, 'string','');
 		$confirm = DevblocksPlatform::importGPC($_POST['confirm'] ?? null, 'string','');
 		$first_name = DevblocksPlatform::importGPC($_POST['first_name'] ?? null, 'string','');
 		$last_name = DevblocksPlatform::importGPC($_POST['last_name'] ?? null, 'string','');
@@ -735,9 +779,6 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 		$password2 = DevblocksPlatform::importGPC($_POST['password2'] ?? null, 'string','');
 		
 		try {
-			// Load the session (email)
-			$email = $umsession->getProperty('register.email', '');
-
 			// We need the basics in place
 			if(empty($email)) {
 				header("Location: " . $url_writer->write('c=login', true));
@@ -746,26 +787,29 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 			
 			// Lookup code
 			if(null == ($code = DAO_ConfirmationCode::getByCode('support_center.login.register.verify', $confirm)))
-				throw new Exception("Your confirmation code is invalid.");
+				throw new Exception_DevblocksValidationError("Your confirmation code is invalid.");
 			
 			// Compare to address
 			if(!isset($code->meta['email']) || 0 != strcasecmp($email, $code->meta['email']))
-				throw new Exception("Your confirmation code is invalid.");
+				throw new Exception_DevblocksValidationError("Your confirmation code is invalid.");
 
 			// Password
 			if(empty($password) || empty($password2))
-				throw new Exception("Your password cannot be blank.");
+				throw new Exception_DevblocksValidationError("Your password cannot be blank.");
 
 			if(0 != strcmp($password, $password2))
-				throw new Exception("Your passwords do not match.");
+				throw new Exception_DevblocksValidationError("Your passwords do not match.");
+			
+			if(strlen($password) < 8)
+				throw new Exception_DevblocksValidationError("Your password must be at least 8 characters.");
 				
 			// Load the address
 			if(null == ($address = DAO_Address::lookupAddress($email, true)))
-				throw new Exception("You have provided an invalid email address.");
+				throw new Exception_DevblocksValidationError("You have provided an invalid email address.");
 			
 			// Verify address is unlinked
 			if(!empty($address->contact_id))
-				throw new Exception("The email address you provided is already associated with an account.");
+				throw new Exception_DevblocksValidationError("The email address you provided is already associated with an account.");
 
 			// Create the contact
 			$salt = CerberusApplication::generatePassword(8);
@@ -781,7 +825,7 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 			$contact_id = DAO_Contact::create($fields);
 			
 			if(empty($contact_id) || null == ($contact = DAO_Contact::get($contact_id)))
-				throw new Exception("There was an error creating your account.");
+				throw new Exception_DevblocksValidationError("There was an error creating your account.");
 				
 			// Link email
 			DAO_Address::update($address->id,array(
@@ -805,8 +849,11 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 			header("Location: " . $url_writer->write('c=account&a=email&address='.$address_uri, true));
 			exit;
 				
-		} catch(Exception $e) {
+		} catch(Exception_DevblocksValidationError $e) {
 			$tpl->assign('error', $e->getMessage());
+			
+		} catch(Throwable) {
+			$tpl->assign('error', 'An unexpected error occurred.');
 		}
 		
 		DevblocksPlatform::setHttpResponse(new DevblocksHttpResponse(array('portal',ChPortalHelper::getCode(),'login','register','confirm')));
@@ -814,32 +861,56 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 	
 	private function _portalAction_doRecover() {
 		$tpl = DevblocksPlatform::services()->templateSandbox();
+		$umsession = ChPortalHelper::getSession();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
+		if(DAO_CommunityToolProperty::get(ChPortalHelper::getCode(), 'auth.recover.disabled', 0))
+			DevblocksPlatform::dieWithHttpError(null, 404);
+		
 		$email = DevblocksPlatform::importGPC($_POST['email'] ?? null, 'string','');
+		$given_captcha = DevblocksPlatform::importGPC($_REQUEST['captcha'] ?? null,'string','');
+		$stored_captcha = $umsession->getProperty(UmScApp::SESSION_CAPTCHA, '');
+		
+		// Clear the CAPTCHA after comparison
+		$umsession->setProperty(UmScApp::SESSION_CAPTCHA, null);
 		
 		try {
 			// Verify email is a contact
-			if(null == ($address = DAO_Address::lookupAddress($email, false))) {
-				throw new Exception("The email address you provided is not registered.");
-			}
+			if(null == ($address = DAO_Address::lookupAddress($email, false)))
+				throw new Exception_DevblocksValidationError("Your text did not match the image.");
 			
 			if($address->is_banned)
-				throw new Exception("The email address you provided is not available.");
+				throw new Exception_DevblocksValidationError("This account is locked.");
 			
-			if(empty($address->contact_id) || null == ($contact = DAO_Contact::get($address->contact_id))) {
-				throw new Exception("The email address you provided is not registered.");
-			}
+			if(!$address->contact_id || null == ($contact = DAO_Contact::get($address->contact_id)))
+				throw new Exception_DevblocksValidationError("The email address you provided is not registered.");
+			
+ 			// Check CAPTCHA
+			if(!$stored_captcha || !$given_captcha || 0 != strcasecmp($stored_captcha, $given_captcha))
+				throw new Exception_DevblocksValidationError("Your text did not match the image.");
+			
+			// If there's already a confirmation code in the past (t) mins
+			$past_resets = DAO_ConfirmationCode::getWhere(sprintf("%s = %s AND %s = %s AND %s > %d",
+				Cerb_ORMHelper::escape(DAO_ConfirmationCode::NAMESPACE_KEY),
+				Cerb_ORMHelper::qstr('support_center.login.recover'),
+				Cerb_ORMHelper::escape(DAO_ConfirmationCode::META_JSON),
+				Cerb_ORMHelper::qstr(json_encode(['contact_id' => intval($address->contact_id), 'address_id' => intval($address->id)])),
+				Cerb_ORMHelper::escape(DAO_ConfirmationCode::CREATED),
+				time()-3600
+			));
+			
+			if($past_resets)
+				throw new Exception_DevblocksValidationError("This email address is already pending recovery. Please try again later.");
 			
 			// Generate + send confirmation
 			$fields = array(
 				DAO_ConfirmationCode::CONFIRMATION_CODE => CerberusApplication::generatePassword(8),
 				DAO_ConfirmationCode::NAMESPACE_KEY => 'support_center.login.recover',
 				DAO_ConfirmationCode::META_JSON => json_encode(array(
-					'contact_id' => $contact->id,
-					'address_id' => $address->id,
+					'contact_id' => intval($contact->id),
+					'address_id' => intval($address->id),
 				)),
 				DAO_ConfirmationCode::CREATED => time(),
 			);
@@ -854,8 +925,13 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 			
 			$tpl->assign('email', $address->email);
 			
-		} catch (Exception $e) {
+		} catch (Exception_DevblocksValidationError $e) {
 			$tpl->assign('error', $e->getMessage());
+			DevblocksPlatform::setHttpResponse(new DevblocksHttpResponse(array('portal',ChPortalHelper::getCode(),'login','forgot')));
+			return;
+			
+		} catch (Throwable) {
+			$tpl->assign('error', 'An unexpected error occurred.');
 			DevblocksPlatform::setHttpResponse(new DevblocksHttpResponse(array('portal',ChPortalHelper::getCode(),'login','forgot')));
 			return;
 		}
@@ -871,43 +947,44 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
+		if(DAO_CommunityToolProperty::get(ChPortalHelper::getCode(), 'auth.recover.disabled', 0))
+			DevblocksPlatform::dieWithHttpError(null, 404);
+		
 		$email = DevblocksPlatform::importGPC($_POST['email'] ?? null, 'string','');
 		$confirm = DevblocksPlatform::importGPC($_POST['confirm'] ?? null, 'string','');
 		$password_new = DevblocksPlatform::importGPC($_POST['password_new'] ?? null, 'string','');
 		$password_new_confirm = DevblocksPlatform::importGPC($_POST['password_new_confirm'] ?? null, 'string','');
 		
 		try {
+			$tpl->assign('email', $email);
+			
 			// Verify email is a contact
-			if(null == ($address = DAO_Address::lookupAddress($email, false))) {
-				throw new Exception("The email address you provided is not registered.");
-			}
+			if(!$email || !($address = DAO_Address::lookupAddress($email, false)))
+				throw new Exception_DevblocksValidationError("Your confirmation code is invalid.");
 			
-			$tpl->assign('email', $address->email);
-			
-			if(empty($address->contact_id) || null == ($contact = DAO_Contact::get($address->contact_id))) {
-				throw new Exception("The email address you provided is not registered.");
-			}
+			if(empty($address->contact_id) || null == ($contact = DAO_Contact::get($address->contact_id)))
+				throw new Exception_DevblocksValidationError("Your confirmation code is invalid.");
 			
 			// Lookup code
 			if(null == ($code = DAO_ConfirmationCode::getByCode('support_center.login.recover', $confirm)))
-				throw new Exception("Your confirmation code is invalid.");
+				throw new Exception_DevblocksValidationError("Your confirmation code is invalid.");
 			
 			// Compare to contact
 			if(!isset($code->meta['contact_id']) || $contact->id != $code->meta['contact_id'])
-				throw new Exception("Your confirmation code is invalid.");
+				throw new Exception_DevblocksValidationError("Your confirmation code is invalid.");
 				
 			// Compare to email address
 			if(!isset($code->meta['address_id']) || $address->id != $code->meta['address_id'])
-				throw new Exception("Your confirmation code is invalid.");
+				throw new Exception_DevblocksValidationError("Your confirmation code is invalid.");
 			
 			if(!$password_new || !$password_new_confirm)
-				throw new Exception("A new password is required.");
+				throw new Exception_DevblocksValidationError("A new password is required.");
 			
 			if(strlen($password_new) < 8)
-				throw new Exception("Your new password must be at least 8 characters.");
+				throw new Exception_DevblocksValidationError("Your new password must be at least 8 characters.");
 			
 			if($password_new != $password_new_confirm)
-				throw new Exception("Your confirmed password does not match.");
+				throw new Exception_DevblocksValidationError("Your confirmed password does not match.");
 			
 			// Success (delete token and one-time log in token)
 			DAO_ConfirmationCode::delete($code->id);
@@ -924,9 +1001,11 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 			header("Location: " . $url_writer->write('c=account&a=password', true));
 			exit;
 			
-		} catch (Exception $e) {
+		} catch (Exception_DevblocksValidationError $e) {
 			$tpl->assign('error', $e->getMessage());
 			
+		} catch (Throwable) {
+			$tpl->assign('error', 'An unexpected error occurred.');
 		}
 		
 		DevblocksPlatform::setHttpResponse(new DevblocksHttpResponse(array('portal',ChPortalHelper::getCode(),'login','forgot','confirm')));
@@ -953,18 +1032,18 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 		try {
 			// Find the address
 			if(null == ($addy = DAO_Address::lookupAddress($email, FALSE)))
-				throw new Exception("Login failed.");
+				throw new Exception_DevblocksValidationError("Login failed.");
 			
 			// Not registered
 			if(empty($addy->contact_id) || null == ($contact = $addy->getContact()))
-				throw new Exception("Login failed.");
+				throw new Exception_DevblocksValidationError("Login failed.");
 			
 			if($addy->is_banned)
-				throw new Exception("Login failed.");
+				throw new Exception_DevblocksValidationError("Login failed.");
 			
 			// Compare salt
 			if(0 != strcmp(md5($contact->auth_salt.md5($pass)),$contact->auth_password))
-				throw new Exception("Login failed.");
+				throw new Exception_DevblocksValidationError("Login failed.");
 			
 			$umsession->login($contact);
 			
@@ -973,8 +1052,11 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 			
 			DevblocksPlatform::redirect(new DevblocksHttpResponse($path));
 			
-		} catch (Exception $e) {
+		} catch (Exception_DevblocksValidationError $e) {
 			$tpl->assign('error', $e->getMessage());
+			
+		} catch (Throwable) {
+			$tpl->assign('error', 'An unexpected error occurred.');
 		}
 		
 		DevblocksPlatform::setHttpResponse(new DevblocksHttpResponse(array('portal',ChPortalHelper::getCode(),'login')));
@@ -1071,8 +1153,8 @@ class UmScAbstractViewLoader {
 
 		$model->renderPage = $view->renderPage;
 		$model->renderLimit = $view->renderLimit;
-		$model->renderSortBy = $view->renderSortBy;
-		$model->renderSortAsc = $view->renderSortAsc;
+		
+		$model->renderSort = $view->getSorts();
 
 		return $model;
 	}
@@ -1098,8 +1180,9 @@ class UmScAbstractViewLoader {
 
 		$inst->renderPage = $model->renderPage;
 		$inst->renderLimit = $model->renderLimit;
-		$inst->renderSortBy = $model->renderSortBy;
-		$inst->renderSortAsc = $model->renderSortAsc;
+		
+		$inst->renderSortBy = key($model->renderSort ?? []) ?? '';
+		$inst->renderSortAsc = current($model->renderSort) ?? true;
 
 		return $inst;
 	}
