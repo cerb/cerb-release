@@ -516,7 +516,6 @@ class UmScAccountController extends Extension_UmScController {
 				throw new Exception_DevblocksValidationError("Your password cannot be blank.");
 			
 			if(0 != strcmp($change_password, $verify_password))
-				throw new Exception("Your passwords do not match.");
 				throw new Exception_DevblocksValidationError("Your passwords do not match.");
 			
 			if(strlen($change_password) < 8)
