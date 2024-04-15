@@ -9,7 +9,7 @@
 <input type="hidden" name="_csrf_token" value="{$session.csrf_token}">
 
 <b>Select {$aliases.plural|lower} to merge:</b><br>
-<button type="button" class="cerb-chooser-trigger" data-context="{$context_ext->id}" data-field-name="ids[]" data-query="" {if $context_ext->hasOption('autocomplete')}data-autocomplete="true"{/if}><span class="glyphicons glyphicons-search"></span></button>
+<button type="button" class="cerb-chooser-trigger" data-context="{$context_ext->id}" data-field-name="ids[]" data-query="" {if $context_ext->hasOption('autocomplete')}data-autocomplete{/if}><span class="glyphicons glyphicons-search"></span></button>
 <ul class="chooser-container bubbles" style="display:block;">
 {if $dicts}
 {foreach from=$dicts item=dict}
@@ -33,19 +33,21 @@
 
 <script type="text/javascript">
 $(function() {
-	var $popup = genericAjaxPopupFetch('peek');
-	
-	$popup.one('popup_open',function(event,ui) {
+	let $popup = genericAjaxPopupFetch('peek');
+
+	$popup.one('popup_open',function() {
 		$(this).dialog('option','title', "Merge {$aliases.plural|capitalize}");
-		$frm = $('#frm{$uniq_id}');
-		
+
+		let $frm = $('#frm{$uniq_id}');
+
 		// Peeks
 		$popup.find('.cerb-peek-trigger').cerbPeekTrigger();
-		
+
 		// Chooser
 		$popup.find('.cerb-chooser-trigger').cerbChooserTrigger();
 
-		$('#frm{$uniq_id} BUTTON.submit').click(function() {
+		$frm.find('BUTTON.submit').click(function(e) {
+			e.stopPropagation();
 			// Replace the current form
 			genericAjaxPost('frm{$uniq_id}','popuppeek','');
 		});

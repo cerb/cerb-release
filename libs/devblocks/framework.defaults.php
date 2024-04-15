@@ -188,6 +188,9 @@ if(!defined('APP_OPT_GROUP_BEHAVIOR_TRIGGERS'))
 if(!defined('APP_OPT_IIS_LEGACY_REWRITE'))
 	define('APP_OPT_IIS_LEGACY_REWRITE', false);
 
+if(!defined('APP_OPT_AUTOCOMPLETE_TICKET_QUERY'))
+	define('APP_OPT_AUTOCOMPLETE_TICKET_QUERY', '');
+
 // ----
 
 @date_default_timezone_set(date_default_timezone_get());

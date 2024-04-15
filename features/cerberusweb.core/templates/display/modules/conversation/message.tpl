@@ -13,12 +13,6 @@
 		{$sender_contact = $sender->getContact()}
 		{$sender_worker = $message->getWorker()}
 
-		{if $expanded}
-		{$attachments = $message->getAttachments()}
-		{else}
-		{$attachments = []}
-		{/if}
-
 		{if !$embed}
 		<div class="toolbar-minmax">
 			<button type="button" class="edit cerb-no-print" data-context="{CerberusContexts::CONTEXT_MESSAGE}" data-context-id="{$message->id}" title="Open card popup (Shift+Click to edit)"><span class="glyphicons glyphicons-new-window-alt"></span></button>
@@ -214,7 +208,8 @@
 		{/if}
 		<br>
 
-		{if $active_worker->hasPriv('core.display.actions.attachments.download')}
+        {$attachments = $message->getAttachments()}
+		{if $attachments && $active_worker->hasPriv('core.display.actions.attachments.download')}
 			{include file="devblocks:cerberusweb.core::internal/attachments/list.tpl" context="{CerberusContexts::CONTEXT_MESSAGE}" context_id=$message->id attachments=$attachments}
 		{/if}
 

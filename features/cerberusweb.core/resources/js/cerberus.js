@@ -1395,7 +1395,8 @@ var cerbAutocompleteSuggestions = {
 			'value_template@raw: {{id}}',
 			'color@raw:',
 			'text_color@raw:',
-			'text_size@raw: 150%'
+			'text_size@raw: 150%',
+			'selectable@raw: {{expression}}'
 		],
 		
 		// Slider

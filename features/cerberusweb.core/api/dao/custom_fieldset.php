@@ -702,19 +702,18 @@ class View_CustomFieldset extends C4_AbstractView implements IAbstractView_Subto
 		$this->renderSortBy = SearchFields_CustomFieldset::ID;
 		$this->renderSortAsc = true;
 
-		$this->view_columns = array(
+		$this->view_columns = [
 			SearchFields_CustomFieldset::NAME,
 			SearchFields_CustomFieldset::CONTEXT,
 			SearchFields_CustomFieldset::VIRTUAL_OWNER,
 			SearchFields_CustomFieldset::UPDATED_AT,
-		);
+		];
 
-		$this->addColumnsHidden(array(
-			SearchFields_CustomFieldset::ID,
+		$this->addColumnsHidden([
 			SearchFields_CustomFieldset::OWNER_CONTEXT,
 			SearchFields_CustomFieldset::OWNER_CONTEXT_ID,
 			SearchFields_CustomFieldset::VIRTUAL_CONTEXT_LINK,
-		));
+		]);
 		
 		$this->doResetCriteria();
 	}

@@ -41,6 +41,8 @@ class ChCronController extends DevblocksControllerExtension {
 			DevblocksPlatform::dieWithHttpError(null, 403);
 		}
 		
+		$logger->setLogLevel($loglevel);
+		
 		$stack = $request->path;
 		
 		array_shift($stack); // cron

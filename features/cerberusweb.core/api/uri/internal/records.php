@@ -92,7 +92,8 @@ class PageSection_InternalRecords extends Extension_PageSection {
 			'id' => intval($context_id),
 		]);
 		
-		AutomationTrigger_RecordViewed::trigger($dict, true);
+		if(!$edit)
+			AutomationTrigger_RecordViewed::trigger($dict, true);
 		
 		$context_ext->renderPeekPopup($context_id, $view_id, $edit);
 	}

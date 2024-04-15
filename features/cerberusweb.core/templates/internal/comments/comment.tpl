@@ -62,12 +62,14 @@
 		<div style="margin-bottom:10px;"></div>
 
 		{* Attachments *}
-		{include file="devblocks:cerberusweb.core::internal/attachments/list.tpl" context="{CerberusContexts::CONTEXT_COMMENT}" context_id=$comment->id attachments=[]}
+		{$comment_attachments = $comment->getAttachments()}
+		{if $comment_attachments}
+			{include file="devblocks:cerberusweb.core::internal/attachments/list.tpl" context="{CerberusContexts::CONTEXT_COMMENT}" context_id=$comment->id attachments=$comment_attachments}
+		{/if}
 
 		{* Custom Fields *}
-		{$values = DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_COMMENT, $comment->id)}
+		{$values = $comment->getCustomFieldValues()}
 		{if is_array($values)}
-			{$values = $values|array_shift}
 			{$comment_custom_fields = Page_Profiles::getProfilePropertiesCustomFields(CerberusContexts::CONTEXT_COMMENT, $values)}
 			{$comment_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets(CerberusContexts::CONTEXT_COMMENT, $comment->id, $values)}
 			<div style="margin-top:10px;">

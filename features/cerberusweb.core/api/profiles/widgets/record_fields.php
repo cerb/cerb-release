@@ -24,51 +24,36 @@ class ProfileWidget_Fields extends Extension_ProfileWidget {
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		if(!($context_ext = Extension_DevblocksContext::get($context)))
-			return;
-		
-		$dao_class = $context_ext->getDaoClass();
-		
-		if(!($record = $dao_class::get($context_id)))
-			return;
-		
-		// Are we showing fields for a different record?
-		
 		$record_dict = DevblocksDictionaryDelegate::instance([
-			'current_worker__context' => CerberusContexts::CONTEXT_WORKER,
-			'current_worker_id' => $active_worker->id,
 			'record__context' => $context,
 			'record_id' => $context_id,
-			'widget__context' => CerberusContexts::CONTEXT_PROFILE_WIDGET,
-			'widget_id' => $model->id,
 		]);
+		$record_dict->mergeKeys('current_worker_', DevblocksDictionaryDelegate::getDictionaryFromModel($active_worker, CerberusContexts::CONTEXT_WORKER));
+		$record_dict->mergeKeys('widget_', DevblocksDictionaryDelegate::getDictionaryFromModel($model, CerberusContexts::CONTEXT_PROFILE_WIDGET));
 		
+		// Are we showing fields for a different record?
 		if($target_context && !is_null($target_context_id)) {
 			$context = $target_context;
 			$context_id = intval($tpl_builder->build($target_context_id, $record_dict));
-			
-			if(!($context_ext = Extension_DevblocksContext::get($context)))
-				return;
-			
-			$dao_class = $context_ext->getDaoClass();
-			
-			if(!method_exists($dao_class, 'get') || !($record = $dao_class::get($context_id))) {
-				$tpl->assign('context_ext', $context_ext);
-				$tpl->display('devblocks:cerberusweb.core::internal/profiles/widgets/fields/empty.tpl');
-				return;
-			}
 		}
 		
-		// Dictionary
-		
-		$labels = $values = [];
-		CerberusContexts::getContext($context, $record, $labels, $values, '', true, false);
-		$dict = DevblocksDictionaryDelegate::instance($values);
-		$tpl->assign('dict', $dict);
+		if(!($context_ext = Extension_DevblocksContext::get($context)))
+			return;
 		
 		if(!($context_ext instanceof IDevblocksContextProfile))
 			return;
 		
+		if(!($record = $context_ext->getModelObject($context_id))) {
+			$tpl->assign('context_ext', $context_ext);
+			$tpl->display('devblocks:cerberusweb.core::internal/profiles/widgets/fields/empty.tpl');
+			return;
+		}
+		
+		$record_dict->mergeKeys('record_', DevblocksDictionaryDelegate::getDictionaryFromModel($record, $context));
+		
+		// Dictionary
+		
+		$tpl->assign('dict', $record_dict->extract('record_'));
 		$tpl->assign('context_ext', $context_ext);
 		$tpl->assign('widget', $model);
 		$tpl->assign('page_context', $context);
@@ -83,7 +68,7 @@ class ProfileWidget_Fields extends Extension_ProfileWidget {
 		
 		$properties_available = $context_ext->profileGetFields($record);
 		
-		$custom_field_values = DAO_CustomFieldValue::getValuesByContextIds($context, $record->id);
+		$custom_field_values = DAO_CustomFieldValue::getValuesByContextIds($context, $context_id);
 		$values = array_shift($custom_field_values) ?? [];
 		$tpl->assign('custom_field_values', $values);
 		
@@ -106,7 +91,7 @@ class ProfileWidget_Fields extends Extension_ProfileWidget {
 		
 		// Custom Fieldsets
 		
-		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets($context, $record->id, $values, true);
+		$properties_custom_fieldsets = Page_Profiles::getProfilePropertiesCustomFieldsets($context, $context_id, $values, true);
 		$properties_custom_fieldsets = array_intersect_key($properties_custom_fieldsets, $properties_selected);
 		
 		// Only keep selected properties
@@ -123,7 +108,6 @@ class ProfileWidget_Fields extends Extension_ProfileWidget {
 						// Checkboxes can be empty
 						case Model_CustomField::TYPE_CHECKBOX:
 							continue 2;
-							break;
 							
 						// Sliders can have empty values
 						case 'slider':
@@ -160,10 +144,10 @@ class ProfileWidget_Fields extends Extension_ProfileWidget {
 		if($show_links) {
 			$properties_links = [
 				$context => [
-					$record->id => 
+					$context_id =>
 						DAO_ContextLink::getContextLinkCounts(
 							$context,
-							$record->id,
+							$context_id,
 							[]
 						),
 				],

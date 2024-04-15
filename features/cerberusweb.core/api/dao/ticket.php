@@ -1940,35 +1940,29 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		];
 	}
 	
-	static function autocomplete($term, $as='models') {
-		$db = DevblocksPlatform::services()->database();
-		$objects = [];
+	static function autocomplete($term, $as='models', $query=null) {
+		$context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_TICKET);
 		
-		$results = $db->GetArrayReader(sprintf("SELECT id ".
-			"FROM ticket ".
-			"WHERE ticket.status_id != 3 ".
-			"AND (".
-			"mask LIKE %s ".
-			"OR subject LIKE %s ".
-			") ".
-			"ORDER BY id DESC ".
-			"LIMIT 25 ",
-			$db->qstr($term.'%'),
-			$db->qstr($term.'%')
-		));
+		$view = $context_ext->getSearchView('autocomplete_tickets');
+		$view->is_ephemeral = true;
+		$view->renderPage = 0;
+		$view->renderSortBy = SearchFields_Ticket::TICKET_ID;
+		$view->renderSortAsc = false;
+		$view->addParamsWithQuickSearch($query, true);
 		
-		if(is_array($results))
-		foreach($results as $row) {
-			$objects[$row['id']] = null;
-		}
+		$view->addParamsWithQuickSearch('(mask:${term} OR subject:${term})', false, [
+			'term' => $term . '*',
+		]);
 		
-		switch($as) {
-			case 'ids':
-				return array_keys($objects);
-				
-			default:
-				return DAO_Ticket::getIds(array_keys($objects));
-		}
+		$view->renderLimit = 25;
+		$view->renderTotal = false;
+		
+		list($results,) = $view->getData();
+		
+		return match ($as) {
+			'ids' => array_keys($results),
+			default => DAO_Ticket::getIds(array_keys($results)),
+		};
 	}
 	
 	static function mergeIds($from_ids, $to_id) {
@@ -5087,16 +5081,28 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 	}
 	
 	function autocomplete($term, $query=null) {
-		$results = DAO_Ticket::autocomplete($term);
+		// Allow per-instance overrides for the default autocomplete filtering/sort
+		if(APP_OPT_AUTOCOMPLETE_TICKET_QUERY && !$query)
+			$query = APP_OPT_AUTOCOMPLETE_TICKET_QUERY;
+		
+		if(!($results = DAO_Ticket::autocomplete($term, 'models', $query)))
+			return [];
+		
 		$list = [];
 
-		// [TODO] Include more meta? (group/bucket/sender/org)
+		$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($results, Context_Ticket::ID, ['group_', 'initial_message_sender_']);
 		
-		if(is_array($results))
-		foreach($results as $ticket_id => $ticket) {
+		foreach ($dicts as $ticket_id => $dict) {
 			$entry = new stdClass();
-			$entry->label = sprintf("[#%s] %s", $ticket->mask, $ticket->subject);
-			$entry->value = sprintf("%d", $ticket_id);
+			$entry->label = $dict->get('_label');
+			$entry->value = intval($ticket_id);
+			$entry->meta = [
+				'byline' => sprintf("%s by %s in %s",
+					DevblocksPlatform::strPrettyTime($dict->get('created')),
+					$dict->get('initial_message_sender__label'),
+					$dict->get('group__label')
+				),
+			];
 			$list[] = $entry;
 		}
 		
@@ -5658,16 +5664,25 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 				
 			case 'requesters':
 				$values['requesters'] = [];
-				$reqs = DAO_Ticket::getRequestersByTicket($context_id);
-				if(is_array($reqs))
-				foreach($reqs as $req) { /* @var $req Model_Address */
-					$values['requesters'][$req->id] = array(
-						'id' => $req->id,
-						'email' => $req->email,
-						'name' => $req->getName(),
-						'contact_id' => $req->contact_id,
-						'org_id' => $req->contact_org_id,
-					);
+				
+				if(!($reqs = DAO_Ticket::getRequestersByTicket($context_id)))
+					break;
+				
+				// Bulk load contacts
+				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels(
+					$reqs,
+					CerberusContexts::CONTEXT_ADDRESS,
+					['contact__label']
+				);
+				
+				foreach($dicts as $dict_id => $dict) {
+					$values['requesters'][$dict_id] = [
+						'id' => intval($dict_id),
+						'email' => $dict->get('email'),
+						'name' => $dict->get('contact_name'),
+						'contact_id' => intval($dict->get('contact_id')),
+						'org_id' => intval($dict->get('contact_org_id')),
+					];
 				}
 				break;
 				

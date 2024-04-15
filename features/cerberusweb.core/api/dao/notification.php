@@ -514,11 +514,14 @@ class DAO_Notification extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		$logger = DevblocksPlatform::services()->log();
 		
-		// [TODO] Make this configurable
-		$purge_before_ts = strtotime('today -7 days');
+		$purge_read_before_ts = strtotime('today -7 days');
+		$purge_unread_before_ts = strtotime('today -6 months');
 		
-		$db->ExecuteMaster(sprintf("DELETE FROM notification WHERE is_read = 1 AND created_date < %d", $purge_before_ts));
+		$db->ExecuteMaster(sprintf("DELETE FROM notification WHERE is_read = 1 AND created_date < %d", $purge_read_before_ts));
 		$logger->info('[Maint] Purged ' . $db->Affected_Rows() . ' read notification records.');
+		
+		$db->ExecuteMaster(sprintf("DELETE FROM notification WHERE is_read = 0 AND created_date < %d", $purge_unread_before_ts));
+		$logger->info('[Maint] Purged ' . $db->Affected_Rows() . ' unread notification records.');
 	}
 	
 	static function clearCountCache($worker_id=null) {

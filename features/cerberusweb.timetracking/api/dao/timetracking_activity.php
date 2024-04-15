@@ -45,6 +45,8 @@ class DAO_TimeTrackingActivity extends Cerb_ORMHelper {
 	const NAME = 'name';
 	const UPDATED_AT = 'updated_at';
 	
+	const _CACHE_ALL = 'timetracking_activity_all';
+	
 	private function __construct() {}
 	
 	static function getFields() {
@@ -134,6 +136,8 @@ class DAO_TimeTrackingActivity extends Cerb_ORMHelper {
 				DevblocksPlatform::markContextChanged($context, $batch_ids);
 			}
 		}
+		
+		self::clearCache();
 	}
 	
 	static function updateWhere($fields, $where) {
@@ -184,15 +188,15 @@ class DAO_TimeTrackingActivity extends Cerb_ORMHelper {
 	 * @return Model_TimeTrackingActivity[]
 	 */
 	static function getAll($nocache=false) {
-		//$cache = DevblocksPlatform::services()->cache();
-		//if($nocache || null === ($objects = $cache->load(self::_CACHE_ALL))) {
+		$cache = DevblocksPlatform::services()->cache();
+		if($nocache || null === ($objects = $cache->load(self::_CACHE_ALL))) {
 			$objects = self::getWhere(null, DAO_TimeTrackingActivity::NAME, true, null, Cerb_ORMHelper::OPT_GET_MASTER_ONLY);
 			
-			//if(!is_array($objects))
-			//	return false;
+			if(!is_array($objects))
+				return false;
 				
-			//$cache->save($objects, self::_CACHE_ALL);
-		//}
+			$cache->save($objects, self::_CACHE_ALL);
+		}
 		
 		return $objects;
 	}
@@ -204,10 +208,7 @@ class DAO_TimeTrackingActivity extends Cerb_ORMHelper {
 		if(empty($id))
 			return null;
 		
-		$objects = self::getWhere(sprintf("%s = %d",
-			self::ID,
-			$id
-		));
+		$objects = self::getAll();
 		
 		if(isset($objects[$id]))
 			return $objects[$id];
@@ -268,6 +269,7 @@ class DAO_TimeTrackingActivity extends Cerb_ORMHelper {
 		
 		parent::_deleteAbstractAfter($context, $ids);
 		
+		self::clearCache();
 		return true;
 	}
 	
@@ -332,6 +334,11 @@ class DAO_TimeTrackingActivity extends Cerb_ORMHelper {
 			$limit,
 			$withCounts
 		);
+	}
+	
+	public static function clearCache() {
+		$cache = DevblocksPlatform::services()->cache();
+		$cache->remove(self::_CACHE_ALL);
 	}
 };
 

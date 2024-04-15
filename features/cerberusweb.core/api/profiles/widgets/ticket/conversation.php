@@ -220,7 +220,11 @@ class ProfileWidget_TicketConvo extends Extension_ProfileWidget {
 					$message_sender->setContact($contact);
 				}
 				
-				if($message_sender->contact_org_id && array_key_exists($message_sender->contact_org_id, $message_sender_ids)) {
+				if(
+					$message_sender->contact_org_id
+					&& array_key_exists($message_sender->contact_org_id, $message_sender_ids)
+					&& $message_sender_orgs[$message_sender->contact_org_id] instanceof Model_ContactOrg
+				) {
 					$message_sender->setOrg($message_sender_orgs[$message_sender->contact_org_id]);
 				}
 					
@@ -230,17 +234,16 @@ class ProfileWidget_TicketConvo extends Extension_ProfileWidget {
 			if(array_key_exists($message_id, $message_custom_field_values))
 				$message->setCustomFieldValues($message_custom_field_values[$message_id]);
 			
-			if($message->worker_id && array_key_exists($message->worker_id, $message_workers)) {
+			if(
+				$message->worker_id
+				&& array_key_exists($message->worker_id, $message_workers)
+				&& $message_workers[$message->worker_id] instanceof Model_Worker
+			) {
 				$message->setWorker($message_workers[$message->worker_id]);
 			}
 			
-			if(array_key_exists($message_id, $message_headers)) {
-				$message->setHeadersRaw($message_headers[$message_id]);
-			}
-			
-			if(array_key_exists($message_id, $message_attachments)) {
-				$message->setAttachments($message_attachments[$message_id]);
-			}
+			$message->setHeadersRaw($message_headers[$message_id] ?? '');
+			$message->setAttachments($message_attachments[$message_id] ?? []);
 		}
 	}
 	
@@ -248,8 +251,6 @@ class ProfileWidget_TicketConvo extends Extension_ProfileWidget {
 		$tpl = DevblocksPlatform::services()->template();
 		
 		$comments_mode = $display_options['comments_mode'] ?? 0;
-		
-		$tpl->assign('comments', $comments);
 		
 		if($comments) {
 			$pin_ts = null;
@@ -286,7 +287,34 @@ class ProfileWidget_TicketConvo extends Extension_ProfileWidget {
 					$comment_notes[$note->context_id] = [];
 				$comment_notes[$note->context_id][$note->id] = $note;
 			}
+		
+		$message_notes = array_merge(... $tpl->getTemplateVars('message_notes') ?? []);
+		
+		// Add note IDs for custom fields and attachments
+		$comment_ids = array_merge(array_keys($comments), array_keys($notes), array_column($message_notes, 'id'));
+		
+		// Bulk load files and custom fields
+		$comment_attachments = DAO_Attachment::getByContextIds(CerberusContexts::CONTEXT_COMMENT, $comment_ids, false);
+		$comment_custom_fields = DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_COMMENT, $comment_ids);
+		
+		foreach($comments as $comment) { /* @var $comment Model_Comment */
+			$comment->setAttachments($comment_attachments[$comment->id] ?? []);
+			$comment->setCustomFieldValues($comment_custom_fields[$comment->id] ?? []);
+		}
+		
+		foreach($notes as $note) { /* @var $note Model_Comment */
+			$note->setAttachments($comment_attachments[$note->id] ?? []);
+			$note->setCustomFieldValues($comment_custom_fields[$note->id] ?? []);
+		}
+		
+		foreach($message_notes as $note) { /* @var $note Model_Comment */
+			$note->setAttachments($comment_attachments[$note->id] ?? []);
+			$note->setCustomFieldValues($comment_custom_fields[$note->id] ?? []);
+		}
+		
+		$tpl->assign('comments', $comments);
 		$tpl->assign('comment_notes', $comment_notes);
+		$tpl->assign('message_notes', $message_notes);
 	}
 	
 	private function _renderTimeline(array $convo_timeline, array $display_options=[]) {

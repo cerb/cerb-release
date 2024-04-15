@@ -1025,6 +1025,11 @@ class _DevblocksSheetServiceTypes {
 				return is_array($text_value) ? json_encode($text_value) : $text_value;
 				
 			} else {
+				// Conditionally disable
+				if(array_key_exists('selectable', $column_params))
+					if(!$tpl_builder->build($column_params['selectable'], $sheet_dict))
+						return '';
+				
 				if($is_single) {
 					return sprintf('<label class="cerb-sheet-row--selection-label"><input type="radio" name="%s" value="%s">%s</label>',
 						DevblocksPlatform::strEscapeHtml('${SHEET_SELECTION_KEY}'),

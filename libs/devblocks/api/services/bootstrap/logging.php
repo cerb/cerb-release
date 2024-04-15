@@ -37,8 +37,10 @@ class _DevblocksLogManager {
 	
 	private function __construct() {
 		// Allow query string overloading Devblocks-wide
-		$log_level = DevblocksPlatform::importGPC($_REQUEST['loglevel'] ?? null,'integer', 0);
-		$this->_log_level = intval($log_level);
+		if(DEVELOPMENT_MODE) {
+			$log_level = DevblocksPlatform::importGPC($_REQUEST['loglevel'] ?? null, 'integer', 0);
+			$this->_log_level = intval($log_level);
+		}
 		
 		// Open file pointer
 		$this->_fp = fopen('php://output', 'w+');

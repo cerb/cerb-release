@@ -272,61 +272,64 @@ class DAO_Automation extends Cerb_ORMHelper {
 	}
 	
 	public static function getByUri(string $interaction_uri, $extension_ids=null) {
-		if(!is_null($extension_ids) && !is_array($extension_ids))
-			$extension_ids = [$extension_ids];
-		
-		if(DevblocksPlatform::strStartsWith($interaction_uri, 'cerb:')) {
-			if(!($uri_parts = DevblocksPlatform::services()->ui()->parseURI($interaction_uri)))
-				return null;
-			
-			if(CerberusContexts::CONTEXT_AUTOMATION != $uri_parts['context'])
-				return null;
-			
-			$interaction_uri = $uri_parts['context_id'];
-		}
-		
-		// [TODO] Cache
-		$objects = self::getWhere(sprintf("%s = %s",
-				self::NAME,
-				Cerb_ORMHelper::qstr($interaction_uri)
-			),
-			null,
-			null,
-			1
-		);
+		$objects = self::getByUris([$interaction_uri], $extension_ids);
 		
 		if(!$objects)
 			return null;
 		
-		$object = array_shift($objects);
-		
-		if(!$extension_ids || in_array($object->extension_id, $extension_ids))
-			return $object;
-		
-		return null;
+		return array_shift($objects);
 	}
 	
-	public static function getByUris(array $uris, string $extension_id=null) {
+	public static function getByUris(array $uris, mixed $extension_ids=null) {
+		$cache = DevblocksPlatform::services()->cache();
+
+		if(!is_null($extension_ids) && !is_array($extension_ids))
+			$extension_ids = [$extension_ids];
+
+		// Normalize and sort the URIs
+		
+		$uris = array_filter(array_map(
+			function($uri) {
+				if(DevblocksPlatform::strStartsWith($uri, 'cerb:')) {
+					if(!($uri_parts = DevblocksPlatform::services()->ui()->parseURI($uri)))
+						return null;
+					
+					if(CerberusContexts::CONTEXT_AUTOMATION != $uri_parts['context'])
+						return null;
+					
+					$uri = $uri_parts['context_id'];
+				}
+				
+				return $uri;
+			},
+			$uris
+		));
+		
 		if(!$uris)
 			return [];
 		
-		// [TODO] Cache
-		$objects = self::getWhere(sprintf("%s IN (%s)",
-			self::NAME,
-			implode(',', Cerb_ORMHelper::qstrArray($uris))
-		));
+		sort($uris);
+		
+		// Cache during a single request
+		$cache_key = 'automation:uris:' . sha1(json_encode($uris));
+		
+		if(null === ($objects = $cache->load($cache_key, false, true))) {
+			$objects = self::getWhere(sprintf("%s IN (%s)",
+				self::NAME,
+				implode(',', Cerb_ORMHelper::qstrArray($uris))
+			));
+			
+			$cache->save($objects, $cache_key, [], 0, true);
+		}
 		
 		if(!$objects)
 			return [];
 		
-		if(!$extension_id)
+		if(!$extension_ids)
 			return $objects;
 		
-		return array_filter($objects, function($automation) use ($extension_id) {
-			if($extension_id == $automation->extension_id)
-				return true;
-			
-			return false;
+		return array_filter($objects, function($automation) use ($extension_ids) {
+			return in_array($automation->extension_id, $extension_ids);
 		});
 	}
 	

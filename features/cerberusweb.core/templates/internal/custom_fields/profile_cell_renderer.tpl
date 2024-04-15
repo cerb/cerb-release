@@ -1,5 +1,5 @@
 {$cf_id = str_replace('cf_', '', $k)}
-<div style="margin-bottom:5px;">
+<div style="margin-bottom:5px;max-width:200px;">
 <div>
 	<b style="font-size:.9em;">{$v.label|capitalize}</b>
 </div>

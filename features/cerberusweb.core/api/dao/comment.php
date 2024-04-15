@@ -828,6 +828,9 @@ class Model_Comment extends DevblocksRecordModel {
 	public $is_markdown = false;
 	public $is_pinned = false;
 	
+	private $_attachments = null;
+	private $_custom_field_values = null;
+	
 	public function getContent() {
 		if($this->is_markdown) {
 			$filter = new Cerb_HTMLPurifier_URIFilter_Email(true);
@@ -882,8 +885,35 @@ class Model_Comment extends DevblocksRecordModel {
 		return $context_ext;
 	}
 	
-	function getAttachments() {
-		return DAO_Attachment::getByContextIds(CerberusContexts::CONTEXT_COMMENT, $this->id);
+	/**
+	 * @return Model_Attachment[]
+	 */
+	function getAttachments() : array {
+		if(!is_null($this->_attachments))
+			return $this->_attachments;
+		
+		$this->_attachments = DAO_Attachment::getByContextIds(CerberusContexts::CONTEXT_COMMENT, $this->id);
+		
+		return $this->_attachments;
+	}
+	
+	function setAttachments(array $attachments) : void {
+		$this->_attachments = $attachments;
+	}
+	
+	function getCustomFieldValues() : array {
+		if(!is_null($this->_custom_field_values))
+			return $this->_custom_field_values;
+		
+		$values = DAO_CustomFieldValue::getValuesByContextIds(CerberusContexts::CONTEXT_COMMENT, $this->id);
+		
+		$this->_custom_field_values = $values[$this->id] ?? [];
+		
+		return $this->_custom_field_values;
+	}
+	
+	function setCustomFieldValues(array $values) : void {
+		$this->_custom_field_values = $values;
 	}
 	
 	function getTimeline($is_ascending=true, $target_id=0, &$start_index=0) {
