@@ -690,7 +690,12 @@ abstract class C4_AbstractView {
 	function addParamsWithQuickSearch(?string $query, bool $replace=true, array $bindings=[], &$error=null) : bool {
 		if(false === ($fields = $this->getParamsFromQuickSearch($query, $bindings, $error))) {
 			$this->addParams([false], true);
-			C4_AbstractView::marqueeAppend($this->id, $error);
+			
+			if(!DevblocksPlatform::isStateless()) {
+				C4_AbstractView::marqueeAppend($this->id, $error);
+			} else {
+				DevblocksPlatform::logError('[Worklist error] ' . $error);
+			}
 			return false;
 		}
 		
@@ -701,7 +706,12 @@ abstract class C4_AbstractView {
 	function addParamsRequiredWithQuickSearch(?string $query, bool $replace=true, array $bindings=[], &$error=null) : bool {
 		if(false === ($fields = $this->getParamsFromQuickSearch($query, $bindings, $error))) {
 			$this->addParamsRequired([false], true);
-			C4_AbstractView::marqueeAppend($this->id, $error);
+			
+			if(!DevblocksPlatform::isStateless()) {
+				C4_AbstractView::marqueeAppend($this->id, $error);
+			} else {
+				DevblocksPlatform::logError('[Worklist error] ' . $error);
+			}
 			return false;
 		}
 		
@@ -1103,6 +1113,10 @@ abstract class C4_AbstractView {
 	}
 	
 	static function marqueeAppend($view_id, $string) {
+		// Don't add worklist marquees if we have no session
+		if(DevblocksPlatform::isStateless())
+			return false;
+		
 		if(null == ($visit = CerberusApplication::getVisit()))
 			return false;
 		

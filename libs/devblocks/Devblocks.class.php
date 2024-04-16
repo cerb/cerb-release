@@ -2346,12 +2346,14 @@ class DevblocksPlatform extends DevblocksEngine {
 			$cache->remove(self::CACHE_ACL);
 			$cache->remove(self::CACHE_ACTIVITY_POINTS);
 			$cache->remove(self::CACHE_CONTEXTS);
+			$cache->remove(self::CACHE_CONTEXTS_INSTANCES);
 			$cache->remove(self::CACHE_CONTEXT_ALIASES);
 			$cache->remove(self::CACHE_EVENTS);
 			$cache->remove(self::CACHE_EVENT_POINTS);
 			$cache->remove(self::CACHE_EXTENSIONS);
 			$cache->remove(self::CACHE_PLUGINS);
 			$cache->remove(self::CACHE_POINTS);
+			$cache->remove(self::CACHE_STORAGE_PROFILES);
 			$cache->remove(self::CACHE_TABLES);
 			$cache->remove('devblocks:plugin:cerberusweb.core:params');
 			$cache->remove('devblocks:plugin:devblocks.core:params');

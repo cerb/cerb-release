@@ -32,7 +32,13 @@ class _DevblocksSessionManager {
 			// We can't start a session if the headers were already sent
 			if(headers_sent()) {
 				DevblocksPlatform::logError('Headers sent before session started', true);
-				CerberusApplication::respondWithErrorReason(CerbErrorReason::UnknownError, true);
+				
+				// Only show a UI error if we have a user state
+				if(!DevblocksPlatform::isStateless()) {
+					CerberusApplication::respondWithErrorReason(CerbErrorReason::UnknownError, true);
+				} else {
+					return null;
+				}
 			}
 			
 			$handler_class = DevblocksPlatform::getHandlerSession();
