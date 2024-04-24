@@ -86,6 +86,8 @@ class DAO_SupportCenterAddressShare extends Cerb_ORMHelper {
 		if(!is_array($address_ids))
 			$address_ids = array($address_ids);
 			
+		$address_ids = DevblocksPlatform::sanitizeArray($address_ids, 'int');
+		
 		$db = DevblocksPlatform::services()->database();
 		$sql = sprintf("SELECT share.email AS share_address, aw.email AS with_address, sas.share_address_id, sas.with_address_id, sas.is_enabled ".
 			"FROM supportcenter_address_share AS sas ".
@@ -102,8 +104,10 @@ class DAO_SupportCenterAddressShare extends Cerb_ORMHelper {
 	
 	static function getSharedWith($address_ids, $only_enabled=true) {
 		if(!is_array($address_ids))
-			$address_ids = array($address_ids);
-			
+			$address_ids = [$address_ids];
+		
+		$address_ids = DevblocksPlatform::sanitizeArray($address_ids, 'int');
+		
 		$db = DevblocksPlatform::services()->database();
 		$sql = sprintf("SELECT share.email AS share_address, aw.email AS with_address, sas.share_address_id, sas.with_address_id, sas.is_enabled ".
 			"FROM supportcenter_address_share AS sas ".

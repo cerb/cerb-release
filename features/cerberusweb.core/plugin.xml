@@ -3964,6 +3964,16 @@
 		<!-- Automation API commands -->
 
 		<extension point = "cerb.automation.api_command">
+			<id>cerb.commands.activity.log</id>
+			<name>cerb.commands.activity.log</name>
+			<class>
+				<file>api/automations/api_commands/cerb.activity.log.php</file>
+				<name>ApiCommand_CerbActivityLog</name>
+			</class>
+			<params />
+		</extension>
+
+		<extension point = "cerb.automation.api_command">
 			<id>cerb.commands.dataset.vector_similarity</id>
 			<name>cerb.commands.dataset.vector_similarity</name>
 			<class>

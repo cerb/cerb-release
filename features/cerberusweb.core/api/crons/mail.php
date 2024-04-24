@@ -273,6 +273,9 @@ class MailboxCron extends CerberusCronPageExtension {
 				
 				$client->close();
 				
+			} catch (Horde_Imap_Client_Exception_ServerResponse $e) {
+				DevblocksPlatform::logError(sprintf('IMAP error [%d] %s :: %s', $e->status, $e->command, $e->status));
+				
 			} catch (Horde_Imap_Client_Exception $e) {
 				DevblocksPlatform::logException($e);
 			

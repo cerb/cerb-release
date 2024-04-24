@@ -119,14 +119,14 @@ class WorkspaceWidgetDatasource_WorklistMetric extends Extension_WorkspaceWidget
 				DAO_CustomFieldValue::getValueTableName($cfield->id),
 				Cerb_ORMHelper::qstr($cfield->context),
 				$cfield->id,
-				sprintf("SELECT %s %s %s", $primary_key, $query_parts['join'], $query_parts['where'])
+				sprintf("SELECT %s %s %s", $db->escape($primary_key), $query_parts['join'], $query_parts['where'])
 			);
 			
 		} else {
 			if($metric_field)
 				$select_query = sprintf("%s.%s",
-					$metric_field->db_table,
-					$metric_field->db_column
+					$db->escape($metric_field->db_table),
+					$db->escape($metric_field->db_column)
 				);
 			
 			switch($metric_func) {
@@ -349,36 +349,36 @@ class WorkspaceWidgetDatasource_WorklistSeries extends Extension_WorkspaceWidget
 					switch($yaxis_func) {
 						case 'sum':
 							$select_func = sprintf("SUM(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
+								$db->escape($yaxis_field->db_table),
+								$db->escape($yaxis_field->db_column)
 							);
 							break;
 								
 						case 'avg':
 							$select_func = sprintf("AVG(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
+								$db->escape($yaxis_field->db_table),
+								$db->escape($yaxis_field->db_column)
 							);
 							break;
 								
 						case 'min':
 							$select_func = sprintf("MIN(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
+								$db->escape($yaxis_field->db_table),
+								$db->escape($yaxis_field->db_column)
 							);
 							break;
 								
 						case 'max':
 							$select_func = sprintf("MAX(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
+								$db->escape($yaxis_field->db_table),
+								$db->escape($yaxis_field->db_column)
 							);
 							break;
 							
 						case 'value':
 							$select_func = sprintf("%s.%s",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
+								$db->escape($yaxis_field->db_table),
+								$db->escape($yaxis_field->db_column)
 							);
 							break;
 								
@@ -394,8 +394,8 @@ class WorkspaceWidgetDatasource_WorklistSeries extends Extension_WorkspaceWidget
 						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
 							'custom_field_numbervalue',
 							$xaxis_cfield_id,
-							$xaxis_field->token,
-							$xaxis_field->token,
+							$db->escape($xaxis_field->token),
+							$db->escape($xaxis_field->token),
 							$primary_key
 						);
 					}
@@ -406,23 +406,23 @@ class WorkspaceWidgetDatasource_WorklistSeries extends Extension_WorkspaceWidget
 						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
 							'custom_field_numbervalue',
 							$yaxis_cfield_id,
-							$yaxis_field->token,
-							$yaxis_field->token,
+							$db->escape($yaxis_field->token),
+							$db->escape($yaxis_field->token),
 							$primary_key
 						);
 					}
 					
 					$sql = sprintf("SELECT %s AS hits, DATE_FORMAT(FROM_UNIXTIME(%s.%s), '%s') AS histo ",
 						$select_func,
-						$xaxis_field->db_table,
-						$xaxis_field->db_column,
+						$db->escape($xaxis_field->db_table),
+						$db->escape($xaxis_field->db_column),
 						$date_format_mysql
 					).
 					str_replace('%','%%',$query_parts['join']).
 					str_replace('%','%%',$query_parts['where']).
 					sprintf("GROUP BY DATE_FORMAT(FROM_UNIXTIME(%s.%s), '%s') ",
-						$xaxis_field->db_table,
-						$xaxis_field->db_column,
+						$db->escape($xaxis_field->db_table),
+						$db->escape($xaxis_field->db_column),
 						$date_format_mysql
 					).
 					'ORDER BY histo ASC'
@@ -522,18 +522,18 @@ class WorkspaceWidgetDatasource_WorklistSeries extends Extension_WorkspaceWidget
 							$order_by = null;
 							$group_by = sprintf("GROUP BY %s.id%s ",
 								str_replace('%','%%',$query_parts['primary_table']),
-								($yaxis_field ? sprintf(", %s.%s", $yaxis_field->db_table, $yaxis_field->db_column) : '')
+								($yaxis_field ? sprintf(", %s.%s", $db->escape($yaxis_field->db_table), $db->escape($yaxis_field->db_column)) : '')
 							);
 							
 							if(empty($order_by))
-								$order_by = sprintf("ORDER BY %s.id ", str_replace('%','%%',$query_parts['primary_table']));
+								$order_by = sprintf("ORDER BY %s.id ", str_replace('%','%%',$db->escape($query_parts['primary_table'])));
 							
 							break;
 
 						default:
 							$group_by = sprintf("GROUP BY %s.%s",
-								$xaxis_field->db_table,
-								$xaxis_field->db_column
+								$db->escape($xaxis_field->db_table),
+								$db->escape($xaxis_field->db_column),
 							);
 							
 							$order_by = 'ORDER BY xaxis ASC';
@@ -550,29 +550,29 @@ class WorkspaceWidgetDatasource_WorklistSeries extends Extension_WorkspaceWidget
 								
 						case 'avg':
 							$select_func = sprintf("AVG(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
+								$db->escape($yaxis_field->db_table),
+								$db->escape($yaxis_field->db_column),
 							);
 							break;
 								
 						case 'min':
 							$select_func = sprintf("MIN(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
+								$db->escape($yaxis_field->db_table),
+								$db->escape($yaxis_field->db_column)
 							);
 							break;
 								
 						case 'max':
 							$select_func = sprintf("MAX(%s.%s)",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
+								$db->escape($yaxis_field->db_table),
+								$db->escape($yaxis_field->db_column)
 							);
 							break;
 								
 						case 'value':
 							$select_func = sprintf("%s.%s",
-								$yaxis_field->db_table,
-								$yaxis_field->db_column
+								$db->escape($yaxis_field->db_table),
+								$db->escape($yaxis_field->db_column)
 							);
 							break;
 								
@@ -595,8 +595,8 @@ class WorkspaceWidgetDatasource_WorklistSeries extends Extension_WorkspaceWidget
 						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
 							'custom_field_numbervalue',
 							$xaxis_cfield_id,
-							$xaxis_field->token,
-							$xaxis_field->token,
+							$db->escape($xaxis_field->token),
+							$db->escape($xaxis_field->token),
 							$primary_key
 						);
 					}
@@ -607,8 +607,8 @@ class WorkspaceWidgetDatasource_WorklistSeries extends Extension_WorkspaceWidget
 						$query_parts['join'] .= sprintf("INNER JOIN (SELECT field_value, context_id FROM %s WHERE field_id = %d) AS %s ON (%s.context_id=%s) ",
 							'custom_field_numbervalue',
 							$yaxis_cfield_id,
-							$yaxis_field->token,
-							$yaxis_field->token,
+							$db->escape($yaxis_field->token),
+							$db->escape($yaxis_field->token),
 							$primary_key
 						);
 					}
@@ -619,8 +619,8 @@ class WorkspaceWidgetDatasource_WorklistSeries extends Extension_WorkspaceWidget
 						"%s ".
 						"%s ",
 						$select_func,
-						$xaxis_field->db_table,
-						$xaxis_field->db_column,
+						$db->escape($xaxis_field->db_table),
+						$db->escape($xaxis_field->db_column),
 						$group_by,
 						$order_by
 					);

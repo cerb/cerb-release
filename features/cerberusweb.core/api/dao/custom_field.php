@@ -1445,10 +1445,10 @@ class DAO_CustomFieldValue extends Cerb_ORMHelper {
 				
 				$sqls[] = sprintf("SELECT context_id, field_id, field_value ".
 					"FROM %s ".
-					"WHERE context = '%s' AND context_id IN (%s)",
-					$table,
-					$context,
-					implode(',', $context_ids)
+					"WHERE context = %s AND context_id IN (%s)",
+					$db->escape($table),
+					$db->qstr($context),
+					implode(',', DevblocksPlatform::sanitizeArray($context_ids, 'int'))
 				);
 			}
 		}

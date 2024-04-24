@@ -129,6 +129,9 @@
 	</div>
 
 	<div id="{$tabs_uid}Policy">
+		<div>
+			This policy determines which actions this automation is allowed to perform.
+		</div>
 		<div class="cerb-code-editor-toolbar">
 			{if $model->id}
 				<button type="button" class="cerb-code-editor-toolbar-button" data-cerb-editor-button-changesets-policy title="{'common.change_history'|devblocks_translate|capitalize}"><span class="glyphicons glyphicons-history"></span></button>

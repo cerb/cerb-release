@@ -5,6 +5,7 @@ use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
 use Lcobucci\JWT\Token;
+use Lcobucci\JWT\Validation\RequiredConstraintsViolated;
 use Lcobucci\JWT\Validation\Validator;
 use League\OAuth2\Client\Grant\AbstractGrant;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
@@ -172,13 +173,20 @@ class GenericOpenIDConnectProvider extends GenericProvider {
 
 		$validation = new Validator();
 		
-		if(!$validation->validate(
-			$token,
+		$constraints = [
 			new Lcobucci\JWT\Validation\Constraint\SignedWith(new Sha256(), InMemory::plainText($public_key)),
-			new Lcobucci\JWT\Validation\Constraint\StrictValidAt(new SystemClock(new DateTimeZone(\date_default_timezone_get()))),
+			new Lcobucci\JWT\Validation\Constraint\LooseValidAt(new SystemClock(new DateTimeZone(\date_default_timezone_get()))),
 			new Lcobucci\JWT\Validation\Constraint\IssuedBy($this->getIdTokenIssuer()),
 			new Lcobucci\JWT\Validation\Constraint\PermittedFor($this->clientId)
-			)) {
+		];
+		
+		if(!$validation->validate($token, ...$constraints)) {
+			// Get the exact violations
+			try {
+				$validation->assert($token, ...$constraints);
+			} catch(RequiredConstraintsViolated $e) {
+				DevblocksPlatform::logException($e);
+			}
 			throw new InvalidTokenException('The id_token did not pass validation.');
 		}
 		
@@ -358,6 +366,7 @@ class ServiceProvider_OpenIdConnect extends Extension_ConnectedServiceProvider {
 			'clientSecret' => $service_params['client_secret'],
 			'idTokenIssuer' => $service_params['issuer'],
 			'redirectUri' => $url_writer->write(sprintf('c=sso&provider=%s', $service->uri), true),
+			'scopes' => $service_params['scope'] ?? '',
 			'urlAuthorize' => $service_params['authorization_url'],
 			'urlAccessToken' => $service_params['access_token_url'],
 			'urlResourceOwnerDetails' => $service_params['userinfo_url'],

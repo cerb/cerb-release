@@ -325,7 +325,7 @@ class DAO_ContextLink extends Cerb_ORMHelper {
 		
 		$sql = sprintf("SELECT to_context, to_context_id ".
 			"FROM context_link ".
-			"WHERE (%s = %s AND %s IN (%s)) ".
+			"WHERE (%s = %s AND %s = %d) ".
 			($sort ? "ORDER BY to_context, to_context_id " : '') ,
 			self::FROM_CONTEXT,
 			$db->qstr($from_context),

@@ -1108,6 +1108,8 @@ class Storage_Attachments extends Extension_DevblocksStorageSchema {
 		
 		$db = DevblocksPlatform::services()->database();
 		
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
 		$sql = sprintf("SELECT storage_extension, storage_key, storage_profile_id FROM attachment WHERE id IN (%s)", implode(',',$ids));
 		
 		if(!($rs = $db->QueryReader($sql)))
@@ -1749,8 +1751,8 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 			"where message.id in (context_id) ".
 			"and ticket.group_id in (select id from worker_group where is_private = 0 or id in (%s)) ".
 			")",
-			implode(',', array_keys($dicts)),
-			implode(',', array_keys($memberships))
+			implode(',', DevblocksPlatform::sanitizeArray(array_keys($dicts), 'int')),
+			implode(',', DevblocksPlatform::sanitizeArray(array_keys($memberships), 'int'))
 		);
 		$approved_files = $db->GetArrayReader($sql_approve_by_messages);
 		
@@ -2102,6 +2104,17 @@ class Context_Attachment extends Extension_DevblocksContext implements IDevblock
 	
 	function lazyLoadGetKeys() {
 		$lazy_keys = parent::lazyLoadGetKeys();
+		
+		$lazy_keys['on'] = [
+			'label' => '[Records](/docs/records/) attached to (max 100)',
+			'type' => 'records',
+		];
+		
+		$lazy_keys['on.<type>'] = [
+			'label' => '[Records](/docs/records/) attached to by [record type](/docs/records/types/)',
+			'type' => 'records',
+		];
+		
 		return $lazy_keys;
 	}
 	

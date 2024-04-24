@@ -2574,14 +2574,14 @@ abstract class C4_AbstractView {
 		$where_sql = $query_parts['where'];
 		
 		$sql = sprintf("SELECT %s.%s as label, count(*) as hits ", //SQL_CALC_FOUND_ROWS
-				$fields[$field_key]->db_table,
-				$fields[$field_key]->db_column
+				$db->escape($fields[$field_key]->db_table),
+				$db->escape($fields[$field_key]->db_column)
 			).
 			$join_sql.
 			$where_sql.
 			sprintf("GROUP BY %s.%s ",
-				$fields[$field_key]->db_table,
-				$fields[$field_key]->db_column
+				$db->escape($fields[$field_key]->db_table),
+				$db->escape($fields[$field_key]->db_column)
 			).
 			"ORDER BY hits DESC ".
 			"LIMIT 0,250 "
@@ -2634,14 +2634,14 @@ abstract class C4_AbstractView {
 		$where_sql = $query_parts['where'];
 		
 		$sql = sprintf("SELECT %s.%s as label, count(*) as hits ", //SQL_CALC_FOUND_ROWS
-				$fields[$field_key]->db_table,
-				$fields[$field_key]->db_column
+				$db->escape($fields[$field_key]->db_table),
+				$db->escape($fields[$field_key]->db_column)
 			).
 			$join_sql.
 			$where_sql.
 			sprintf("GROUP BY %s.%s ",
-				$fields[$field_key]->db_table,
-				$fields[$field_key]->db_column
+				$db->escape($fields[$field_key]->db_table),
+				$db->escape($fields[$field_key]->db_column)
 			).
 			"ORDER BY hits DESC ".
 			"LIMIT 0,250 "
@@ -3333,7 +3333,7 @@ abstract class C4_AbstractView {
 		$sql = sprintf("SELECT custom_fieldset_id, COUNT(*) AS hits FROM context_to_custom_fieldset WHERE context = %s AND context_id IN (%s) GROUP BY custom_fieldset_id ORDER BY hits DESC",
 			$db->qstr($context),
 			(
-				sprintf("SELECT %s.id ", $query_parts['primary_table']).
+				sprintf("SELECT %s.id ", $db->escape($query_parts['primary_table'])).
 				$query_parts['join'] .
 				$query_parts['where']
 			)
@@ -3385,12 +3385,12 @@ abstract class C4_AbstractView {
 			if($is_multiple_value_cfield) {
 				/** @noinspection SqlResolve */
 				$cfield_select_sql .= sprintf("SELECT COUNT(field_value) AS hits, field_value AS %s FROM %s WHERE context=%s AND context_id IN (%s) AND field_id=%d GROUP BY %s ORDER BY hits DESC",
-					$field_key,
+					Cerb_ORMHelper::escape($field_key),
 					DAO_CustomFieldValue::getValueTableName($field_id),
 					Cerb_ORMHelper::qstr($cfield->context),
 					'%s',
 					$field_id,
-					$field_key
+					Cerb_ORMHelper::escape($field_key)
 				);
 				
 			} else {
@@ -3428,7 +3428,7 @@ abstract class C4_AbstractView {
 				$select = sprintf(
 					"SELECT COUNT(*) AS hits, %s AS %s ",
 					$cfield_select_sql,
-					$field_key
+					$db->escape($field_key)
 				);
 				
 				$sql =
@@ -3437,7 +3437,7 @@ abstract class C4_AbstractView {
 					$where_sql.
 					sprintf(
 						"GROUP BY %s ",
-						$field_key
+						$db->escape($field_key)
 					).
 					"ORDER BY hits DESC "
 				;
@@ -3502,7 +3502,7 @@ abstract class C4_AbstractView {
 					$select = sprintf(
 						"SELECT COUNT(*) AS hits, %s AS %s ",
 						$cfield_select_sql,
-						$field_key
+						$db->escape($field_key)
 					);
 					
 					$sql =
@@ -3511,7 +3511,7 @@ abstract class C4_AbstractView {
 						$where_sql.
 						sprintf(
 							"GROUP BY %s ",
-							$field_key
+							$db->escape($field_key)
 						).
 						"ORDER BY hits DESC ".
 						"LIMIT 20 "
@@ -3602,13 +3602,13 @@ abstract class C4_AbstractView {
 					sprintf(
 						"SELECT COUNT(*) AS hits, %s AS %s ", //SQL_CALC_FOUND_ROWS
 						$cfield_select_sql,
-						$field_key
+						$db->escape($field_key)
 					).
 					$join_sql.
 					$where_sql.
 					sprintf(
 						"GROUP BY %s ",
-						$field_key
+						$db->escape($field_key)
 					).
 					"ORDER BY hits DESC ".
 					"LIMIT 20 "

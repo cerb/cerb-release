@@ -245,7 +245,7 @@ class DAO_JiraIssue extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		
 		// With a specific issue ID?
-		if($issue_id && false != ($comment_id = $db->GetOneReader(sprintf("SELECT id FROM jira_issue_comment WHERE issue_id = %d ORDER BY RAND() LIMIT 1", $issue_id))))
+		if($issue_id && ($comment_id = $db->GetOneReader(sprintf("SELECT id FROM jira_issue_comment WHERE issue_id = %d ORDER BY RAND() LIMIT 1", $issue_id))))
 			return $comment_id;
 		
 		return $db->GetOneReader("SELECT id FROM jira_issue_comment ORDER BY RAND() LIMIT 1");

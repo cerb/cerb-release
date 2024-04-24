@@ -3733,7 +3733,7 @@ abstract class Extension_DevblocksEvent extends DevblocksExtension {
 	function simulateAction($token, $trigger, $params, DevblocksDictionaryDelegate $dict) {
 		$actions = $this->getActionExtensions($trigger);
 		
-		if(null != (@$actions[$token])) {
+		if(null != ($actions[$token] ?? null)) {
 			if(method_exists($this, 'simulateActionExtension'))
 				return $this->simulateActionExtension($token, $trigger, $params, $dict);
 
@@ -4682,7 +4682,7 @@ abstract class Extension_DevblocksStorageSchema extends DevblocksExtension {
 		$stats = [];
 
 		$results = $db->GetArrayReader(sprintf("SELECT storage_extension, storage_profile_id, count(id) as hits, sum(storage_size) as bytes FROM %s GROUP BY storage_extension, storage_profile_id ORDER BY storage_extension",
-			$table_name
+			$db->escape($table_name)
 		));
 		foreach($results as $result) {
 			$stats[$result['storage_extension'].':'.intval($result['storage_profile_id'])] = array(

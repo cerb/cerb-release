@@ -356,6 +356,8 @@ class Storage_RecordChangeset extends Extension_DevblocksStorageSchema {
 		
 		$db = DevblocksPlatform::services()->database();
 		
+		$ids = DevblocksPlatform::sanitizeArray($ids, 'int');
+		
 		$sql = sprintf("SELECT storage_extension, storage_key, storage_profile_id FROM record_changeset WHERE id IN (%s)", implode(',',$ids));
 		
 		if(false == ($rs = $db->QueryReader($sql)))

@@ -1743,12 +1743,13 @@ class DAO_Translation extends DevblocksORMHelper {
 	}
 	
 	static function deleteByLangCodes($codes) {
-		if(!is_array($codes)) $codes = array($codes);
 		$db = DevblocksPlatform::services()->database();
 		
-		$codes_list = implode("','", $codes);
+		if(!is_array($codes)) $codes = [$codes];
 		
-		$db->ExecuteMaster(sprintf("DELETE FROM translation WHERE lang_code IN ('%s') AND lang_code != 'en_US'", $codes_list));
+		$codes_list = implode(',', $db->qstrArray($codes));
+		
+		$db->ExecuteMaster(sprintf("DELETE FROM translation WHERE lang_code IN (%s) AND lang_code != 'en_US'", $codes_list));
 		
 		return true;
 	}

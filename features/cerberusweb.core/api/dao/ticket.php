@@ -389,6 +389,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		
 		$results = [];
+		$ticket_ids = DevblocksPlatform::sanitizeArray($ticket_ids, 'int');
 		$where_ticket_ids = implode(',', $ticket_ids) ?: '-1';
 		
 		$sql = sprintf("SELECT %s AS context, address_id AS context_id, ticket_id FROM requester WHERE ticket_id IN (%s) ",

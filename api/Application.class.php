@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2024041201);
-define("APP_VERSION", '10.4.11');
+define("APP_BUILD", 2024042301);
+define("APP_VERSION", '10.4.12');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -3768,8 +3768,8 @@ class Cerb_ORMHelper extends DevblocksORMHelper {
 
 	static protected function _getRandom($table, $pkey='id') {
 		$db = DevblocksPlatform::services()->database();
-		$offset = $db->GetOneReader(sprintf("SELECT ROUND(RAND()*(SELECT COUNT(*)-1 FROM %s))", $table));
-		return $db->GetOneReader(sprintf("SELECT %s FROM %s LIMIT %d,1", $pkey, $table, $offset));
+		$offset = $db->GetOneReader(sprintf("SELECT ROUND(RAND()*(SELECT COUNT(*)-1 FROM %s))", $db->escape($table)));
+		return $db->GetOneReader(sprintf("SELECT %s FROM %s LIMIT %d,1",$db->escape($pkey), $db->escape($table), $offset));
 	}
 
 	static function _searchComponentsVirtualOwner(&$param, &$join_sql, &$where_sql) {

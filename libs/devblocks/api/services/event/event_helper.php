@@ -1558,10 +1558,12 @@ class DevblocksEventHelper {
 							$worker_loads[$id] = 0;
 						}
 						
+						$possible_worker_ids = DevblocksPlatform::sanitizeArray(array_keys($possible_workers), 'int');
+						
 						// Consult database
 						$db = DevblocksPlatform::services()->database();
 						$sql = sprintf("SELECT COUNT(id) AS hits, owner_id FROM ticket WHERE status_id = 0 AND owner_id != 0 AND owner_id IN (%s) GROUP BY owner_id",
-							implode(',', array_keys($possible_workers))
+							implode(',', $possible_worker_ids)
 						);
 						$results = $db->GetArrayReader($sql);
 						
@@ -1901,10 +1903,10 @@ class DevblocksEventHelper {
 			
 			$sql = sprintf("SELECT %s FROM %s WHERE context=%s AND field_id=%d AND context_id IN (%s)",
 				$select_func,
-				DAO_CustomFieldValue::getValueTableName($cfield->id),
+				Cerb_ORMHelper::escape(DAO_CustomFieldValue::getValueTableName($cfield->id)),
 				Cerb_ORMHelper::qstr($cfield->context),
 				$cfield->id,
-				sprintf("SELECT %s %s %s", $primary_key, $query_parts['join'], $query_parts['where'])
+				sprintf("SELECT %s %s %s", Cerb_ORMHelper::escape($primary_key), $query_parts['join'], $query_parts['where'])
 			);
 			
 		} else {

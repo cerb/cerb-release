@@ -26,24 +26,20 @@ class DAO_Bayes {
 	 */
 	static function lookupWordIds($words) {
 		$db = DevblocksPlatform::services()->database();
-		$tmp = [];
-		$outwords = [];
+		$out_words = [];
 		
-		// Escaped set
-		if(is_array($words))
-		foreach($words as $word) {
-			$tmp[] = addslashes($word);
-		}
-		
-		if(empty($words))
+		if(!is_array($words) || empty($words))
 			return [];
 		
-		$sql = sprintf("SELECT id,word,spam,nonspam FROM bayes_words WHERE word IN ('%s')",
-			implode("','", $tmp)
+		// Escaped set
+		$tmp = array_map(fn($word) => $db->qstr($word), $words);
+		
+		$sql = sprintf("SELECT id,word,spam,nonspam FROM bayes_words WHERE word IN (%s)",
+			implode(',', $tmp)
 		);
 		
-		if(false == ($rs = $db->QueryReader($sql)))
-			return false;
+		if(!($rs = $db->QueryReader($sql)))
+			return [];
 		
 		// [JAS]: Keep a list of words we can check off as we index them with IDs
 		$tmp = array_flip($words); // words are now keys
@@ -57,7 +53,7 @@ class DAO_Bayes {
 			$w->spam = intval($row['spam']);
 			$w->nonspam = intval($row['nonspam']);
 			
-			$outwords[mb_convert_case($w->word, MB_CASE_LOWER)] = $w;
+			$out_words[mb_convert_case($w->word, MB_CASE_LOWER)] = $w;
 			unset($tmp[$w->word]); // check off we've indexed this word
 		}
 		
@@ -69,17 +65,17 @@ class DAO_Bayes {
 			$sql = sprintf("INSERT INTO bayes_words (word) VALUES (%s)",
 				$db->qstr($new_word)
 			);
-			if(false == ($db->ExecuteMaster($sql)))
-				return false;
+			if(!($db->ExecuteMaster($sql)))
+				return [];
 			$id = $db->LastInsertId();
 			
 			$w = new Model_BayesWord();
 			$w->id = $id;
 			$w->word = $new_word;
-			$outwords[$w->word] = $w;
+			$out_words[$w->word] = $w;
 		}
 		
-		return $outwords;
+		return $out_words;
 	}
 	
 	/**

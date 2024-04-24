@@ -2244,14 +2244,11 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 				
 				CerbQuickSearchLexer::getOperStringFromTokens($tokens, $oper, $value);
 				
-				if($value) {
-					return new DevblocksSearchCriteria(
-						$field_key,
-						$oper,
-						$value
-					);
-				}
-				break;
+				return new DevblocksSearchCriteria(
+					$field_key,
+					$oper,
+					$value ?? ''
+				);
 			
 			case 'size':
 				return DevblocksSearchCriteria::getBytesParamFromTokens(SearchFields_Message::STORAGE_SIZE, $tokens);

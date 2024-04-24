@@ -617,8 +617,8 @@ class View_Translation extends C4_AbstractView implements IAbstractView_Subtotal
 		$where_sql = $query_parts['where'];
 		
 		$sql = sprintf("SELECT %s.%s as label, count(*) as hits ", //SQL_CALC_FOUND_ROWS
-				$fields[$field_key]->db_table,
-				$fields[$field_key]->db_column
+				$db->escape($fields[$field_key]->db_table),
+				$db->escape($fields[$field_key]->db_column)
 			).
 			$join_sql.
 			$where_sql.
