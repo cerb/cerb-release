@@ -288,10 +288,11 @@ class ProfileWidget_TicketConvo extends Extension_ProfileWidget {
 				$comment_notes[$note->context_id][$note->id] = $note;
 			}
 		
-		$message_notes = array_merge(... $tpl->getTemplateVars('message_notes') ?? []);
+		$notes_by_message = $tpl->getTemplateVars('message_notes') ?? [];
+		$message_note_ids = array_merge(...array_map(fn($notes) => array_keys($notes), $notes_by_message));
 		
 		// Add note IDs for custom fields and attachments
-		$comment_ids = array_merge(array_keys($comments), array_keys($notes), array_column($message_notes, 'id'));
+		$comment_ids = array_merge(array_keys($comments), array_keys($notes), $message_note_ids);
 		
 		// Bulk load files and custom fields
 		$comment_attachments = DAO_Attachment::getByContextIds(CerberusContexts::CONTEXT_COMMENT, $comment_ids, false);
@@ -307,14 +308,17 @@ class ProfileWidget_TicketConvo extends Extension_ProfileWidget {
 			$note->setCustomFieldValues($comment_custom_fields[$note->id] ?? []);
 		}
 		
-		foreach($message_notes as $note) { /* @var $note Model_Comment */
-			$note->setAttachments($comment_attachments[$note->id] ?? []);
-			$note->setCustomFieldValues($comment_custom_fields[$note->id] ?? []);
+		foreach($notes_by_message as $message_notes) {
+			foreach ($message_notes as $note) {
+				/* @var $note Model_Comment */
+				$note->setAttachments($comment_attachments[$note->id] ?? []);
+				$note->setCustomFieldValues($comment_custom_fields[$note->id] ?? []);
+			}
 		}
 		
 		$tpl->assign('comments', $comments);
 		$tpl->assign('comment_notes', $comment_notes);
-		$tpl->assign('message_notes', $message_notes);
+		$tpl->assign('message_notes', $notes_by_message);
 	}
 	
 	private function _renderTimeline(array $convo_timeline, array $display_options=[]) {
