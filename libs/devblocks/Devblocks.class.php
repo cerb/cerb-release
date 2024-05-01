@@ -2160,10 +2160,13 @@ class DevblocksPlatform extends DevblocksEngine {
 		if(!is_string($number) && !is_numeric($number))
 			$number = '0';
 		
+		$is_negative = str_starts_with(trim($number), '-');
+		$number = ltrim($number, '-+ ');
+		
 		if(0 == strlen($number))
 			$number = '0';
 		
-		if(false === strpos($decimal_separator, $number))
+		if(!str_contains($decimal_separator, $number))
 			$number .= $decimal_separator . str_repeat('0', $decimal_places);
 		
 		$parts = explode($decimal_separator, $number);
@@ -2178,7 +2181,7 @@ class DevblocksPlatform extends DevblocksEngine {
 		if(strlen($decimal) > $decimal_places)
 			$decimal = substr($decimal, 0, $decimal_places);
 		
-		$number =  $whole . $decimal;
+		$number =  ($is_negative ? '-' : '') . $whole . $decimal;
 		
 		if(0 == $number)
 			$number = '0';
@@ -2189,6 +2192,9 @@ class DevblocksPlatform extends DevblocksEngine {
 	static function strFormatDecimal($number, $decimal_places=2, $decimal_separator='.', $thousands_separator=',') {
 		if(!is_string($number) && !is_numeric($number))
 			$number = '0';
+		
+		$is_negative = str_starts_with(trim($number), '-');
+		$number = ltrim($number, '-+ ');
 		
 		if(0 == strlen($number))
 			$number = '0';
@@ -2221,7 +2227,7 @@ class DevblocksPlatform extends DevblocksEngine {
 			$number = $whole;
 		}
 		
-		return $number;
+		return ($is_negative ? '-' : '') . $number;
 	}
 	
 	/**

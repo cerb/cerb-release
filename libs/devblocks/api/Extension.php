@@ -1952,6 +1952,7 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 					break;
 					
 				case Model_CustomField::TYPE_DECIMAL:
+					@$token_values[$key_prefix . '_label'] = DevblocksPlatform::strFormatDecimal($field_values[$cf_id], intval($fields[$cf_id]->params['decimal_at'] ?? null));
 					@$token_values[$key_prefix . '_decimal_at'] = intval($fields[$cf_id]->params['decimal_at'] ?? null);
 					break;
 					
