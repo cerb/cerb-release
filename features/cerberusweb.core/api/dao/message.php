@@ -511,20 +511,21 @@ class DAO_Message extends Cerb_ORMHelper {
 		$search = Extension_DevblocksSearchSchema::get(Search_MessageContent::ID);
 		$search->delete($ids);
 		
-		// Messages
-		$sql = sprintf("DELETE FROM message WHERE id IN (%s)",
-			$ids_list
-		);
-		$db->ExecuteMaster($sql);
+		$ticket_ids = [];
 		
-		// Remap first/last on distinct ticket
 		if($rebuild) {
 			$messages = DAO_Message::getIds($ids);
 			$ticket_ids = array_unique(array_column($messages, 'ticket_id'));
-			
-			foreach($ticket_ids as $ticket_id) {
-				DAO_Ticket::rebuild($ticket_id);
-			}
+		}
+		
+		// Messages
+		$db->ExecuteMaster(sprintf("DELETE FROM message WHERE id IN (%s)",
+			$ids_list
+		));
+		
+		// Remap first/last on distinct ticket
+		if($rebuild) {
+			array_walk($ticket_ids, fn($ticket_id) => DAO_Ticket::rebuild($ticket_id));
 		}
 		
 		parent::_deleteAbstractAfter($context, $ids);

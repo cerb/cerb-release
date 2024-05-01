@@ -3197,8 +3197,18 @@ UL.ui-autocomplete.ui-menu li.ui-menu-item.ui-state-focus {
   color: var(--cerb-color-text);
   border: 0;
 }
-.ui-datepicker .ui-datepicker-calendar .ui-state-active {
+.ui-datepicker .ui-datepicker-calendar .ui-state-hover {
   background: var(--cerb-color-background-contrast-200);
+}
+.ui-datepicker .ui-datepicker-calendar .ui-datepicker-today .ui-state-default {
+  font-weight: bold;
+  color: var(--cerb-color-tag-orange);
+}
+.ui-datepicker .ui-datepicker-calendar .ui-datepicker-current-day {
+  background: var(--cerb-color-button-icon--hover);
+}
+.ui-datepicker .ui-datepicker-calendar .ui-datepicker-current-day .ui-state-active {
+  color: var(--cerb-color-text);
 }
 
 /* jQuery miniColors */

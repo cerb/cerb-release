@@ -3984,6 +3984,16 @@
 		</extension>
 
 		<extension point = "cerb.automation.api_command">
+			<id>cerb.commands.email.spam.train</id>
+			<name>cerb.commands.email.spam.train</name>
+			<class>
+				<file>api/automations/api_commands/cerb.email.spam.train.php</file>
+				<name>ApiCommand_CerbEmailSpamTrain</name>
+			</class>
+			<params />
+		</extension>
+
+		<extension point = "cerb.automation.api_command">
 			<id>cerb.commands.oauth2.token.validate</id>
 			<name>cerb.commands.oauth2.token.validate</name>
 			<class>

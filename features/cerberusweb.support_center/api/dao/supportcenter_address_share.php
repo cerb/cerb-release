@@ -30,7 +30,10 @@ class DAO_SupportCenterAddressShare extends Cerb_ORMHelper {
 	
 	static function getContactAddressesWithShared($contact_id, $only_ids=false) {
 		$db = DevblocksPlatform::services()->database();
-		$ids = array();
+		$ids = [];
+		
+		if(!($contact_id = intval($contact_id)))
+			return [];
 		
 		$sql = sprintf("SELECT share_address_id AS id ".
 			"FROM supportcenter_address_share ".
@@ -68,6 +71,9 @@ class DAO_SupportCenterAddressShare extends Cerb_ORMHelper {
 		
 		$db = DevblocksPlatform::services()->database();
 		
+		if(!$share_address_id || !$with_address_ids)
+			return false;
+		
 		// Share the source address with each of the target addresses
 		foreach($with_address_ids as $with_address_id) {
 			$sql = sprintf("INSERT IGNORE INTO supportcenter_address_share (share_address_id, with_address_id, is_enabled) ".
@@ -88,6 +94,9 @@ class DAO_SupportCenterAddressShare extends Cerb_ORMHelper {
 			
 		$address_ids = DevblocksPlatform::sanitizeArray($address_ids, 'int');
 		
+		if(empty($address_ids))
+			return [];
+		
 		$db = DevblocksPlatform::services()->database();
 		$sql = sprintf("SELECT share.email AS share_address, aw.email AS with_address, sas.share_address_id, sas.with_address_id, sas.is_enabled ".
 			"FROM supportcenter_address_share AS sas ".
@@ -107,6 +116,9 @@ class DAO_SupportCenterAddressShare extends Cerb_ORMHelper {
 			$address_ids = [$address_ids];
 		
 		$address_ids = DevblocksPlatform::sanitizeArray($address_ids, 'int');
+		
+		if(empty($address_ids))
+			return [];
 		
 		$db = DevblocksPlatform::services()->database();
 		$sql = sprintf("SELECT share.email AS share_address, aw.email AS with_address, sas.share_address_id, sas.with_address_id, sas.is_enabled ".

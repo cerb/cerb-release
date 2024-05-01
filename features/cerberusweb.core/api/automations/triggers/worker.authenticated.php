@@ -45,6 +45,14 @@ class AutomationTrigger_WorkerAuthenticated extends Extension_AutomationTrigger 
 					'key' => 'deny',
 					'notes' => 'If defined, the worker login is denied with the given error message. For instance, combine this with an approved list of known client IPs, or reject very old browser versions.',
 				],
+				[
+					'key' => 'motd:button',
+					'notes' => 'The optional label for the continue button when a MOTD is displayed.',
+				],
+				[
+					'key' => 'motd:message',
+					'notes' => 'If defined, the Message of the Day (MOTD) will be displayed before a worker is logged in.',
+				],
 			],
 		];
 	}
@@ -58,6 +66,17 @@ class AutomationTrigger_WorkerAuthenticated extends Extension_AutomationTrigger 
 			'*' => [
 				'(.*):return:' => [
 					'deny@text: Access denied.',
+					'motd:',
+				],
+				'(.*):return:motd:' => [
+					[
+						'caption' => 'button:',
+						'snippet' => 'button: I accept',
+					],
+					[
+						'caption' => 'message:',
+						'snippet' => "message@text:\n  **Markdown** content",
+					],
 				],
 			]
 		];

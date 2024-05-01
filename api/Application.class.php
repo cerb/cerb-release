@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2024042301);
-define("APP_VERSION", '10.4.12');
+define("APP_BUILD", 2024043001);
+define("APP_VERSION", '10.4.13');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -3382,12 +3382,15 @@ class CerbLoginWorkerAuthState {
 	private static $_instance = null;
 	
 	private $email = null;
+	private $is_automations_triggered = false;
 	private $is_consent_given = false;
 	private $is_consent_required = false;
 	private $is_mfa_authenticated = false;
 	private $is_mfa_required = false;
+	private $is_motd_confirmed = false;
 	private $is_password_authenticated = false;
 	private $is_sso_authenticated = false;
+	private $motd = [];
 	private $params = [];
 	private $redirect_uris = [];
 	private $time_created_at = 0;
@@ -3427,12 +3430,15 @@ class CerbLoginWorkerAuthState {
 	function __sleep() {
 		return [
 			'email',
+			'is_automations_triggered',
 			'is_consent_given',
 			'is_consent_required',
 			'is_mfa_authenticated',
 			'is_mfa_required',
+			'is_motd_confirmed',
 			'is_password_authenticated',
 			'is_sso_authenticated',
+			'motd',
 			'params',
 			'redirect_uris',
 			'time_created_at',
@@ -3493,6 +3499,10 @@ class CerbLoginWorkerAuthState {
 		return true;
 	}
 	
+	function isAutomationsTriggered() {
+		return $this->is_automations_triggered;
+	}
+	
 	function isConsentGiven() {
 		return $this->is_consent_given;
 	}
@@ -3507,6 +3517,10 @@ class CerbLoginWorkerAuthState {
 	
 	function isMfaRequired() {
 		return $this->is_mfa_required;
+	}
+	
+	function isMotdConfirmed() : bool {
+		return $this->is_motd_confirmed;
 	}
 	
 	function isPasswordAuthenticated() {
@@ -3535,6 +3549,10 @@ class CerbLoginWorkerAuthState {
 		
 		$this->redirect_uris[] = $uri;
 		return $this;
+	}
+	
+	function getMotd() : array {
+		return $this->motd;
 	}
 	
 	function getWorker() {
@@ -3567,6 +3585,11 @@ class CerbLoginWorkerAuthState {
 		return $this;
 	}
 	
+	function setIsAutomationsTriggered($bool) {
+		$this->is_automations_triggered = boolval($bool);
+		return $this;
+	}
+	
 	function setIsConsentGiven($bool) {
 		$this->is_consent_given = boolval($bool);
 		return $this;
@@ -3589,6 +3612,16 @@ class CerbLoginWorkerAuthState {
 	
 	function setIsMfaRequired($bool) {
 		$this->is_mfa_required = boolval($bool);
+		return $this;
+	}
+	
+	function setMotd(array $motd) {
+		$this->motd = $motd;
+		return $this;
+	}
+	
+	function setIsMotdConfirmed($bool) {
+		$this->is_motd_confirmed = boolval($bool);
 		return $this;
 	}
 	

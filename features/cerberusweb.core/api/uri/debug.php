@@ -22,6 +22,9 @@ class ChDebugController extends DevblocksControllerExtension  {
 	function handleRequest(DevblocksHttpRequest $request) {
 		$stack = $request->path;
 		array_shift($stack); // update
+		
+		if(!defined('DEVELOPMENT_MODE_ALLOW_DEBUG') || !DEVELOPMENT_MODE_ALLOW_DEBUG)
+			CerberusApplication::respondWithErrorReason(CerbErrorReason::AccessDenied);
 
 		$settings = DevblocksPlatform::services()->pluginSettings();
 

@@ -150,6 +150,10 @@ class Page_Login extends CerberusPageExtension {
 				$this->_routeMultiFactorAuth();
 				break;
 				
+			case 'motd':
+				$this->_routeMotd();
+				break;
+				
 			case 'invite':
 				$this->_routeInvite($stack);
 				break;
@@ -261,6 +265,7 @@ class Page_Login extends CerberusPageExtension {
 	
 	private function _routeAuthenticated() {
 		$login_state = CerbLoginWorkerAuthState::getInstance();
+		$authenticated_worker = $login_state->getWorker();
 		
 		if(
 			false == ($authenticated_worker = $login_state->getWorker())
@@ -292,6 +297,14 @@ class Page_Login extends CerberusPageExtension {
 		}
 		
 		$this->_checkSeats($authenticated_worker);
+		
+		if(!$login_state->isAutomationsTriggered())
+			$this->_triggerWorkerAuthenticatedAutomations($authenticated_worker);
+		
+		// MOTD
+		if($login_state->getMotd() && !$login_state->isMotdConfirmed())
+			DevblocksPlatform::redirect(new DevblocksHttpRequest(['login', 'motd']));
+		
 		$this->_processAuthenticated($authenticated_worker);
 	}
 	
@@ -540,6 +553,49 @@ class Page_Login extends CerberusPageExtension {
 					}
 				}
 				break;
+		}
+	}
+	
+	private function _routeMotd() {
+		$tpl = DevblocksPlatform::services()->template();
+		$login_state = CerbLoginWorkerAuthState::getInstance();
+		
+		if(!$login_state->isAuthenticated()) {
+			$login_state->clearAuthState();
+			DevblocksPlatform::redirect(new DevblocksHttpResponse(['login']), 0);
+		}
+		
+		if(array_key_exists('accept', $_POST)) {
+			$accept = DevblocksPlatform::importGPC($_POST['accept'] ?? null, 'integer', 0);
+			
+			if($accept) {
+				$login_state->setIsMotdConfirmed(boolval($accept));
+				DevblocksPlatform::redirect(new DevblocksHttpRequest(['login','authenticated']));
+				
+			} else {
+				$login_state->clearAuthState();
+				DevblocksPlatform::redirect(new DevblocksHttpResponse(['login']), 0);
+			}
+			
+		} else {
+			if(
+				!($motd = $login_state->getMotd())
+				|| !is_array($motd)
+				|| !($motd['message'] ?? null)
+			) {
+				$login_state->setIsMotdConfirmed(true);
+				DevblocksPlatform::redirect(new DevblocksHttpRequest(['login','authenticated']));
+			}
+			
+			// Parse Markdown and sanitize HTML
+			$motd_message = DevblocksPlatform::purifyHTML(
+				DevblocksPlatform::parseMarkdown($motd['message'])
+			);
+			
+			$tpl->assign('motd_button', $motd['button'] ?? '');
+			$tpl->assign('motd_message', $motd_message);
+			
+			$tpl->display('devblocks:cerberusweb.core::login/auth/motd/motd.tpl');
 		}
 	}
 	
@@ -864,10 +920,69 @@ class Page_Login extends CerberusPageExtension {
 		}
 	}
 	
-	private function _processAuthenticated($authenticated_worker) { /* @var $authenticated_worker Model_Worker */
+	private function _triggerWorkerAuthenticatedAutomations(Model_Worker $authenticated_worker) {
+		$event_handler = DevblocksPlatform::services()->ui()->eventHandler();
+		$login_state = CerbLoginWorkerAuthState::getInstance();
+		
+		$ip_address = DevblocksPlatform::getClientIp() ?: null;
+		
+		if (!($user_agent = DevblocksPlatform::getClientUserAgent()))
+			$user_agent = [];
+		
+		/*
+		 * worker.authenticated automations
+		 */
+		
+		if (($automation_event = DAO_AutomationEvent::getByName('worker.authenticated'))) {
+			$error = null;
+			
+			$event_dict = DevblocksDictionaryDelegate::instance([]);
+			$event_dict->set('client_ip', $ip_address);
+			$event_dict->set('client_browser_name', $user_agent['browser'] ?? null);
+			$event_dict->set('client_browser_platform', $user_agent['platform'] ?? null);
+			$event_dict->set('client_browser_version', $user_agent['version'] ?? null);
+			
+			$event_dict->mergeKeys('worker_', DevblocksDictionaryDelegate::getDictionaryFromModel($authenticated_worker, CerberusContexts::CONTEXT_WORKER, ['customfields']));
+			
+			$initial_state = $event_dict->getDictionary(null, false);
+			
+			if (($handlers = $automation_event->getKata($event_dict, $error))) {
+				$results = $event_handler->handleEach(
+					AutomationTrigger_WorkerAuthenticated::ID,
+					$handlers,
+					$initial_state,
+					$error,
+					function (DevblocksDictionaryDelegate $result) {
+						// Continue unless we denied the login
+						return false == $result->getKeyPath('__return.deny');
+					},
+				);
+				
+				foreach ($results as $result) {
+					/** @var DevblocksDictionaryDelegate $result */
+					// Are we rejecting the login?
+					if (null != ($deny = $result->getKeyPath('__return.deny'))) {
+						$login_state->clearAuthState();
+						$query = ['error' => 'auth.custom'];
+						$_SESSION['worker.auth.failed.error'] = $deny;
+						DevblocksPlatform::redirect(new DevblocksHttpRequest(['login'], $query));
+					}
+					
+					// Do we have a MOTD?
+					if(($motd = $result->getKeyPath('__return.motd')) && is_array($motd)) {
+						$login_state->setMotd($motd);
+						$login_state->setIsMotdConfirmed(false);
+					}
+				}
+			}
+		}
+		
+		$login_state->setIsAutomationsTriggered(true);
+	}
+	
+	private function _processAuthenticated(Model_Worker $authenticated_worker) {
 		$login_state = CerbLoginWorkerAuthState::getInstance();
 		$session = DevblocksPlatform::services()->session();
-		$event_handler = DevblocksPlatform::services()->ui()->eventHandler();
 		
 		$ip_address = DevblocksPlatform::getClientIp() ?: null;
 		
@@ -879,48 +994,6 @@ class Page_Login extends CerberusPageExtension {
 			);
 		} else {
 			$user_agent_string = null;
-		}
-		
-		/*
-		 * worker.authenticated automations
-		 */
-		
-		if(false != ($automation_event = DAO_AutomationEvent::getByName('worker.authenticated'))) {
-			$error = null;
-		
-			$event_dict = DevblocksDictionaryDelegate::instance([]);
-			$event_dict->set('client_ip', $ip_address);
-			$event_dict->set('client_browser_name', $user_agent['browser'] ?? null);
-			$event_dict->set('client_browser_platform', $user_agent['platform'] ?? null);
-			$event_dict->set('client_browser_version', $user_agent['version'] ?? null);
-
-			$event_dict->mergeKeys('worker_', DevblocksDictionaryDelegate::getDictionaryFromModel($authenticated_worker, CerberusContexts::CONTEXT_WORKER, ['customfields']));
-		
-			$initial_state = $event_dict->getDictionary(null, false);
-			
-			if(false != ($handlers = $automation_event->getKata($event_dict, $error))) {
-				$results = $event_handler->handleEach(
-					AutomationTrigger_WorkerAuthenticated::ID,
-					$handlers,
-					$initial_state,
-					$error,
-					function(DevblocksDictionaryDelegate $result) {
-						// Continue unless we denied the login
-						return false == $result->getKeyPath('__return.deny');
-					},
-				);
-		
-				foreach($results as $result) {
-					/** @var DevblocksDictionaryDelegate $result */
-					// Are we rejecting the login?
-					if (null != ($deny = $result->getKeyPath('__return.deny'))) {
-						$query = [ 'error' => 'auth.custom'];
-						$_SESSION['worker.auth.failed.error'] = $deny;
-						DevblocksPlatform::redirect(new DevblocksHttpRequest(['login'], $query));
-						break;
-					}
-				}
-			}
 		}
 		
 		// Generate a new session cookie after login

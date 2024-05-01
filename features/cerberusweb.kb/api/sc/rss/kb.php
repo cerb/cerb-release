@@ -63,7 +63,7 @@ XML;
 		// Channel
 		$channel = $xml->addChild('channel');
 		$channel->addChild('title', (!empty($portal_name) ? ('['.$portal_name.'] ') : '') . "Most Popular Articles");
-		$channel->addChild('link', $url->write(sprintf('c=rss&kb=kb&a=most_popular', $portal),true));
+		$channel->addChild('link', $url->write('c=rss&kb=kb&a=most_popular',true));
 		$channel->addChild('description', '');
 		
 		// Limit topics to portal config
@@ -140,7 +140,7 @@ XML;
 		// Channel
 		$channel = $xml->addChild('channel');
 		$channel->addChild('title', (!empty($portal_name) ? ('['.$portal_name.'] ') : '') . "Recently Updated Articles");
-		$channel->addChild('link', $url->write(sprintf('c=rss&kb=kb&a=recent_changes', $portal),true));
+		$channel->addChild('link', $url->write('c=rss&kb=kb&a=recent_changes',true));
 		$channel->addChild('description', '');
 		
 		// Limit topics to portal config
@@ -222,7 +222,7 @@ XML;
 		// Channel
 		$channel = $xml->addChild('channel');
 		$channel->addChild('title', (!empty($portal_name) ? ('['.$portal_name.'] ') : '') . "Recently Added Articles");
-		$channel->addChild('link', $url->write(sprintf('c=rss&kb=kb&a=new_articles', $portal),true));
+		$channel->addChild('link', $url->write('c=rss&kb=kb&a=new_articles', true));
 		$channel->addChild('description', '');
 		
 		// Limit topics to portal config
