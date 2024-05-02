@@ -380,7 +380,7 @@ class ServiceProvider_OAuth2 extends Extension_ConnectedServiceProvider implemen
 		
 		// CSRF check
 		if($oauth_state != $state)
-			DevblocksPlatform::dieWithHttpError('Invalid state', 403);
+			DevblocksPlatform::dieWithHttpError('Invalid state (is PKCE required?)', 403);
 		
 		$encrypt = DevblocksPlatform::services()->encryption();
 		

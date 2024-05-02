@@ -4831,6 +4831,7 @@ var ajax = new cAjaxCalls();
 			if (!(
 				'insertstring' === e.command.name
 				|| 'paste' === e.command.name
+				|| 'Return' === e.command.name
 				|| 'Submit' === e.command.name
 				|| 'backspace' === e.command.name)) {
 				return;

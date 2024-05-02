@@ -116,8 +116,6 @@ class ServiceProvider_SAML extends Extension_ConnectedServiceProvider {
 		switch($uri) {
 			case 'login':
 			default:
-				$url_writer = DevblocksPlatform::services()->url();
-				
 				$login_state = CerbLoginWorkerAuthState::getInstance()
 					->clearAuthState()
 					;
@@ -125,18 +123,22 @@ class ServiceProvider_SAML extends Extension_ConnectedServiceProvider {
 				$auth = new \OneLogin\Saml2\Auth($settings_info);
 				
 				if(!array_key_exists('SAMLResponse', $_POST)) {
-					$sso_redirect_to = $auth->login(null, [], false, false, true);
+					// Preserve the original destination
+					$redirect_uri = $login_state->popRedirectUri() ?: null;
+					
+					// Get the SAML redirect URL
+					$sso_redirect_to = $auth->login($redirect_uri, [], false, false, true);
+					
 					$_SESSION['AuthNRequestID'] = $auth->getLastRequestID();
+					
+					// Destroy the session since the POST callback creates a new one
+					$login_state->destroy();
+					
+					// Redirect the browser
 					DevblocksPlatform::redirectUrl($sso_redirect_to);
 				}
 				
-				if(isset($_SESSION) && isset($_SESSION['AuthNRequestID'])) {
-					$requestID = $_SESSION['AuthNRequestID'];
-					
-				} else {
-					$requestID = null;
-				}
-				
+				$requestID = $_SESSION['AuthNRequestID'] ?? null;
 				$auth->processResponse($requestID);
 				unset($_SESSION['AuthNRequestID']);
 				
@@ -152,16 +154,11 @@ class ServiceProvider_SAML extends Extension_ConnectedServiceProvider {
 					DevblocksPlatform::redirect(new DevblocksHttpResponse(['login'], $query), 0);
 				}
 				
-				$_SESSION['samlNameId'] = $auth->getNameId();
+				// If we had an original post-login destination, add it back
+				if(array_key_exists('RelayState', $_POST ?? []))
+					$login_state->pushRedirectUri($_POST['RelayState']);
 				
-				$self_url = $url_writer->write('c=sso&uri=' . $service->uri, true);
-				
-				if(array_key_exists('RelayState', $_POST) && $self_url != $_POST['RelayState']) {
-					//$auth->redirectTo($_POST['RelayState']);
-				}
-				
-				$email = $_SESSION['samlNameId'];
-				
+				$email = $auth->getNameId();
 				
 				// Look up worker by email
 				if(!$email || null == ($authenticated_worker = DAO_Worker::getByEmail($email))) {

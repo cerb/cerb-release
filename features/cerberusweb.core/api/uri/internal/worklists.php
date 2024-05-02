@@ -764,8 +764,10 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 			
 			// [TODO] This is a temporary workaround to allow workers to view exports they create
 			$_SESSION['view_export_file_id'] = $id;
+
+			if(!($fp = fopen($cursor['temp_file'], 'r')))
+				return false;
 			
-			$fp = fopen($cursor['temp_file'], 'r');
 			Storage_Attachments::put($id, $fp);
 			fclose($fp);
 			unlink($cursor['temp_file']);
@@ -897,7 +899,8 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		$global_types = $global_values['_types'];
 		
 		// Append mode to the temp file
-		$fp = fopen($cursor['temp_file'], "a");
+		if(!($fp = fopen($cursor['temp_file'], "a")))
+			return;
 		
 		$count = 0;
 		
@@ -1004,7 +1007,8 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		$global_types = $global_values['_types'];
 		
 		// Append mode to the temp file
-		$fp = fopen($cursor['temp_file'], "a");
+		if(!($fp = fopen($cursor['temp_file'], "a")))
+			return;
 		
 		$count = 0;
 		
@@ -1116,7 +1120,8 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		$global_types = $global_values['_types'];
 		
 		// Append mode to the temp file
-		$fp = fopen($cursor['temp_file'], "a");
+		if(!($fp = fopen($cursor['temp_file'], "a")))
+			return;
 		
 		$count = 0;
 		
@@ -1187,7 +1192,8 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 			return;
 		
 		// Append mode to the temp file
-		$fp = fopen($cursor['temp_file'], "a");
+		if(!($fp = fopen($cursor['temp_file'], "a")))
+			return;
 		
 		$count = 0;
 		

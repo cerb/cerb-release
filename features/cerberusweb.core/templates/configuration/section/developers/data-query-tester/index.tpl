@@ -43,6 +43,7 @@ $(function() {
 	
 	$button
 		.click(function(e) {
+			e.stopPropagation();
 			var editor_results = ace.edit($editor_results.attr('id'));
 			
 			Devblocks.clearAlerts();
