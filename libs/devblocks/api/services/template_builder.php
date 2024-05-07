@@ -262,6 +262,7 @@ class _DevblocksTemplateBuilder {
 				'cerb_avatar_image',
 				'cerb_avatar_url',
 				'cerb_calendar_time_elapsed',
+				'cerb_current_worker',
 				'cerb_extract_mentions',
 				'cerb_extract_uris',
 				'cerb_file_url',
@@ -1177,6 +1178,7 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFunction('cerb_avatar_image', [$this, 'function_cerb_avatar_image']),
 			new \Twig\TwigFunction('cerb_avatar_url', [$this, 'function_cerb_avatar_url']),
 			new \Twig\TwigFunction('cerb_calendar_time_elapsed', [$this, 'function_cerb_calendar_time_elapsed']),
+			new \Twig\TwigFunction('cerb_current_worker', [$this, 'function_cerb_current_worker']),
 			new \Twig\TwigFunction('cerb_extract_uris', [$this, 'function_cerb_extract_uris']),
 			new \Twig\TwigFunction('cerb_extract_mentions', [$this, 'function_cerb_extract_mentions']),
 			new \Twig\TwigFunction('cerb_file_url', [$this, 'function_cerb_file_url']),
@@ -1344,6 +1346,22 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 		
 		$mins = $availability->getMinutes();
 		return strlen(str_replace('0', '', $mins)) * 60;
+	}
+	
+	function function_cerb_current_worker(mixed $expand=[]) {
+		if(!($current_worker = CerberusApplication::getActiveWorker()))
+			return [];
+		
+		if(is_string($expand))
+			$expand = DevblocksPlatform::parseCsvString($expand);
+		
+		if(!is_array($expand))
+			$expand = [];
+		
+		if(!($dict = DevblocksDictionaryDelegate::getDictionaryFromModel($current_worker, Context_Worker::ID, $expand)))
+			return [];
+		
+		return $dict;
 	}
 	
 	function function_cerb_has_priv($priv, $actor_context=null, $actor_id=null) {
