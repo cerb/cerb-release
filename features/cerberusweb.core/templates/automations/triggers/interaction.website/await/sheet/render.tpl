@@ -1,6 +1,6 @@
 {$is_selection_enabled = false}
 
-<div class="cerb-shadow">
+<div>
 	<div>
 		<table cellpadding="0" cellspacing="0" class="cerb-sheet">
 		{if $rows}

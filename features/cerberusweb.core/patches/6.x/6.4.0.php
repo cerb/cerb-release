@@ -495,7 +495,7 @@ while($row = mysqli_fetch_assoc($rs)) {
 	$calendar_name = $row['name'];
 	$owner_context = $row['owner_context'];
 	$owner_context_id = $row['owner_context_id'];
-	@$params = json_decode($row['params_json'], true);
+	$params = json_decode($row['params_json'] ?? '', true);
 
 	if(!isset($params['worklist_model']) || isset($params['calendar_id']))
 		continue;

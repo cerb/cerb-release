@@ -318,8 +318,6 @@ class FileWriteAction extends AbstractAction {
 					$fp = DevblocksPlatform::getTempFile();
 					$fp_name = DevblocksPlatform::getTempFileInfo($fp);
 					
-					DevblocksPlatform::logError($fp_name);
-					
 					if(!$attachment->getFileContents($fp))
 						throw new Exception_DevblocksAutomationError(sprintf('`%s:uri:` is unreadable', $file_key_path));
 					

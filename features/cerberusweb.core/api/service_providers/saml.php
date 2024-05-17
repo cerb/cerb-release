@@ -116,6 +116,8 @@ class ServiceProvider_SAML extends Extension_ConnectedServiceProvider {
 		switch($uri) {
 			case 'login':
 			default:
+				$url = DevblocksPlatform::services()->url();
+				
 				$login_state = CerbLoginWorkerAuthState::getInstance()
 					->clearAuthState()
 					;
@@ -124,7 +126,7 @@ class ServiceProvider_SAML extends Extension_ConnectedServiceProvider {
 				
 				if(!array_key_exists('SAMLResponse', $_POST)) {
 					// Preserve the original destination
-					$redirect_uri = $login_state->popRedirectUri() ?: null;
+					$redirect_uri = $login_state->popRedirectUri() ?: $url->write('', true);
 					
 					// Get the SAML redirect URL
 					$sso_redirect_to = $auth->login($redirect_uri, [], false, false, true);

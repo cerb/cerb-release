@@ -187,7 +187,10 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 					if(!($id = DAO_Worker::create($fields)))
 						return false;
 					
+					DAO_Worker::updateGroupMemberships($id, $group_memberships);
 					DAO_Worker::onUpdateByActor($active_worker, $fields, $id);
+					
+					CerberusContexts::logActivityRecordCreate(CerberusContexts::CONTEXT_WORKER, [$id]);
 					
 					// View marquee
 					if(!empty($id) && !empty($view_id)) {
@@ -228,6 +231,7 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 					
 					// Update worker
 					DAO_Worker::update($id, $fields);
+					DAO_Worker::updateGroupMemberships($id, $group_memberships);
 					DAO_Worker::onUpdateByActor($active_worker, $fields, $id);
 				}
 				
@@ -264,20 +268,6 @@ class PageSection_ProfilesWorker extends Extension_PageSection {
 				
 				if($existing_worker && $existing_worker->calendar_id != $calendar_id)
 					DAO_Worker::update($id, [DAO_Worker::CALENDAR_ID => $calendar_id]);
-				
-				// Update group memberships
-				if(is_array($group_memberships))
-				foreach($group_memberships as $group_id => $membership) {
-					switch($membership) {
-						case 0:
-							DAO_Group::unsetGroupMember($group_id, $id);
-							break;
-						case 1:
-						case 2:
-							DAO_Group::setGroupMember($group_id, $id, (2==$membership));
-							break;
-					}
-				}
 				
 				$label = null;
 				

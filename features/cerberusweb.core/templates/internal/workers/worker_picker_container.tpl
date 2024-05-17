@@ -64,7 +64,7 @@
 		
 		<tbody>
 			{foreach from=$picker_workers.population item=worker key=worker_id}
-			{include file="devblocks:cerberusweb.core::internal/workers/worker_picker_row.tpl" show_responsibilities=$worker_picker_data.show_responsibilities}
+			{include file="devblocks:cerberusweb.core::internal/workers/worker_picker_row.tpl" show_responsibilities=$worker_picker_data.show_responsibilities worker_meta=$worker_picker_data.worker_meta}
 			{/foreach}
 		</tbody>
 		

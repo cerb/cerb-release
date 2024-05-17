@@ -1364,6 +1364,22 @@ class DAO_Worker extends Cerb_ORMHelper {
 			$withCounts
 		);
 	}
+	
+	public static function updateGroupMemberships(int $id, mixed $group_memberships) {
+		if(is_array($group_memberships)) {
+			foreach ($group_memberships as $group_id => $membership) {
+				switch ($membership) {
+					case 0:
+						DAO_Group::unsetGroupMember($group_id, $id);
+						break;
+					case 1:
+					case 2:
+						DAO_Group::setGroupMember($group_id, $id, (2 == $membership));
+						break;
+				}
+			}
+		}
+	}
 };
 
 /**

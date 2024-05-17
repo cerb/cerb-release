@@ -462,7 +462,7 @@ class DAO_CustomField extends Cerb_ORMHelper {
 			
 			// JSON params
 			if(!empty($row['params_json'])) {
-				@$params = json_decode($row['params_json'], true);
+				$params = json_decode($row['params_json'] ?? '', true);
 				if(!empty($params))
 					$object->params = $params;
 			}

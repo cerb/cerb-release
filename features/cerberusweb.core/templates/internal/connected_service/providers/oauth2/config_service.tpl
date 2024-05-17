@@ -1,11 +1,10 @@
 {$fieldset_id = uniqid()}
 <fieldset class="peek black" id="{$fieldset_id}">
 	<b>Grant Type:</b><br>
-	{*$grant_types = ["authorization_code" => "Authorization Code", "implicit" => "Implicit", "resource_credentials" => "Resource Owner Password Credentials", "client_credentials" => "Client Credentials"]*}
-	{$grant_types = ["authorization_code" => "Authorization Code"]}
+	{$grant_types = ["authorization_code" => "Authorization Code", "authorization_code_pkce" => "Authorization Code with PKCE"]}
 	<select name="params[grant_type]">
 		{foreach from=$grant_types item=v key=k}
-		<option value="{$k}" {if $k == $params.grant_type}checked="checked"{/if}>{$v}</option>
+		<option value="{$k}" {if $k == $params.grant_type}selected="selected"{/if}>{$v}</option>
 		{/foreach}
 	</select>
 	<br>

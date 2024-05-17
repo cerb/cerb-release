@@ -1031,6 +1031,7 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 			
 			switch($field_key) {
 				// DAO
+				case SearchFields_ContactOrg::NAME:
 				case SearchFields_ContactOrg::COUNTRY:
 				case SearchFields_ContactOrg::PROVINCE:
 				case SearchFields_ContactOrg::POSTAL:
@@ -1067,6 +1068,7 @@ class View_ContactOrg extends C4_AbstractView implements IAbstractView_Subtotals
 			return array();
 		
 		switch($column) {
+			case SearchFields_ContactOrg::NAME:
 			case SearchFields_ContactOrg::COUNTRY:
 			case SearchFields_ContactOrg::PROVINCE:
 			case SearchFields_ContactOrg::POSTAL:

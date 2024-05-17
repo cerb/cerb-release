@@ -267,7 +267,7 @@ class DAO_WebApiCredentials extends Cerb_ORMHelper {
 			$object->secret_key = $row['secret_key'];
 			$object->updated_at = intval($row['updated_at']);
 			
-			@$params = json_decode($row['params_json'], true);
+			$params = json_decode($row['params_json'] ?? '', true);
 			$object->params = !empty($params) ? $params : [];
 			
 			$objects[$object->id] = $object;

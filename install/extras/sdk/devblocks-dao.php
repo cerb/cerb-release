@@ -1500,7 +1500,7 @@ $(function() {
 /***********************************************************************
 | Cerb(tm) developed by Webgroup Media, LLC.
 |-----------------------------------------------------------------------
-| All source code & content (c) Copyright 2002-2019, Webgroup Media LLC
+| All source code & content (c) Copyright 2002-2024, Webgroup Media LLC
 |   unless specifically noted otherwise.
 |
 | This source code is released under the Devblocks Public License.

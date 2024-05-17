@@ -965,6 +965,7 @@ class SearchFields_Address extends DevblocksSearchFields {
 	const VIRTUAL_TICKET_ID = '*_ticket_id';
 	const VIRTUAL_TICKET_SEARCH = '*_ticket_search';
 	const VIRTUAL_WATCHERS = '*_workers';
+	const VIRTUAL_WORKER_SEARCH = '*_worker_search';
 	
 	static private $_fields = null;
 	
@@ -1016,6 +1017,9 @@ class SearchFields_Address extends DevblocksSearchFields {
 				
 			case self::VIRTUAL_WATCHERS:
 				return self::_getWhereSQLFromWatchersField($param, CerberusContexts::CONTEXT_ADDRESS, self::getPrimaryKey());
+				
+			case self::VIRTUAL_WORKER_SEARCH:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_WORKER, "SELECT id FROM worker w WHERE w.id IN (%s)", 'a.worker_id');
 				
 			default:
 				if(DevblocksPlatform::strStartsWith($param->field, 'cf_')) {
@@ -1123,6 +1127,7 @@ class SearchFields_Address extends DevblocksSearchFields {
 			self::VIRTUAL_TICKET_ID => new DevblocksSearchField(self::VIRTUAL_TICKET_ID, '*', 'ticket_id', $translate->_('common.ticket'), null, false),
 			self::VIRTUAL_TICKET_SEARCH => new DevblocksSearchField(self::VIRTUAL_TICKET_SEARCH, '*', 'ticket_search', null, null, false),
 			self::VIRTUAL_WATCHERS => new DevblocksSearchField(self::VIRTUAL_WATCHERS, '*', 'workers', $translate->_('common.watchers'), 'WS', false),
+			self::VIRTUAL_WORKER_SEARCH => new DevblocksSearchField(self::VIRTUAL_WORKER_SEARCH, '*', 'worker_search', null, null, false),
 		);
 		
 		// Fulltext indexes
@@ -1431,6 +1436,7 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 			SearchFields_Address::VIRTUAL_TICKET_ID,
 			SearchFields_Address::VIRTUAL_TICKET_SEARCH,
 			SearchFields_Address::VIRTUAL_WATCHERS,
+			SearchFields_Address::VIRTUAL_WORKER_SEARCH,
 		));
 	}
 	
@@ -1731,6 +1737,14 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 					'type' => DevblocksSearchCriteria::TYPE_DATE,
 					'options' => array('param_key' => SearchFields_Address::UPDATED),
 				),
+			'worker' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => array('param_key' => SearchFields_Address::VIRTUAL_WORKER_SEARCH),
+					'examples' => [
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
+					]
+				),
 			'worker.id' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
@@ -1828,6 +1842,9 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 			case 'watchers':
 				return DevblocksSearchCriteria::getWatcherParamFromTokens(SearchFields_Address::VIRTUAL_WATCHERS, $tokens);
 				
+			case 'worker':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Address::VIRTUAL_WORKER_SEARCH);
+			
 			default:
 				if($field == 'links' || substr($field, 0, 6) == 'links.')
 					return DevblocksSearchCriteria::getContextLinksParamFromTokens($field, $tokens);
@@ -1912,6 +1929,13 @@ class View_Address extends C4_AbstractView implements IAbstractView_Subtotals, I
 			
 			case SearchFields_Address::VIRTUAL_WATCHERS:
 				$this->_renderVirtualWatchers($param);
+				break;
+				
+			case SearchFields_Address::VIRTUAL_WORKER_SEARCH:
+				echo sprintf("%s matches <b>%s</b>",
+					DevblocksPlatform::strEscapeHtml(DevblocksPlatform::translateCapitalized('common.worker')),
+					DevblocksPlatform::strEscapeHtml($param->value)
+				);
 				break;
 		}
 	}

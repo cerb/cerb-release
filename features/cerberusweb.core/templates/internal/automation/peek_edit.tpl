@@ -66,17 +66,19 @@
 
 <div data-cerb-automation-editor-script>
 	<div data-cerb-toolbar class="cerb-code-editor-toolbar">
-		{if is_a($extension, 'Extension_AutomationTrigger')}
-			{$toolbar_dict = DevblocksDictionaryDelegate::instance([
-				'caller_name' => 'cerb.toolbar.editor.automation.script',
-				
-				'worker__context' => CerberusContexts::CONTEXT_WORKER,
-				'worker_id' => $active_worker->id
-			])}
-			{$toolbar = $extension->getEditorToolbar()}
-			{$toolbar = DevblocksPlatform::services()->ui()->toolbar()->parse($toolbar, $toolbar_dict)}
-			{DevblocksPlatform::services()->ui()->toolbar()->render($toolbar)}
-		{/if}
+		<div data-cerb-toolbar-custom style="display:inline-block;">
+			{if is_a($extension, 'Extension_AutomationTrigger')}
+				{$toolbar_dict = DevblocksDictionaryDelegate::instance([
+					'caller_name' => 'cerb.toolbar.editor.automation.script',
+
+					'worker__context' => CerberusContexts::CONTEXT_WORKER,
+					'worker_id' => $active_worker->id
+				])}
+				{$toolbar = $extension->getEditorToolbar()}
+				{$toolbar = DevblocksPlatform::services()->ui()->toolbar()->parse($toolbar, $toolbar_dict)}
+				{DevblocksPlatform::services()->ui()->toolbar()->render($toolbar)}
+			{/if}
+		</div>
 
 		{if $model->id}
 			<div class="cerb-code-editor-toolbar-divider"></div>
@@ -210,6 +212,7 @@ $(function() {
 
 		var $script = $frm.find('[data-cerb-automation-editor-script]');
 		var $script_toolbar = $script.find('.cerb-code-editor-toolbar');
+		var $script_toolbar_custom = $script.find('[data-cerb-toolbar-custom]');
 		var $automation_yaml = $script.find('textarea[name=automation_script]');
 
 		var $state_start = $frm.find('[data-cerb-automation-editor-state-start]');
@@ -257,7 +260,7 @@ $(function() {
 			$target.closest('li').remove();
 
 			$extension_params.empty();
-			$script_toolbar.empty();
+			$script_toolbar_custom.empty();
 
 			$editor_automation
 				.cerbCodeEditorAutocompleteKata({
@@ -340,8 +343,9 @@ $(function() {
 				formData.set('trigger', extension_id);
 
 				genericAjaxPost(formData, null, null, function(html) {
-					$script_toolbar
+					$script_toolbar_custom
 						.html(html)
+						.parent()
 						.triggerHandler('cerb-toolbar--refreshed')
 					;
 				});
@@ -588,13 +592,13 @@ $(function() {
 
 		$toggle_mode.on('click', function() {
 			if('simulator' === $toggle_mode.attr('data-mode')) {
-				$script_toolbar.triggerHandler($.Event('cerb-editor-toolbar-mode-set', { simulator: false }));
+				$state_start_toolbar.triggerHandler($.Event('cerb-editor-toolbar-mode-set', { simulator: false }));
 			} else {
-				$script_toolbar.triggerHandler($.Event('cerb-editor-toolbar-mode-set', { simulator: true }));
+				$state_start_toolbar.triggerHandler($.Event('cerb-editor-toolbar-mode-set', { simulator: true }));
 			}
 		});
 
-		$script_toolbar.on('cerb-editor-toolbar-mode-set', function(e) {
+		$state_start_toolbar.on('cerb-editor-toolbar-mode-set', function(e) {
 			if(e.hasOwnProperty('simulator')) {
 				if(e.simulator) {
 					$frm.find('input:hidden[name=is_simulator]').val('1');

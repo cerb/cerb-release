@@ -1045,6 +1045,9 @@ class DevblocksDictionaryDelegate implements JsonSerializable, IteratorAggregate
 				$dicts[$model_id] = DevblocksDictionaryDelegate::instance($values);
 		}
 		
+		if($context == CerberusContexts::CONTEXT_ADDRESS)
+			$keys = array_merge($keys, ['contact__label']);
+		
 		// Batch load extra keys
 		if(is_array($keys) && !empty($keys))
 		foreach(array_unique($keys) as $key) {

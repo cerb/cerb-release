@@ -62,7 +62,6 @@ class ActionNode extends AbstractNode {
 			$this->node->setParams($dict->getKeyPath($key_path, null, ':'));
 		
 		} elseif(!empty($action_annotations)) {
-			\DevblocksPlatform::logError($action_annotations);
 			$error = sprintf("Annotations other than `return@key` are not allowed on commands (`%s:`)",
 				$this->node->getName()
 			);

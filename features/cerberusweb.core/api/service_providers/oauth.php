@@ -220,6 +220,7 @@ class ServiceProvider_OAuth2 extends Extension_ConnectedServiceProvider implemen
 		$settings = [
 			'clientId' => $service_params['client_id'] ?? null,
 			'clientSecret' => $service_params['client_secret'] ?? null,
+			'pkceEnabled' => ($service_params['grant_type'] ?? null) == 'authorization_code_pkce',
 			'redirectUri' => $url_writer->write('c=oauth&a=callback', true),
 			'urlAuthorize' => $service_params['authorization_url'] ?? null,
 			'urlAccessToken' => $service_params['access_token_url'] ?? null,
@@ -262,7 +263,7 @@ class ServiceProvider_OAuth2 extends Extension_ConnectedServiceProvider implemen
 		$validation
 			->addField('grant_type', 'Grant Type')
 			->string()
-			->setPossibleValues(['authorization_code'])
+			->setPossibleValues(['authorization_code', 'authorization_code_pkce'])
 			->setRequired(true)
 			;
 		$validation
@@ -339,6 +340,15 @@ class ServiceProvider_OAuth2 extends Extension_ConnectedServiceProvider implemen
 				return false;
 			}
 			
+			if(array_key_exists('error', $oauth_params)) {
+				$error = $oauth_params['error_description'] ?? $oauth_params['error'];
+				return false;
+				
+			} else {
+				unset($params['error']);
+				unset($params['error_description']);
+			}
+			
 			if(is_array($oauth_params))
 			foreach($oauth_params as $k => $v)
 				$params[$k] = $v;
@@ -363,6 +373,7 @@ class ServiceProvider_OAuth2 extends Extension_ConnectedServiceProvider implemen
 		$_SESSION['oauth_form_id'] = $form_id;
 		$_SESSION['oauth_service_id'] = $service_id;
 		$_SESSION['oauth2state'] = $provider->getState();
+		$_SESSION['oauth2pkce'] = $provider->getPkceCode();
 		
 		header('Location: ' . $authorizationUrl);
 		exit;
@@ -372,11 +383,13 @@ class ServiceProvider_OAuth2 extends Extension_ConnectedServiceProvider implemen
 		$form_id = $_SESSION['oauth_form_id'] ?? null;
 		$service_id = $_SESSION['oauth_service_id'] ?? null;
 		$oauth_state = $_SESSION['oauth2state'] ?? null;
+		$pkce_code = $_SESSION['oauth2pkce'] ?? null;
 		$state = $_GET['state'] ?? null;
 		
 		unset($_SESSION['oauth_form_id']);
 		unset($_SESSION['oauth_service_id']);
 		unset($_SESSION['oauth2state']);
+		unset($_SESSION['oauth2pkce']);
 		
 		// CSRF check
 		if($oauth_state != $state)
@@ -391,6 +404,9 @@ class ServiceProvider_OAuth2 extends Extension_ConnectedServiceProvider implemen
 			DevblocksPlatform::dieWithHttpError('Failed to load provider details', 403);
 		
 		try {
+			if($pkce_code)
+				$provider->setPkceCode($pkce_code);
+			
 			$access_token = $provider->getAccessToken('authorization_code', [
 				'code' => $_GET['code'],
 			]);
@@ -414,6 +430,19 @@ class ServiceProvider_OAuth2 extends Extension_ConnectedServiceProvider implemen
 			error_log($e->getMessage());
 			DevblocksPlatform::dieWithHttpError($e->getMessage(), 403);
 		}
+	}
+	
+	function oauthRefresh(Model_ConnectedAccount $account) {
+		if(!($params = $account->decryptParams()))
+			return false;
+		
+		if(!($access_token = new AccessToken($params)))
+			return false;
+		
+		if(!($this->_refreshToken($access_token, $params, $account)))
+			return false;
+		
+		return true;
 	}
 	
 	/**

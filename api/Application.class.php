@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2024050201);
-define("APP_VERSION", '10.4.13');
+define("APP_BUILD", 2024051601);
+define("APP_VERSION", '10.4.14');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -194,25 +194,29 @@ class CerberusApplication extends DevblocksApplication {
 
 		// Workers
 
-		$picker_workers = array(
+		$picker_workers = [
 			'sample' => [],
 			'population' => [],
-		);
+		];
+		
+		$worker_meta = [];
 
 		// Bulk load population statistics
 		foreach($population as $worker) { /* @var Model_Worker $worker */
-			$worker->__is_selected = isset($sample[$worker->id]);
-			$worker->__is_online = isset($online_workers[$worker->id]);
-			$worker->__workload = isset($workloads[$worker->id]) ? $workloads[$worker->id] : [];
-			$worker->__responsibility = isset($bucket_responsibilities[$worker->id]) ? $bucket_responsibilities[$worker->id] : 0;
+			$worker_meta[$worker->id] = [
+				'is_selected' => array_key_exists($worker->id, $sample),
+				'is_online' => array_key_exists($worker->id, $online_workers),
+				'workload' => $workloads[$worker->id] ?? [],
+				'responsibility' => $bucket_responsibilities[$worker->id] ?? 0,
+			];
 		}
 
 		// Sort population by score
-		uasort($population, function($a, $b) {
-			if($a->__responsibility == $b->__responsibility)
+		uasort($population, function($a, $b) use ($worker_meta) {
+			if($worker_meta[$a->id]['responsibility'] == $worker_meta[$b->id]['responsibility'])
 				return 0;
 
-			return ($a->__responsibility < $b->__responsibility) ? 1 : -1;
+			return ($worker_meta[$a->id]['responsibility'] < $worker_meta[$b->id]['responsibility']) ? 1 : -1;
 		});
 
 		// Set sample
@@ -230,10 +234,11 @@ class CerberusApplication extends DevblocksApplication {
 		}
 
 		// Return a result object
-		return array(
+		return [
 			'show_responsibilities' => !empty($group_id),
 			'workers' => $picker_workers,
-		);
+			'worker_meta' => $worker_meta,
+		];
 	}
 
 	static function getAtMentionsWorkerDictionaryJson($with_searches=true) {
@@ -2673,6 +2678,53 @@ class CerberusContexts {
 		self::$_context_creations = [];
 		self::$_context_deletions = [];
 		self::$_context_initial_checkpoints = [];
+	}
+	
+	public static function logActivityRecordCreate($context, $record_ids, $record_labels=null) {
+		// Polymorph
+		if($context instanceof DevblocksExtensionManifest) {
+			$context_mft = $context;
+			
+		} else if ($context instanceof Extension_DevblocksContext) {
+			$context_mft = $context->manifest;
+			
+		} else if (is_string($context)) {
+			if(!($context_mft = Extension_DevblocksContext::get($context, false)))
+				return false; /** @var $context_mft DevblocksExtensionManifest */
+			
+		} else {
+			return false;
+		}
+		
+		if(is_numeric($record_ids) && !is_array($record_ids))
+			$record_ids = [$record_ids];
+		
+		if(is_string($record_labels)) {
+			$record_labels = [$record_labels];
+		}
+		
+		// Lazy load the record labels, if needed
+		if($record_ids && !$record_labels) {
+			$models = CerberusContexts::getModels($context_mft->id, $record_ids);
+			$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, $context_mft->id);
+			$record_labels = array_column($dicts, '_label', 'id');
+		}
+		
+		if(count($record_ids) === count($record_labels))
+		foreach(array_combine($record_ids, $record_labels) as $record_id => $record_label) {
+			$entry = [
+				// {{actor}} created {{record_type}} `{{target}}`
+				'message' => 'activities.record.create',
+				'variables' => [
+					'record_type' => DevblocksPlatform::strLower($context_mft->name),
+					'target' => $record_label
+				],
+				'urls' => [
+					'target' => sprintf('ctx://cerberusweb.contexts.worker:%d', $record_id)
+				],
+			];
+			CerberusContexts::logActivity('record.created', $context_mft->id, $record_id, $entry);
+		}
 	}
 	
 	public static function logActivityRecordDelete($context, $record_ids, $record_labels=null) {

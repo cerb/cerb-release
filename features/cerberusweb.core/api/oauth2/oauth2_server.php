@@ -42,6 +42,7 @@ class Cerb_OAuth2Provider extends AbstractProvider {
 	private $approvalPrompt = 'auto';
 	private $scopes = null;
 	private $scopeSeparator;
+	private $pkceEnabled;
 	private $responseError = 'error';
 	private $responseCode;
 	private $responseResourceOwnerId = 'id';
@@ -76,6 +77,7 @@ class Cerb_OAuth2Provider extends AbstractProvider {
 			'accessTokenMethod',
 			'accessTokenResourceOwnerId',
 			'approvalPrompt',
+			'pkceEnabled',
 			'scopeSeparator',
 			'responseError',
 			'responseCode',
@@ -162,6 +164,13 @@ class Cerb_OAuth2Provider extends AbstractProvider {
 
 	protected function createResourceOwner(array $response, AccessToken $token) {
 		return new GenericResourceOwner($response, $this->responseResourceOwnerId);
+	}
+	
+	protected function getPkceMethod() {
+		if($this->pkceEnabled)
+			return parent::PKCE_METHOD_S256;
+		
+		return null;
 	}
 	
 	public function getAuthorizationUrl(array $options = []) {

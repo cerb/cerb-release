@@ -248,7 +248,7 @@ class PageSection_ProfilesMailbox extends Extension_PageSection {
 			if(!empty($host)) {
 				$mail_service = DevblocksPlatform::services()->mail();
 				
-				if(false == $mail_service->testMailbox($host, $port, $protocol, $user, $pass, $timeout_secs, $connected_account_id))
+				if(!$mail_service->testMailbox($host, $port, $protocol, $user, $pass, $timeout_secs, $connected_account_id))
 					throw new Exception($translate->_('config.mailboxes.failed'));
 				
 			} else {
