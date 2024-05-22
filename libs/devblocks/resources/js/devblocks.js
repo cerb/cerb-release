@@ -348,6 +348,10 @@ function DevblocksClass() {
 							let $alert = Devblocks.createAlert('', 'error', 0);
 							let $a = $('<b/>').css('margin-right','0.5em').text('The requested resource was not found.');
 							$alert.append($a);
+						} else if(504 === err.status) {
+							let $alert = Devblocks.createAlert('', 'error', 0);
+							let $a = $('<b/>').css('margin-right','0.5em').text('The request timed out.');
+							$alert.append($a);
 						} else {
 							let $alert = Devblocks.createAlert('', 'error', 0);
 							let $a = $('<b/>').css('margin-right','0.5em').text('An unexpected error occurred.');
@@ -1780,6 +1784,11 @@ function genericAjaxGet(divRef,args,cb,options) {
 			let $alert = Devblocks.createAlert('', 'error', 0);
 			let $a = $('<b/>').css('margin-right','0.5em').text('The requested resource was not found.');
 			$alert.append($a);
+			
+		} else if(504 === err.status) {
+			let $alert = Devblocks.createAlert('', 'error', 0);
+			let $a = $('<b/>').css('margin-right','0.5em').text('The request timed out.');
+			$alert.append($a);
 		}
 		
 		if(typeof options.error == 'function') {
@@ -1922,6 +1931,11 @@ function genericAjaxPost(formRef,divRef,args,cb,options) {
 		} else if(404 === err.status) {
 			let $alert = Devblocks.createAlert('', 'error', 0);
 			let $a = $('<b/>').css('margin-right','0.5em').text('The requested resource was not found.');
+			$alert.append($a);
+			
+		} else if(504 === err.status) {
+			let $alert = Devblocks.createAlert('', 'error', 0);
+			let $a = $('<b/>').css('margin-right','0.5em').text('The request timed out.');
 			$alert.append($a);
 		}
 		

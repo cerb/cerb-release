@@ -150,7 +150,7 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 			
 			if($field->key == 'type') {
 				// Do nothing
-				true;
+				DevblocksPlatform::noop();
 				
 			} else if($field->key == 'function') {
 				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
@@ -225,7 +225,7 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 				
 			} else if($field->key == 'timeout') {
 				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
-				$chart_model['timeout'] = DevblocksPlatform::intClamp($value, 0, 60000);
+				$chart_model['timeout'] = DevblocksPlatform::intClamp($value ?? 0, 0, 60000);
 				
 			} else {
 				$error = sprintf("The parameter '%s' is unknown.", $field->key);
@@ -571,14 +571,20 @@ class _DevblocksDataProviderWorklistSubtotals extends _DevblocksDataProvider {
 						$key_label = $idx == $last_by_idx ? 'hits' : $key_select;
 						$worker_names = DAO_Worker::getNames(false);
 						
-						if(!$is_agg_func)
-							break;
-						
-						if('hits' == $key_label)
-							$values = array_column($rows, $key_label);
-						
-						foreach ($values as $row_idx => $value) {
-							$rows[$row_idx][$key_label] = $worker_names[$value] ?? $value;
+						if($is_agg_func) { // sum/avg/min/max
+							if('hits' == $key_label)
+								$values = array_column($rows, $key_label);
+							
+							foreach ($values as $row_idx => $value) {
+								$rows[$row_idx][$key_label] = $worker_names[$value] ?? $value;
+							}
+							
+						} else { // count
+							$values = array_column($rows, $key_select);
+							
+							foreach ($values as $row_idx => $value) {
+								$rows[$row_idx][$key_select] = $worker_names[$value] ?? $value;
+							}
 						}
 					}
 					break;

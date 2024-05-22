@@ -82,7 +82,7 @@ class StorageGetAction extends AbstractAction {
 				$dict->set($output, $results);
 			
 		} catch (Exception_DevblocksAutomationError $e) {
-			$error = $e->getMessage();
+			$error = sprintf("[%s] %s", $this->node->getId(), $e->getMessage());
 			
 			if (null != ($event_error = $this->node->getChildBySuffix(':on_error'))) {
 				if ($output) {

@@ -256,6 +256,16 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 		return parent::getIds($ids);
 	}
 	
+	static function getByOwner(string $owner_context, int $owner_context_id=0) : array {
+		return array_filter(
+			DAO_MailHtmlTemplate::getAll(),
+			function($template) use($owner_context, $owner_context_id) {
+				return 0 == strcasecmp($template->owner_context, $owner_context)
+					&& intval($template->owner_context_id) == $owner_context_id;
+			}
+		);
+	}
+	
 	/**
 	 * @param mysqli_result|false $rs
 	 * @return Model_MailHtmlTemplate[]
@@ -314,6 +324,16 @@ class DAO_MailHtmlTemplate extends Cerb_ORMHelper {
 		
 		self::clearCache();
 		return true;
+	}
+	
+	static function deleteByOwner($owner_context, $owner_context_ids) : void {
+		if(!is_array($owner_context_ids))
+			$owner_context_ids = [$owner_context_ids];
+		
+		foreach($owner_context_ids as $owner_context_id) {
+			$templates = DAO_MailHtmlTemplate::getByOwner($owner_context, $owner_context_id);
+			DAO_MailHtmlTemplate::delete(array_keys($templates));
+		}
 	}
 	
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {

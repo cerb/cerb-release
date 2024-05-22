@@ -95,7 +95,10 @@ class RecordCreateAction extends AbstractAction {
 				'output' => $output,
 			]);
 			
-			if(!$policy->isCommandAllowed(self::ID, $action_dict)) {
+			if(
+				!$policy->isCommandAllowed(self::ID, $action_dict)
+				&& !$policy->isCommandAllowed(RecordUpsertAction::ID, $action_dict)
+			) {
 				$error = sprintf(
 					"The automation policy does not allow this command (%s).",
 					self::ID
@@ -160,7 +163,7 @@ class RecordCreateAction extends AbstractAction {
 			$dict->set($output, $record_dict);
 			
 		} catch (Exception_DevblocksAutomationError $e) {
-			$error = $e->getMessage();
+			$error = sprintf("[%s] %s", $this->node->getId(), $e->getMessage());
 			
 			if(null != ($event_error = $this->node->getChildBySuffix(':on_error'))) {
 				$dict->set($output, [

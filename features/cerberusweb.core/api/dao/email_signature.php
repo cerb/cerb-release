@@ -221,7 +221,17 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 	 */
 	static function getIds(array $ids) : array {
 		return parent::getIds($ids);
-	}	
+	}
+	
+	static function getByOwner(string $owner_context, int $owner_context_id=0) : array {
+		return array_filter(
+			DAO_EmailSignature::getAll(),
+			function($signature) use($owner_context, $owner_context_id) {
+				return 0 == strcasecmp($signature->owner_context, $owner_context)
+					&& intval($signature->owner_context_id) == $owner_context_id;
+			}
+		);
+	}
 	
 	/**
 	 * @param mysqli_result|false $rs
@@ -273,6 +283,16 @@ class DAO_EmailSignature extends Cerb_ORMHelper {
 		
 		self::clearCache();
 		return true;
+	}
+	
+	static function deleteByOwner($owner_context, $owner_context_ids) : void {
+		if(!is_array($owner_context_ids))
+			$owner_context_ids = [$owner_context_ids];
+		
+		foreach($owner_context_ids as $owner_context_id) {
+			$signatures = DAO_EmailSignature::getByOwner($owner_context, $owner_context_id);
+			DAO_EmailSignature::delete(array_keys($signatures));
+		}
 	}
 	
 	static function clearCache() {

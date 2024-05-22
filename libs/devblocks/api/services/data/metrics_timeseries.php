@@ -60,6 +60,9 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 					'avg',
 					'count',
 					'distinct',
+					'faceted_average',
+					'faceted_max',
+					'faceted_min',
 					'max',
 					'min',
 					'samples',
@@ -174,6 +177,10 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 							'avg' => 'average',
 							'count' => 'count',
 							'distinct' => 'distinct',
+							'faceted_avg' => 'faceted_average',
+							'faceted_average' => 'faceted_average',
+							'faceted_max' => 'faceted_max',
+							'faceted_min' => 'faceted_min',
 							'max' => 'max',
 							'min' => 'min',
 							'samples' => 'count',
@@ -632,24 +639,32 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		$func = DevblocksPlatform::strLower($series_model['function'] ?? 'count');
 		$sql_select_keys = 'bin AS ts_bin';
 		$sql_group_by = 'ts_bin';
+		$sql_outer_start = '';
+		$sql_outer_end = '';
 		$granularity = $chart_model['period_unit']; // 300, 3600, 86400
 		
 		// [TODO] Limit TOP(n) and BOTTOM(n)
 		
+		// If we're aggregating daily->week/month/year, we need an outer query
 		if('year' == $chart_model['period']) {
-			$sql_select_keys = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(bin), '%Y-01-01 00:00:00')) AS ts_bin";
+			$sql_outer_start = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(ts_bin), '%Y-01-01 00:00:00')) AS ts_bin";
+			$sql_outer_end = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(ts_bin), '%Y-01-01 00:00:00'))";
 			
 		} else if('month' == $chart_model['period']) {
-			$sql_select_keys = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(bin), '%Y-%m-01 00:00:00')) AS ts_bin";
+			$sql_outer_start = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(ts_bin), '%Y-%m-01 00:00:00')) AS ts_bin";
+			$sql_outer_end = "UNIX_TIMESTAMP(DATE_FORMAT(FROM_UNIXTIME(ts_bin), '%Y-%m-01 00:00:00'))";
 			
 		} else if('week' == $chart_model['period']) {
-			$sql_select_keys = "UNIX_TIMESTAMP(STR_TO_DATE(CONCAT(YEARWEEK(FROM_UNIXTIME(bin),1),' Monday'),'%x%v %W')) AS ts_bin";
+			$sql_outer_start = "UNIX_TIMESTAMP(STR_TO_DATE(CONCAT(YEARWEEK(FROM_UNIXTIME(ts_bin),1),' Monday'),'%x%v %W')) AS ts_bin";
+			$sql_outer_end = "UNIX_TIMESTAMP(STR_TO_DATE(CONCAT(YEARWEEK(FROM_UNIXTIME(ts_bin),1),' Monday'),'%x%v %W'))";
 			
 		} else if('week-sun' == $chart_model['period']) {
-			$sql_select_keys = "UNIX_TIMESTAMP(STR_TO_DATE(CONCAT(YEARWEEK(FROM_UNIXTIME(bin),0),' Sunday'),'%X%V %W')) AS ts_bin";	
+			$sql_outer_start = "UNIX_TIMESTAMP(STR_TO_DATE(CONCAT(YEARWEEK(FROM_UNIXTIME(ts_bin),0),' Sunday'),'%X%V %W')) AS ts_bin";
+			$sql_outer_end = "UNIX_TIMESTAMP(STR_TO_DATE(CONCAT(YEARWEEK(FROM_UNIXTIME(ts_bin),0),' Sunday'),'%X%V %W'))";
 		}
 		
-		$sql = sprintf("SELECT %s, %s AS value FROM metric_value WHERE metric_value.metric_id = %d AND metric_value.granularity = %d AND metric_value.bin BETWEEN %d AND %d %s GROUP BY %s",
+		$sql = sprintf("%sSELECT %s, %s AS value FROM metric_value WHERE metric_value.metric_id = %d AND metric_value.granularity = %d AND metric_value.bin BETWEEN %d AND %d %s GROUP BY %s%s",
+			'%s',
 			'%s',
 			'%s',
 			$metric->id,
@@ -657,55 +672,37 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 			$range['from_ts'] ?? 0,
 			$range['to_ts'] ?? 0,
 			$sql_wheres ? ('AND ' . implode(' AND ', $sql_wheres)) : '',
+			'%s',
 			'%s'
 		);
 		
 		// Metric types
-		if('gauge' == $metric->type) {
-			if($func == 'average') {
-				$sql_select_func = 'SUM(sum/samples)';				
-				
-			} else if($func == 'sum') {
-				$sql_select_func = 'SUM(sum)';
-				
-			} else if($func == 'min') {
-				$sql_select_func = 'SUM(min)';
-				
-			} else if($func == 'max') {
-				$sql_select_func = 'SUM(max)';
-				
-			} else if($func == 'count') {
-				$sql_select_func = 'SUM(samples)';
-				
-			} else if($func == 'distinct') {
-				$sql_select_func = 'SUM(1)';
-				
-			} else {
-				return [];
-			}
+		$sql_select_func = match($func) {
+			'average' => 'AVG(sum/samples)',
+			'count' => 'SUM(samples)',
+			'distinct' => 'SUM(1)',
+			'faceted_average' => 'SUM(sum/samples)',
+			'faceted_max' => 'SUM(max)',
+			'faceted_min' => 'SUM(min)',
+			'max' => 'MAX(max)',
+			'min' => 'MIN(min)',
+			'sum' => 'SUM(sum)',
+			default => null,
+		};
+		
+		if(is_null($sql_select_func))
+			return [];
+		
+		if($sql_outer_start) {
+			if(is_null($sql_outer_func = match ($func) {
+				'average', 'faceted_average' => 'AVG(value)',
+				'count', 'distinct', 'sum' => 'SUM(value)',
+				'faceted_max', 'max' => 'MAX(value)',
+				'faceted_min', 'min' => 'MIN(value)',
+				default => null,
+			})) return [];
 			
-		} else { // Counter
-			if($func == 'average') {
-				$sql_select_func = 'AVG(sum/samples)';
-				
-			} else if($func == 'sum') {
-				$sql_select_func = 'SUM(sum)';
-				
-			} else if($func == 'min') {
-				$sql_select_func = 'MIN(min)';
-				
-			} else if($func == 'max') {
-				$sql_select_func = 'MAX(max)';
-				
-			} else if($func == 'count') {
-				$sql_select_func = 'SUM(samples)';
-				
-			} else if($func == 'distinct') {
-				$sql_select_func = 'SUM(1)';
-				
-			} else {
-				return [];
-			}
+			$sql_outer_start .= sprintf(", %s AS value", $sql_outer_func);
 		}
 		
 		if(array_key_exists('by', $series_model) && $series_model['by']) {
@@ -718,7 +715,13 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 						$by_idx
 					);
 					
+					if($sql_outer_start)
+						$sql_outer_start .= sprintf(", dim_%d", $by_idx);
+					
 					$sql_group_by .= sprintf(',dim_%d', $by_idx);
+					
+					if($sql_outer_end)
+						$sql_outer_end .= sprintf(',dim_%d', $by_idx);
 					
 				} else {
 					$error = sprintf("Unknown series dimension (%s). Should be one of: %s",
@@ -731,9 +734,11 @@ class _DevblocksDataProviderMetricsTimeseries extends _DevblocksDataProvider {
 		}
 		
 		$sql = sprintf($sql,
+			($sql_outer_start ? sprintf("SELECT %s FROM (", $sql_outer_start) : ''),
 			$sql_select_keys,
 			$sql_select_func,
-			$sql_group_by
+			$sql_group_by,
+			($sql_outer_end ? sprintf(") AS metric_agg GROUP BY %s", $sql_outer_end) : '')
 		);
 		
 		$rows = $db->GetArrayReader($sql);
