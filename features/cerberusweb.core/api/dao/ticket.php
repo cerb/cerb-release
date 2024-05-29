@@ -2394,6 +2394,7 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 	const VIRTUAL_GROUP_SEARCH = '*_group_search';
 	const VIRTUAL_GROUPS_OF_WORKER = '*_groups_of_worker';
 	const VIRTUAL_HAS_FIELDSET = '*_has_fieldset';
+	const VIRTUAL_MASK_MERGED = '*_mask_merged';
 	const VIRTUAL_MESSAGE_FIRST_SEARCH = '*_message_first_search';
 	const VIRTUAL_MESSAGE_FIRST_OUTGOING_SEARCH = '*_message_first_outgoing_search';
 	const VIRTUAL_MESSAGE_LAST_SEARCH = '*_message_last_search';
@@ -2516,6 +2517,13 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 				
 			case self::VIRTUAL_OWNER_SEARCH:
 				return self::_getWhereSQLFromVirtualSearchField($param, CerberusContexts::CONTEXT_WORKER, 't.owner_id');
+			
+			case self::VIRTUAL_MASK_MERGED:
+				$old_masks = is_array($param->value) ? $param->value : [$param->value];
+				$old_masks = implode(',', Cerb_ORMHelper::qstrArray($old_masks));
+				
+				if(empty($old_masks)) return '0';
+				return sprintf("t.id IN (SELECT new_ticket_id FROM ticket_mask_forward WHERE old_mask IN (%s))", $old_masks);
 				
 			case self::VIRTUAL_MESSAGE_FIRST_SEARCH:
 				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_MESSAGE, 'SELECT id FROM message WHERE id IN (%s)', 't.first_message_id');
@@ -2913,6 +2921,7 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 			SearchFields_Ticket::VIRTUAL_GROUP_SEARCH => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_GROUP_SEARCH, '*', 'group_search', null, null, false),
 			SearchFields_Ticket::VIRTUAL_GROUPS_OF_WORKER => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_GROUPS_OF_WORKER, '*', 'groups_of_worker', $translate->_('ticket.groups_of_worker'), null, false),
 			SearchFields_Ticket::VIRTUAL_HAS_FIELDSET => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_HAS_FIELDSET, '*', 'has_fieldset', $translate->_('common.fieldset'), null, false),
+			SearchFields_Ticket::VIRTUAL_MASK_MERGED => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_MASK_MERGED, '*', 'mask_merged', null, null, false),
 			SearchFields_Ticket::VIRTUAL_MESSAGE_FIRST_SEARCH => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_MESSAGE_FIRST_SEARCH, '*', 'message_first_search', null, null, false),
 			SearchFields_Ticket::VIRTUAL_MESSAGE_FIRST_OUTGOING_SEARCH => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_MESSAGE_FIRST_OUTGOING_SEARCH, '*', 'message_first_outgoing_search', null, null, false),
 			SearchFields_Ticket::VIRTUAL_MESSAGE_LAST_SEARCH => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_MESSAGE_LAST_SEARCH, '*', 'message_last_search', null, null, false),
@@ -3200,6 +3209,7 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			SearchFields_Ticket::VIRTUAL_GROUP_SEARCH,
 			SearchFields_Ticket::VIRTUAL_OWNER_SEARCH,
 			SearchFields_Ticket::VIRTUAL_ORG_SEARCH,
+			SearchFields_Ticket::VIRTUAL_MASK_MERGED,
 			SearchFields_Ticket::VIRTUAL_MESSAGE_FIRST_SEARCH,
 			SearchFields_Ticket::VIRTUAL_MESSAGE_FIRST_OUTGOING_SEARCH,
 			SearchFields_Ticket::VIRTUAL_MESSAGE_LAST_SEARCH,
@@ -3757,6 +3767,16 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 						'("XYZ-12345-678")',
 					),
 				),
+			'mask.merged' =>
+				[
+					'type' => DevblocksSearchCriteria::TYPE_TEXT,
+					'score' => 1500,
+					'options' => ['param_key' => SearchFields_Ticket::VIRTUAL_MASK_MERGED],
+					'examples' => [
+						'ABC-12345-678',
+						'[ABC-12345-678,DEF-98765-432]',
+					],
+				],
 			'messages' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
@@ -4048,6 +4068,10 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				}
 				break;
 
+			case 'mask.merged':
+				$field_key = SearchFields_Ticket::VIRTUAL_MASK_MERGED;
+				return DevblocksSearchCriteria::getTextParamFromTokens($field_key, $tokens);
+				
 			case 'messages':
 				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Ticket::VIRTUAL_MESSAGES_SEARCH);
 				
@@ -4315,7 +4339,27 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 					DevblocksPlatform::strEscapeHtml($param->value)
 				);
 				break;
+			
+			case SearchFields_Ticket::VIRTUAL_MASK_MERGED:
+				$strings_or = [];
 				
+				if(is_array($param->value)) {
+					foreach($param->value as $param_value) {
+						$strings_or[] = sprintf("<b>%s</b>",
+							DevblocksPlatform::strEscapeHtml($param_value)
+						);
+					}
+				} else {
+					$strings_or[] = sprintf("<b>%s</b>",
+						DevblocksPlatform::strEscapeHtml($param->value)
+					);
+				}
+				
+				echo sprintf("Merged mask is %s",
+					implode(' or ', $strings_or)
+				);
+				break;
+			
 			case SearchFields_Ticket::VIRTUAL_MESSAGE_FIRST_SEARCH:
 				echo sprintf("First message matches <b>%s</b>",
 					DevblocksPlatform::strEscapeHtml($param->value)

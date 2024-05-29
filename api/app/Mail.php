@@ -682,7 +682,6 @@ class CerberusMail {
 		'content'
 		'content_format'
 		'html_template_id'
-		'files'
 		'forward_files'
 		'status_id'
 		'ticket_reopen'
@@ -784,7 +783,6 @@ class CerberusMail {
 		$bcc = $properties['bcc'] ?? null;
 		$subject = $properties['subject'] ?? null;
 		$content_format = $properties['content_format'] ?? null;
-		$files = $properties['files'] ?? null;
 		$embedded_files = [];
 		$forward_files = $properties['forward_files'] ?? null;
 		$is_broadcast = intval($properties['is_broadcast'] ?? null);
@@ -879,23 +877,6 @@ class CerberusMail {
 					$content_sent = CerberusMail::getMailTemplateFromContent($properties, 'sent', 'text');
 					$email->setBody($content_sent);
 					break;
-			}
-			
-			// Mime Attachments
-			if (is_array($files) && !empty($files)) {
-				foreach ($files['tmp_name'] as $idx => $file) {
-					if(empty($file) || empty($files['name'][$idx]))
-						continue;
-					
-					@$mime_type = $files['type'][$idx];
-					
-					$attach = Swift_Attachment::fromPath($file, $mime_type)->setFilename($files['name'][$idx]);
-					
-					if('message/rfc822' == $mime_type)
-						$attach->setContentType('application/octet-stream');
-	
-					$email->attach($attach);
-				}
 			}
 			
 			// Forward Attachments
@@ -1075,39 +1056,6 @@ class CerberusMail {
 		$email->getHeaders()->addTextHeader('X-CerberusCompose', 1);
 		DAO_MessageHeaders::upsert($message_id, $outgoing_mail_headers);
 		
-		// add files to ticket
-		if (is_array($files) && !empty($files)) {
-			reset($files);
-			foreach ($files['tmp_name'] as $idx => $file) {
-				if(empty($file) || empty($files['name'][$idx]) || !file_exists($file))
-					continue;
-
-				// Dupe detection
-				$sha1_hash = sha1_file($file) ?? null;
-				
-				if(!($file_id = DAO_Attachment::getBySha1Hash($sha1_hash, $files['size'][$idx], $files['type'][$idx]))) {
-					$fields = array(
-						DAO_Attachment::NAME => $files['name'][$idx],
-						DAO_Attachment::MIME_TYPE => $files['type'][$idx],
-						DAO_Attachment::STORAGE_SHA1HASH => $sha1_hash,
-					);
-					$file_id = DAO_Attachment::create($fields);
-					
-					// Content
-					if(null !== ($fp = fopen($file, 'rb'))) {
-						Storage_Attachments::put($file_id, $fp);
-						fclose($fp);
-					}
-				}
-
-				// Link
-				if($file_id)
-					DAO_Attachment::addLinks(CerberusContexts::CONTEXT_MESSAGE, $message_id, $file_id);
-				
-				@unlink($file);
-			}
-		}
-
 		// Forwarded attachments
 		if(isset($properties['link_forward_files']) && !empty($properties['link_forward_files'])) {
 			// Attachments
@@ -1195,7 +1143,6 @@ class CerberusMail {
 		'content'
 		'content_format'
 		'html_template_id'
-		'files'
 		'forward_files'
 		'draft_id'
 		'gpg_encrypt'
@@ -1253,7 +1200,6 @@ class CerberusMail {
 		$from = $properties['from'] ?? null;
 		$subject = $properties['subject'] ?? null;
 		$content_format = $properties['content_format'] ?? null;
-		$files = $properties['files'] ?? null;
 		$forward_files = $properties['forward_files'] ?? null;
 		
 		if(empty($subject))
@@ -1339,23 +1285,6 @@ class CerberusMail {
 					$content_sent = CerberusMail::getMailTemplateFromContent($properties, 'sent', 'text');
 					$email->setBody($content_sent);
 					break;
-			}
-			
-			// Mime Attachments
-			if (is_array($files) && !empty($files)) {
-				foreach ($files['tmp_name'] as $idx => $file) {
-					if(empty($file) || empty($files['name'][$idx]))
-						continue;
-					
-					@$mime_type = $files['type'][$idx];
-					
-					$attach = Swift_Attachment::fromPath($file, $mime_type)->setFilename($files['name'][$idx]);
-					
-					if('message/rfc822' == $mime_type)
-						$attach->setContentType('application/octet-stream');
-					
-					$email->attach($attach);
-				}
 			}
 			
 			// Forward Attachments
@@ -1465,7 +1394,6 @@ class CerberusMail {
 		'content_format', // markdown, parsedown, html
 		'html_template_id'
 		'headers'
-		'files'
 		'forward_files'
 		'link_forward_files'
 		'status_id'
@@ -1581,7 +1509,6 @@ class CerberusMail {
 			
 			// Re-read properties
 			$content_format = $properties['content_format'] ?? null;
-			$files = $properties['files'] ?? null;
 			$is_forward = $properties['is_forward'] ?? null;
 			$is_broadcast = $properties['is_broadcast'] ?? null;
 			$forward_files = $properties['forward_files'] ?? null;
@@ -1793,24 +1720,6 @@ class CerberusMail {
 					$content_sent = CerberusMail::getMailTemplateFromContent($properties, 'sent', 'text');
 					$mail->setBody($content_sent);
 					break;
-			}
-			
-			// Mime Attachments
-			if (is_array($files) && !empty($files)) {
-				if (isset($files['tmp_name']))
-					foreach ($files['tmp_name'] as $idx => $file) {
-						if (empty($file) || empty($files['name'][$idx]))
-							continue;
-						
-						@$mime_type = $files['type'][$idx];
-						
-						$attach = Swift_Attachment::fromPath($file, $mime_type)->setFilename($files['name'][$idx]);
-						
-						if('message/rfc822' == $mime_type)
-							$attach->setContentType('application/octet-stream');
-						
-						$mail->attach($attach);
-					}
 			}
 			
 			// Forward Attachments
@@ -2034,41 +1943,6 @@ class CerberusMail {
 
 			// Save cached headers
 			DAO_MessageHeaders::upsert($message_id, $outgoing_mail_headers);
-			
-			// Attachments
-			if (is_array($files) && !empty($files)) {
-				reset($files);
-				if(isset($files['tmp_name']))
-				foreach ($files['tmp_name'] as $idx => $file) {
-					if(empty($file) || empty($files['name'][$idx]) || !file_exists($file))
-						continue;
-
-					// Dupe detection
-					$sha1_hash = sha1_file($file, false) ?? null;
-					
-					if(!($file_id = DAO_Attachment::getBySha1Hash($sha1_hash, $files['size'][$idx], $files['type'][$idx]))) {
-						// Create record
-						$fields = array(
-							DAO_Attachment::NAME => $files['name'][$idx],
-							DAO_Attachment::MIME_TYPE => $files['type'][$idx],
-							DAO_Attachment::STORAGE_SHA1HASH => $sha1_hash,
-						);
-						$file_id = DAO_Attachment::create($fields);
-						
-						// Content
-						if(null !== ($fp = fopen($file, 'rb'))) {
-							Storage_Attachments::put($file_id, $fp);
-							fclose($fp);
-						}
-					}
-					
-					@unlink($file);
-
-					// Link
-					if($file_id)
-						DAO_Attachment::addLinks(CerberusContexts::CONTEXT_MESSAGE, $message_id, $file_id);
-				}
-			}
 			
 			// Forwarded attachments
 			if(isset($properties['link_forward_files']) && !empty($properties['link_forward_files'])) {
