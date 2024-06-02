@@ -1165,7 +1165,7 @@ class CerberusMail {
 		
 		if($send_at && $send_at >= time()) {
 			// If we're not resuming a draft from the UI, generate a draft
-			if (false == ($draft = DAO_MailQueue::get($draft_id))) {
+			if (!($draft = DAO_MailQueue::get($draft_id))) {
 				$change_fields = DAO_MailQueue::getFieldsFromMessageProperties($properties);
 				$change_fields[DAO_MailQueue::TYPE] = Model_MailQueue::TYPE_TRANSACTIONAL;
 				$change_fields[DAO_MailQueue::IS_QUEUED] = 1;

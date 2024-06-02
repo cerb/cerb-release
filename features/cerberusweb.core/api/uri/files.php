@@ -57,13 +57,13 @@ class ChFilesController extends DevblocksControllerExtension {
 		if(empty($file_id) || empty($file_name))
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('files.not_found'), 404);
 		
-		if(false == ($file = DAO_Attachment::get($file_id)))
+		if(!($file = DAO_Attachment::get($file_id)))
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('files.not_found'), 404);
 		
 		if(!Context_Attachment::isDownloadableByActor($file, $active_worker))
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('common.access_denied'), 403);
 		
-		if(false == ($fp = DevblocksPlatform::getTempFile()))
+		if(!($fp = DevblocksPlatform::getTempFile()))
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('files.error_temp_open'), 500);
 		
 		if(false === $file->getFileContents($fp))
@@ -80,7 +80,8 @@ class ChFilesController extends DevblocksControllerExtension {
 		header('Accept-Ranges: bytes');
 		
 		if($is_download) {
-			header("Content-Disposition: attachment; filename=\"" . $file->name . "\"");
+			$file_name = DevblocksPlatform::strAlphaNum($file->name, '.-!@#$%^() ');
+			header(sprintf("Content-Disposition: attachment; filename=\"%s\"", $file_name));
 			
 		} else {
 			$range = DevblocksPlatform::importGPC($_SERVER['HTTP_RANGE'] ?? null, 'string', null);
@@ -230,13 +231,13 @@ class ChFilesController extends DevblocksControllerExtension {
 		if(!extension_loaded('zip') || !class_exists('ZipArchive'))
 			DevblocksPlatform::dieWithHttpError('The `zip` PHP extension is required.');
 		
-		if(false == ($active_worker = CerberusApplication::getActiveWorker()))
+		if(!($active_worker = CerberusApplication::getActiveWorker()))
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('common.access_denied'), 403);
 		
-		if(!$message_id || false == ($message = DAO_Message::get($message_id)))
+		if(!$message_id || !($message = DAO_Message::get($message_id)))
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('error.core.record.not_found'), 404);
 		
-		if(false == ($ticket = DAO_Ticket::getTicketByMessageId($message_id)))
+		if(!($ticket = DAO_Ticket::getTicketByMessageId($message_id)))
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('error.core.record.not_found'), 404);
 		
 		if(!Context_Ticket::isReadableByActor($ticket, $active_worker))
@@ -261,10 +262,10 @@ class ChFilesController extends DevblocksControllerExtension {
 		$zip->open($zip_filename, ZipArchive::OVERWRITE);
 		
 		foreach($attachments as $attachment) {
-			if(false == ($fp = DevblocksPlatform::getTempFile()))
+			if(!($fp = DevblocksPlatform::getTempFile()))
 				continue;
 			
-			if(false == ($attachment->getFileContents($fp)))
+			if(!($attachment->getFileContents($fp)))
 				continue;
 			
 			$fp_filename = DevblocksPlatform::getTempFileInfo($fp);

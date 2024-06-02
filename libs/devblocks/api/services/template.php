@@ -531,7 +531,7 @@ class _DevblocksSmartyTemplateResource extends Smarty_Resource_Custom {
 		// If not in DB, check plugin's relative path on disk
 		$basepath = realpath($plugin->getStoragePath() . '/templates/') . DIRECTORY_SEPARATOR;
 		
-		if(false == ($path = realpath($plugin->getStoragePath() . '/templates/' . $tpl_path)))
+		if(!($path = realpath($plugin->getStoragePath() . '/templates/' . $tpl_path)))
 			return false;
 		
 		if(!DevblocksPlatform::strStartsWith($path, $basepath))
@@ -558,7 +558,7 @@ class _DevblocksSmartyTemplateResource extends Smarty_Resource_Custom {
 			}
 		}
 			
-		if(false == ($source = @file_get_contents($path)))
+		if(!($source = @file_get_contents($path)))
 			return false;
 		
 		// Check the modified timestamp
@@ -579,13 +579,13 @@ class _DevblocksSmartyTemplateResource extends Smarty_Resource_Custom {
 			return false;
 		
 		// If we can overload this template through the DB, don't return an mtime (faster to do one query)
-		if(isset($plugin->manifest_cache['templates']))
+		if(array_key_exists('templates', $plugin->manifest_cache ?? []))
 			return time();
 		
 		// Otherwise, check the mtime via the plugin's relative path on disk
 		$path = $plugin->getStoragePath() . '/templates/' . $tpl_path;
 		
-		if(false == ($mtime = @filemtime($path)))
+		if(!($mtime = (filemtime($path) ?? 0)))
 			return false;
 		
 		return $mtime;

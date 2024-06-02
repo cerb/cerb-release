@@ -847,7 +847,7 @@ class CerbAutomationPolicy {
 		if(is_string($policy_data)) {
 			$error = null;
 			
-			if(false == ($policy_data = DevblocksPlatform::services()->kata()->parse($policy_data, $error)))
+			if(!($policy_data = DevblocksPlatform::services()->kata()->parse($policy_data, $error)))
 				$policy_data = [];
 		}
 		

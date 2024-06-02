@@ -105,7 +105,7 @@ class DAO_Attachment extends Cerb_ORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		
 		$sql = "INSERT INTO attachment () VALUES ()";
-		if(false == ($db->ExecuteMaster($sql)))
+		if(!($db->ExecuteMaster($sql)))
 			return false;
 		$id = $db->LastInsertId();
 		
@@ -283,7 +283,7 @@ class DAO_Attachment extends Cerb_ORMHelper {
 	}
 	
 	private static function _getObjectsFromResult($rs) {
-		$objects = array();
+		$objects = [];
 		
 		if(!($rs instanceof mysqli_result))
 			return false;

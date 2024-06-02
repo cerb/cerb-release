@@ -2653,7 +2653,7 @@ class DevblocksSearchCriteria {
 					
 				case 'T_QUOTED_TEXT':
 				case 'T_TEXT':
-					if(false !== strpos($token->value, '*')) {
+					if(str_contains($token->value, '*')) {
 						$oper = $not ? DevblocksSearchCriteria::OPER_NOT_LIKE : DevblocksSearchCriteria::OPER_LIKE;
 						$value = $token->value;
 						

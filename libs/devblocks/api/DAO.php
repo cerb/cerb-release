@@ -21,16 +21,12 @@ abstract class DevblocksORMHelper {
 	
 	static protected function _onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, &$error) {
 		if(!($actor instanceof DevblocksDictionaryDelegate))
-			if(false == ($actor = CerberusContexts::polymorphActorToDictionary($actor, true))) // false=undelegate
+			if(!($actor = CerberusContexts::polymorphActorToDictionary($actor, true))) // false=undelegate
 				return false;
 		
 		switch($actor->_context) {
 			case CerberusContexts::CONTEXT_APPLICATION:
-				return true;
-				
 			case CerberusContexts::CONTEXT_BOT:
-				return true;
-				
 			case CerberusContexts::CONTEXT_ROLE:
 				return true;
 				
@@ -38,7 +34,7 @@ abstract class DevblocksORMHelper {
 				return false;
 				
 			case CerberusContexts::CONTEXT_WORKER:
-				if(false == ($worker = DAO_Worker::get($actor->id)))
+				if(!($worker = DAO_Worker::get($actor->id)))
 					return false;
 				
 				// Update
@@ -95,7 +91,6 @@ abstract class DevblocksORMHelper {
 			}
 		}
 		
-		if(is_array($fields))
 		foreach($fields as $field_key => &$value) {
 			// Bypass
 			if(in_array($field_key, $excludes))
@@ -1315,7 +1310,7 @@ class DAO_DevblocksSetting extends DevblocksORMHelper {
 	}
 	
 	static function delete($plugin_id, array $keys=[]) {
-		if(false == ($db = DevblocksPlatform::services()->database()))
+		if(!($db = DevblocksPlatform::services()->database()))
 			return;
 		
 		return $db->ExecuteMaster(sprintf("DELETE FROM devblocks_setting WHERE plugin_id = %s AND setting IN (%s)",
@@ -1728,7 +1723,7 @@ class DAO_Translation extends DevblocksORMHelper {
 		
 		if(empty($ids)) return false;
 		
-		$ids_list = implode(',', Cerb_ORMHelper::qstrArray($ids));
+		$ids_list = implode(',', $db->qstrArray($ids));
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM translation WHERE id IN (%s)", $ids_list));
 		
@@ -2120,9 +2115,9 @@ class DAO_DevblocksStorageProfile extends DevblocksORMHelper {
 		$db = DevblocksPlatform::services()->database();
 		
 		if(empty($ids))
-			return;
+			return true;
 		
-		$ids_list = implode(',', Cerb_ORMHelper::qstrArray($ids));
+		$ids_list = implode(',', $db->qstrArray($ids));
 		
 		$db->ExecuteMaster(sprintf("DELETE FROM devblocks_storage_profile WHERE id IN (%s)", $ids_list));
 		

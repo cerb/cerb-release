@@ -60,7 +60,7 @@ class _DevblocksClassLoadManager {
 				return true;
 		}
 		
-		if (false != ($file = $this->_loadDynamicClass($className))) {
+		if (($file = $this->_loadDynamicClass($className))) {
 			require_once($file);
 			return true;
 		}
