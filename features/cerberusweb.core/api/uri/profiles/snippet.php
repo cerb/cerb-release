@@ -137,7 +137,7 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 		$db->ExecuteMaster(sprintf("UPDATE snippet SET total_uses = total_uses + 1 WHERE id = %d", $snippet->id));
 		$metrics->increment('cerb.snippet.uses', 1, ['snippet_id' => $snippet->id, 'worker_id' => $active_worker->id]);
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(array(
 			'id' => $id,
@@ -408,7 +408,7 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 		// Create batches
 		$batch_key = DAO_ContextBulkUpdate::createFromView($view, $do);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(array(
 			'cursor' => $batch_key,
@@ -432,7 +432,7 @@ class PageSection_ProfilesSnippet extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if($do_delete) {

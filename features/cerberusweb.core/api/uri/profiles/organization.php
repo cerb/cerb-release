@@ -61,7 +61,7 @@ class PageSection_ProfilesOrganization extends Extension_PageSection {
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($delete)) { // delete
@@ -378,7 +378,7 @@ class PageSection_ProfilesOrganization extends Extension_PageSection {
 		// Create batches
 		$batch_key = DAO_ContextBulkUpdate::createFromView($view, $do);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(array(
 			'cursor' => $batch_key,
@@ -390,7 +390,7 @@ class PageSection_ProfilesOrganization extends Extension_PageSection {
 	private function _profileAction_getTopContactsByOrgJson() {
 		$org_name = DevblocksPlatform::importGPC($_REQUEST['org_name'] ?? null, 'string');
 		
-		header('Content-type: text/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(empty($org_name) || null == ($org_id = DAO_ContactOrg::lookup($org_name, false))) {
 			echo json_encode(array());

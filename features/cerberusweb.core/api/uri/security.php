@@ -107,11 +107,12 @@ class Controller_Security extends DevblocksControllerExtension {
 			}
 			*/
 			
-			header('Content-Type: image/png');
-			
-			header('Pragma: cache');
-			header('Cache-control: max-age=604800', true); // 1 wk
-			header('Expires: ' . gmdate('D, d M Y H:i:s',time()+604800) . ' GMT'); // 1 wk
+			DevblocksPlatform::services()->http()
+				->setHeader('Cache-Control', 'max-age=604800', true) // 1 wk
+				->setHeader('Content-Type', 'image/png')
+				->setHeader('Expires', gmdate('D, d M Y H:i:s',time()+604800) . ' GMT') // 1 wk
+				->setHeader('Pragma', 'cache')
+			;
 			
 			imagesavealpha($img, true);
 			imagepng($img);

@@ -116,7 +116,7 @@ class ChUpdateController extends DevblocksControllerExtension {
 				break;
 			
 			case 'logo':
-				header('Content-Type: image/svg+xml');
+				DevblocksPlatform::services()->http()->setHeader('Content-Type', 'image/svg+xml');
 				echo file_get_contents(APP_PATH . '/features/cerberusweb.core/resources/images/wgm/cerb_logo.svg');
 				return;
 				

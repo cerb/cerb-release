@@ -83,7 +83,7 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 	}
 	
 	private function _configAction_saveSettingsJson() {
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 			
 		try {
 			$active_worker = CerberusApplication::getActiveWorker();
@@ -144,7 +144,7 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 	private function _configAction_testMask() {
 		$ticket_mask_format = DevblocksPlatform::importGPC($_POST['ticket_mask_format'] ?? null,'string','');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -570,7 +570,7 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 		$validation = DevblocksPlatform::services()->validation();
 		$cache = DevblocksPlatform::services()->cache();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(!$active_worker || !$active_worker->is_superuser)
 			DevblocksPlatform::dieWithHttpError(null, 403);
@@ -683,7 +683,7 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header("Content-Type: application/json");
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		CerberusContexts::pushActivityDefaultActor(CerberusContexts::CONTEXT_APPLICATION, 0);
 		
@@ -821,7 +821,9 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 			// Display the raw message using the envelope encoding
 			if(false !== ($mime = new MimeMessage('file', $full_path)) && isset($mime->data['charset'])) {
 				$message_encoding = $mime->data['charset'];
-				header('Content-Type: text/plain; charset=' . $message_encoding);
+				DevblocksPlatform::services()->http()
+					->setHeader('Content-Type', 'text/plain; charset=' . $message_encoding)
+				;
 				echo file_get_contents($full_path);
 			}
 			
@@ -838,7 +840,7 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header("Content-Type: application/json");
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$logger = DevblocksPlatform::services()->log('Parser');
 		$logger->setLogLevel(4);
@@ -922,7 +924,7 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header("Content-Type: application/json");
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		@$file = basename(DevblocksPlatform::importGPC($_POST['file'],'string',''));
 		@$view_id = basename(DevblocksPlatform::importGPC($_POST['view_id'],'string',''));
@@ -982,7 +984,7 @@ class PageSection_SetupMailIncoming extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			$relay_disable = DevblocksPlatform::importGPC($_POST['relay_disable'] ?? null,'integer',0);

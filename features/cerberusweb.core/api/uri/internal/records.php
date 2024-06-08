@@ -161,7 +161,7 @@ class PageSection_InternalRecords extends Extension_PageSection {
 		DevblocksPlatform::sortObjects($results, '[label]');
 		$results = array_values($results);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		echo json_encode($results);
 	}
 	
@@ -287,7 +287,7 @@ class PageSection_InternalRecords extends Extension_PageSection {
 		$query = DevblocksPlatform::importGPC($_REQUEST['query'] ?? null, 'string','');
 		$term = DevblocksPlatform::importGPC($_REQUEST['term'] ?? null, 'string','');
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$list = [];
 		
@@ -368,7 +368,7 @@ class PageSection_InternalRecords extends Extension_PageSection {
 		$url_writer = DevblocksPlatform::services()->url();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		// [TODO] Privs!
 		// [TODO] Exceptions return JSON
@@ -439,7 +439,7 @@ class PageSection_InternalRecords extends Extension_PageSection {
 		
 		$bundle_id = DevblocksPlatform::importGPC($_REQUEST['bundle_id'] ?? null, 'integer', 0);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$results = [];
 		
@@ -638,7 +638,7 @@ class PageSection_InternalRecords extends Extension_PageSection {
 		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$record_type = DevblocksPlatform::importGPC($_POST['record_type'] ?? null, 'string','');
 		$record_id = DevblocksPlatform::importGPC($_POST['record_id'] ?? null, 'integer',0);
@@ -666,7 +666,7 @@ class PageSection_InternalRecords extends Extension_PageSection {
 	private function _internalAction_getChangesetJson() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$changeset_id = DevblocksPlatform::importGPC($_POST['changeset_id'] ?? null, 'int', 0);
 		
@@ -687,7 +687,7 @@ class PageSection_InternalRecords extends Extension_PageSection {
 	}	
 	
 	private function _internalAction_contextAddLinksJson() {
-		header('Content-type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$from_context = DevblocksPlatform::importGPC($_POST['from_context'] ?? null, 'string','');
 		$from_context_id = DevblocksPlatform::importGPC($_POST['from_context_id'] ?? null, 'integer',0);
@@ -707,7 +707,7 @@ class PageSection_InternalRecords extends Extension_PageSection {
 	}
 	
 	private function _internalAction_contextDeleteLinksJson() {
-		header('Content-type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$from_context = DevblocksPlatform::importGPC($_POST['from_context'] ?? null, 'string','');
 		$from_context_id = DevblocksPlatform::importGPC($_POST['from_context_id'] ?? null, 'integer',0);

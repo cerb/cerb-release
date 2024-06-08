@@ -85,7 +85,7 @@ class PageSection_SetupSearch extends Extension_PageSection {
 		$engine_extension_id = DevblocksPlatform::importGPC($_POST['engine_extension_id'] ?? null, 'string','');
 		$params = DevblocksPlatform::importGPC($_POST['params'] ?? null, 'array', []);
 
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(false == ($schema = Extension_DevblocksSearchSchema::get($schema_extension_id)))

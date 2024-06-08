@@ -257,7 +257,7 @@ class WgmTwitter_MessageProfileSection extends Extension_PageSection {
 		// Create batches
 		$batch_key = DAO_ContextBulkUpdate::createFromView($view, $do);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(array(
 			'cursor' => $batch_key,

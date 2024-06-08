@@ -541,7 +541,7 @@ $(function() {
 				formData.set('module', 'automation');
 				formData.set('action', 'runAutomationEditor');
 
-				genericAjaxPost(formData, null, null, function(json) {
+				let cb = function(json) {
 					$spinner.detach();
 					$button_run.fadeIn();
 
@@ -572,7 +572,26 @@ $(function() {
 
 					editor_state_end.setValue(json.dict);
 					editor_state_end.clearSelection();
-				});
+				};
+
+				let options = {
+					'error': function(e) {
+						$spinner.detach();
+						$button_run.fadeIn();
+
+						if(401 === e.status) {
+							editor_state_end.setValue("error: Your session has expired.");
+						} else if(403 === e.status) {
+							editor_state_end.setValue("error: Permission denied.");
+						} else if(504 === e.status) {
+							editor_state_end.setValue("error: Execution of the automation timed out.");
+						} else {
+							editor_state_end.setValue("error: An unexpected error occurred.");
+						}
+					}
+				};
+
+				genericAjaxPost(formData, null, null, cb, options);
 			})
 		;
 

@@ -61,7 +61,7 @@ class PageSection_ProfilesProfileWidget extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
@@ -361,7 +361,7 @@ class PageSection_ProfilesProfileWidget extends Extension_PageSection {
 		
 		$tab_id = DevblocksPlatform::importGPC($_REQUEST['tab_id'] ?? null, 'string','');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(!$tab_id || false == ($profile_tab = DAO_ProfileTab::get($tab_id))) {
 			echo json_encode([]);
@@ -497,7 +497,7 @@ class PageSection_ProfilesProfileWidget extends Extension_PageSection {
 		}
 		
 		if('json' == $format) {
-			header('Content-Type: application/json; charset=utf-8');
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 			
 			echo json_encode([
 				'status' => $success,

@@ -178,7 +178,7 @@ class WorkspaceWidget_Worklist extends Extension_WorkspaceWidget implements ICer
 			$columns = [];
 		}
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		echo json_encode($columns);
 	}
 	

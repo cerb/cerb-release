@@ -58,7 +58,7 @@ class PageSection_SetupDevelopersBotScriptingTester extends Extension_PageSectio
 		
 		$bot_script = DevblocksPlatform::importGPC($_POST['bot_script'] ?? null, 'string', null);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$dict = DevblocksDictionaryDelegate::instance([]);
 		

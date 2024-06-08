@@ -60,8 +60,7 @@ if('' == APP_DB_HOST
 		DevblocksPlatform::init();
 		$url_writer = DevblocksPlatform::services()->url();
 		$base_url = rtrim(preg_replace("/index\.php\/$/i",'',$url_writer->write('',true)),"/");
-		header('Location: '.$base_url.'/install/index.php');
-		exit;
+		DevblocksPlatform::redirectURL($base_url.'/install/index.php');
 	}
 
 require(APP_PATH . '/api/Application.class.php');

@@ -43,7 +43,7 @@ class FileDownloadAwait extends AbstractAwait {
 			
 			$content_type = $attachment->mime_type ?? 'application/octet-stream';
 			
-			header('Content-Type: ' . $content_type);
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', $content_type);
 			
 			$fp = DevblocksPlatform::getTempFile();
 			
@@ -59,7 +59,7 @@ class FileDownloadAwait extends AbstractAwait {
 			
 			$content_type = $automation_resource->mime_type ?? 'application/octet-stream';
 			
-			header('Content-Type: ' . $content_type);
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', $content_type);
 			
 			$fp = DevblocksPlatform::getTempFile();
 			

@@ -515,8 +515,10 @@ class Model_AutomationResource_ContentData {
 	public $error = null;
 	
 	public function writeHeaders() {
-		foreach($this->headers as $header)
-			header($header);
+		foreach($this->headers as $header) {
+			list($header_name, $header_value) = array_pad(explode(':', $header, 2), 2, '');
+			DevblocksPlatform::services()->http()->setHeader($header_name, ltrim($header_value));
+		}
 		
 		return true;
 	}

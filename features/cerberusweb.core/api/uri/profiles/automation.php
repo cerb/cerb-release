@@ -71,7 +71,7 @@ class PageSection_ProfilesAutomation extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 403);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
@@ -457,7 +457,7 @@ class PageSection_ProfilesAutomation extends Extension_PageSection {
 	private function _profileAction_stepAutomationEditor() {
 		$output_yaml = DevblocksPlatform::importGPC($_POST['output'] ?? null, 'string');
 		
-		header('Content-Type: text/plain; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/plain; charset=utf-8');
 		
 		if(false == ($output_yaml = DevblocksPlatform::services()->string()->yamlParse($output_yaml, 0)))
 			return;
@@ -538,7 +538,7 @@ class PageSection_ProfilesAutomation extends Extension_PageSection {
 		
 		$error = null;
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		// Only admins
 		if(!$active_worker->is_superuser) {
@@ -686,7 +686,7 @@ class PageSection_ProfilesAutomation extends Extension_PageSection {
 		
 		$extension_id = DevblocksPlatform::importGPC($_POST['extension_id'] ?? null, 'string', null);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(!$extension_id) {
 			echo '[]';

@@ -41,7 +41,7 @@ class PageSection_SetupAvatars extends Extension_PageSection {
 	}
 	
 	private function _configAction_saveJson() {
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if('POST' != DevblocksPlatform::getHttpMethod())

@@ -93,6 +93,27 @@ class _DevblocksStringService {
 		return $terms;
 	}
 	
+	public function strFilename(string $file_name, $unidecode=false) : string {
+		// Unidecode
+		if($unidecode)
+			$file_name = DevblocksPlatform::strUnidecode($file_name, 'utf-8');
+		
+		// Replace non-printable, whitespace, and forbidden
+		return str_replace(
+			["\r","\n",'<','>',':','"','/','\\','|','?','*'],
+			['','','','','','','','','','',''],
+			$this->strPrintable($file_name)
+		);
+	}
+	
+	public function strPrintable(string $string, $replacement='') : string {
+		return preg_replace( '/[^[:print:]]/u', $replacement, $string);
+	}
+	
+	public function strStripCrlf(string $string, $replace_with='') : string {
+		return preg_replace('#[\r\n]+#', $replace_with, $string);
+	}
+	
 	/*
 	 * Credit: https://stackoverflow.com/a/16496730
 	 */

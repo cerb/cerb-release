@@ -61,7 +61,7 @@ class PageSection_SetupDevelopersOAuth2TokenGenerator extends Extension_PageSect
 		$expires_duration = DevblocksPlatform::importGPC($_POST['expires_duration'] ?? null, 'integer', 0);
 		$expires_term = DevblocksPlatform::importGPC($_POST['expires_term'] ?? null, 'string', '');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!$oauth_app_id || false == ($oauth_app = DAO_OAuthApp::get($oauth_app_id)))

@@ -131,7 +131,7 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // delete
@@ -254,7 +254,7 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 		$error = null;
 		
 		if($is_ajax)
-			header('Content-Type: application/json;');
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
@@ -518,7 +518,7 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 	private function _profileAction_saveDraftCompose() {
 		$tpl = DevblocksPlatform::services()->template();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$error = null;
 		
@@ -539,7 +539,7 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 	}
 	
 	private function _profileAction_validateComposeJson() {
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$compose_mode = DevblocksPlatform::strLower(DevblocksPlatform::importGPC($_POST['compose_mode'] ?? null,'string'));
 		$compose_modes = ['send','save','draft'];
@@ -676,7 +676,7 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 	private function _profileAction_saveComposePeek() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
@@ -807,7 +807,7 @@ class PageSection_ProfilesDraft extends Extension_PageSection {
 		// Create batches
 		$batch_key = DAO_ContextBulkUpdate::createFromView($view, $do);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(array(
 			'cursor' => $batch_key,

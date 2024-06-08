@@ -71,49 +71,51 @@ class Controller_Resource extends DevblocksControllerExtension {
 				case 'ttf':
 				case 'woff':
 				case 'woff2':
-					header('Cache-control: max-age=604800', true); // 1 wk // , must-revalidate
-					header('Expires: ' . gmdate('D, d M Y H:i:s',time()+604800) . ' GMT'); // 1 wk
+					DevblocksPlatform::services()->http()
+						->setHeader('Cache-Control', ' max-age=604800') // 1 wk // , must-revalidate
+						->setHeader('Expires', gmdate('D, d M Y H:i:s',time()+604800) . ' GMT') // 1 wk
+					;
 					break;
 			}
 			
 			// Content types
 			switch($ext) {
 				case 'css':
-					header('Content-type: text/css');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/css');
 					break;
 				case 'eot':
-					header('Content-type: application/vnd.ms-fontobject');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/vnd.ms-fontobject');
 					break;
 				case 'gif':
-					header('Content-type: image/gif');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'image/gif');
 					break;
 				case 'ico':
-					header('Content-type: image/x-icon');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'image/x-icon');
 					break;
 				case 'jpeg':
 				case 'jpg':
-					header('Content-type: image/jpeg');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'image/jpeg');
 					break;
 				case 'js':
-					header('Content-type: text/javascript');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/javascript');
 					break;
 				case 'json':
-					header('Content-type: application/json');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 					break;
 				case 'png':
-					header('Content-type: image/png');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'image/png');
 					break;
 				case 'svg':
-					header('Content-type: image/svg+xml');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'image/svg+xml');
 					break;
 				case 'ttf':
-					header('Content-type: application/x-font-ttf');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/x-font-ttf');
 					break;
 				case 'woff':
-					header('Content-type: application/font-woff');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/font-woff');
 					break;
 				case 'woff2':
-					header('Content-type: font/woff2');
+					DevblocksPlatform::services()->http()->setHeader('Content-Type', 'font/woff2');
 					break;
 				default:
 					DevblocksPlatform::dieWithHttpError(null, 403);
@@ -124,7 +126,7 @@ class Controller_Resource extends DevblocksControllerExtension {
 	
 			// Pass through
 			if($out) {
-				header('Content-Length: '. strlen($out));
+				DevblocksPlatform::services()->http()->setHeader('Content-Length', strlen($out));
 				echo $out;
 			}
 			
@@ -196,9 +198,11 @@ class Controller_Resource extends DevblocksControllerExtension {
 				break;
 				
 			case 'css/user.css':
-				header('Content-type: text/css');
-				header('Cache-control: max-age=86400', true); // 1 day // , must-revalidate
-				header('Expires: ' . gmdate('D, d M Y H:i:s',time()+86400) . ' GMT'); // 1 day
+				DevblocksPlatform::services()->http()
+					->setHeader('Cache-Control', ' max-age=86400') // 1 day // , must-revalidate
+					->setHeader('Content-Type', 'text/css')
+					->setHeader('Expires', gmdate('D, d M Y H:i:s',time()+86400) . ' GMT') // 1 day
+				;
 				
 				echo DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::UI_USER_STYLESHEET, '');
 				break;

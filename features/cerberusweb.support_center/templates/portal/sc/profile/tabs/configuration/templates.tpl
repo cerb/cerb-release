@@ -1,3 +1,15 @@
+{if $templates_enabled}
+	<div class="error-box">
+		<h1>Deprecated</h1>
+		<p>Custom templates in portals are deprecated and will be removed in future version.</p>
+	</div>
+{else}
+	<div class="error-box">
+		<h1>Disabled</h1>
+		<p>Custom templates in portals are disabled and will be removed in future version. Use <code>APP_OPT_DEPRECATED_PORTAL_CUSTOM_TEMPLATES</code> to temporarily re-enable.</p>
+	</div>
+{/if}
+
 <form action="#" style="margin-bottom:5px;float:left;">
 	<button type="button" onclick="genericAjaxPopup('peek','c=profiles&a=invoke&module=community_portal&action=showConfigTab&config_tab=templates&tab_action=showAddTemplatePeek&portal_id={$portal->id}&view_id={$view->id|escape:'url'}',null,false,'80%');"><span class="glyphicons glyphicons-circle-plus"></span> {'common.add'|devblocks_translate|capitalize}</button></a>
 	<button type="button" onclick="genericAjaxPopup('import','c=internal&a=invoke&module=portals&action=showImportTemplatesPeek&portal_id={$portal->id}&view_id={$view->id|escape:'url'}',null,false,'50%');"><span class="glyphicons glyphicons-file-import"></span> {'common.import'|devblocks_translate|capitalize}</button></a>

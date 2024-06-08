@@ -42,7 +42,7 @@ class PageSection_SetupLicense extends Extension_PageSection {
 	private function _configAction_saveJson() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 
 		try {
 			if('POST' != DevblocksPlatform::getHttpMethod())

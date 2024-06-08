@@ -55,7 +55,7 @@ class PageSection_ProfilesDomain extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($delete)) { // delete
@@ -331,7 +331,7 @@ class PageSection_ProfilesDomain extends Extension_PageSection {
 		// Create batches
 		$batch_key = DAO_ContextBulkUpdate::createFromView($view, $do);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(array(
 			'cursor' => $batch_key,

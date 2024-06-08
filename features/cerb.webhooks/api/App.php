@@ -102,10 +102,7 @@ class Controller_Webhooks implements DevblocksHttpRequestHandler {
 		
 		if(array_key_exists('headers', $results) && is_array($results['headers'])) {
 			foreach($results['headers'] as $header_k => $header_v) {
-				header(sprintf("%s: %s",
-					$header_k,
-					$header_v
-				));
+				DevblocksPlatform::services()->http()->setHeader($header_k, $header_v);
 			}
 		}
 		
@@ -157,10 +154,7 @@ class Controller_Webhooks implements DevblocksHttpRequestHandler {
 		
 		if(isset($dict->_http_response_headers) && is_array($dict->_http_response_headers)) {
 			foreach($dict->_http_response_headers as $header_k => $header_v) {
-				header(sprintf("%s: %s",
-					$header_k,
-					$header_v
-				));
+				DevblocksPlatform::services()->http()->setHeader($header_k, $header_v);
 			}
 		}
 		

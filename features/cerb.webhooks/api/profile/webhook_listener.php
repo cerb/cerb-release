@@ -52,7 +52,7 @@ class PageSection_ProfilesWebhookListener extends Extension_PageSection {
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete

@@ -538,7 +538,7 @@ class _DevblocksSmartyTemplateResource extends Smarty_Resource_Custom {
 			return false;
 
 		// Only check the DB if the template may be overridden
-		if(isset($plugin->manifest_cache['templates'])) {
+		if(APP_OPT_DEPRECATED_PORTAL_CUSTOM_TEMPLATES && array_key_exists('templates', $plugin->manifest_cache)) {
 			foreach($plugin->manifest_cache['templates'] as $v) {
 				if(0 == strcasecmp($v['path'], $tpl_path)) {
 					// Check if template is overloaded in DB/cache

@@ -56,7 +56,7 @@ class PageSection_ProfilesClassifier extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
@@ -201,7 +201,7 @@ class PageSection_ProfilesClassifier extends Extension_PageSection {
 		$classifier_id = DevblocksPlatform::importGPC($_POST['classifier_id'] ?? null, 'integer', 0);
 		$examples_csv = DevblocksPlatform::importGPC($_POST['examples_csv'] ?? null, 'string', null);
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(!$classifier_id || false == ($classifier = DAO_Classifier::get($classifier_id))) {
 			echo json_encode([

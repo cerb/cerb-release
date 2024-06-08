@@ -50,7 +50,7 @@ class PageSection_ProfilesWorkspacePage extends Extension_PageSection {
 		$view_id = DevblocksPlatform::importGPC($_POST['view_id'] ?? null, 'string', '');
 		$do_delete = DevblocksPlatform::importGPC($_POST['do_delete'] ?? null, 'integer', '0');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if($id) {

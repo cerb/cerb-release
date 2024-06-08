@@ -116,7 +116,7 @@ class PageSection_SetupPlugins extends Extension_PageSection {
 		$enabled = DevblocksPlatform::importGPC($_POST['enabled'] ?? null, 'integer',0);
 		$uninstall = DevblocksPlatform::importGPC($_POST['uninstall'] ?? null, 'integer',0);
 
-		header("Content-Type: application/json");
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$errors = [];
 		

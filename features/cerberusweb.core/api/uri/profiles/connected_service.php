@@ -57,7 +57,7 @@ class PageSection_ProfilesConnectedService extends Extension_PageSection {
 		
 		$error = null;
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete

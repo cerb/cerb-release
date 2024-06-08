@@ -102,7 +102,7 @@ class PageSection_ProfilesWorkspaceTab extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
@@ -372,7 +372,7 @@ class PageSection_ProfilesWorkspaceTab extends Extension_PageSection {
 		$prompts = DevblocksPlatform::importGPC($_POST['prompts'] ?? null, 'array', []);
 		$reset = DevblocksPlatform::importGPC($_POST['reset'] ?? null, 'bit', 0);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(!$tab_id || false == ($tab = DAO_WorkspaceTab::get($tab_id)))
 			DevblocksPlatform::dieWithHttpError(null, 404);

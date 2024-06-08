@@ -84,13 +84,14 @@ class Controller_Avatars extends DevblocksControllerExtension {
 		}
 		
 		// Set headers
-		header('Pragma: cache');
-		header('Cache-control: max-age=86400', true); // 24 hours // , must-revalidate
-		header('Expires: ' . gmdate('D, d M Y H:i:s',time()+86400) . ' GMT'); // 2 hours
-		header('Accept-Ranges: bytes');
-
-		header('Content-Type: ' . $avatar->content_type);
-		header('Content-Length: ' . $avatar->storage_size);
+		DevblocksPlatform::services()->http()
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Cache-control', 'max-age=86400', true) // 24 hours // , must-revalidate
+			->setHeader('Content-Length', $avatar->storage_size)
+			->setHeader('Content-Type', $avatar->content_type)
+			->setHeader('Expires', gmdate('D, d M Y H:i:s',time()+86400) . ' GMT') // 2 hours
+			->setHeader('Pragma', 'cache')
+		;
 		
 		echo $contents;
 		exit;
@@ -157,8 +158,10 @@ class Controller_Avatars extends DevblocksControllerExtension {
 			$response['error'] = 'An error occurred.';
 		}
 		
-		header("Pragma: no-cache");
-		header("Content-Type: application/json");
+		DevblocksPlatform::services()->http()
+			->setHeader('Content-Type', 'application/json; charset=utf-8')
+			->setHeader('Pragma', 'no-cache')
+		;
 		
 		echo json_encode($response);
 		exit;
@@ -337,13 +340,14 @@ class Controller_Avatars extends DevblocksControllerExtension {
 		$contents = file_get_contents($file_path);
 		
 		// Set headers
-		header('Pragma: cache');
-		header('Cache-control: max-age=86400', true); // 24 hours // , must-revalidate
-		header('Expires: ' . gmdate('D, d M Y H:i:s',time()+86400) . ' GMT'); // 2 hours
-		header('Accept-Ranges: bytes');
-		
-		header('Content-Type: image/png');
-		header('Content-Length: ' . strlen($contents));
+		DevblocksPlatform::services()->http()
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Cache-Control', 'max-age=86400') // 24 hours // , must-revalidate
+			->setHeader('Content-Length', strlen($contents))
+			->setHeader('Content-Type', 'image/png')
+			->setHeader('Expires', gmdate('D, d M Y H:i:s',time()+86400) . ' GMT') // 2 hours
+			->setHeader('Pragma', 'cache')
+		;
 		
 		echo $contents;
 		exit;
@@ -375,11 +379,13 @@ class Controller_Avatars extends DevblocksControllerExtension {
 		$b_rand = mt_rand(25,180);
 		mt_srand();
 		
-		header('Pragma: cache');
-		header('Cache-control: max-age=86400', true); // 24 hours // , must-revalidate
-		header('Expires: ' . gmdate('D, d M Y H:i:s',time()+86400) . ' GMT'); // 2 hours
-		header('Accept-Ranges: bytes');
-		header('Content-Type: image/png');
+		DevblocksPlatform::services()->http()
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Cache-Control', 'max-age=86400') // 24 hours // , must-revalidate
+			->setHeader('Content-Type', 'image/png')
+			->setHeader('Expires', gmdate('D, d M Y H:i:s',time()+86400) . ' GMT') // 2 hours
+			->setHeader('Pragma',  'cache')
+		;
 		
 		if(false == ($im = @imagecreate(100, 100)))
 			DevblocksPlatform::dieWithHttpError(null, 500);

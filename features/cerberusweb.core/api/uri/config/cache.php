@@ -77,7 +77,7 @@ class PageSection_SetupCache extends Extension_PageSection {
 		if(DEVBLOCKS_CACHE_ENGINE_PREVENT_CHANGE)
 			return;
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		

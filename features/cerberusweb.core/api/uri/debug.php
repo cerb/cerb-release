@@ -107,7 +107,7 @@ class ChDebugController extends DevblocksControllerExtension  {
 				
 				$db = DevblocksPlatform::services()->database();
 
-				header('Content-Type: application/json; charset=utf-8');
+				DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 
 				$tickets_by_status = array();
 				

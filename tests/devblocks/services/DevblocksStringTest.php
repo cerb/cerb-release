@@ -32,6 +32,82 @@ class DevblocksStringTest extends TestCase {
 		$this->assertEquals($expected, $actual);
 	}
 	
+	function testStrFilename() {
+		$strings = DevblocksPlatform::services()->string();
+	
+		// Spaces
+		$expected = 'this filename has spaces.png';
+		$actual = $strings->strFilename('this filename has spaces.png');
+		$this->assertEquals($expected, $actual);
+		
+		// Whitelisted chars
+		$expected = 'this filename %has$ spåces.txt';
+		$actual = $strings->strFilename('this filename %has$ spåces.txt');
+		$this->assertEquals($expected, $actual);
+		
+		// Forbidden chars
+		$expected = 'forbidden.txt';
+		$actual = $strings->strFilename("\n\tfor<>b:i\"d/d\\e|?n*.txt\r\n");
+		$this->assertEquals($expected, $actual);
+		
+		// DMARC
+		$expected = 'amazonses.com!example.com!1717113600!1717200000.xml.gz';
+		$actual = $strings->strFilename('amazonses.com!example.com!1717113600!1717200000.xml.gz');
+		$this->assertEquals($expected, $actual);
+		
+		// Unidecode
+		$expected = 'äéß@(example).txt';
+		$actual = $strings->strFilename('äéß@(example).txt');
+		$this->assertEquals($expected, $actual);
+		
+		// Chinese Unidecode
+		$expected = 'Wen Jian Ming Hen Ji Shou .json';
+		$actual = $strings->strFilename('文件名很棘手.json', true);
+		$this->assertEquals($expected, $actual);
+	}
+	
+	function testStrPrintable() {
+		$strings = DevblocksPlatform::services()->string();
+		
+		// Unicode
+		$expected = "äéîß";
+		$actual = $strings->strPrintable("äéîß");
+		$this->assertEquals($expected, $actual);
+		
+		// Unicode w/ CRLF
+		$expected = "äé îßş";
+		$actual = $strings->strPrintable("äé \rîß\nş");
+		$this->assertEquals($expected, $actual);
+		
+		// Escape chars
+		$expected = "abcde";
+		$actual = $strings->strPrintable("a\rb\nc\td\0e");
+		$this->assertEquals($expected, $actual);
+		
+		// Filename
+		$expected = "filename.ext";
+		$actual = $strings->strPrintable("\rfile\n\0name\t.ext");
+		$this->assertEquals($expected, $actual);
+	}
+	
+	function testStrStripCrlf() {
+		$strings = DevblocksPlatform::services()->string();
+		
+		$expected = "line 1line 2";
+		$actual = $strings->strStripCrlf("line 1\r\nline 2");
+		$this->assertEquals($expected, $actual);
+		
+		// Custom replacement
+		$expected = "line 1 line 2";
+		$actual = $strings->strStripCrlf("line 1\r\nline 2", ' ');
+		$this->assertEquals($expected, $actual);
+		
+		// Custom replacement, multiple crlf
+		$expected = "first line second line";
+		$actual = $strings->strStripCrlf("first line\r\n\n\r\nsecond line", ' ');
+		$this->assertEquals($expected, $actual);
+	}
+	
 	function testIndentWith() {
 		$strings = DevblocksPlatform::services()->string();
 		

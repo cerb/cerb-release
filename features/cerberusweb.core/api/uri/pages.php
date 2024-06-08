@@ -281,7 +281,7 @@ class Page_Custom extends CerberusPageExtension {
 		$page_id = DevblocksPlatform::importGPC($_POST['page_id'] ?? null, 'integer','0');
 		$toggle = DevblocksPlatform::importGPC($_POST['toggle'] ?? null, 'integer','0');
 		
-		header('Content-type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 
 		$pages = DAO_WorkspacePage::getAll();
 		

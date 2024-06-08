@@ -97,7 +97,7 @@ class PageSection_InternalWatchers extends Extension_PageSection {
 		CerberusContexts::removeWatchers($context, $context_id, $removals);
 		
 		// Return JSON data
-		header("Content-Type: application/json; charset=". LANG_CHARSET_CODE);
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(array(
 			'context' => $context,
@@ -133,7 +133,7 @@ class PageSection_InternalWatchers extends Extension_PageSection {
 		}
 		
 		// Return JSON data
-		header("Content-Type: application/json; charset=". LANG_CHARSET_CODE);
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(array(
 			'context' => $context,

@@ -100,7 +100,7 @@ class PageSection_SetupAuth extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			$params = DevblocksPlatform::importGPC($_POST['params'] ?? null, 'array', []);

@@ -106,7 +106,7 @@ class FileUploadAwait extends AbstractAwait {
 	private function _promptAction_uploadFile(Model_AutomationContinuation $continuation) : bool {
 		$file = DevblocksPlatform::importGPC($_FILES['file'] ?? null, 'array', []);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$error_codes = [
 			1 => 'The uploaded file is too large',

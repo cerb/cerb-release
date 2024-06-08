@@ -160,7 +160,7 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			$subject = DevblocksPlatform::importGPC($_POST['subject'] ?? null,'string','');
@@ -504,7 +504,7 @@ class PageSection_ProfilesTicket extends Extension_PageSection {
 		$is_forward = DevblocksPlatform::importGPC($_POST['forward'] ?? null, 'integer',0);
 		$draft_id = DevblocksPlatform::importGPC($_POST['draft_id'] ?? null, 'integer',0);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(!$draft_id && !$is_forward) {
 			// Do we need to warn the worker about anything before they reply?
@@ -790,7 +790,7 @@ EOD;
 	}
 	
 	private function _profileAction_validateReplyJson() {
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$reply_mode = DevblocksPlatform::strLower(DevblocksPlatform::importGPC($_POST['reply_mode'] ?? null,'string'));
 		$reply_modes = ['send','save','draft'];
@@ -921,7 +921,7 @@ EOD;
 	private function _profileAction_sendReply() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
@@ -1067,7 +1067,7 @@ EOD;
 		
 		$id = DevblocksPlatform::importGPC($_POST['id'], 'integer', 0);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!$id)
@@ -1282,7 +1282,7 @@ EOD;
 		// Create batches
 		$batch_key = DAO_ContextBulkUpdate::createFromView($view, $do);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(array(
 			'cursor' => $batch_key,

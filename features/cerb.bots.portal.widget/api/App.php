@@ -31,8 +31,11 @@ class Portal_ConvoBotWidget extends Extension_CommunityPortal {
 		
 		if(isset($config[self::PARAM_CORS_ALLOW_ORIGIN])) {
 			$origin = $config[self::PARAM_CORS_ALLOW_ORIGIN] ?: '*';
-			header('Access-Control-Allow-Origin: ' . $origin);
-			header('Access-Control-Allow-Credentials: true');
+			
+			DevblocksPlatform::services()->http()
+				->setHeader('Access-Control-Allow-Origin', $origin)
+				->setHeader('Access-Control-Allow-Credentials', 'true')
+			;
 		}
 	}
 	
@@ -469,7 +472,7 @@ class Portal_ConvoBotWidget extends Extension_CommunityPortal {
 				// [TODO] Cache headers, and &v= cache killers
 				switch($file) {
 					case 'embed.js':
-						header('Content-Type: text/javascript');
+						DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/javascript');
 						$tpl = DevblocksPlatform::services()->template();
 						$tpl->display('devblocks:cerb.bots.portal.widget::widget/embed.js');
 						break;

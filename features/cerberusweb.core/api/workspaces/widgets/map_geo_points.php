@@ -79,7 +79,7 @@ class WorkspaceWidget_MapGeoPoints extends Extension_WorkspaceWidget {
 		$sheets = DevblocksPlatform::services()->sheet();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$error = null;
 		

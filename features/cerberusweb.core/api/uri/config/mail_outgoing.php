@@ -62,7 +62,7 @@ class PageSection_SetupMailOutgoing extends Extension_PageSection {
 	}
 	
 	private function _configAction_saveSettingsJson() {
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		
@@ -161,7 +161,7 @@ class PageSection_SetupMailOutgoing extends Extension_PageSection {
 	}
 	
 	private function _configAction_saveTemplatesJson() {
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$active_worker = CerberusApplication::getActiveWorker();
 		

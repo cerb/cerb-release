@@ -62,13 +62,14 @@ class UmScAvatarController extends Extension_UmScController {
 		}
 		
 		// Set headers
-		header('Pragma: cache');
-		header('Cache-control: max-age=7200', true); // 2 hours // , must-revalidate
-		header('Expires: ' . gmdate('D, d M Y H:i:s',time()+7200) . ' GMT'); // 2 hours
-		header('Accept-Ranges: bytes');
-
-		header("Content-Type: " . $avatar->content_type);
-		header("Content-Length: " . $avatar->storage_size);
+		DevblocksPlatform::services()->http()
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Cache-Control', 'max-age=7200', true) // 2 hours // , must-revalidate
+			->setHeader('Content-Length', intval($avatar->storage_size))
+			->setHeader('Content-Type', $avatar->content_type)
+			->setHeader('Expires', gmdate('D, d M Y H:i:s',time()+7200) . ' GMT') // 2 hours
+			->setHeader('Pragma', 'cache')
+		;
 		
 		echo $contents;
 		DevblocksPlatform::exit();
@@ -183,13 +184,14 @@ class UmScAvatarController extends Extension_UmScController {
 		}
 		
 		// Set headers
-		header('Pragma: cache');
-		header('Cache-control: max-age=7200', true); // 2 hours // , must-revalidate
-		header('Expires: ' . gmdate('D, d M Y H:i:s',time()+7200) . ' GMT'); // 2 hours
-		header('Accept-Ranges: bytes');
-		
-		header("Content-Type: " . 'image/png');
-		header("Content-Length: " . strlen($contents));
+		DevblocksPlatform::services()->http()
+			->setHeader('Pragma', 'cache')
+			->setHeader('Cache-Control', 'max-age=7200') // 2 hours // , must-revalidate
+			->setHeader('Expires', gmdate('D, d M Y H:i:s',time()+7200) . ' GMT') // 2 hours
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Content-Type', 'image/png')
+			->setHeader('Content-Length', strlen($contents))
+		;
 		
 		echo $contents;
 		exit;
@@ -221,11 +223,13 @@ class UmScAvatarController extends Extension_UmScController {
 		$b_rand = mt_rand(25,180);
 		mt_srand();
 		
-		header('Pragma: cache');
-		header('Cache-control: max-age=86400', true); // 24 hours // , must-revalidate
-		header('Expires: ' . gmdate('D, d M Y H:i:s',time()+86400) . ' GMT'); // 2 hours
-		header('Accept-Ranges: bytes');
-		header('Content-Type: image/png');
+		DevblocksPlatform::services()->http()
+			->setHeader('Pragma', 'cache')
+			->setHeader('Cache-Control', 'max-age=86400') // 24 hours // , must-revalidate
+			->setHeader('Expires', gmdate('D, d M Y H:i:s',time()+86400) . ' GMT') // 2 hours
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Content-Type', 'image/png')
+		;
 		
 		if(false == ($im = @imagecreate(100, 100)))
 			DevblocksPlatform::dieWithHttpError(null, 500);

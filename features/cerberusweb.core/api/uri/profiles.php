@@ -1053,7 +1053,7 @@ class ProfileTab_WorkerSettings extends Extension_ProfileTab {
 		$worker_id = DevblocksPlatform::importGPC($_POST['worker_id'] ?? null, 'integer', 0);
 		$tab = DevblocksPlatform::importGPC($_POST['tab'] ?? null, 'string', null);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			// ACL

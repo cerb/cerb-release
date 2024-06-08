@@ -100,7 +100,7 @@ class PageSection_InternalCalendars extends Extension_PageSection {
 		$active_worker = CerberusApplication::getActiveWorker();
 		$date = DevblocksPlatform::services()->date();
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$results = [];
 		
@@ -157,7 +157,7 @@ class PageSection_InternalCalendars extends Extension_PageSection {
 		$date = DevblocksPlatform::services()->date();
 		$timezones = $date->getTimezones();
 
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$options = [];
 		

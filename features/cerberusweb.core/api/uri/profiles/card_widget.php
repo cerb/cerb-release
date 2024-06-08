@@ -70,7 +70,7 @@ class PageSection_ProfilesCardWidget extends Extension_PageSection {
 		if(!$active_worker->is_superuser)
 			return;
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
@@ -415,7 +415,7 @@ class PageSection_ProfilesCardWidget extends Extension_PageSection {
 		}
 		
 		if('json' == $format) {
-			header('Content-Type: application/json; charset=utf-8');
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 			
 			echo json_encode([
 				'status' => $success,

@@ -144,7 +144,7 @@ class PageSection_InternalPortals extends Extension_PageSection {
 		$portal_id = DevblocksPlatform::importGPC($_POST['portal_id'] ?? null, 'integer',0);
 		$file_id = DevblocksPlatform::importGPC($_POST['file_id'] ?? null, 'integer',0);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!$portal_id || false == ($portal = DAO_CommunityTool::get($portal_id)))
@@ -252,8 +252,10 @@ class PageSection_InternalPortals extends Extension_PageSection {
 		$simplexml = $doc->importNode($simplexml, true);
 		$simplexml = $doc->appendChild($simplexml);
 		
-		header("Content-type: text/xml");
-		header("Content-Disposition: attachment; filename=\"$filename\"");
+		DevblocksPlatform::services()->http()
+			->setHeader('Content-Disposition', sprintf('attachment; filename=%s', DevblocksPlatform::services()->string()->strFilename($filename)))
+			->setHeader('Content-Type', 'text/xml')
+		;
 		
 		echo $doc->saveXML();
 		DevblocksPlatform::exit();

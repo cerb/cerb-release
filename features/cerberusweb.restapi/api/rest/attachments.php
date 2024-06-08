@@ -105,14 +105,14 @@ class ChRest_Attachments extends Extension_RestController implements IExtensionR
 		$file_stats = fstat($fp);
 
 		// Set headers
-		header("Expires: Mon, 26 Nov 1970 00:00:00 GMT");
-		header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
-		header("Accept-Ranges: bytes");
-//		header("Keep-Alive: timeout=5, max=100");
-//		header("Connection: Keep-Alive");
-		header("Content-Type: " . $file->mime_type);
-		header("Content-disposition: attachment; filename=" . $file->name);
-		header("Content-Length: " . $file_stats['size']);
+		DevblocksPlatform::services()->http()
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Content-Disposition', sprintf('attachment; filename=%s', DevblocksPlatform::services()->string()->strFilename($file->name)))
+			->setHeader('Content-Length', intval($file_stats['size']))
+			->setHeader('Content-Type', $file->mime_type)
+			->setHeader('Expires', 'Mon, 26 Nov 1970 00:00:00 GMT')
+			->setHeader('Last-Modified', gmdate("D, d M Y H:i:s") . ' GMT')
+		;
 		
 		fpassthru($fp);
 		fclose($fp);

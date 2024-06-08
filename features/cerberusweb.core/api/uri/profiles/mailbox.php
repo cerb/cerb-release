@@ -53,7 +53,7 @@ class PageSection_ProfilesMailbox extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!$active_worker || !$active_worker->is_superuser)
@@ -204,7 +204,7 @@ class PageSection_ProfilesMailbox extends Extension_PageSection {
 		$translate = DevblocksPlatform::getTranslationService();
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		@$error_reporting = error_reporting(E_ERROR & ~E_NOTICE);
 		

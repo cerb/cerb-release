@@ -59,7 +59,7 @@ class PageSection_ProfilesProfileTab extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
@@ -236,7 +236,7 @@ class PageSection_ProfilesProfileTab extends Extension_PageSection {
 		
 		$context = DevblocksPlatform::importGPC($_REQUEST['context'] ?? null, 'string', null);
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(null == ($context_ext = Extension_DevblocksContext::getByAlias($context, true))) {
 			echo json_encode(false);
@@ -313,7 +313,7 @@ class PageSection_ProfilesProfileTab extends Extension_PageSection {
 		
 		$context = DevblocksPlatform::importGPC($_REQUEST['context'] ?? null,'string','');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(empty($context)) {
 			echo json_encode([]);

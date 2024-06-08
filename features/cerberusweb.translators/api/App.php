@@ -403,8 +403,10 @@ class ChTranslators_SetupPageSection extends Extension_PageSection {
 
 		$filename = "cerb_lang_" . implode('_', array_keys($codes)) . ".tmx";
 		
-		header("Content-Type: text/xml");
-		header("Content-Disposition: attachment; filename=\"$filename\"");
+		DevblocksPlatform::services()->http()
+			->setHeader('Content-Type', 'text/xml')
+			->setHeader('Content-Disposition', sprintf('attachment; filename=%s', DevblocksPlatform::services()->string()->strFilename($filename)))
+		;
 		
 		echo $doc->saveXML();
 	}

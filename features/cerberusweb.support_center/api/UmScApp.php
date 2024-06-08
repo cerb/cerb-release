@@ -261,9 +261,11 @@ class UmScApp extends Extension_CommunityPortal {
 			case 'captcha':
 				$bgcolor = array_fill(0, 3, mt_rand(120,240));
 				
-				header('Pragma: no-cache');
-				header('Cache-Control: no-cache, must-revalidate');
-				header('Content-type: image/jpeg');
+				DevblocksPlatform::services()->http()
+					->setHeader('Cache-Control', 'no-cache, must-revalidate')
+					->setHeader('Content-Type', 'image/jpeg')
+					->setHeader('Pragma', 'no-cache')
+				;
 
 				// Get CAPTCHA secret passphrase
 				$phrase = CerberusApplication::generatePassword(4);
@@ -508,6 +510,7 @@ class UmScApp extends Extension_CommunityPortal {
 				}
 				
 				$tpl->assign('view', $view);
+				$tpl->assign('templates_enabled', APP_OPT_DEPRECATED_PORTAL_CUSTOM_TEMPLATES);
 				
 				$tpl->display("devblocks:cerberusweb.support_center::portal/sc/profile/tabs/configuration/templates.tpl");
 				break;
@@ -781,8 +784,7 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 		try {
 			// We need the basics in place
 			if(empty($email)) {
-				header("Location: " . $url_writer->write('c=login', true));
-				exit;
+				DevblocksPlatform::redirectURL($url_writer->write('c=login', true));
 			}
 			
 			// Lookup code
@@ -846,9 +848,8 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 			// Redirect
 			
 			$address_uri = urlencode(str_replace(array('@','.'),array('_at_','_dot_'),$address->email));
-			header("Location: " . $url_writer->write('c=account&a=email&address='.$address_uri, true));
-			exit;
-				
+			DevblocksPlatform::redirectURL($url_writer->write('c=account&a=email&address='.$address_uri, true));
+			
 		} catch(Exception_DevblocksValidationError $e) {
 			$tpl->assign('error', $e->getMessage());
 			
@@ -998,8 +999,7 @@ class UmScLoginAuthenticator extends Extension_ScLoginAuthenticator {
 			
 			// Log in the session
 			$umsession->login($contact);
-			header("Location: " . $url_writer->write('c=account&a=password', true));
-			exit;
+			DevblocksPlatform::redirectURL($url_writer->write('c=account&a=password', true));
 			
 		} catch (Exception_DevblocksValidationError $e) {
 			$tpl->assign('error', $e->getMessage());

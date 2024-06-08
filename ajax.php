@@ -43,7 +43,10 @@ require(getcwd() . '/framework.config.php');
 require(DEVBLOCKS_PATH . 'Devblocks.class.php');
 require(APP_PATH . '/api/Application.class.php');
 
-header("Content-type: text/html; charset=".LANG_CHARSET_CODE);
+DevblocksPlatform::services()->http()->setHeader(
+	'Content-Type',
+	sprintf('text/html; charset=%s', LANG_CHARSET_CODE)
+);
 
 $request = DevblocksPlatform::readRequest();
 $request->is_ajax = true;

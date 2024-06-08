@@ -97,9 +97,11 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 		if(!array_key_exists('*', $allowed_origins) && !array_key_exists($origin, $allowed_origins))
 			return;
 		
-		header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
-		header('Access-Control-Allow-Methods: GET, POST');
-		header('Access-Control-Allow-Headers: User-Agent, Content-Type');
+		DevblocksPlatform::services()->http()
+			->setHeader('Access-Control-Allow-Origin', $_SERVER['HTTP_ORIGIN'])
+			->setHeader('Access-Control-Allow-Methods', 'GET, POST')
+			->setHeader('Access-Control-Allow-Headers', 'User-Agent, Content-Type')
+		;
 	}
 	
 	public function writeResponse(DevblocksHttpResponse $response) {
@@ -119,7 +121,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 				$this->_respondWithCORS();
 					
 				// For cache invalidation
-				header(sprintf('X-Cerb-Version: %s',  APP_BUILD));
+				DevblocksPlatform::services()->http()->setHeader('X-Cerb-Version', APP_BUILD);
 				
 				$action = array_shift($path);
 				
@@ -164,7 +166,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 						break;
 						
 					case 'cerb.css':
-						header('Content-Type: text/css');
+						DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/css');
 						$tpl = DevblocksPlatform::services()->templateSandbox();
 						$tpl->display('devblocks:cerb.website.interactions::public/cerb.css');
 						break;
@@ -175,10 +177,12 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 						
 						// Allow caching, but invalidate from the `X-Cerb-Version` header
 						$ttl_secs = 86400; // 1 day
-						header('Content-Type: text/javascript');
-						header('Pragma: cache');
-						header(sprintf('Cache-control: max-age=%d', $ttl_secs));
-						header(sprintf('Expires: %s GMT', gmdate('D, d M Y H:i:s', time() + $ttl_secs)));
+						DevblocksPlatform::services()->http()
+							->setHeader('Cache-Control', sprintf('max-age=%d', $ttl_secs))
+							->setHeader('Content-Type', 'text/javascript')
+							->setHeader('Expires', sprintf('%s GMT', gmdate('D, d M Y H:i:s', time() + $ttl_secs)))
+							->setHeader('Pragma', 'cache')
+						;
 						
 						$tpl = DevblocksPlatform::services()->templateSandbox();
 						$tpl->assign('cerb_app_build', APP_BUILD);
@@ -210,16 +214,16 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 				$tpl = DevblocksPlatform::services()->templateSandbox();
 				$portal_schema = $this->_getPortalSchema();
 				
-				header('Content-Type: text/html');
+				DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/html');
 				
 				$csp = $portal_schema->getContentSecurityPolicy();
 				
-				$csp_header = sprintf("Content-Security-Policy: default-src 'self'; img-src 'self' %s; script-src 'nonce-%s'; object-src 'none';",
+				$csp_header = sprintf("default-src 'self'; img-src 'self' %s; script-src 'nonce-%s'; object-src 'none';",
 					implode(' ', $csp['imageHosts'] ?? []),
 					$session->nonce
 				);
 				
-				header($csp_header);
+				DevblocksPlatform::services()->http()->setHeader('Content-Security-Policy', $csp_header);
 				
 				if(null != ($interaction = $stack)) {
 					$interaction_params = DevblocksPlatform::services()->url()->arrayToQueryString($_GET ?? []);

@@ -347,7 +347,7 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		
 		$cursor = DevblocksPlatform::importGPC($_POST['cursor'] ?? null, 'string', '');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(empty($cursor))
 			DevblocksPlatform::dieWithHttpError(null, 404);
@@ -622,7 +622,7 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		
 		$cursor_key = DevblocksPlatform::importGPC($_POST['cursor_key'] ?? null, 'string', '');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
@@ -1482,7 +1482,7 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 	}
 	
 	private function _internalAction_serializeView() {
-		header("Content-type: application/json");
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$view_id = DevblocksPlatform::importGPC($_POST['view_id'] ?? null, 'string');
 		$context = DevblocksPlatform::importGPC($_POST['context'] ?? null, 'string');
@@ -1649,7 +1649,7 @@ class PageSection_InternalWorklists extends Extension_PageSection {
 		
 		$visit = CerberusApplication::getVisit();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$preview_output = '';
 		

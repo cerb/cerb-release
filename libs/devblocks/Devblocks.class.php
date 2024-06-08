@@ -3708,21 +3708,19 @@ class DevblocksPlatform extends DevblocksEngine {
 		set_error_handler(['DevblocksPlatform','errorHandler']);	
 
 		// Security
-		$app_security_frameoptions = @strtolower(APP_SECURITY_FRAMEOPTIONS);
 		
-		if(php_sapi_name() != 'cli' && !headers_sent())
-		switch($app_security_frameoptions) {
-			case 'none':
-				break;
-				
-			case 'deny':
-				header("X-Frame-Options: DENY");
-				break;
-				
-			default:
-			case 'self':
-				header("X-Frame-Options: SAMEORIGIN");
-				break;
+		if(php_sapi_name() != 'cli' && !headers_sent()) {
+			// Counter MIME-based attacks
+			DevblocksPlatform::services()->http()->setHeader('X-Content-Type-Options', 'nosniff');
+			
+			// X-Frame-Options
+			if (strtolower(APP_SECURITY_FRAMEOPTIONS ?? '') == 'none') {
+				DevblocksPlatform::noop();
+			} else if (strtolower(APP_SECURITY_FRAMEOPTIONS ?? '') == 'deny') {
+				DevblocksPlatform::services()->http()->setHeader('X-Frame-Options', 'DENY');
+			} else {
+				DevblocksPlatform::services()->http()->setHeader('X-Frame-Options', 'SAMEORIGIN');
+			}
 		}
 		
 		// Encoding (mbstring)
@@ -3804,9 +3802,12 @@ class DevblocksPlatform extends DevblocksEngine {
 	
 	static function redirect(DevblocksHttpIO $httpIO, $wait_secs=0) : never {
 		$url_service = DevblocksPlatform::services()->url();
+		
 		session_write_close();
+		
 		$url = $url_service->writeDevblocksHttpIO($httpIO, true);
-		header('Location: '.$url);
+		
+		DevblocksPlatform::services()->http()->setHeader('Location', $url);
 		
 		if($wait_secs)
 			sleep($wait_secs);
@@ -3819,8 +3820,10 @@ class DevblocksPlatform extends DevblocksEngine {
 			$url_service = DevblocksPlatform::services()->url();
 			$url = $url_service->writeNoProxy('', true);
 		}
+		
 		session_write_close();
-		header('Location: '.$url);
+		
+		DevblocksPlatform::services()->http()->setHeader('Location', $url);
 		
 		if($wait_secs)
 			sleep($wait_secs);

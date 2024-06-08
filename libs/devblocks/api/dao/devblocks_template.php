@@ -252,7 +252,7 @@ class DAO_DevblocksTemplate extends DevblocksORMHelper {
 		$templates = DAO_DevblocksTemplate::getIds($ids);
 
 		// Delete from database
-		$ids_list = implode(',', self::qstrArray($ids));
+		$ids_list = implode(',', $db->qstrArray($ids));
 		$db->ExecuteMaster(sprintf("DELETE FROM devblocks_template WHERE id IN (%s)", $ids_list));
 		
 		// Clear templates_c compile cache with the models

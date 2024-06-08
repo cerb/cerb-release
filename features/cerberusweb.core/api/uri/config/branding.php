@@ -47,7 +47,7 @@ class PageSection_SetupBranding extends Extension_PageSection {
 			if(!$active_worker || !$active_worker->is_superuser)
 				throw new Exception(DevblocksPlatform::translate('error.core.no_acl.admin'));
 			
-			header('Content-Type: application/json; charset=utf-8');
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 			
 			$title = DevblocksPlatform::importGPC($_POST['title'] ?? null, 'string','');
 			$favicon = DevblocksPlatform::importGPC($_POST['favicon'] ?? null, 'string','');

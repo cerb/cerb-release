@@ -102,7 +102,7 @@ class Controller_UI extends DevblocksControllerExtension {
 	}
 	
 	private function _uiAction_kataSuggestionsRecordFieldJson() {
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$prefix = DevblocksPlatform::importGPC($_POST['prefix'] ?? null, 'string', null);
 		$params = DevblocksPlatform::importGPC($_POST['params'] ?? [], 'array', []);
@@ -129,7 +129,7 @@ class Controller_UI extends DevblocksControllerExtension {
 	}
 		
 	private function _uiAction_kataSuggestionsRecordFieldsJson() {
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$params = DevblocksPlatform::importGPC($_POST['params'] ?? [], 'array', []);
 		
@@ -179,7 +179,7 @@ class Controller_UI extends DevblocksControllerExtension {
 	}
 		
 	private function _uiAction_kataSuggestionsRecordTypeJson() {
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(
 			array_values(
@@ -189,7 +189,7 @@ class Controller_UI extends DevblocksControllerExtension {
 	}
 	
 	private function _uiAction_kataSuggestionsMetricDimensionJson() {
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$params = DevblocksPlatform::importGPC($_POST['params'] ?? [], 'array', []);
 		
@@ -239,7 +239,7 @@ class Controller_UI extends DevblocksControllerExtension {
 	}
 	
 	private function _uiAction_kataSuggestionsAutomationCommandParamsJson() {
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$params = DevblocksPlatform::importGPC($_POST['params'] ?? [], 'array', []);
 		
@@ -263,7 +263,7 @@ class Controller_UI extends DevblocksControllerExtension {
 	}
 	
 	private function _uiAction_kataSuggestionsAutomationInputsJson() {
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$params = DevblocksPlatform::importGPC($_POST['params'] ?? [], 'array', []);
 		
@@ -307,7 +307,7 @@ class Controller_UI extends DevblocksControllerExtension {
 	}
 	
 	private function _uiAction_kataSuggestionsCerbUriJson() {
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$prefix = DevblocksPlatform::importGPC($_POST['prefix'] ?? null, 'string', null);
 		$params = DevblocksPlatform::strParseQueryString(DevblocksPlatform::importGPC($_POST['params'] ?? null, 'string', null));
@@ -379,7 +379,7 @@ class Controller_UI extends DevblocksControllerExtension {
 	}
 	
 	private function _uiAction_kataSuggestionsIconJson() {
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$prefix = DevblocksPlatform::importGPC($_POST['prefix'] ?? null, 'string', null);
 		
@@ -406,7 +406,7 @@ class Controller_UI extends DevblocksControllerExtension {
 	private function _uiAction_getContextFieldsJson() {
 		$context = DevblocksPlatform::importGPC($_REQUEST['context'] ?? null, 'string', null);
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(null == ($context_ext = Extension_DevblocksContext::getByAlias($context, true))) {
 			echo json_encode(false);
@@ -448,7 +448,7 @@ class Controller_UI extends DevblocksControllerExtension {
 	private function _uiAction_getContextPlaceholdersJson() {
 		$context = DevblocksPlatform::importGPC($_REQUEST['context'] ?? null, 'string', null);
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$labels = [];
 		$values = [];
@@ -478,7 +478,7 @@ class Controller_UI extends DevblocksControllerExtension {
 		$cache = DevblocksPlatform::services()->cache();
 		$cache_key = 'ui:autocomplete:mentions';
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(false == ($results = $cache->load($cache_key))) {
 			$results = [];
@@ -541,7 +541,7 @@ class Controller_UI extends DevblocksControllerExtension {
 		if(!$token || !($resource = DAO_AutomationResource::getByToken($token)))
 			DevblocksPlatform::dieWithHttpError('Not found', 404);
 		
-		header('Content-Type: image/png');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'image/png');
 		
 		// If larger than 1MB, use streams
 		if($resource->storage_size > 1_000_000) {
@@ -641,10 +641,7 @@ class Controller_UI extends DevblocksControllerExtension {
 		
 		if(isset($dict->_http_response_headers) && is_array($dict->_http_response_headers)) {
 			foreach($dict->_http_response_headers as $header_k => $header_v) {
-				header(sprintf("%s: %s",
-					$header_k,
-					$header_v
-				));
+				DevblocksPlatform::services()->http()->setHeader($header_k, $header_v);
 			}
 		}
 		
@@ -659,7 +656,7 @@ class Controller_UI extends DevblocksControllerExtension {
 		$data = DevblocksPlatform::services()->data();
 		$cache = DevblocksPlatform::services()->cache();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$results = [
 			'schemaVersion' => $cache->getTagVersion('schema_records'),
@@ -676,7 +673,7 @@ class Controller_UI extends DevblocksControllerExtension {
 		$type = DevblocksPlatform::importGPC($_REQUEST['type'] ?? null, 'string', '');
 		$of = DevblocksPlatform::importGPC($_REQUEST['of'] ?? null, 'string', '');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$params = [];
 		
@@ -712,7 +709,7 @@ class Controller_UI extends DevblocksControllerExtension {
 		$of = DevblocksPlatform::importGPC($_REQUEST['of'] ?? null, 'string', '');
 		@$types = DevblocksPlatform::parseCsvString(DevblocksPlatform::importGPC($_REQUEST['types'], 'string', ''));
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(!($context_ext = Extension_DevblocksContext::getByAlias($of, true)))
 			return;
@@ -729,7 +726,7 @@ class Controller_UI extends DevblocksControllerExtension {
 		$context_alias = DevblocksPlatform::importGPC($_REQUEST['context'] ?? null, 'string', '');
 		$expand = DevblocksPlatform::importGPC($_REQUEST['expand'] ?? null, 'string', '');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(!($context_ext = Extension_DevblocksContext::getByAlias($context_alias, true)))
 			return;
@@ -800,7 +797,7 @@ class Controller_UI extends DevblocksControllerExtension {
 		
 		$error = null;
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(false === ($data_query = $tpl_builder->build($data_query, []))) {
 			echo json_encode(implode("\n", $tpl_builder->getErrors()));

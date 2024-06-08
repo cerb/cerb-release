@@ -127,6 +127,9 @@ class DAO_Attachment extends Cerb_ORMHelper {
 		self::_updateAttach($ids, $fields);
 		self::_updateContent($ids, $fields);
 		
+		if(array_key_exists(self::NAME, $fields))
+			$fields[self::NAME] = DevblocksPlatform::services()->string()->strPrintable($fields[self::NAME]);
+		
 		self::_update($ids, 'attachment', $fields);
 	}
 	

@@ -74,14 +74,20 @@ class ChFilesController extends DevblocksControllerExtension {
 		$size = $file_stats['size'];
 		
 		// Set headers
-		header('Pragma: cache');
-		header('Cache-control: max-age=604800', true); // 1 wk // , must-revalidate
-		header('Expires: ' . gmdate('D, d M Y H:i:s',time()+604800) . ' GMT'); // 1 wk
-		header('Accept-Ranges: bytes');
+		DevblocksPlatform::services()->http()
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Cache-Control', 'max-age=604800') // 1 wk // , must-revalidate
+			->setHeader('Expires', gmdate('D, d M Y H:i:s',time()+604800) . ' GMT') // 1 wk
+			->setHeader('Pragma', 'cache')
+		;
 		
 		if($is_download) {
-			$file_name = DevblocksPlatform::strAlphaNum($file->name, '.-!@#$%^() ');
-			header(sprintf("Content-Disposition: attachment; filename=\"%s\"", $file_name));
+			DevblocksPlatform::services()->http()
+				->setHeader(
+					'Content-Disposition',
+					sprintf("attachment; filename=%s", DevblocksPlatform::services()->string()->strFilename($file->name))
+				)
+			;
 			
 		} else {
 			$range = DevblocksPlatform::importGPC($_SERVER['HTTP_RANGE'] ?? null, 'string', null);
@@ -100,9 +106,12 @@ class ChFilesController extends DevblocksControllerExtension {
 				$length = ($range_to - $range_from) + 1;
 				
 				header('HTTP/1.1 206 Partial Content');
-				header("Content-Type: " . $mime_type);
-				header("Content-Length: " . $length);
-				header(sprintf("Content-Range: bytes %d-%d/%d", $range_from, $range_to, $size));
+				
+				DevblocksPlatform::services()->http()
+					->setHeader('Content-Type', $mime_type)
+					->setHeader('Content-Length', intval($length))
+					->setHeader('Content-Range', sprintf('bytes %d-%d/%d', $range_from, $range_to, $size))
+				;
 				
 				flush();
 				
@@ -161,15 +170,20 @@ class ChFilesController extends DevblocksControllerExtension {
 			
 			case 'application/xhtml+xml':
 			case 'text/html':
-				header("Content-Type: text/html; charset=" . LANG_CHARSET_CODE);
-				
 				// If we're downloading the HTML, just pass the raw bytes
 				if($is_download) {
-					header("Content-Length: " . $file_stats['size']);
+					DevblocksPlatform::services()->http()
+						->setHeader('Content-Length', $file_stats['size'])
+						->setHeader('Content-Type', 'text/plain; charset=' . LANG_CHARSET_CODE)
+					;
 					fpassthru($fp);
 					
-					// If we're displaying the HTML inline, tidy and purify it first
+				// If we're displaying the HTML inline, tidy and purify it first
 				} else {
+					DevblocksPlatform::services()->http()
+						->setHeader('Content-Type', 'text/html; charset=' . LANG_CHARSET_CODE)
+					;
+					
 					// If the 'tidy' extension exists, and the file size is less than 5MB
 					if(extension_loaded('tidy') && $file_stats['size'] < 5120000) {
 						$tidy = new tidy();
@@ -199,7 +213,9 @@ class ChFilesController extends DevblocksControllerExtension {
 					$filter = new Cerb_HTMLPurifier_URIFilter_Email(false);
 					$clean_html = DevblocksPlatform::purifyHTML($fp, true, true, [$filter]);
 					
-					header("Content-Length: " . strlen($clean_html));
+					DevblocksPlatform::services()->http()
+						->setHeader('Content-Length', strlen($clean_html))
+					;
 					echo $clean_html;
 				}
 				
@@ -213,8 +229,10 @@ class ChFilesController extends DevblocksControllerExtension {
 		}
 		
 		if(!$handled) {
-			header("Content-Type: " . $mime_type);
-			header("Content-Length: " . $file_stats['size']);
+			DevblocksPlatform::services()->http()
+				->setHeader('Content-Type', $mime_type)
+				->setHeader('Content-Length', intval($file_stats['size']))
+			;
 			fpassthru($fp);
 			fclose($fp);
 		}
@@ -285,12 +303,14 @@ class ChFilesController extends DevblocksControllerExtension {
 		$file_stats = fstat($zip_fp);
 		
 		// Set headers
-		header("Expires: Mon, 26 Nov 1979 00:00:00 GMT");
-		header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
-		header("Accept-Ranges: bytes");
-		header("Content-disposition: attachment; filename=" . $download_filename);
-		header("Content-Type: application/zip");
-		header("Content-Length: " . $file_stats['size']);
+		DevblocksPlatform::services()->http()
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Content-Length', $file_stats['size'])
+			->setHeader('Content-Type', 'application/zip')
+			->setHeader('Content-Disposition', 'attachment; filename=' . $download_filename)
+			->setHeader('Expires', 'Mon, 26 Nov 1979 00:00:00 GMT')
+			->setHeader('Last-Modified', gmdate("D, d M Y H:i:s") . ' GMT')
+		;
 		fpassthru($zip_fp);
 		fclose($zip_fp);
 		

@@ -141,7 +141,7 @@ class ProfileWidget_Responsibilities extends Extension_ProfileWidget {
 		$bucket_id = DevblocksPlatform::importGPC($_POST['bucket_id'] ?? null, 'integer', '');
 		$responsibility = DevblocksPlatform::importGPC($_POST['responsibility'] ?? null, 'integer', '');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(false == ($bucket = DAO_Bucket::get($bucket_id)))

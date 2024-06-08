@@ -144,9 +144,8 @@ class ServiceProvider_OAuth1 extends Extension_ConnectedServiceProvider implemen
 		}
 		
 		$url = $oauth->getAuthenticationURL($service_params['authentication_url'], $tokens['oauth_token']);
-		
-		header('Location: ' . $url);
-		exit;
+
+		DevblocksPlatform::redirectURL($url);
 	}
 	
 	function oauthCallback() {
@@ -375,8 +374,7 @@ class ServiceProvider_OAuth2 extends Extension_ConnectedServiceProvider implemen
 		$_SESSION['oauth2state'] = $provider->getState();
 		$_SESSION['oauth2pkce'] = $provider->getPkceCode();
 		
-		header('Location: ' . $authorizationUrl);
-		exit;
+		DevblocksPlatform::redirectURL($authorizationUrl);
 	}
 	
 	function oauthCallback() {

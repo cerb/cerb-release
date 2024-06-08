@@ -72,7 +72,7 @@ class PageSection_ProfilesBot extends Extension_PageSection {
 		
 		// Model
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
@@ -338,7 +338,7 @@ class PageSection_ProfilesBot extends Extension_PageSection {
 	private function _profileAction_getProactiveInteractions() {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$results = DAO_BotInteractionProactive::getByWorker($active_worker->id, 2);
 		
@@ -1682,7 +1682,7 @@ class PageSection_ProfilesBot extends Extension_PageSection {
 				DevblocksPlatform::logError($error);
 		}
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('layer', $layer);

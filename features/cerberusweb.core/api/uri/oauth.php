@@ -177,7 +177,7 @@ class Controller_OAuth extends DevblocksControllerExtension {
 					http_response_code($http_response->getStatusCode());
 					
 					foreach($http_response->getHeaders() as $key => $value) {
-						header(sprintf("%s: %s", $key, implode(',', $value)));
+						DevblocksPlatform::services()->http()->setHeader($key, implode(',', $value));
 					}
 					
 					echo $http_response->getBody();

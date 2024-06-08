@@ -64,7 +64,7 @@ class PageSection_ProfilesAbstractCustomRecord extends Extension_PageSection {
 		$record_id = DevblocksPlatform::importGPC($_POST['_record_id'] ?? null, 'integer', 0);
 		$do_delete = DevblocksPlatform::importGPC($_POST['do_delete'] ?? null, 'string', '');
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!$record_id || false == ($custom_record = DAO_CustomRecord::get($record_id)))
@@ -361,7 +361,7 @@ class PageSection_ProfilesAbstractCustomRecord extends Extension_PageSection {
 		// Create batches
 		$batch_key = DAO_ContextBulkUpdate::createFromView($view, $do);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		echo json_encode(array(
 			'cursor' => $batch_key,

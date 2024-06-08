@@ -59,17 +59,17 @@ class Plugin_RestAPI {
 				$array['results'] = $filtered_results;
 			}
 
-			header("Content-type: application/json; charset=utf-8");
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 			echo json_encode($array, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
 
 		} elseif ('xml' == $format) {
-			header("Content-type: text/xml; charset=utf-8");
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/xml; charset=utf-8');
 			$xml = new SimpleXMLElement("<response/>");
 			self::xml_encode($array, $xml);
 			echo $xml->asXML();
 
 		} else {
-			header("Content-type: text/plain; charset=utf-8");
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/plain; charset=utf-8');
 			echo sprintf("'%s' is not implemented.", DevblocksPlatform::strEscapeHtml($format));
 		}
 

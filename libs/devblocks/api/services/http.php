@@ -98,4 +98,15 @@ class _DevblocksHttpService {
 		
 		return $json;
 	}
+	
+	public function setHeader(string $name, string $value, $replace=true) : _DevblocksHttpService {
+		header(
+			sprintf("%s: %s",
+				DevblocksPlatform::services()->string()->strStripCrlf($name),
+				DevblocksPlatform::services()->string()->strStripCrlf($value)
+			),
+			$replace
+		);
+		return $this;
+	}
 }

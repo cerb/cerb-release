@@ -117,7 +117,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			if(!empty($id) && !empty($do_delete)) { // Delete
@@ -583,7 +583,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 		$configure = DevblocksPlatform::importGPC($_POST['configure'] ?? null, 'array', array());
 		$parent = null;
 		
-		header('Content-Type: application/json');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if(null == ($trigger = DAO_TriggerEvent::get($trigger_id))) {
 			echo json_encode([
@@ -1010,7 +1010,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 				$type = DevblocksPlatform::importGPC($_POST['type'] ?? null, 'string', '');
 				$prompts = DevblocksPlatform::importGPC($_POST['prompts'] ?? null, 'array', []);
 				
-				header('Content-Type: application/json; charset=utf-8');
+				DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 				
 				try {
 					if(empty($package_uri))
@@ -1786,7 +1786,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 		
 		$trigger_id = DevblocksPlatform::importGPC($_REQUEST['trigger_id'] ?? null, 'integer', 0);
 		
-		header('Content-Type: text/plain; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/plain; charset=utf-8');
 		
 		if(false == ($trigger = DAO_TriggerEvent::get($trigger_id))) {
 			echo '{}';
@@ -1957,7 +1957,7 @@ class PageSection_ProfilesBehavior extends Extension_PageSection {
 		}
 		
 		if('json' == $response_format) {
-			header('Content-Type: application/json; charset=utf-8');
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 			
 			echo json_encode([
 				'status' => $success ? true : false,

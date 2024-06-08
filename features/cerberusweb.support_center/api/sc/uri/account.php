@@ -685,8 +685,7 @@ class UmScAccountController extends Extension_UmScController {
 			$umsession->destroy();
 			
 			// Response
-			header("Location: " . $url_writer->write('', true));
-			exit;
+			DevblocksPlatform::redirectURL($url_writer->write('', true));
 			
 		} catch(Exception $e) {
 			$tpl->assign('error', $e->getMessage());

@@ -125,7 +125,7 @@ class WorkspaceWidget_ChartKata extends Extension_WorkspaceWidget implements ICe
 		$datasets_kata = $params['datasets_kata'] ?? '';
 		$placeholders_kata = $params['placeholder_simulator_kata'] ?? '';
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		$initial_state = [
 			'current_worker__context' => CerberusContexts::CONTEXT_WORKER,

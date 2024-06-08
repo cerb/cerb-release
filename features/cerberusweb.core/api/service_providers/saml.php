@@ -191,7 +191,7 @@ class ServiceProvider_SAML extends Extension_ConnectedServiceProvider {
 					$errors = $settings->validateMetadata($metadata);
 					
 					if(!$errors) {
-						header('Content-Type: text/xml');
+						DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/xml');
 						echo $metadata;
 						exit;
 						

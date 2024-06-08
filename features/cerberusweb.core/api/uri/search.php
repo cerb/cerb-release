@@ -137,7 +137,7 @@ class Page_Search extends CerberusPageExtension {
 		$view_id = DevblocksPlatform::importGPC($_POST['view_id'] ?? null, 'string', '');
 		$query = DevblocksPlatform::importGPC($_POST['query'] ?? null, 'string', '');
 		
-		header("Content-type: application/json");
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		if (null == ($view = C4_AbstractViewLoader::getView($view_id))) {
 			/* @var $view C4_AbstractView */

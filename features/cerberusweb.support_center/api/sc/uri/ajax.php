@@ -1,5 +1,7 @@
 <?php /** @noinspection PhpUnused */
 
+use enshrined\svgSanitize\Sanitizer;
+
 class UmScAjaxController extends Extension_UmScController {
 	function __construct($manifest=null) {
 		parent::__construct($manifest);
@@ -126,14 +128,65 @@ class UmScAjaxController extends Extension_UmScController {
 		if(!$pass)
 			DevblocksPlatform::dieWithHttpError(null, 403);
 
+		$mime_type = $file->mime_type;
 		$contents = $file->getFileContents();
+
+		// Portal MIME type whitelist
+		switch($mime_type) {
+			case 'application/pdf':
+			case 'audio/mpeg':
+			case 'audio/ogg':
+			case 'audio/wav':
+			case 'audio/x-wav':
+			case 'image/gif':
+			case 'image/jpeg':
+			case 'image/png':
+			case 'video/mp4':
+			case 'video/mpeg':
+			case 'video/quicktime':
+				$mime_type = $file->mime_type;
+				break;
+				
+			case 'image/svg+xml':
+				$mime_type = $file->mime_type;
+				
+				$sanitizer = new Sanitizer();
+				$sanitizer->removeRemoteReferences(true);
+				
+				if(!($contents = $sanitizer->sanitize($contents)))
+					DevblocksPlatform::dieWithHttpError(null, 500);
+				break;
 			
+			case 'application/xhtml+xml':
+			case 'application/json':
+			case 'application/pgp-signature':
+			case 'application/xml':
+			case 'message/feedback-report':
+			case 'message/rfc822':
+			case 'multipart/encrypted':
+			case 'multipart/signed':
+			case 'text/css':
+			case 'text/csv':
+			case 'text/html':
+			case 'text/javascript':
+			case 'text/plain':
+			case 'text/xml':
+				$mime_type = 'text/plain';
+				break;
+			
+			default:
+				$mime_type = 'application/octet-stream';
+				break;
+		}
+		
 		// Set headers
-		header("Expires: Mon, 26 Nov 1962 00:00:00 GMT");
-		header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
-		header("Accept-Ranges: bytes");
-		header("Content-Type: " . $file->mime_type);
-		header("Content-Length: " . strlen($contents));
+		DevblocksPlatform::services()->http()
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Content-Length', strlen($contents))
+			->setHeader('Content-Type', $mime_type)
+			->setHeader('Expires', 'Mon, 26 Nov 1962 00:00:00 GMT')
+			->setHeader('Last-Modified', gmdate("D, d M Y H:i:s") . ' GMT')
+		;
 		
 		// Dump contents
 		echo $contents;

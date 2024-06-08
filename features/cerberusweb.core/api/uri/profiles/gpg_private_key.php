@@ -54,7 +54,7 @@ class PageSection_ProfilesGpgPrivateKey extends Extension_PageSection {
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 403);
 		
-		header('Content-Type: application/json; charset=utf-8');
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 		
 		try {
 			// Must be an admin
@@ -230,7 +230,7 @@ class PageSection_ProfilesGpgPrivateKey extends Extension_PageSection {
 			if(!$active_worker->is_superuser)
 				throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('common.access_denied'));
 			
-			header('Content-Type: application/json; charset=utf-8');
+			DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 			
 			$key_length = DevblocksPlatform::importGPC($_POST['key_length'] ?? null, 'int', 2048);
 			$uid_names = DevblocksPlatform::importGPC($_POST['uid_names'] ?? null, 'array', []);
