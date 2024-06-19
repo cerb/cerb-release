@@ -8,7 +8,7 @@
 <div style="margin-left:10px;">
 <select name="{$namePrefix}[on]">
 	{foreach from=$values_to_contexts item=context_data key=val_key}
-	<option value="{$val_key}" context="{$context_data.context}" {if $params.on == $val_key}selected="selected"{/if}>{$context_data.label}</option>
+	{if $context_data.label}<option value="{$val_key}" context="{$context_data.context}" {if $params.on == $val_key}selected="selected"{/if}>{$context_data.label}</option>{/if}
 	{/foreach}
 </select>
 </div>
@@ -57,7 +57,7 @@
 		<li><b>Placeholders</b></li>
 	
 		{foreach from=$values_to_contexts item=var_data key=var_key}
-			{if !empty($var_data.context)}
+			{if $var_data.context && $var_data.label}
 			<li class="item" key="{$var_key}" style="padding-left:20px;">
 				<a href="javascript:;">{$var_data.label}</a>
 			</li>

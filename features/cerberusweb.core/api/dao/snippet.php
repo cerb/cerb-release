@@ -302,6 +302,21 @@ class DAO_Snippet extends Cerb_ORMHelper {
 	}
 	
 	/**
+	 *
+	 * @param string $context
+	 * @param integer $context_id
+	 * @return Model_Snippet[]
+	 */
+	static function getByOwner($context, $context_id) {
+		return self::getWhere(sprintf("%s = %s AND %s = %d",
+			self::OWNER_CONTEXT,
+			self::qstr($context),
+			self::OWNER_CONTEXT_ID,
+			$context_id
+		));
+	}
+	
+	/**
 	 * @param mysqli_result|false $rs
 	 * @return Model_Snippet[]
 	 */

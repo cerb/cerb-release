@@ -354,6 +354,21 @@ class DAO_ConnectedAccount extends Cerb_ORMHelper {
 	}
 	
 	/**
+	 *
+	 * @param string $context
+	 * @param integer $context_id
+	 * @return Model_ConnectedAccount[]
+	 */
+	static function getByOwner($context, $context_id) : array {
+		return self::getWhere(sprintf("%s = %s AND %s = %d",
+			DAO_ConnectedAccount::OWNER_CONTEXT,
+			self::qstr($context),
+			DAO_ConnectedAccount::OWNER_CONTEXT_ID,
+			$context_id
+		));
+	}
+	
+	/**
 	 * @param mysqli_result|false $rs
 	 * @return Model_ConnectedAccount[]
 	 */

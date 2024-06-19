@@ -60,6 +60,9 @@ class ChFilesController extends DevblocksControllerExtension {
 		if(!($file = DAO_Attachment::get($file_id)))
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('files.not_found'), 404);
 		
+		if(!$active_worker->hasPriv('core.display.actions.attachments.download'))
+			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('common.access_denied'), 403);
+		
 		if(!Context_Attachment::isDownloadableByActor($file, $active_worker))
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('common.access_denied'), 403);
 		
@@ -259,6 +262,9 @@ class ChFilesController extends DevblocksControllerExtension {
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('error.core.record.not_found'), 404);
 		
 		if(!Context_Ticket::isReadableByActor($ticket, $active_worker))
+			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('common.access_denied'), 403);
+		
+		if(!$active_worker->hasPriv('core.display.actions.attachments.download'))
 			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translate('common.access_denied'), 403);
 		
 		$attachments = [];

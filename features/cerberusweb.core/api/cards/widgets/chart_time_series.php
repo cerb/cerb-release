@@ -36,6 +36,8 @@ class CardWidget_ChartTimeSeries extends Extension_CardWidget {
 			'record_id' => $context_id,
 			'widget__context' => CerberusContexts::CONTEXT_PROFILE_WIDGET,
 			'widget_id' => $model->id,
+			'worker__context' => CerberusContexts::CONTEXT_WORKER,
+			'worker_id' => $active_worker->id,
 		]);
 		
 		$query = $tpl_builder->build($data_query, $dict);

@@ -30,6 +30,8 @@ class CardWidget_ChartTimeBlocks extends Extension_CardWidget {
 			'record_id' => $context_id,
 			'widget__context' => CerberusContexts::CONTEXT_WORKSPACE_WIDGET,
 			'widget_id' => $widget->id,
+			'worker__context' => CerberusContexts::CONTEXT_WORKER,
+			'worker_id' => $active_worker->id,
 		]);
 		
 		$bindings = $dict->getDictionary();

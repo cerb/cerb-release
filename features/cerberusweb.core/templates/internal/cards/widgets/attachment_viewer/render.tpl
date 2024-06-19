@@ -1,4 +1,4 @@
-{$is_downloadable = Context_Attachment::isDownloadableByActor($dict, $active_worker)}
+{$is_downloadable = $active_worker->hasPriv('core.display.actions.attachments.download') && Context_Attachment::isDownloadableByActor($dict, $active_worker)}
 
 <div style="margin-top:5px;">
     {if $is_downloadable}

@@ -2403,6 +2403,8 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 	const VIRTUAL_OWNER_SEARCH = '*_owner_search';
 	const VIRTUAL_PARTICIPANT_ID = '*_participant_id';
 	const VIRTUAL_PARTICIPANT_SEARCH = '*_participant_search';
+	const VIRTUAL_SENDER_FIRST_SEARCH = '*_sender_first_search';
+	const VIRTUAL_SENDER_LAST_SEARCH = '*_sender_last_search';
 	const VIRTUAL_STATUS = '*_status';
 	const VIRTUAL_WATCHERS = '*_workers';
 	const VIRTUAL_WATCHERS_COUNT = '*_workers_count';
@@ -2576,6 +2578,12 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 				
 				return sprintf("t.group_id IN (%s)", implode(',', array_keys($roster)));
 			
+			case self::VIRTUAL_SENDER_FIRST_SEARCH:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_ADDRESS, 'SELECT id FROM address WHERE id IN (%s)', 't.first_wrote_address_id');
+				
+			case self::VIRTUAL_SENDER_LAST_SEARCH:
+				return self::_getWhereSQLFromVirtualSearchSqlField($param, CerberusContexts::CONTEXT_ADDRESS, 'SELECT id FROM address WHERE id IN (%s)', 't.last_wrote_address_id');
+				
 			case self::VIRTUAL_STATUS:
 				$values = $param->value;
 				if(!is_array($values))
@@ -2930,6 +2938,8 @@ class SearchFields_Ticket extends DevblocksSearchFields {
 			SearchFields_Ticket::VIRTUAL_OWNER_SEARCH => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_OWNER_SEARCH, '*', 'owner_search', null, null, false),
 			SearchFields_Ticket::VIRTUAL_PARTICIPANT_ID => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_PARTICIPANT_ID, '*', 'participant_id', null, null, false), // participant ID
 			SearchFields_Ticket::VIRTUAL_PARTICIPANT_SEARCH => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_PARTICIPANT_SEARCH, '*', 'participant_search', $translate->_('common.participants'), null, false),
+			SearchFields_Ticket::VIRTUAL_SENDER_FIRST_SEARCH => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_SENDER_FIRST_SEARCH, '*', 'sender_first_search', null, null, false),
+			SearchFields_Ticket::VIRTUAL_SENDER_LAST_SEARCH => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_SENDER_LAST_SEARCH, '*', 'sender_last_search', null, null, false),
 			SearchFields_Ticket::VIRTUAL_STATUS => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_STATUS, '*', 'status', $translate->_('common.status'), null, false),
 			SearchFields_Ticket::VIRTUAL_WATCHERS => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_WATCHERS, '*', 'workers', $translate->_('common.watchers'), 'WS', false),
 			SearchFields_Ticket::VIRTUAL_WATCHERS_COUNT => new DevblocksSearchField(SearchFields_Ticket::VIRTUAL_WATCHERS_COUNT, '*', 'workers_count', null, null, false),
@@ -3215,6 +3225,8 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 			SearchFields_Ticket::VIRTUAL_MESSAGE_LAST_SEARCH,
 			SearchFields_Ticket::VIRTUAL_MESSAGES_SEARCH,
 			SearchFields_Ticket::VIRTUAL_PARTICIPANT_ID,
+			SearchFields_Ticket::VIRTUAL_SENDER_FIRST_SEARCH,
+			SearchFields_Ticket::VIRTUAL_SENDER_LAST_SEARCH,
 			SearchFields_Ticket::TICKET_STATUS_ID,
 			SearchFields_Ticket::VIRTUAL_WATCHERS,
 			SearchFields_Ticket::VIRTUAL_WATCHERS_COUNT,
@@ -3897,6 +3909,22 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 					'type' => DevblocksSearchCriteria::TYPE_NUMBER,
 					'options' => array('param_key' => SearchFields_Ticket::BUCKET_RESPONSIBILITY),
 				),
+			'sender.first' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => ['param_key' => SearchFields_Ticket::VIRTUAL_SENDER_FIRST_SEARCH],
+					'examples' => array(
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_ADDRESS],
+					)
+				),
+			'sender.last' =>
+				array(
+					'type' => DevblocksSearchCriteria::TYPE_VIRTUAL,
+					'options' => ['param_key' => SearchFields_Ticket::VIRTUAL_SENDER_LAST_SEARCH],
+					'examples' => array(
+						['type' => 'search', 'context' => CerberusContexts::CONTEXT_ADDRESS],
+					)
+				),
 			'spam.score' =>
 				array(
 					'type' => DevblocksSearchCriteria::TYPE_DECIMAL,
@@ -4109,7 +4137,13 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 				
 				$field_key = SearchFields_Ticket::TICKET_ELAPSED_RESPONSE_FIRST;
 				return DevblocksSearchCriteria::getNumberParamFromTokens($field_key, $tokens);
-				
+
+			case 'sender.first':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Ticket::VIRTUAL_SENDER_FIRST_SEARCH);
+
+			case 'sender.last':
+				return DevblocksSearchCriteria::getVirtualQuickSearchParamFromTokens($field, $tokens, SearchFields_Ticket::VIRTUAL_SENDER_LAST_SEARCH);
+
 			case 'spam.score':
 				$field_key = SearchFields_Ticket::TICKET_SPAM_SCORE;
 				return DevblocksSearchCriteria::getFloatParamFromTokens($field_key, $tokens);
@@ -4405,7 +4439,19 @@ class View_Ticket extends C4_AbstractView implements IAbstractView_Subtotals, IA
 					DevblocksPlatform::strEscapeHtml($param->value)
 				);
 				break;
+			
+			case SearchFields_Ticket::VIRTUAL_SENDER_FIRST_SEARCH:
+				echo sprintf("First sender matches <b>%s</b>",
+					DevblocksPlatform::strEscapeHtml($param->value)
+				);
+				break;
 				
+			case SearchFields_Ticket::VIRTUAL_SENDER_LAST_SEARCH:
+				echo sprintf("Last sender matches <b>%s</b>",
+					DevblocksPlatform::strEscapeHtml($param->value)
+				);
+				break;
+			
 			case SearchFields_Ticket::VIRTUAL_WATCHERS:
 				$this->_renderVirtualWatchers($param);
 				break;

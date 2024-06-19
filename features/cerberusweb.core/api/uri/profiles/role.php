@@ -64,6 +64,20 @@ class PageSection_ProfilesWorkerRole extends Extension_PageSection {
 				if(!Context_WorkerRole::isDeletableByActor($model, $active_worker))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 				
+				// Refuse to delete roles that own records
+				if(DAO_WorkspacePage::getByOwner(CerberusContexts::CONTEXT_ROLE, $id))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate("You must remove or reassign all workspace pages before deleting this role."));
+				if(DAO_CustomFieldset::getByOwner(CerberusContexts::CONTEXT_ROLE, $id))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate("You must remove or reassign all custom fieldsets before deleting this role."));
+				if(DAO_Bot::getByOwner(CerberusContexts::CONTEXT_ROLE, $id))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate("You must remove or reassign all bots before deleting this role."));
+				if(DAO_ConnectedAccount::getByOwner(CerberusContexts::CONTEXT_ROLE, $id))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate("You must remove or reassign all connected accounts before deleting this role."));
+				if(DAO_Snippet::getByOwner(CerberusContexts::CONTEXT_ROLE, $id))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate("You must remove or reassign all snippets before deleting this role."));
+				if(DAO_Calendar::getByContext(CerberusContexts::CONTEXT_ROLE, $id))
+					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate("You must remove or reassign all calendars before deleting this role."));
+				
 				CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_ROLE, $model->id, $model->name);
 				
 				DAO_WorkerRole::delete($id);

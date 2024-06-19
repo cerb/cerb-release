@@ -3,9 +3,9 @@
 		{if is_array($data->children) && !empty($data->children)}
 			<li {if $data->key}data-token="{$data->key}" data-label="{$data->label}"{/if}>
 				{if $data->key}
-					<div style="font-weight:bold;">{$data->l|capitalize|truncate:30}</div>
+					<div style="font-weight:bold;" title="{$data->l|capitalize}">{$data->l|capitalize|truncate:30}</div>
 				{else}
-					<div>{$idx|capitalize|truncate:30}</div>
+					<div title="{$idx|capitalize}">{$idx|capitalize|truncate:30}</div>
 				{/if}
 				<ul style="{if count($data->children) > 15}width:calc(50vw);column-width:200px;column-count:auto;{else}width:200px;{/if}">
 					{menu keys=$data->children level=$level+1}
@@ -14,7 +14,7 @@
 		{elseif $data->key}
 			{$item_context = explode(':', $data->key)}
 			<li data-token="{$data->key}" data-label="{$data->label}">
-				<div style="font-weight:bold;">
+				<div style="font-weight:bold;" title="{$data->l|capitalize}">
 					{$data->l|capitalize|truncate:30}
 				</div>
 			</li>

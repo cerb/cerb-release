@@ -339,6 +339,7 @@ class PageSection_ProfilesCardWidget extends Extension_PageSection {
 	private function _profileAction_testWidgetTemplate() {
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$active_worker = CerberusApplication::getActiveWorker();
 		
 		if('POST' != DevblocksPlatform::getHttpMethod())
 			DevblocksPlatform::dieWithHttpError(null, 405);
@@ -349,7 +350,7 @@ class PageSection_ProfilesCardWidget extends Extension_PageSection {
 		$index = DevblocksPlatform::importGPC($_POST['index'] ?? null, 'integer', 0);
 		$format = DevblocksPlatform::importGPC($_POST['format'] ?? null, 'string', '');
 		
-		@$placeholders_kata = DevblocksPlatform::importVar($params['placeholder_simulator_kata'], 'string', '');
+		$placeholders_kata = DevblocksPlatform::importVar($params['placeholder_simulator_kata'] ?? null, 'string', '');
 		
 		$error = null;
 		$template = null;
@@ -393,15 +394,14 @@ class PageSection_ProfilesCardWidget extends Extension_PageSection {
 			'record__context' => $context_ext->id,
 			'widget_id' => $id,
 			'widget__context' => CerberusContexts::CONTEXT_CARD_WIDGET,
+			'worker_id' => $active_worker->id,
+			'worker__context' => CerberusContexts::CONTEXT_WORKER,
 		]);
 		
 		if(is_array($placeholders))
 		foreach($placeholders as $placeholder_key => $placeholder_value) {
 			$dict->set($placeholder_key, $placeholder_value);
 		}
-		
-		$success = false;
-		$output = '';
 		
 		if(!is_string($template) || false === (@$out = $tpl_builder->build($template, $dict))) {
 			// If we failed, show the compile errors

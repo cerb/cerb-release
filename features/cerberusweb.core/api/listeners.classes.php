@@ -625,6 +625,8 @@ class EventListener_Triggers extends DevblocksEventListenerExtension {
 			
 			self::increaseDepth($trigger->id);
 			
+			$behavior_started_at = microtime(true);
+			
 			$logger->info(sprintf("Running behavior %s (#%d) for %s (#%d)",
 				$trigger->title,
 				$trigger->id,
@@ -670,6 +672,13 @@ class EventListener_Triggers extends DevblocksEventListenerExtension {
 			
 			// Snapshot the dictionary of the behavior at conclusion
 			$runners[$trigger->id] = $dict;
+			
+			// Log behavior duration
+			$logger->info(sprintf('Exiting behavior %s (#%d); duration %dms',
+				$trigger->title,
+				$trigger->id,
+				microtime(true)-$behavior_started_at)
+			);
 			
 			self::decreaseDepth();
 		}

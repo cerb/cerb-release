@@ -187,7 +187,7 @@
 	<legend>{'common.delete'|devblocks_translate|capitalize}</legend>
 	
 	<div>
-		Are you sure you want to permanently delete this role?
+		Are you sure you want to permanently delete this role and all of its owned records?
 	</div>
 	
 	<button type="button" class="delete red">{'common.yes'|devblocks_translate|capitalize}</button>

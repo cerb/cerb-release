@@ -16,12 +16,15 @@ class CardWidget_KbArticle extends Extension_CardWidget {
 		
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
+		$active_worker = CerberusApplication::getActiveWorker();
 		
 		$dict = DevblocksDictionaryDelegate::instance([
 			'record__context' => $context,
 			'record_id' => $context_id,
 			'widget__context' => CerberusContexts::CONTEXT_CARD_WIDGET,
 			'widget_id' => $model->id,
+			'worker__context' => CerberusContexts::CONTEXT_WORKER,
+			'worker_id' => $active_worker->id,
 		]);
 		
 		$target_context_id = intval($tpl_builder->build($target_context_id, $dict));

@@ -604,11 +604,14 @@ class Model_ProfileWidget extends DevblocksRecordModel {
 	public $zone = null;
 	
 	function isHidden(?DevblocksDictionaryDelegate $dict=null) : bool {
+		$active_worker = CerberusApplication::getActiveWorker();
+		
 		if(!$dict || !$this->options_kata)
 			return false;
 		
 		$dict->scrubKeys('widget_');
 		$dict->mergeKeys('widget_', DevblocksDictionaryDelegate::getDictionaryFromModel($this, Context_ProfileWidget::ID));
+		$dict->mergeKeys('worker_', DevblocksDictionaryDelegate::getDictionaryFromModel($active_worker, CerberusContexts::CONTEXT_WORKER));
 		
 		$kata = DevblocksPlatform::services()->kata();
 		$error = null;

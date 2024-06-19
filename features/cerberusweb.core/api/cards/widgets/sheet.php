@@ -31,10 +31,12 @@ class CardWidget_Sheet extends Extension_CardWidget {
 		$dict = DevblocksDictionaryDelegate::instance([
 			'current_worker__context' => CerberusContexts::CONTEXT_WORKER,
 			'current_worker_id' => $active_worker->id,
-			'widget__context' => CerberusContexts::CONTEXT_CARD_WIDGET,
-			'widget_id' => $widget->id,
 			'record__context' => $context,
 			'record_id' => $context_id,
+			'widget__context' => CerberusContexts::CONTEXT_CARD_WIDGET,
+			'widget_id' => $widget->id,
+			'worker__context' => CerberusContexts::CONTEXT_WORKER,
+			'worker_id' => $active_worker->id,
 		]);
 		
 		$query = $tpl_builder->build($data_query, $dict);

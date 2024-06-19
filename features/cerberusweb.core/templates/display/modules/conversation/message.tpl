@@ -257,7 +257,7 @@
 						{/if}
 
 						{* If not requester *}
-						{if !$message->is_outgoing && !isset($requesters.{$sender_id})}
+						{if !$message->is_outgoing && !isset($requesters.{$sender_id}) && Context_Ticket::isWriteableByActor($ticket, $active_worker)}
 							<button data-cerb-button="requester-add"><span class="glyphicons glyphicons-circle-plus"></span> {'display.ui.add_to_recipients'|devblocks_translate}</button>
 						{/if}
 
@@ -402,12 +402,12 @@
 							<button type="button" onclick="$frm=$(this).closest('form');$frm.find('input:hidden[name=action]').val('splitMessage');$frm.submit();" title="Split message into new ticket"><span class="glyphicons glyphicons-duplicate"></span> {'display.button.split_ticket'|devblocks_translate|capitalize}</button>
 						{/if}
 
-						{if $message->is_outgoing}
+						{if $message->is_outgoing && Context_Ticket::isWriteableByActor($ticket, $active_worker) && $active_worker->hasPriv('core.display.actions.reply')}
 							<button type="button" onclick="genericAjaxPopup('message_resend','c=profiles&a=invoke&module=ticket&action=showResendMessagePopup&id={$message->id}');"><span class="glyphicons glyphicons-share"></span> Send Again</button>
 						{/if}
 						
-						{if $attachments && extension_loaded('zip')}
-						<button type="button" data-cerb-download-all><span class="glyphicons glyphicons-download"></span> Download all (.zip)</button>
+						{if $attachments && extension_loaded('zip') && $active_worker->hasPriv('core.display.actions.attachments.download')}
+							<button type="button" data-cerb-download-all><span class="glyphicons glyphicons-download"></span> Download all (.zip)</button>
 						{/if}
 					</form>
 				</td>
@@ -457,7 +457,7 @@ $(function() {
 </script>
 {/if}
 
-{if !$embed && $active_worker->hasPriv('core.display.actions.reply')}
+{if !$embed}
 <script type="text/javascript">
 $(function() {
 	var $msg = $('#message{$message->id}');
@@ -468,6 +468,7 @@ $(function() {
 		.cerbPeekTrigger()
 		;
 
+	{if $active_worker->hasPriv('contexts.cerberusweb.contexts.message.comment')}
 	$msg.find('.cerb-sticky-trigger')
 		.cerbPeekTrigger()
 			.on('cerb-peek-saved', function(e) {
@@ -482,6 +483,7 @@ $(function() {
 				}
 			})
 			;
+	{/if}
 	
 	// Peek
 	
@@ -567,6 +569,7 @@ $(function() {
 		});
 	});
 	
+	{if $active_worker->hasPriv('core.display.actions.attachments.download')}
 	$msg.find('[data-cerb-download-all]').on('click', function(e) {
 		e.stopPropagation();
 
@@ -577,8 +580,11 @@ $(function() {
 		a.click();
 		a.remove();
 	});
+	{/if}
 
-	$actions.find('[data-cerb-button=requester-add]').on('click', function() {
+	{if Context_Ticket::isWriteableByActor($ticket, $active_worker)}
+	$actions.find('[data-cerb-button=requester-add]').on('click', function(e) {
+		e.stopPropagation();
 		$(this).remove();
 
 		var formData = new FormData();
@@ -591,6 +597,7 @@ $(function() {
 
 		genericAjaxPost(formData, null, null);
 	});
+	{/if}
 	
 	$actions
 		.find('ul.cerb-popupmenu')
@@ -610,6 +617,7 @@ $(function() {
 		})
 		;
 	
+	{if $active_worker->hasPriv('core.display.actions.reply')}
 	$actions.find('button.reply')
  		.on('click', $.throttle(500, function(e) {
 			e.preventDefault();
@@ -690,6 +698,7 @@ $(function() {
 			genericAjaxPopup('relay', 'c=profiles&a=invoke&module=message&action=showRelayMessagePopup&id={$message->id}', null, false, '50%');
 		})
 		;
-	});
+	{/if}
+});
 </script>
 {/if}
