@@ -2077,9 +2077,12 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 		$types = [];
 		
 		if(is_array($fields))
-		foreach($fields as $cf_id => $field) {
-
-			$types['custom_'.$cf_id] = $field->type;
+		foreach($fields as $cf_id => $field) { /* @var Model_CustomField $field */
+			$prefix_cf = 'custom_' . $cf_id;
+			$prefix_uri = $field->uri;
+			
+			$types[$prefix_cf] = $field->type;
+			$types[$prefix_uri] = $field->type;
 			
 			switch($field->type) {
 				case Model_CustomField::TYPE_LINK:
@@ -2095,10 +2098,12 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 						
 						if(isset($merge_values['_types']) && is_array($merge_values['_types']))
 						foreach($merge_values['_types'] as $type_key => $type) {
-							$types['custom_'.$cf_id.'_'.$type_key] = $type;
+							$types[$prefix_cf.'_'.$type_key] = $type;
+							$types[$prefix_uri.'_'.$type_key] = $type;
 						}
 						
-						$types['custom_'.$cf_id.'__label'] = 'context_url';
+						$types[$prefix_cf.'__label'] = 'context_url';
+						$types[$prefix_uri.'__label'] = 'context_url';
 					}
 					break;
 					
@@ -2113,10 +2118,12 @@ abstract class Extension_DevblocksContext extends DevblocksExtension implements 
 						
 						if(isset($merge_values['_types']) && is_array($merge_values['_types']))
 						foreach($merge_values['_types'] as $type_key => $type) {
-							$types['custom_'.$cf_id.'_'.$type_key] = $type;
+							$types[$prefix_cf.'_'.$type_key] = $type;
+							$types[$prefix_uri.'_'.$type_key] = $type;
 						}
 						
-						$types['custom_'.$cf_id.'__label'] = 'context_url';
+						$types[$prefix_cf.'__label'] = 'context_url';
+						$types[$prefix_uri.'__label'] = 'context_url';
 					}
 					break;
 					

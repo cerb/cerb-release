@@ -89,7 +89,7 @@ class UmScLoginController extends Extension_UmScController {
 	}
 	
 	function configure(Model_CommunityTool $portal) {
-		$tpl = DevblocksPlatform::services()->templateSandbox();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('portal', $portal);
 		
 		// Login extensions

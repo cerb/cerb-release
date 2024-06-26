@@ -37,7 +37,7 @@ class UmScAnnouncementsController extends Extension_UmScController {
 	}
 	
 	function configure(Model_CommunityTool $portal) {
-		$tpl = DevblocksPlatform::services()->templateSandbox();
+		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('portal', $portal);
 
 		$sNewsRss = DAO_CommunityToolProperty::get($portal->code,self::PARAM_NEWS_RSS, '');
