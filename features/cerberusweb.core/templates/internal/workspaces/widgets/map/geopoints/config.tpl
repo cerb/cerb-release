@@ -47,7 +47,6 @@
 		
 		<textarea name="params[automation][map_clicked]" data-editor-mode="ace/mode/cerb_kata">{$model->params.automation.map_clicked}</textarea>
 
-		{$trigger_ext = Extension_AutomationTrigger::get(AutomationTrigger_MapClicked::ID, true)}
 		{if $trigger_ext}
 			{include file="devblocks:cerberusweb.core::automations/triggers/editor_event_handler.tpl" trigger_inputs=$trigger_ext->getEventPlaceholders()}
 		{/if}

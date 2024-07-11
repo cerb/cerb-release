@@ -405,7 +405,7 @@ class ChTranslators_SetupPageSection extends Extension_PageSection {
 		
 		DevblocksPlatform::services()->http()
 			->setHeader('Content-Type', 'text/xml')
-			->setHeader('Content-Disposition', sprintf('attachment; filename=%s', DevblocksPlatform::services()->string()->strFilename($filename)))
+			->setHeader('Content-Disposition', sprintf('attachment; filename="%s"', DevblocksPlatform::services()->string()->strFilename($filename)))
 		;
 		
 		echo $doc->saveXML();

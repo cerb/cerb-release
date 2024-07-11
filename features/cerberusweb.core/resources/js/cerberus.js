@@ -5582,7 +5582,7 @@ var ajax = new cAjaxCalls();
 				}
 
 				// √: Safari, Chrome, Opera, Edge
-				if('function' == typeof navigator?.clipboard?.write) {
+				if('function' == typeof navigator?.clipboard?.write && -1 === navigator.userAgent.indexOf("Firefox")) {
 					navigator.clipboard.write([new ClipboardItem({
 						'text/plain': startInteraction().then((result) => {
 							return new Promise(async (resolve, reject) => {

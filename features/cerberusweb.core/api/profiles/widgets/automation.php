@@ -54,6 +54,10 @@ class ProfileWidget_Automation extends Extension_ProfileWidget {
 	function renderConfig(Model_ProfileWidget $model) {
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('widget', $model);
+		
+		$trigger_ext = Extension_AutomationTrigger::get(AutomationTrigger_UiWidget::ID, true);
+		$tpl->assign('trigger_ext', $trigger_ext);
+		
 		$tpl->display('devblocks:cerberusweb.core::internal/profiles/widgets/automation/config.tpl');
 	}
 	

@@ -107,7 +107,7 @@ class ChRest_Attachments extends Extension_RestController implements IExtensionR
 		// Set headers
 		DevblocksPlatform::services()->http()
 			->setHeader('Accept-Ranges', 'bytes')
-			->setHeader('Content-Disposition', sprintf('attachment; filename=%s', DevblocksPlatform::services()->string()->strFilename($file->name)))
+			->setHeader('Content-Disposition', sprintf('attachment; filename="%s"', DevblocksPlatform::services()->string()->strFilename($file->name)))
 			->setHeader('Content-Length', intval($file_stats['size']))
 			->setHeader('Content-Type', $file->mime_type)
 			->setHeader('Expires', 'Mon, 26 Nov 1970 00:00:00 GMT')

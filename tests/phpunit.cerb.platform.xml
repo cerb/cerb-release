@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit bootstrap="bootstrap.platform.php" colors="true" stopOnFailure="false">
+<phpunit bootstrap="bootstrap.platform.php" colors="true" stopOnFailure="false" cacheResult="false">
 	<testsuites>
 		<testsuite name="Devblocks Platform">
 			<file>devblocks/DevblocksEngineTest.php</file>

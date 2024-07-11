@@ -30,7 +30,6 @@
 
 		<textarea name="params[automations_kata]" data-editor-mode="ace/mode/cerb_kata">{$widget->extension_params.automations_kata}</textarea>
 
-		{$trigger_ext = Extension_AutomationTrigger::get(AutomationTrigger_UiWidget::ID, true)}
 		{if $trigger_ext}
 			{include file="devblocks:cerberusweb.core::automations/triggers/editor_event_handler.tpl" trigger_inputs=$trigger_ext->getEventPlaceholders()}
 		{/if}

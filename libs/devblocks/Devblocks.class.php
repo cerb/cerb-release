@@ -937,7 +937,7 @@ class DevblocksPlatform extends DevblocksEngine {
 	 */
 	static function intVersionToStr($version, $sections=3) {
 		// If it's not an even number length, pad with one 0 on the left (e.g. 709 -> 0709)
-		if(strlen($version))
+		if(1 == strlen($version) % 2)
 			$version = '0' . $version;
 		
 		// If we don't have enough requested sections, pad the right.

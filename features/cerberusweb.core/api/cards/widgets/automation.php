@@ -50,6 +50,10 @@ class CardWidget_Automation extends Extension_CardWidget {
 	function renderConfig(Model_CardWidget $model) {
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('widget', $model);
+		
+		$trigger_ext = Extension_AutomationTrigger::get(AutomationTrigger_UiWidget::ID, true);
+		$tpl->assign('trigger_ext', $trigger_ext);
+		
 		$tpl->display('devblocks:cerberusweb.core::internal/cards/widgets/automation/config.tpl');
 	}
 	

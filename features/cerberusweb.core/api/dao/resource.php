@@ -1803,6 +1803,9 @@ class Context_Resource extends Extension_DevblocksContext implements IDevblocksC
 			$resource_extensions = Extension_ResourceType::getAll(false);
 			$tpl->assign('resource_extensions', $resource_extensions);
 			
+			$trigger_ext = Extension_AutomationTrigger::get(AutomationTrigger_ResourceGet::ID, true);
+			$tpl->assign('trigger_ext', $trigger_ext);
+			
 			// View
 			$tpl->assign('id', $context_id);
 			$tpl->assign('view_id', $view_id);

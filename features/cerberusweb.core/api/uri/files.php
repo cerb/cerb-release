@@ -88,7 +88,7 @@ class ChFilesController extends DevblocksControllerExtension {
 			DevblocksPlatform::services()->http()
 				->setHeader(
 					'Content-Disposition',
-					sprintf("attachment; filename=%s", DevblocksPlatform::services()->string()->strFilename($file->name))
+					sprintf('attachment; filename="%s"', DevblocksPlatform::services()->string()->strFilename($file->name))
 				)
 			;
 			

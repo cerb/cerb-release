@@ -35,6 +35,10 @@ class WorkspaceWidget_MapGeoPoints extends Extension_WorkspaceWidget {
 	function renderConfig(Model_WorkspaceWidget $widget) {
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('widget', $widget);
+		
+		$trigger_ext = Extension_AutomationTrigger::get(AutomationTrigger_MapClicked::ID, true);
+		$tpl->assign('trigger_ext', $trigger_ext);
+		
 		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/map/geopoints/config.tpl');
 	}
 	

@@ -50,6 +50,9 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 		$params = DAO_CommunityToolProperty::getAllByTool($instance->code);
 		$tpl->assign('params', $params);
 		
+		$trigger_ext = Extension_AutomationTrigger::get(AutomationTrigger_InteractionWebsite::ID, true);
+		$tpl->assign('trigger_ext', $trigger_ext);
+		
 		$tpl->display('devblocks:cerb.website.interactions::portal/config.tpl');
 	}
 	

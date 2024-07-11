@@ -48,92 +48,97 @@ class _DevblocksTemplateManager {
 			$instance->registerFilter('variable', ['_DevblocksTemplateManager','devblocks_autoescape'], 'devblocks_autoescape');
 			
 			if($tables) {
-				$instance->registerClass('AutomationTrigger_MapClicked', 'AutomationTrigger_MapClicked');
-				$instance->registerClass('AutomationTrigger_ResourceGet', 'AutomationTrigger_ResourceGet');
-				$instance->registerClass('AutomationTrigger_UiWidget', 'AutomationTrigger_UiWidget');
-				$instance->registerClass('AutomationTrigger_WebhookRespond', 'AutomationTrigger_WebhookRespond');
-				$instance->registerClass('C4_AbstractView', 'C4_AbstractView');
-				$instance->registerClass('CerberusApplication', 'CerberusApplication');
-				$instance->registerClass('CerberusContexts', 'CerberusContexts');
-				$instance->registerClass('CerberusLicense', 'CerberusLicense');
-				$instance->registerClass('CerberusSettings', 'CerberusSettings');
-				$instance->registerClass('CerberusSettingsDefaults', 'CerberusSettingsDefaults');
-				$instance->registerClass('Context_Calendar', 'Context_Calendar');
-				$instance->registerClass('Context_Comment', 'Context_Comment');
-				$instance->registerClass('Context_ConnectedAccount', 'Context_ConnectedAccount');
-				$instance->registerClass('Context_CustomFieldset', 'Context_CustomFieldset');
-				$instance->registerClass('Context_Draft', 'Context_Draft');
-				$instance->registerClass('Context_GpgPrivateKey', 'Context_GpgPrivateKey');
-				$instance->registerClass('Context_GpgPublicKey', 'Context_GpgPublicKey');
-				$instance->registerClass('Context_OAuthApp', 'Context_OAuthApp');
-				$instance->registerClass('Context_ProjectBoard', 'Context_ProjectBoard');
-				$instance->registerClass('Context_ProjectBoardColumn', 'Context_ProjectBoardColumn');
-				$instance->registerClass('Context_Ticket', 'Context_Ticket');
-				$instance->registerClass('Context_TriggerEvent', 'Context_TriggerEvent');
-				$instance->registerClass('Context_Worker', 'Context_Worker');
-				$instance->registerClass('Context_WorkspacePage', 'Context_WorkspacePage');
-				$instance->registerClass('Context_WorkspaceWidget', 'Context_WorkspaceWidget');
-				$instance->registerClass('DAO_Attachment', 'DAO_Attachment');
-				$instance->registerClass('DAO_Address', 'DAO_Address');
-				$instance->registerClass('DAO_Calendar', 'DAO_Calendar');
-				$instance->registerClass('DAO_ConnectedAccount', 'DAO_ConnectedAccount');
-				$instance->registerClass('DAO_ConnectedService', 'DAO_ConnectedService');
-				$instance->registerClass('DAO_Contact', 'DAO_Contact');
-				$instance->registerClass('DAO_ContactOrg', 'DAO_ContactOrg');
-				$instance->registerClass('DAO_ContextLink', 'DAO_ContextLink');
-				$instance->registerClass('DAO_ContextScheduledBehavior', 'DAO_ContextScheduledBehavior');
-				$instance->registerClass('DAO_Currency', 'DAO_Currency');
-				$instance->registerClass('DAO_CustomField', 'DAO_CustomField');
-				$instance->registerClass('DAO_CustomFieldset', 'DAO_CustomFieldset');
-				$instance->registerClass('DAO_CustomFieldValue', 'DAO_CustomFieldValue');
-				$instance->registerClass('DAO_EmailSignature', 'DAO_EmailSignature');
-				$instance->registerClass('DAO_GpgPrivateKey', 'DAO_GpgPrivateKey');
-				$instance->registerClass('DAO_Group', 'DAO_Group');
-				$instance->registerClass('DAO_KbCategory', 'DAO_KbCategory');
-				$instance->registerClass('DAO_MailHtmlTemplate', 'DAO_MailHtmlTemplate');
-				$instance->registerClass('DAO_MailQueue', 'DAO_MailQueue');
-				$instance->registerClass('DAO_MailTransport', 'DAO_MailTransport');
-				$instance->registerClass('DAO_Notification', 'DAO_Notification');
-				$instance->registerClass('DAO_ProfileTab', 'DAO_ProfileTab');
-				$instance->registerClass('DAO_Ticket', 'DAO_Ticket');
-				$instance->registerClass('DAO_Toolbar', 'DAO_Toolbar');
-				$instance->registerClass('DAO_TriggerEvent', 'DAO_TriggerEvent');
-				$instance->registerClass('DAO_Worker', 'DAO_Worker');
-				$instance->registerClass('DAO_WorkerPref', 'DAO_WorkerPref');
-				$instance->registerClass('DAO_WorkspacePage', 'DAO_WorkspacePage');
-				$instance->registerClass('DAO_WorkspaceTab', 'DAO_WorkspaceTab');
-				$instance->registerClass('DevblocksDictionaryDelegate', 'DevblocksDictionaryDelegate');
-				$instance->registerClass('DevblocksPlatform', 'DevblocksPlatform');
-				$instance->registerClass('DevblocksSearchCriteria', 'DevblocksSearchCriteria');
-				$instance->registerClass('Event_UiWorklistRenderByWorker', 'Event_UiWorklistRenderByWorker');
-				$instance->registerClass('Extension_AutomationTrigger', 'Extension_AutomationTrigger');
-				$instance->registerClass('Extension_CalendarDatasource', 'Extension_CalendarDatasource');
-				$instance->registerClass('Extension_CardWidget', 'Extension_CardWidget');
-				$instance->registerClass('Extension_CustomField', 'Extension_CustomField');
-				$instance->registerClass('Extension_DevblocksContext', 'Extension_DevblocksContext');
-				$instance->registerClass('Extension_PageMenu', 'Extension_PageMenu');
-				$instance->registerClass('Extension_PageMenuItem', 'Extension_PageMenuItem');
-				$instance->registerClass('Extension_ProfileTab', 'Extension_ProfileTab');
-				$instance->registerClass('Extension_ProfileWidget', 'Extension_ProfileWidget');
-				$instance->registerClass('Extension_WorkspaceWidget', 'Extension_WorkspaceWidget');
-				$instance->registerClass('Extension_WorkspaceWidgetDatasource', 'Extension_WorkspaceWidgetDatasource');
-				$instance->registerClass('Extension_WorkspaceTab', 'Extension_WorkspaceTab');
-				$instance->registerClass('Model_CustomField', 'Model_CustomField');
-				$instance->registerClass('Model_Ticket', 'Model_Ticket');
-				$instance->registerClass('Page_Login', 'Page_Login');
-				$instance->registerClass('Page_Profiles', 'Page_Profiles');
-				$instance->registerClass('SearchFields_Address', 'SearchFields_Address');
-				$instance->registerClass('SearchFields_ConnectedAccount', 'SearchFields_ConnectedAccount');
-				$instance->registerClass('SearchFields_Contact', 'SearchFields_Contact');
-				$instance->registerClass('SearchFields_ContactOrg', 'SearchFields_ContactOrg');
-				$instance->registerClass('SearchFields_ContextActivityLog', 'SearchFields_ContextActivityLog');
-				$instance->registerClass('SearchFields_MailParseFail', 'SearchFields_MailParseFail');
-				$instance->registerClass('SearchFields_Message', 'SearchFields_Message');
-				$instance->registerClass('SearchFields_Ticket', 'SearchFields_Ticket');
-				$instance->registerClass('SearchFields_Worker', 'SearchFields_Worker');
-				$instance->registerClass('SearchFields_WorkspaceList', 'SearchFields_WorkspaceList');
-				$instance->registerClass('SearchFields_WorkspaceTab', 'SearchFields_WorkspaceTab');
-				$instance->registerClass('SearchFields_WorkspaceWidget', 'SearchFields_WorkspaceWidget');
+				$static_classes = [
+					'C4_AbstractView',
+					'CerberusApplication',
+					'CerberusContexts',
+					'CerberusLicense',
+					'CerberusSettings',
+					'CerberusSettingsDefaults',
+					'Context_Calendar',
+					'Context_Comment',
+					'Context_ConnectedAccount',
+					'Context_CustomFieldset',
+					'Context_Draft',
+					'Context_GpgPrivateKey',
+					'Context_GpgPublicKey',
+					'Context_OAuthApp',
+					'Context_ProjectBoard',
+					'Context_ProjectBoardColumn',
+					'Context_Ticket',
+					'Context_TriggerEvent',
+					'Context_Worker',
+					'Context_WorkspacePage',
+					'Context_WorkspaceWidget',
+					'DAO_Attachment',
+					'DAO_AutomationResource',
+					'DAO_Address',
+					'DAO_Calendar',
+					'DAO_ConnectedAccount',
+					'DAO_ConnectedService',
+					'DAO_Contact',
+					'DAO_ContactOrg',
+					'DAO_ContextLink',
+					'DAO_ContextScheduledBehavior',
+					'DAO_Currency',
+					'DAO_CustomField',
+					'DAO_CustomFieldset',
+					'DAO_CustomFieldValue',
+					'DAO_EmailSignature',
+					'DAO_GpgPrivateKey',
+					'DAO_Group',
+					'DAO_KbCategory',
+					'DAO_MailHtmlTemplate',
+					'DAO_MailQueue',
+					'DAO_MailTransport',
+					'DAO_Notification',
+					'DAO_ProfileTab',
+					'DAO_Ticket',
+					'DAO_Toolbar',
+					'DAO_TriggerEvent',
+					'DAO_Worker',
+					'DAO_WorkerPref',
+					'DAO_WorkspacePage',
+					'DAO_WorkspaceTab',
+					'DevblocksDictionaryDelegate',
+					'DevblocksPlatform',
+					'DevblocksSearchCriteria',
+					'Event_UiWorklistRenderByWorker',
+					'Extension_AutomationTrigger',
+					'Extension_CalendarDatasource',
+					'Extension_CardWidget',
+					'Extension_CustomField',
+					'Extension_DevblocksContext',
+					'Extension_PageMenu',
+					'Extension_PageMenuItem',
+					'Extension_ProfileTab',
+					'Extension_ProfileWidget',
+					'Extension_WorkspaceWidget',
+					'Extension_WorkspaceWidgetDatasource',
+					'Extension_WorkspaceTab',
+					'Model_CustomField',
+					'Model_Ticket',
+					'Page_Login',
+					'Page_Profiles',
+					'SearchFields_Address',
+					'SearchFields_ConnectedAccount',
+					'SearchFields_Contact',
+					'SearchFields_ContactOrg',
+					'SearchFields_ContextActivityLog',
+					'SearchFields_MailParseFail',
+					'SearchFields_Message',
+					'SearchFields_Ticket',
+					'SearchFields_Worker',
+					'SearchFields_WorkspaceList',
+					'SearchFields_WorkspaceTab',
+					'SearchFields_WorkspaceWidget',					
+				];
+				
+				foreach($static_classes as $static_class) {
+					try {
+						$instance->registerClass($static_class, $static_class);
+					} catch(Exception) {}
+				}
 			}
 			
 			// Devblocks plugins

@@ -48,7 +48,8 @@ class WorkspaceWidget_Automation extends Extension_WorkspaceWidget {
 		$tpl = DevblocksPlatform::services()->template();
 		$tpl->assign('widget', $widget);
 		
-		// Template
+		$trigger_ext = Extension_AutomationTrigger::get(AutomationTrigger_UiWidget::ID, true);
+		$tpl->assign('trigger_ext', $trigger_ext);
 		
 		$tpl->display('devblocks:cerberusweb.core::internal/workspaces/widgets/automation/config.tpl');
 	}

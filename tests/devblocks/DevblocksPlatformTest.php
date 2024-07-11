@@ -445,6 +445,10 @@ class DevblocksPlatformTest extends TestCase {
 		// xyyzz -> x.0.0
 		$actual = DevblocksPlatform::intVersionToStr(80000, 3);
 		$this->assertEquals('8.0.0', $actual);
+		
+		// xxyyzz -> xx.y.zz
+		$actual = DevblocksPlatform::intVersionToStr(100418, 3);
+		$this->assertEquals('10.4.18', $actual);
 	}
 	
 	public function testStrVersionToInt() {
@@ -500,13 +504,17 @@ class DevblocksPlatformTest extends TestCase {
 		$actual = DevblocksPlatform::strVersionToInt('7.10.9.0', 4);
 		$this->assertEquals(7100900, $actual);
 		
-		// 0.0.z -> xxyyz
+		// 0.0.z -> z
 		$actual = DevblocksPlatform::strVersionToInt('0.0.8', 3);
 		$this->assertEquals(8, $actual);
 		
 		// x.0.0 -> xyyzz
 		$actual = DevblocksPlatform::strVersionToInt('8.0.0', 3);
 		$this->assertEquals(80000, $actual);
+		
+		// xx.y.zz -> xxyyzz
+		$actual = DevblocksPlatform::strVersionToInt('10.4.18', 3);
+		$this->assertEquals(100418, $actual);
 	}
 	
 	public function testJsonGetPointerFromPath() {

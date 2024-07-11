@@ -253,7 +253,7 @@ class PageSection_InternalPortals extends Extension_PageSection {
 		$simplexml = $doc->appendChild($simplexml);
 		
 		DevblocksPlatform::services()->http()
-			->setHeader('Content-Disposition', sprintf('attachment; filename=%s', DevblocksPlatform::services()->string()->strFilename($filename)))
+			->setHeader('Content-Disposition', sprintf('attachment; filename="%s"', DevblocksPlatform::services()->string()->strFilename($filename)))
 			->setHeader('Content-Type', 'text/xml')
 		;
 		
