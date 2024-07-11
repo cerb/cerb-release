@@ -55,6 +55,7 @@ class _DevblocksTemplateManager {
 					'CerberusLicense',
 					'CerberusSettings',
 					'CerberusSettingsDefaults',
+					'Context_Attachment',
 					'Context_Calendar',
 					'Context_Comment',
 					'Context_ConnectedAccount',

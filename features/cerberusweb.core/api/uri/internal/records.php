@@ -293,7 +293,7 @@ class PageSection_InternalRecords extends Extension_PageSection {
 		
 		// [TODO] Abstractly handle '(no record)' blank functionality?
 		
-		if(false != ($context_ext = Extension_DevblocksContext::get($context))) {
+		if(($context_ext = Extension_DevblocksContext::getByAlias($context, true))) {
 			if($context_ext instanceof IDevblocksContextAutocomplete)
 				$list = $context_ext->autocomplete($term, $query);
 		}
