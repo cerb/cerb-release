@@ -939,16 +939,17 @@ class View_WorkspaceWidget extends C4_AbstractView implements IAbstractView_Subt
 		$criteria = null;
 
 		switch($field) {
+			case SearchFields_WorkspaceWidget::EXTENSION_ID:
 			case SearchFields_WorkspaceWidget::LABEL:
 			case SearchFields_WorkspaceWidget::ZONE:
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
 				
-			case SearchFields_WorkspaceWidget::EXTENSION_ID:
 			case SearchFields_WorkspaceWidget::ID:
 			case SearchFields_WorkspaceWidget::POS:
 			case SearchFields_WorkspaceWidget::WIDTH_UNITS:
 			case SearchFields_WorkspaceWidget::WORKSPACE_TAB_ID:
+				$criteria = new DevblocksSearchCriteria($field, $oper, $value);
 				break;
 				
 			case SearchFields_WorkspaceWidget::UPDATED_AT:

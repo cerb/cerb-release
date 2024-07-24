@@ -1191,6 +1191,9 @@ class DevblocksPlatform extends DevblocksEngine {
 	}
 	
 	static function strEndsWith($string, $suffixes, $case_sensitive=true) {
+		if(!is_string($string))
+			$string = strval($string);
+		
 		if(!is_array($suffixes))
 			$suffixes = [$suffixes];
 		
@@ -1208,6 +1211,9 @@ class DevblocksPlatform extends DevblocksEngine {
 	}
 	
 	static function strTrimStart($string, $prefixes) {
+		if(!is_string($string))
+			$string = strval($string);
+		
 		if(!is_array($prefixes))
 			$prefixes = [$prefixes];
 		
@@ -1219,6 +1225,9 @@ class DevblocksPlatform extends DevblocksEngine {
 	}
 	
 	static function strTrimEnd($string, array $suffixes = []) {
+		if(!is_string($string))
+			$string = strval($string);
+		
 		if(!is_array($suffixes))
 			$suffixes = [$suffixes];
 		
@@ -1230,6 +1239,9 @@ class DevblocksPlatform extends DevblocksEngine {
 	}
 	
 	static function strIsListItem($string) {
+		if(!is_string($string))
+			$string = strval($string);
+		
 		// Is it using a typical list item delimiter to start?
 		if(DevblocksPlatform::strStartsWith(ltrim($string), ['*','-','#']))
 			return true;

@@ -96,7 +96,7 @@ class ProfileWidget_ChartCategories extends Extension_ProfileWidget {
 			]
 		];
 		
-		if(@$results['_']['stacked']) {
+		if($results['_']['stacked'] ?? null) {
 			$config_json['data']['type']  = 'bar';
 			$groups = array_column($results['data'], 0);
 			array_shift($groups);
@@ -104,19 +104,19 @@ class ProfileWidget_ChartCategories extends Extension_ProfileWidget {
 			$config_json['legend']['show'] = true;
 			
 			if(!$height)
-				$height = 100 + (50 * @count($results['data'][0]));
+				$height = 100 + (50 * count($results['data'][0] ?? []));
 			
-		} else if ($results) {
+		} else if ($results['data'] ?? null) {
 			$config_json['data']['type']  = 'bar';
 			$config_json['legend']['show'] = false;
 			
 			if(!$height)
-				$height = 100 + (50 * @count($results['data'][0]));
+				$height = 100 + (50 * count($results['data'][0] ?? []));
 		}
 		
 		$config_json['size'] = ['height' => $height ?: 320];
 		
-		if(false != ($chart_meta = @$results['_']))
+		if(($chart_meta = ($results['_'] ?? null)))
 			$tpl->assign('chart_meta_json', json_encode($chart_meta));
 		
 		$tpl->assign('config_json', json_encode($config_json));

@@ -686,7 +686,7 @@ class View_WebApiCredentials extends C4_AbstractView implements IAbstractView_Qu
 		switch($field) {
 			case SearchFields_WebApiCredentials::ACCESS_KEY:
 			case SearchFields_WebApiCredentials::NAME:
-			case SearchFields_WebApiCredentials::PARAMS:
+			case SearchFields_WebApiCredentials::PARAMS_JSON:
 			case SearchFields_WebApiCredentials::SECRET_KEY:
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;

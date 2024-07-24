@@ -70,6 +70,8 @@ class PageSection_ProfilesComment extends Extension_PageSection {
 				if(!Context_Comment::isDeletableByActor($model, $active_worker))
 					throw new Exception_DevblocksAjaxValidationError(DevblocksPlatform::translate('error.core.no_acl.delete'));
 				
+				CerberusContexts::logActivityRecordDelete(CerberusContexts::CONTEXT_COMMENT, $model->id);
+				
 				DAO_Comment::delete($id);
 				
 				echo json_encode(array(

@@ -1057,8 +1057,8 @@ class _DevblocksSheetServiceTypes {
 			
 			$column_params = ($column['params'] ?? null) ?: [];
 			
-			$value_min = ($column_params['min'] ?? null) ?: 0;
-			$value_max = ($column_params['max'] ?? null) ?: 100;
+			$value_min = intval($column_params['min'] ?? null) ?: 0;
+			$value_max = intval($column_params['max'] ?? null) ?: 100;
 			$value_mid = ($value_max + $value_min)/2;
 			
 			if(array_key_exists('value', $column_params)) {
@@ -1084,6 +1084,8 @@ class _DevblocksSheetServiceTypes {
 				return intval($value);
 				
 			} else {
+				$progress = is_numeric($value) ? ($value / $value_max) * 100 : 0;
+				
 				return sprintf(
 					'<div title="%d" style="width:60px;height:8px;background-color:var(--cerb-color-background-contrast-220);border-radius:8px;text-align:center;">'.
 					'<div style="position:relative;margin-left:5px;width:50px;height:8px;">'.
@@ -1091,7 +1093,7 @@ class _DevblocksSheetServiceTypes {
 					'</div>'.
 					'</div>',
 					$value,
-					($value/$value_max)*100,
+					$progress,
 					DevblocksPlatform::strEscapeHtml($color)
 				);
 			}
