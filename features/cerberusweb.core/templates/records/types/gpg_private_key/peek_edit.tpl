@@ -85,15 +85,41 @@
                 <input type="hidden" name="_csrf_token" value="{$session.csrf_token}">
 
                 <fieldset>
-                    <legend>Key Length (bits)</legend>
+                    <legend>Key</legend>
 
-                    <select name="key_length">
-                        <option value="512">512</option>
-                        <option value="1048">1048</option>
-                        <option value="2048" selected="selected">2048</option>
-                        <option value="3072">3072</option>
-                        <option value="4096">4096</option>
-                    </select>
+                    <table cellspacing="5" cellpadding="0" border="0" width="100%">
+                        <thead>
+                            <tr>
+                                <td style="font-weight:bold;">Bits</td>
+                                <td style="font-weight:bold;">Algorithm</td>
+                                <td style="font-weight:bold;">Hash Algorithm</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>
+                                <select name="key_length">
+                                    <option value="512">512</option>
+                                    <option value="1048">1048</option>
+                                    <option value="2048" selected="selected">2048</option>
+                                    <option value="3072">3072</option>
+                                    <option value="4096">4096</option>
+                                </select>
+                            </td>
+                            <td>
+                                RSA
+                            </td>
+                            <td>
+                                <select name="hash_algorithm">
+                                    <option value="SHA224">SHA224</option>
+                                    <option value="SHA256" selected="selected">SHA256</option>
+                                    <option value="SHA384">SHA384</option>
+                                    <option value="SHA512">SHA512</option>
+                                </select>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
                 </fieldset>
 
                 <fieldset>

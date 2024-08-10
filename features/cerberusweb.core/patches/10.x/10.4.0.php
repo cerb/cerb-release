@@ -209,6 +209,7 @@ if(!array_key_exists('cache_until', $columns)) {
 // Update package library
 
 $packages = [
+	'cerb_card_widget_gpg_public_key_subkeys.json',
 	'cerb_connected_service_huggingface.json',
 	'cerb_connected_service_openai.json',
 	'cerb_connected_service_smartsheet.json',

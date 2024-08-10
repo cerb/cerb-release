@@ -76,7 +76,7 @@ class _DevblocksDataProviderGpgKeyInfo extends _DevblocksDataProvider {
 		if(count($keyinfo) > 0) {
 			$keyinfo = array_shift($keyinfo);
 			
-			switch (@$chart_model['filter']) {
+			switch ($chart_model['filter'] ?? null) {
 				case 'uids':
 					$data = $keyinfo['uids'];
 					break;
@@ -95,7 +95,7 @@ class _DevblocksDataProviderGpgKeyInfo extends _DevblocksDataProvider {
 		
 		// Respond
 		
-		@$format = $chart_model['format'] ?: 'dictionaries';
+		$format = $chart_model['format'] ?: 'dictionaries';
 		
 		switch($format) {
 			case 'dictionaries':

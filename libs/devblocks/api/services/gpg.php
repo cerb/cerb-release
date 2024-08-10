@@ -14,7 +14,7 @@ abstract class Extension_DevblocksGpgEngine {
 	abstract function decrypt($encrypted_content);
 	abstract function sign($plaintext, $key_fingerprint, $is_detached=true);
 	abstract function verify($signed_content, $signature=false);
-	abstract function keygen(array $uids, int $key_length, string $passphrase=null);
+	abstract function keygen(array $uids, int $key_length, string $hash_algorithm='SHA256', string $passphrase=null);
 }
 
 class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
@@ -77,12 +77,16 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 	 * @param string|null $passphrase
 	 * @return array|false
 	 */
-	function keygen(array $uids, int $key_length=2048, string $passphrase=null) {
+	function keygen(array $uids, int $key_length=2048, string $hash_algorithm='SHA256', string $passphrase=null) {
 		// [TODO] Passphrases
 		
-		// [TODO] Exceptions
 		if(!in_array($key_length,[512,1024,2048,3072,4096]))
-			return false;
+			$key_length = 2048;
+		
+		if(!in_array($hash_algorithm, OpenPGP_SignaturePacket::$hash_algorithms))
+			$hash_algorithm = 'SHA256';
+		
+		$hash_algorithm_id = array_search($hash_algorithm, OpenPGP_SignaturePacket::$hash_algorithms);
 		
 		$rsa = $this->_createPrivateKeyCryptRsa($key_length);
 		
@@ -95,12 +99,17 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 			'u' => $rsa['coefficients'],
 		]);
 		
+		$nkey->s2k_useage = 0;
+		
 		$packets = [$nkey];
 		
 		$wkey = new OpenPGP_Crypt_RSA($nkey);
 		$fingerprint = $wkey->key()->fingerprint;
 		$key = $wkey->private_key();
+		$key = $key->withHash($hash_algorithm);
 		$keyid = substr($fingerprint, -16);
+		
+		$key_headers = [];
 		
 		foreach($uids as $uid_data) {
 			$uid_name = $uid_data['name'] ?? null;
@@ -112,11 +121,15 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 			$uid = new OpenPGP_UserIDPacket($uid_name, '', $uid_email);
 			$packets[] = $uid;
 			
-			$sig = new OpenPGP_SignaturePacket(new OpenPGP_Message([$nkey, $uid]), 'RSA', 'SHA256');
+			if(!array_key_exists('Comment', $key_headers))
+				$key_headers['Comment'] = (string) $uid;
+			
+			$sig = new OpenPGP_SignaturePacket(new OpenPGP_Message([$nkey, $uid]), 'RSA', $hash_algorithm);
 			$sig->signature_type = 0x13;
+			$sig->hash_algorithm = $hash_algorithm_id;
 			$sig->hashed_subpackets[] = new OpenPGP_SignaturePacket_KeyFlagsPacket(array(0x01 | 0x02)); // Certify + sign
 			$sig->hashed_subpackets[] = new OpenPGP_SignaturePacket_IssuerPacket($keyid);
-			$m = $wkey->sign_key_userid([$nkey, $uid, $sig]);
+			$m = $wkey->sign_key_userid([$nkey, $uid, $sig], $hash_algorithm);
 			
 			$packets[] = $m->packets[2];
 		}
@@ -132,15 +145,18 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 			'u' => $rsa_subkey['coefficients'],
 		]);
 		
+		$subkey->s2k_useage = 0;
+		
 		$packets[] = $subkey;
 		
-		$sub_sig = new OpenPGP_SignaturePacket(null, 'RSA', 'SHA256');
+		$sub_sig = new OpenPGP_SignaturePacket(null, 'RSA', $hash_algorithm);
 		$sub_sig->signature_type = 0x18;
+		$sub_sig->hash_algorithm = $hash_algorithm_id;
 		$sub_sig->hashed_subpackets[] = new OpenPGP_SignaturePacket_SignatureCreationTimePacket(time());
 		$sub_sig->hashed_subpackets[] = new OpenPGP_SignaturePacket_KeyFlagsPacket(array(0x0C)); // Encrypt
 		$sub_sig->hashed_subpackets[] = new OpenPGP_SignaturePacket_IssuerPacket($keyid);
 		$sub_sig->data = implode('', $nkey->fingerprint_material()) . implode('', $subkey->fingerprint_material());
-		$sub_sig->sign_data(array('RSA' => array('SHA256' => function($data) use($key) {return array($key->sign($data));})));
+		$sub_sig->sign_data(['RSA' => [$hash_algorithm => function($data) use($key) {return array($key->sign($data));}]]);
 		
 		$packets[] = $sub_sig;
 		
@@ -158,10 +174,10 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 		}
 		
 		$privkey_bytes = $m->to_bytes();
-		$privkey_ascii = OpenPGP::enarmor($privkey_bytes, 'PGP PRIVATE KEY BLOCK');
+		$privkey_ascii = OpenPGP::enarmor($privkey_bytes, 'PGP PRIVATE KEY BLOCK', $key_headers);
 		
 		$pubkey_bytes = $pubm->to_bytes();
-		$pubkey_ascii = OpenPGP::enarmor($pubkey_bytes, 'PGP PUBLIC KEY BLOCK');
+		$pubkey_ascii = OpenPGP::enarmor($pubkey_bytes, 'PGP PUBLIC KEY BLOCK', $key_headers);
 		
 		return [
 			'public_key' => $pubkey_ascii,
@@ -206,7 +222,7 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 	}
 	
 	// [TODO] Throw exceptions
-	public function keyinfo($key_text, $passphrase=null) {
+	public function keyinfo($key_text, $passphrase=null, $with_packets=false) {
 		if(false !== strpos($key_text, 'PGP PUBLIC KEY BLOCK')) {
 			$header = 'PGP PUBLIC KEY BLOCK';
 		} else if(false !== strpos($key_text, 'PGP PRIVATE KEY BLOCK')) {
@@ -250,23 +266,30 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 				'revoked' => false, // [TODO]
 			];
 			
+			if($with_packets)
+				$keydata['packet'] = $p;
+			
 			if ($p instanceof OpenPGP_SecretKeyPacket) {
-				/* @var $p OpenPGP_SecretKeyPacket */
-				
 				$keydata['fingerprint'] = $p->fingerprint;
 				$keydata['keyid'] = $p->key_id;
+				$keydata['algorithm'] = $p->algorithm;
+				$keydata['algorithm_name'] = OpenPGP_SecretKeyPacket::$algorithms[$p->algorithm] ?? '';
 				$keydata['timestamp'] = $p->timestamp;
 				$keydata['is_secret'] = true;
+				if(in_array($p->algorithm,[1,2,3]))
+					$keydata['key_bits'] = OpenPGP::bitlength($p->key['n'] ?? '');
 				$id16 = substr($p->fingerprint, -16);
 				$id16_ptrs[$id16] = $keydata;
 				$last_key = $id16;
 				
 			} else if ($p instanceof OpenPGP_PublicKeyPacket) {
-				/* @var $p OpenPGP_PublicKeyPacket */
-				
 				$keydata['fingerprint'] = $p->fingerprint;
 				$keydata['keyid'] = $p->key_id;
+				$keydata['algorithm'] = $p->algorithm;
+				$keydata['algorithm_name'] = OpenPGP_PublicKeyPacket::$algorithms[$p->algorithm] ?? '';
 				$keydata['timestamp'] = $p->timestamp;
+				if(in_array($p->algorithm,[1,2,3]))
+					$keydata['key_bits'] = OpenPGP::bitlength($p->key['n'] ?? '');
 				$id16 = substr($p->fingerprint, -16);
 				$id16_ptrs[$id16] = $keydata;
 				$last_key = $id16;
@@ -289,6 +312,9 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 				} else {
 					continue;
 				}
+				
+				$ptr['hash_algorithm'] = $p->hash_algorithm;
+				$ptr['hash_algorithm_name'] = $p->hash_algorithm_name();
 				
 				foreach(array_merge($p->hashed_subpackets, $p->unhashed_subpackets) as $pp) {
 					if ($pp instanceof OpenPGP_SignaturePacket_KeyExpirationTimePacket) {
@@ -376,7 +402,25 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 		}
 	}
 	
+	public function isKeyValidFor($key, $purpose) {
+		return !(
+			$key['disabled']
+			|| $key['expired']
+			|| $key['revoked']
+			|| (
+				$purpose == 'sign'
+				&& !$key['can_sign']
+			)
+			|| (
+				$purpose == 'encrypt'
+				&& !$key['can_encrypt']
+			)
+		);
+	}
+	
 	function encrypt($plaintext, $key_fingerprints) {
+		$gpg = DevblocksPlatform::services()->gpg();
+		
 		if(!is_array($key_fingerprints))
 			return false;
 		
@@ -393,21 +437,34 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 		// [TODO] Get all fingerprints at once
 		foreach($key_fingerprints as $key_fingerprint) {
 			if(is_numeric($key_fingerprint) && strlen($key_fingerprint) < 16) {
-				if(false == ($public_key = DAO_GpgPublicKey::get($key_fingerprint)))
+				if(!($public_key = DAO_GpgPublicKey::get($key_fingerprint)))
 					continue;
 				
 			} else {
-				if(false == ($public_key = DAO_GpgPublicKey::getByFingerprint($key_fingerprint)))
+				if(!($public_key = DAO_GpgPublicKey::getByFingerprint($key_fingerprint)))
 					continue;
 			}
 			
-			if(false == ($pub_key = OpenPGP_Message::parse(OpenPGP::unarmor($public_key->key_text, 'PGP PUBLIC KEY BLOCK'))))
-				continue;
+			$keyinfo = $gpg->keyinfo($public_key->key_text, null, true);
 			
-			$pub_keys[] = $pub_key->packets[0];
+			foreach(($keyinfo['subkeys'] ?? []) as $key) {
+				if(
+					($key['packet'] ?? null)
+					&& in_array($key['packet']->algorithm ?? [], [1,2,3])
+					&& $gpg->isKeyValidFor($key, 'encrypt')
+				) {
+					$pub_keys[] = $key['packet'];
+				}
+			}
 		}
 		
-		$msg_encrypted = OpenPGP_Crypt_Symmetric::encrypt($pub_keys, new OpenPGP_Message([$data]));
+		try {
+			$msg_encrypted = OpenPGP_Crypt_Symmetric::encrypt($pub_keys, new OpenPGP_Message([$data]));
+		} catch (Exception $e) {
+			DevblocksPlatform::logException($e);
+			return false;
+		}
+		
 		return OpenPGP::enarmor($msg_encrypted->to_bytes(), 'PGP MESSAGE');
 	}
 	

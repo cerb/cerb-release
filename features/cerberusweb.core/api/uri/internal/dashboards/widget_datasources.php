@@ -716,7 +716,7 @@ class WorkspaceWidgetDatasource_DataQueryMetric extends Extension_WorkspaceWidge
 			case 'worklist.metrics':
 				switch($format) {
 					case 'table':
-						$params['metric_value'] = @$data['rows'][0]['value'] ?: 0;
+						$params['metric_value'] = ($data['rows'][0]['value'] ?? null) ?: 0;
 						break;
 				}
 				break;

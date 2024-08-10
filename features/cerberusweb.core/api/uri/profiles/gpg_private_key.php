@@ -233,11 +233,10 @@ class PageSection_ProfilesGpgPrivateKey extends Extension_PageSection {
 			DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
 			
 			$key_length = DevblocksPlatform::importGPC($_POST['key_length'] ?? null, 'int', 2048);
+			$hash_algorithm = DevblocksPlatform::importGPC($_POST['hash_algorithm'] ?? null, 'string', 'SHA256');
 			$uid_names = DevblocksPlatform::importGPC($_POST['uid_names'] ?? null, 'array', []);
 			$uid_emails = DevblocksPlatform::importGPC($_POST['uid_emails'] ?? null, 'array', []);
 			$view_id = DevblocksPlatform::importGPC($_POST['view_id'] ?? null, 'string', '');
-			
-			// [TODO] Validate key length
 			
 			$uids = [];
 			
@@ -258,7 +257,7 @@ class PageSection_ProfilesGpgPrivateKey extends Extension_PageSection {
 			// [TODO] Validate UIDs
 			// [TODO] Exceptions
 			
-			list('public_key'=>$public_key, 'private_key'=>$private_key) = @$gpg->keygen($uids, $key_length, null);
+			list('public_key'=>$public_key, 'private_key'=>$private_key) = $gpg->keygen($uids, $key_length, $hash_algorithm, null);
 			
 			// Import private key
 			
