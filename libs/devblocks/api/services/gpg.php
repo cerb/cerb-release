@@ -156,7 +156,9 @@ class DevblocksGpgEngine_OpenPGP extends Extension_DevblocksGpgEngine {
 		$sub_sig->hashed_subpackets[] = new OpenPGP_SignaturePacket_KeyFlagsPacket(array(0x0C)); // Encrypt
 		$sub_sig->hashed_subpackets[] = new OpenPGP_SignaturePacket_IssuerPacket($keyid);
 		$sub_sig->data = implode('', $nkey->fingerprint_material()) . implode('', $subkey->fingerprint_material());
-		$sub_sig->sign_data(['RSA' => [$hash_algorithm => function($data) use($key) {return array($key->sign($data));}]]);
+		$sub_sig->sign_data(['RSA' => [$hash_algorithm => function($data) use($key) {
+			return [ "signed" => $key->sign($data), "hash" => $key->getHash()->hash($data) ];
+		}]]);
 		
 		$packets[] = $sub_sig;
 		

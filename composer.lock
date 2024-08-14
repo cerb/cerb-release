@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a252f3d9e06f13cb126a9e26e4c3882c",
+    "content-hash": "d60f308b039e8956c96343868f39fdf6",
     "packages": [
         {
             "name": "brick/math",
@@ -1736,16 +1736,16 @@
         },
         {
             "name": "phpseclib/phpseclib",
-            "version": "3.0.39",
+            "version": "3.0.41",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpseclib/phpseclib.git",
-                "reference": "211ebc399c6e73c225a018435fe5ae209d1d1485"
+                "reference": "621c73f7dcb310b61de34d1da4c4204e8ace6ceb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/211ebc399c6e73c225a018435fe5ae209d1d1485",
-                "reference": "211ebc399c6e73c225a018435fe5ae209d1d1485",
+                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/621c73f7dcb310b61de34d1da4c4204e8ace6ceb",
+                "reference": "621c73f7dcb310b61de34d1da4c4204e8ace6ceb",
                 "shasum": ""
             },
             "require": {
@@ -1826,7 +1826,7 @@
             ],
             "support": {
                 "issues": "https://github.com/phpseclib/phpseclib/issues",
-                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.39"
+                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.41"
             },
             "funding": [
                 {
@@ -1842,7 +1842,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-06-24T06:27:33+00:00"
+            "time": "2024-08-12T00:13:54+00:00"
         },
         {
             "name": "psr/clock",
@@ -2269,16 +2269,16 @@
         },
         {
             "name": "singpolyma/openpgp-php",
-            "version": "dev-0.6.1-cerb",
+            "version": "0.7.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/jstanden/openpgp-php.git",
-                "reference": "054e5cec5940bdbc80a62289d417eee8002e3a50"
+                "url": "https://github.com/singpolyma/openpgp-php.git",
+                "reference": "b55996c1942bf676d4531c9b4c0ed226f7fe2b60"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/jstanden/openpgp-php/zipball/054e5cec5940bdbc80a62289d417eee8002e3a50",
-                "reference": "054e5cec5940bdbc80a62289d417eee8002e3a50",
+                "url": "https://api.github.com/repos/singpolyma/openpgp-php/zipball/b55996c1942bf676d4531c9b4c0ed226f7fe2b60",
+                "reference": "b55996c1942bf676d4531c9b4c0ed226f7fe2b60",
                 "shasum": ""
             },
             "require": {
@@ -2298,6 +2298,7 @@
                     "lib/"
                 ]
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "Unlicense"
             ],
@@ -2313,23 +2314,24 @@
             ],
             "description": "Pure-PHP implementation of the OpenPGP Message Format (RFC 4880)",
             "support": {
-                "source": "https://github.com/jstanden/openpgp-php/tree/fix-sign-data"
+                "issues": "https://github.com/singpolyma/openpgp-php/issues",
+                "source": "https://github.com/singpolyma/openpgp-php/tree/0.7.0"
             },
             "funding": [
                 {
-                    "type": "github",
-                    "url": "https://github.com/singpolyma"
+                    "url": "https://github.com/singpolyma",
+                    "type": "github"
                 },
                 {
-                    "type": "liberapay",
-                    "url": "https://liberapay.com/singpolyma"
+                    "url": "https://liberapay.com/singpolyma",
+                    "type": "liberapay"
                 },
                 {
-                    "type": "patreon",
-                    "url": "https://www.patreon.com/singpolyma"
+                    "url": "https://www.patreon.com/singpolyma",
+                    "type": "patreon"
                 }
             ],
-            "time": "2024-08-09T23:54:55+00:00"
+            "time": "2024-08-12T19:00:23+00:00"
         },
         {
             "name": "smarty/smarty",
@@ -4890,7 +4892,6 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "twig/twig": 20,
-        "singpolyma/openpgp-php": 20,
         "horde/imap-client": 20
     },
     "prefer-stable": false,
