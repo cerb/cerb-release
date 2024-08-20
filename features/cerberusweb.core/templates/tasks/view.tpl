@@ -3,6 +3,7 @@
 {$results = $view->getData()}
 {$total = $results[1]}
 {$data = $results[0]}
+{$are_rows_two_lines = !in_array('t_title', $view->view_columns)}
 
 {include file="devblocks:cerberusweb.core::internal/views/view_marquee.tpl" view=$view}
 
@@ -73,30 +74,43 @@
 	{else}
 		{$tableRowClass = "odd"}
 	{/if}
+
+	{* This is used in two places depending on if the row is one or two lines *}
+	{capture name="task_title_content"}
+		<input type="checkbox" name="row_id[]" value="{$result.t_id}" style="display:none;">
+		{if 1 == $result.t_status_id}
+			<span class="glyphicons glyphicons-circle-ok" style="font-size:16px;" title="{'status.closed'|devblocks_translate|lower} {$result.t_completed_date|devblocks_date}"></span>
+		{elseif 2 == $result.t_status_id}
+			<span class="glyphicons glyphicons-clock" style="font-size:16px;" title="{'status.waiting.abbr'|devblocks_translate|lower}{if $result.t_reopen_at} until {$result.t_reopen_at|devblocks_date}{/if}"></span>
+		{/if}
+		<a href="{devblocks_url}c=profiles&type=task&id={$result.t_id}-{$result.t_title|devblocks_permalink}{/devblocks_url}" class="subject">{if !empty($result.t_title)}{$result.t_title}{else}New Task{/if}</a>
+
+		<button type="button" class="peek cerb-peek-trigger" data-context="{$view_context}" data-context-id="{$result.t_id}" data-width="55%"><span class="glyphicons glyphicons-new-window-alt"></span></button>
+	{/capture}
+
 	<tbody style="cursor:pointer;">
 		<tr class="{$tableRowClass}">
-			<td data-column="*_watchers" align="center" rowspan="2" nowrap="nowrap" style="padding:5px;">
+			<td data-column="*_watchers" align="center" {if $are_rows_two_lines}rowspan="2"{/if} nowrap="nowrap" style="padding:5px;">
 				{include file="devblocks:cerberusweb.core::internal/watchers/context_follow_button.tpl" context=$view_context context_id=$result.t_id}
 			</td>
+
+			{if !in_array('t_title',$view->view_columns)}
 			<td data-column="label" colspan="{$smarty.foreach.headers.total}">
-				<input type="checkbox" name="row_id[]" value="{$result.t_id}" style="display:none;">
-				{if 1 == $result.t_status_id}
-					<span class="glyphicons glyphicons-circle-ok" style="font-size:16px;" title="{'status.closed'|devblocks_translate|lower} {$result.t_completed_date|devblocks_date}"></span>
-				{elseif 2 == $result.t_status_id}
-					<span class="glyphicons glyphicons-clock" style="font-size:16px;" title="{'status.waiting.abbr'|devblocks_translate|lower}{if $result.t_reopen_at} until {$result.t_reopen_at|devblocks_date}{/if}"></span>
-				{/if}
-				<a href="{devblocks_url}c=profiles&type=task&id={$result.t_id}-{$result.t_title|devblocks_permalink}{/devblocks_url}" class="subject">{if !empty($result.t_title)}{$result.t_title}{else}New Task{/if}</a> 
-				
-				<button type="button" class="peek cerb-peek-trigger" data-context="{$view_context}" data-context-id="{$result.t_id}" data-width="55%"><span class="glyphicons glyphicons-new-window-alt"></span></button>
+				{$smarty.capture.task_title_content nofilter}
 			</td>
+			{/if}
+
+		{if $are_rows_two_lines}
 		</tr>
 		<tr class="{$tableRowClass}">
+		{/if}
+
 		{foreach from=$view->view_columns item=column name=columns}
 			{if DevblocksPlatform::strStartsWith($column, "cf_")}
 				{include file="devblocks:cerberusweb.core::internal/custom_fields/view/cell_renderer.tpl"}
 			{elseif $column=="t_id"}
 				<td data-column="{$column}">{$result.t_id}&nbsp;</td>
-			{elseif $column=="t_created_at" || $column=="t_completed_date" || $column=="t_updated_date"}
+			{elseif $column=="t_created_at" || $column=="t_completed_date" || $column=="t_updated_date" || $column=="t_reopen_at"}
 				<td data-column="{$column}" title="{$result.$column|devblocks_date}">
 					{if !empty($result.$column)}
 						{$result.$column|devblocks_prettytime}&nbsp;
@@ -117,6 +131,10 @@
 					{else}
 					{'status.open'|devblocks_translate|capitalize}
 					{/if}
+				</td>
+			{elseif $column=="t_title"}
+				<td data-column="{$column}" title="{$result.t_title}">
+					{$smarty.capture.task_title_content nofilter}
 				</td>
 			{elseif $column=="t_importance"}
 			<td data-column="{$column}" title="{$result.$column}">

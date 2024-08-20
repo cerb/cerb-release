@@ -3,7 +3,8 @@
 		<legend>Datasets: (KATA)</legend>
 
 		<div class="cerb-code-editor-toolbar">
-			<button type="button" class="cerb-code-editor-toolbar-button cerb-button-sample-datasets" title="Test datasets"><span class="glyphicons glyphicons-play"></span></button>
+			<button type="button" class="cerb-code-editor-toolbar-button cerb-button-autocomplete-datasets" title="{'common.autocomplete'|devblocks_translate|capitalize} (Ctrl+Space)"><span class="glyphicons glyphicons-magic"></span></button>
+			<button type="button" class="cerb-code-editor-toolbar-button cerb-button-test-datasets" title="Test datasets"><span class="glyphicons glyphicons-play"></span></button>
 			
 			<div class="cerb-code-editor-toolbar-divider"></div>
 			
@@ -34,7 +35,8 @@
 		<legend>Chart: (KATA)</legend>
 
 		<div class="cerb-code-editor-toolbar">
-			<button type="button" class="cerb-code-editor-toolbar-button cerb-button-sample-chart" title="Test chart"><span class="glyphicons glyphicons-play"></span></button>
+			<button type="button" class="cerb-code-editor-toolbar-button cerb-button-autocomplete-chart" title="{'common.autocomplete'|devblocks_translate|capitalize} (Ctrl+Space)"><span class="glyphicons glyphicons-magic"></span></button>
+			<button type="button" class="cerb-code-editor-toolbar-button cerb-button-test-chart" title="Test chart"><span class="glyphicons glyphicons-play"></span></button>
 			
 			<div class="cerb-code-editor-toolbar-divider"></div>
 			
@@ -145,10 +147,17 @@ $(function() {
 		});
 	});
 	{/if}
+
+	// Autocomplete datasets
+
+	$config.find('button.cerb-button-autocomplete-datasets').on('click', function(e) {
+		e.stopPropagation();
+		editor_datasets.commands.byName.startAutocomplete.exec(editor_datasets);
+	});
+
+	// Test datasets
 	
-	// Sample datasets
-	
-	var $query_button = $config.find('button.cerb-button-sample-datasets');
+	var $query_button = $config.find('button.cerb-button-test-datasets');
 
 	$config.find('textarea.cerb-datasets-editor-placeholders')
 		.cerbCodeEditor()
@@ -212,10 +221,17 @@ $(function() {
 			}
 		});
 	});
-	
+
+	// Autocomplete chart
+
+	$config.find('button.cerb-button-autocomplete-chart').on('click', function(e) {
+		e.stopPropagation();
+		editor_chart.commands.byName.startAutocomplete.exec(editor_chart);
+	});
+
 	// Preview chart
 
-	var $chart_button = $config.find('button.cerb-button-sample-chart');
+	var $chart_button = $config.find('button.cerb-button-test-chart');
 	let $chart_preview = $config.find('[data-cerb-results-chart]');
 	
 	$chart_button.on('click', function(e) {

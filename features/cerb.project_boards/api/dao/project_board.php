@@ -235,7 +235,7 @@ class DAO_ProjectBoard extends Cerb_ORMHelper {
 			$object->owner_context_id = $row['owner_context_id'];
 			$object->updated_at = $row['updated_at'];
 
-			@$json = json_decode($row['columns_json'], true);
+			$json = json_decode($row['columns_json'] ?? '', true);
 			$object->columns = (false !== $json) ? $json : [];
 			
 			$objects[$object->id] = $object;

@@ -64,10 +64,12 @@ class DecryptPgpAction extends AbstractAction {
 				throw new Exception_DevblocksAutomationError($error);
 			}
 			
-			$decrypted_text = $gpg->decrypt($inputs['message']);
-			
-			if(false === $decrypted_text)
-				throw new Exception_DevblocksAutomationError("Failed to decrypt message.");
+			try {
+				if(false === ($decrypted_text = $gpg->decrypt($inputs['message'])))
+					throw new Exception_DevblocksAutomationError("Failed to decrypt message.");
+			} catch (\Exception $e) {
+				throw new Exception_DevblocksAutomationError(sprintf("Failed to decrypt message (%s).", get_class($e)));
+			}
 			
 			if($output) {
 				$dict->set($output, $decrypted_text);

@@ -163,7 +163,7 @@ $(function() {
             return;
 
         if(e.hasOwnProperty('eventData') && e.eventData.exit === 'return') {
-            Devblocks.interactionWorkerPostActions(e.eventData);
+            Devblocks.interactionWorkerPostActions(e.eventData, toolbar_editor);
         }
     }
 

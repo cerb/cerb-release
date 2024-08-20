@@ -38,6 +38,8 @@
           "params": {
             "options": {
               "Active Workers": "workers_active",
+              "My Drafts": "drafts_my",
+              "My Notifications": "notifications_my",
               "My Reminders": "reminders_my",
               "My Tasks": "tasks_my",
               "My Tickets": "tickets_my",
@@ -50,6 +52,52 @@
     }
   },
   "records": [
+    {
+      "uid": "widget_worklist_my_drafts",
+      "_context": "cerberusweb.contexts.workspace.widget",
+      "_exclude": "{{% if prompt_dataset != 'drafts_my' %}}true{{% endif %}}",
+      "label": "My Drafts",
+      "tab_id": "{{{workspace_tab_id}}}",
+      "extension_id": "core.workspace.widget.worklist",
+      "pos": 0,
+      "width_units": 2,
+      "zone": "content",
+      "params": {
+        "context": "cerberusweb.contexts.mail.draft",
+        "query_required": "worker.id:{{current_worker_id}}",
+        "query": "",
+        "render_limit": "5",
+        "header_color": "#6a87db",
+        "columns": [
+          "m_hint_to",
+          "m_is_queued",
+          "m_queue_delivery_date",
+          "m_queue_fails",
+          "m_updated"
+        ]
+      }
+    },
+    {
+      "uid": "widget_worklist_my_notifications",
+      "_context": "cerberusweb.contexts.workspace.widget",
+      "_exclude": "{{% if prompt_dataset != 'notifications_my' %}}true{{% endif %}}",
+      "label": "My Notifications",
+      "tab_id": "{{{workspace_tab_id}}}",
+      "extension_id": "core.workspace.widget.worklist",
+      "pos": 0,
+      "width_units": 2,
+      "zone": "content",
+      "params": {
+        "context": "cerberusweb.contexts.notification",
+        "query_required": "isRead:no worker.id:{{current_worker_id}}",
+        "query": "",
+        "render_limit": "5",
+        "header_color": "#6a87db",
+        "columns": [
+          "we_created_date"
+        ]
+      }
+    },
     {
       "uid": "widget_worklist_my_reminders",
       "_context": "workspace_widget",

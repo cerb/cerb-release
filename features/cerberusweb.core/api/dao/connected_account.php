@@ -1450,7 +1450,7 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 		$defaults->is_ephemeral = true;
 
 		$view = C4_AbstractViewLoader::getView($view_id, $defaults);
-		$this->name = DevblocksPlatform::translateCapitalized('common.connected_accounts');
+		$view->name = DevblocksPlatform::translateCapitalized('common.connected_accounts');
 		
 		$required_query = '';
 		

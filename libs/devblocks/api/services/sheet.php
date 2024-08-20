@@ -927,8 +927,8 @@ class _DevblocksSheetServiceTypes {
 				if(!($context_ext = Extension_DevblocksContext::getByAlias($search_context, true)))
 					return;
 				
-				if(!($search_query = $tpl_builder->build($search_query, $sheet_dict)))
-					return;
+				if(false === ($search_query = $tpl_builder->build($search_query, $sheet_dict)))
+					return '';
 				
 				// Search link
 				$value .= sprintf('<div class="cerb-search-trigger" data-context="%s" data-query="%s" style="display:inline-block;text-decoration:%s;cursor:pointer;">%s</div>',

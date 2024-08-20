@@ -295,7 +295,7 @@ class DAO_Group extends Cerb_ORMHelper {
 	
 	/**
 	 * @param mysqli_result|false $rs
-	 * @return Model_Notification[]
+	 * @return Model_Group[]
 	 */
 	static private function _getObjectsFromResultSet($rs) {
 		$objects = [];

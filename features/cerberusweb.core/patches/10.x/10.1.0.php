@@ -225,7 +225,6 @@ foreach($automation_files as $automation_file) {
 
 $packages = [
 	'cerb_profile_widget_ticket_participants.json',
-	'cerb_workspace_widget_chart_categories.json',
 	'cerb_workspace_widget_chart_sheet.json',
 ];
 

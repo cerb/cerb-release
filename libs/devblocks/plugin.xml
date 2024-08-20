@@ -88,6 +88,9 @@
 		<file path="api/services/data/sample_geopoints.php">
 			<class name="_DevblocksDataProviderSampleGeoPoints" />
 		</file>
+		<file path="api/services/data/sample_records.php">
+			<class name="_DevblocksDataProviderSampleRecords" />
+		</file>
 		<file path="api/services/data/sample_time_series.php">
 			<class name="_DevblocksDataProviderSampleTimeSeries" />
 		</file>

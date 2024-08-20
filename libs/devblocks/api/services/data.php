@@ -101,6 +101,10 @@ class _DevblocksDataService {
 				$provider = new _DevblocksDataProviderSampleGeoPoints();
 				return $provider->getSuggestions($type, $params);
 				
+			case 'sample.records':
+				$provider = new _DevblocksDataProviderSampleRecords();
+				return $provider->getSuggestions($type, $params);
+				
 			case 'sample.timeseries':
 				$provider = new _DevblocksDataProviderSampleTimeSeries();
 				return $provider->getSuggestions($type, $params);
@@ -189,6 +193,10 @@ class _DevblocksDataService {
 			[
 				'name' => 'sample.geo.points',
 				'description' => 'Simulated GeoJSON data',
+			],
+			[
+				'name' => 'sample.records',
+				'description' => 'Simulated record dictionaries data',
 			],
 			[
 				'name' => 'sample.timeseries',
@@ -394,6 +402,14 @@ class _DevblocksDataService {
 				
 			case 'sample.geo.points':
 				$provider = new _DevblocksDataProviderSampleGeoPoints();
+				
+				if(false === ($results = $provider->getData($query, $chart_fields, $error)))
+					return false;
+				
+				break;
+				
+			case 'sample.records':
+				$provider = new _DevblocksDataProviderSampleRecords();
 				
 				if(false === ($results = $provider->getData($query, $chart_fields, $error)))
 					return false;

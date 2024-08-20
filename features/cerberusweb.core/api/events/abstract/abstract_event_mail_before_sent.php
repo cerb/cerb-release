@@ -720,8 +720,8 @@ abstract class AbstractEvent_MailBeforeSent extends Extension_DevblocksEvent {
 				
 				$headers =& $dict->_properties['headers'];
 				
-				if(!isset($headers))
-					$headers = array();
+				if(!isset($headers) || !is_array($headers))
+					$headers = [];
 				
 				$header_string = sprintf("%s: %s", $header, $value);
 				
@@ -864,7 +864,7 @@ abstract class AbstractEvent_MailBeforeSent extends Extension_DevblocksEvent {
 				
 				$headers =& $dict->_properties['headers'];
 				
-				if(!isset($headers))
+				if(!isset($headers) || !is_array($headers))
 					$headers = [];
 				
 				if(empty($value)) {

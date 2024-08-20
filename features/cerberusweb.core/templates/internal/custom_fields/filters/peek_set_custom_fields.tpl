@@ -36,7 +36,7 @@
 			{elseif Model_CustomField::TYPE_DROPDOWN==$field->type}
 				<select name="do_cf_{$field_id}">
 					{foreach from=$field->params.options item=option}
-					<option value="{$option}" {if 0==strcasecmp($option,$action_field.value)}selected="selected"{/if}}> {$option}</option>
+					<option value="{$option}" {if 0==strcasecmp($option|default:'',$action_field.value|default:'')}selected="selected"{/if}}> {$option}</option>
 					{/foreach}
 				</select>
 			{elseif Model_CustomField::TYPE_FILE==$field->type}
@@ -50,7 +50,7 @@
 				<select name="do_cf_{$field_id}">
 				<option value=""></option>
 				{foreach from=$workers item=worker key=worker_id}
-					<option value="{$worker_id}" {if 0==strcasecmp($worker_id,$action_field.value)}selected="selected"{/if}}> {$worker->getName()}</option>
+					<option value="{$worker_id}" {if 0==strcasecmp($worker_id|default:'',$action_field.value|default:'')}selected="selected"{/if}}> {$worker->getName()}</option>
 				{/foreach}
 				</select>
 			{elseif Model_CustomField::TYPE_MULTI_CHECKBOX==$field->type}

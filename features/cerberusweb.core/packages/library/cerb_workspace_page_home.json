@@ -51,7 +51,7 @@
     {
       "uid": "workspace_tab_overview",
       "_context": "workspace_tab",
-      "name": "Overview",
+      "name": "My Work",
       "page_id": "{{{uid.workspace_home}}}",
       "pos": 0,
       "extension_id": "core.workspace.tab.dashboard",
@@ -60,12 +60,32 @@
       }
     },
     {
+      "uid": "widget_worklist_my_notifications",
+      "_context": "cerberusweb.contexts.workspace.widget",
+      "label": "My Notifications",
+      "tab_id": "{{{uid.workspace_tab_overview}}}",
+      "extension_id": "core.workspace.widget.worklist",
+      "pos": 1,
+      "width_units": 4,
+      "zone": "content",
+      "params": {
+        "context": "cerberusweb.contexts.notification",
+        "query_required": "isRead:no worker.id:{{current_worker_id}}",
+        "query": "",
+        "render_limit": "5",
+        "header_color": "#6a87db",
+        "columns": [
+          "we_created_date"
+        ]
+      }
+    },
+    {
       "uid": "workspace_widget_my_tickets",
       "_context": "workspace_widget",
       "tab_id": "{{{uid.workspace_tab_overview}}}",
       "label": "My Tickets",
       "extension_id": "core.workspace.widget.worklist",
-      "pos": 1,
+      "pos": 2,
       "width_units": 2,
       "zone": "content",
       "params": {
@@ -79,32 +99,6 @@
           "t_updated_date",
           "t_group_id",
           "t_bucket_id"
-        ]
-      }
-    },
-    {
-      "uid": "workspace_widget_my_drafts",
-      "_context": "cerberusweb.contexts.workspace.widget",
-      "tab_id": "{{{uid.workspace_tab_overview}}}",
-      "label": "My Drafts",
-      "extension_id": "core.workspace.widget.worklist",
-      "pos": 2,
-      "width_units": 2,
-      "zone": "content",
-      "params": {
-        "context": "cerberusweb.contexts.mail.draft",
-        "query_required": "worker.id:{{current_worker_id}}",
-        "query": "",
-        "render_limit": "5",
-        "header_color": "#6a87db",
-        "columns": [
-          "m_hint_to",
-          "m_type",
-          "m_worker_id",
-          "m_is_queued",
-          "m_queue_delivery_date",
-          "m_queue_fails",
-          "m_updated"
         ]
       }
     },
@@ -153,12 +147,38 @@
       }
     },
     {
+      "uid": "workspace_widget_my_drafts",
+      "_context": "cerberusweb.contexts.workspace.widget",
+      "tab_id": "{{{uid.workspace_tab_overview}}}",
+      "label": "My Drafts",
+      "extension_id": "core.workspace.widget.worklist",
+      "pos": 5,
+      "width_units": 2,
+      "zone": "content",
+      "params": {
+        "context": "cerberusweb.contexts.mail.draft",
+        "query_required": "worker.id:{{current_worker_id}}",
+        "query": "",
+        "render_limit": "5",
+        "header_color": "#6a87db",
+        "columns": [
+          "m_hint_to",
+          "m_type",
+          "m_worker_id",
+          "m_is_queued",
+          "m_queue_delivery_date",
+          "m_queue_fails",
+          "m_updated"
+        ]
+      }
+    },
+    {
       "uid": "workspace_widget_my_calendar",
       "_context": "workspace_widget",
       "tab_id": "{{{uid.workspace_tab_overview}}}",
       "label": "My Calendar",
       "extension_id": "core.workspace.widget.calendar",
-      "pos": 5,
+      "pos": 6,
       "width_units": 2,
       "zone": "content",
       "params": {

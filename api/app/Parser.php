@@ -826,11 +826,11 @@ class CerberusParser {
 						
 						$encrypted_content = $encrypted_part->extract_body(MAILPARSE_EXTRACT_RETURN);
 						
-						if (false == ($decrypt_results = $gpg->decrypt($encrypted_content))) {
+						if (!($decrypt_results = $gpg->decrypt($encrypted_content))) {
 							throw new Exception("Failed to find a decryption key for PGP message content.");
 						}
 						
-						if (false == ($decrypted_mime = new MimeMessage("var", rtrim($decrypt_results['data'], PHP_EOL) . PHP_EOL)))
+						if (!($decrypted_mime = new MimeMessage("var", rtrim($decrypt_results['data'], PHP_EOL) . PHP_EOL)))
 							throw new Exception("Failed to parse decrypted MIME content.");
 						
 						// Denote encryption on saved message
@@ -852,6 +852,7 @@ class CerberusParser {
 						}
 						
 					} catch (Throwable $e) {
+						DevblocksPlatform::logException($e);
 						// If we failed, keep the whole part
 						$results[spl_object_hash($part)] = $part;
 					}

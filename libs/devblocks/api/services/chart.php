@@ -73,6 +73,7 @@ class _DevblocksChartService {
 					'groups' => [],
 				],
 				'axis' => [
+					'rotated' => false,
 					'x' => [
 						'type' => 'linear',
 					],
@@ -100,6 +101,8 @@ class _DevblocksChartService {
 			];
 			
 			$this->_parseChartData($chart_kata, $chart_json);
+			
+			$this->_parseChartAxisParams($chart_kata, $chart_json);
 			
 			$this->_parseChartAxis('x', $chart_kata, $chart_json);
 			$this->_parseChartAxis('y', $chart_kata, $chart_json);
@@ -386,6 +389,13 @@ class _DevblocksChartService {
 			
 			$chart_json['data']['groups'][] = $group;
 		}
+	}
+	
+	private function _parseChartAxisParams(array $chart_kata, array &$chart_json) : void {
+		if (!($chart_kata['axis']['rotated'] ?? null))
+			return;
+		
+		$chart_json['axis']['rotated'] = boolval($chart_kata['axis']['rotated']);
 	}
 	
 	/**
