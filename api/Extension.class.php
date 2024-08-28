@@ -1232,7 +1232,6 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 				
 				'(.*):file.write:' => $action_base,
 				'(.*):file.write:inputs:' => [
-					'as:',
 					'content:',
 					'expires@date: +15 mins',
 					'mime_type:',
@@ -1242,10 +1241,6 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 						'snippet' => 'uri:',
 						'docHTML' => '<b>uri:</b> (optional)<br>Append content to an existing automation resource',
 					]
-				],
-				'(.*):file.write:inputs:as:' => [
-					'attachment',
-					'automation_resource',
 				],
 				'(.*):file.write:inputs:content:' => [
 					'bytes:',

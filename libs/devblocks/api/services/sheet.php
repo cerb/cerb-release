@@ -628,7 +628,7 @@ class _DevblocksSheetServiceTypes {
 				$image = '';
 			}
 			
-			$image = trim($image);
+			$image = trim(strval($image));
 			
 			// Sanitize image name against known list
 			
@@ -724,6 +724,14 @@ class _DevblocksSheetServiceTypes {
 				$text = '';
 			}
 			
+			$icon = '';
+			
+			if(array_key_exists('icon', $column_params) && $column_params['icon']) {
+				$icon_column = $column;
+				$icon_column['params'] = $column_params['icon'];
+				$icon = $this->icon()($icon_column, $sheet_dict);
+			}
+			
 			if('text' == ($environment['format'] ?? null)) {
 				return '';
 				
@@ -731,7 +739,8 @@ class _DevblocksSheetServiceTypes {
 				if(!$uri)
 					return $text;
 				
-				return sprintf('<a href="javascript:;" class="cerb-interaction-trigger" data-interaction-uri="%s" data-interaction-params="%s">%s</a>',
+				return sprintf('%s<a href="javascript:;" class="cerb-interaction-trigger" data-interaction-uri="%s" data-interaction-params="%s" data-interaction-done="&refresh_widgets=no">%s</a>',
+					$icon,
 					DevblocksPlatform::strEscapeHtml($uri),
 					DevblocksPlatform::services()->url()->arrayToQueryString($inputs),
 					DevblocksPlatform::strEscapeHtml($text)

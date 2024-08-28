@@ -53,6 +53,14 @@ class EditorAwait extends AbstractAwait {
 				$editor_autocompletion = 'search_query';
 				break;
 			
+			case 'html':
+			case 'json':
+			case 'markdown':
+			case 'text':
+			case 'yaml':
+				$editor_mode = 'ace/mode/' . $syntax;
+				break;
+				
 			case 'kata':
 				$editor_mode = 'ace/mode/cerb_kata';
 				$schema = $this->_data['schema'] ?? [];
@@ -76,6 +84,9 @@ class EditorAwait extends AbstractAwait {
 			$toolbar = DevblocksPlatform::services()->ui()->toolbar()->parse($toolbar_schema, $toolbar_dict);
 			$tpl->assign('editor_toolbar', $toolbar);
 			$tpl->assign('editor_has_toolbar', true);
+		} else {
+			$tpl->assign('editor_toolbar', '');
+			$tpl->assign('editor_has_toolbar', false);
 		}
 		
 		$tpl->assign('var', $this->_key);

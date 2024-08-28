@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-define("APP_BUILD", 2024082001);
-define("APP_VERSION", '10.4.20');
+define("APP_BUILD", 2024082801);
+define("APP_VERSION", '10.4.21');
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -6055,9 +6055,36 @@ class _CerbApplication_KataSchemas {
                           types:
                             object:
                               attributes:
+                                bold:
+                                  types:
+                                    bool:
                                 color:
                                   types:
                                     string:
+                                icon:
+                                  types:
+                                    string:
+                                    object:
+                                      attributes:
+                                        image_key:
+                                          types:
+                                            string:
+                                        image_template:
+                                          types:
+                                            string:
+                                        image:
+                                          types:
+                                            string:
+                                        record_uri:
+                                          types:
+                                            string:
+                                        svg:
+                                          types:
+                                            object:
+                                              attributes:
+                                                data:
+                                                  types:
+                                                    string:
                                 inputs:
                                   types:
                                     list:

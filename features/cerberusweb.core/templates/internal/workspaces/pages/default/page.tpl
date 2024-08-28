@@ -15,7 +15,9 @@
 <ul class="cerb-tab-switcher-menu cerb-popupmenu cerb-float">
 	{foreach from=$page_tabs item=tab name=page_tabs}
 	<li>
-		<a href="javascript:;" data-index="{$smarty.foreach.page_tabs.index}">{$tab->name}</a>
+		<div>
+			<a href="javascript:;" data-index="{$smarty.foreach.page_tabs.index}">{$tab->name}</a>
+		</div>
 	</li>
 	{/foreach}
 </ul>

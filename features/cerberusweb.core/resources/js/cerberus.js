@@ -1266,6 +1266,8 @@ var cerbAutocompleteSuggestions = {
 			'params:'
 		],
 		'columns:interaction:params:': [
+			'bold@bool: yes',
+			'icon:',
 			'inputs:',
 			'text:',
 			'text_key:',
@@ -1277,6 +1279,22 @@ var cerbAutocompleteSuggestions = {
 			'text_color@raw:',
 			'text_size@raw: 150%'
 		],
+		'columns:interaction:params:icon:': [
+			'image:',
+			'image_key:',
+			'image_template@raw:',
+			{
+				'caption': 'record_uri:',
+				'snippet': 'record_uri@raw: cerb:${1:record_type}:${2:record_id}'
+			},
+			{
+				'caption': 'svg:',
+				'snippet': "svg:\n  data: ${1:<svg></svg>}"
+			}
+		],
+		'columns:interaction:params:icon:image:': {
+			'type': 'icon'
+		},
 		'columns:interaction:params:uri:': {
 			'type': 'cerb-uri',
 			'params': {
@@ -1401,8 +1419,8 @@ var cerbAutocompleteSuggestions = {
 			'selectable@raw: {{expression}}'
 		],
 		'columns:selection:params:mode:': [
-			'single:',
-			'multiple:'
+			'single',
+			'multiple'
 		],
 		
 		// Slider
@@ -1618,6 +1636,7 @@ let twigAutocompleteSuggestions = {
 		{ value: "hash()", snippet: "hash(algo=\"${1:sha256}\", raw=true)", meta: "filter" },
 		{ value: "hash_hmac()", snippet: "hash_hmac(\"${1:secret key}\",\"${2:sha256}\")", meta: "filter" },
 		{ value: "html_to_text(truncate=50000)", meta: "filter" },
+		{ value: "image_info", meta: "filter" },
 		{ value: "indent(marker, fromLine)", meta: "filter" },
 		{ value: "join(',')", meta: "filter" },
 		{ value: "json_encode", meta: "filter" },

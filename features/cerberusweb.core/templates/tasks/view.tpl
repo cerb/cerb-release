@@ -125,11 +125,11 @@
 			{elseif $column=="t_status_id"}
 				<td data-column="{$column}">
 					{if 1 == $result.t_status_id}
-					{'status.closed'|devblocks_translate|capitalize}
+					{'status.closed'|devblocks_translate|lower}
 					{elseif 2 == $result.t_status_id}
-					{'status.waiting.abbr'|devblocks_translate|capitalize}
+					{'status.waiting.abbr'|devblocks_translate|lower}
 					{else}
-					{'status.open'|devblocks_translate|capitalize}
+					{'status.open'|devblocks_translate|lower}
 					{/if}
 				</td>
 			{elseif $column=="t_title"}

@@ -352,7 +352,7 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 					'hidden@bool: no',
 					[
 						'caption' => 'uri:',
-						'snippet' => "uri: cerb:automation:\${1:idOrName}",
+						'snippet' => "uri: cerb:\${1:}",
 						'score' => 1999,
 					],
 					[
@@ -376,8 +376,13 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 						'snippet' => "label: \${1:Label:}",
 						'score' => 2000,
 					],
+					'as:',
 					'required@bool: yes',
 					'validation@raw:',
+				],
+				'(.*):await:form:elements:fileUpload:as:' => [
+					'attachment',
+					'automation_resource',
 				],
 			
 				'(.*):await:form:elements:map:' => [
