@@ -21,7 +21,7 @@ class _DevblocksDataProviderRecordTypes extends _DevblocksDataProvider {
 			'type' => 'record.types',
 			'filter' => null,
 			'limit' => null,
-			'exclude_custom' => 'no',
+			'exclude_custom' => false,
 			'options' => [],
 			'page' => 0,
 			'format' => 'dictionaries',
