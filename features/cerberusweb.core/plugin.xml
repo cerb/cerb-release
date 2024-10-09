@@ -6880,7 +6880,7 @@
 			
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.setup.developers.automation_logs</id>
-				<name>Bot Scripting Tester</name>
+				<name>Automation Logs</name>
 				<class>
 					<file>api/uri/config/automation_logs.php</file>
 					<name>PageSection_SetupDevelopersAutomationLogs</name>
@@ -6893,7 +6893,7 @@
 		
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.setup.developers.bot_scripting_tester</id>
-				<name>Bot Scripting Tester</name>
+				<name>Automation Scripting Tester</name>
 				<class>
 					<file>api/uri/config/bot_scripting_tester.php</file>
 					<name>PageSection_SetupDevelopersBotScriptingTester</name>

@@ -74,6 +74,7 @@ class _DevblocksTemplateManager {
 					'DAO_Attachment',
 					'DAO_AutomationResource',
 					'DAO_Address',
+					'DAO_Bucket',
 					'DAO_Calendar',
 					'DAO_ConnectedAccount',
 					'DAO_ConnectedService',
@@ -164,6 +165,7 @@ class _DevblocksTemplateManager {
 			$instance->registerPlugin('modifier','devblocks_rangy_deserialize', ['_DevblocksTemplateManager', 'modifier_devblocks_rangy_deserialize']);
 			$instance->registerPlugin('modifier','devblocks_translate', ['_DevblocksTemplateManager', 'modifier_devblocks_translate']);
 			
+			$instance->registerPlugin('modifier','array_column', 'array_column');
 			$instance->registerPlugin('modifier','array_diff_key', 'array_diff_key');
 			$instance->registerPlugin('modifier','array_intersect', 'array_intersect');
 			$instance->registerPlugin('modifier','array_intersect_key', 'array_intersect_key');

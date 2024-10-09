@@ -1204,6 +1204,9 @@ class View_Server extends C4_AbstractView implements IAbstractView_Subtotals, IA
 		switch($this->renderTemplate) {
 			case 'contextlinks_chooser':
 			default:
+				$servers = DAO_Server::getAll();
+				$tpl->assign('servers', $servers);
+				
 				$tpl->assign('view_template', 'devblocks:cerberusweb.datacenter.servers::datacenter/servers/view.tpl');
 				$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 				break;

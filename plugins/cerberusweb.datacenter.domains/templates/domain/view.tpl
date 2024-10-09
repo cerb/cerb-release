@@ -90,7 +90,6 @@
 			{if DevblocksPlatform::strStartsWith($column, "cf_")}
 				{include file="devblocks:cerberusweb.core::internal/custom_fields/view/cell_renderer.tpl"}
 			{elseif $column=="w_server_id"}
-				{if empty($servers)}{$servers = DAO_Server::getAll()}{/if}
 				<td data-column="{$column}">
 					{if !empty($result.$column) && isset($servers.{$result.$column})}
 						<a href="javascript:;" class="cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_SERVER}" data-context-id="{$servers.{$result.$column}->id}">{$servers.{$result.$column}->name}</a>

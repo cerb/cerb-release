@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.devblocks.com/schema/plugin.xsd">
 	<id>cerberusweb.crm</id>
-	<name>Opportunity Tracking</name>
-	<description>Create opportunities (sales leads) linked to e-mail addresses. Opportunity records can be created from the Activity menu or while reading tickets.</description>
+	<name>Opportunity Tracking (DEPRECATED)</name>
+	<description>Create opportunities linked to email addresses. In modern versions of Cerb, use custom records instead.</description>
 	<author>Webgroup Media, LLC.</author>
 	<version>10.4.0</version>
 	<link>http://wiki.cerbweb.com/Features:Opportunity_Tracking</link>

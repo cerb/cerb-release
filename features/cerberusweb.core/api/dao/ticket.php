@@ -692,6 +692,18 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		if(!isset($fields[self::IMPORTANCE]))
 			$fields[self::IMPORTANCE] = 50;
 		
+		if(!array_key_exists(self::STATUS_ID, $fields))
+			$fields[self::STATUS_ID] = 0;
+			
+		// If we didn't provide a last opened date for a new open ticket
+		if(
+			!array_key_exists(self::LAST_OPENED_AT, $fields)
+			&& !($fields[self::STATUS_ID] ?? 0)
+		) {
+			$fields[self::LAST_OPENED_AT] = time();
+			$fields[self::LAST_OPENED_DELTA] = time();
+		}
+		
 		$sql = sprintf("INSERT INTO ticket (created_date, updated_date) ".
 			"VALUES (%d,%d)",
 			time(),
@@ -734,8 +746,8 @@ class DAO_Ticket extends Cerb_ORMHelper {
 			DAO_Ticket::FIRST_MESSAGE_ID => 0,
 			DAO_Ticket::FIRST_WROTE_ID => 0,
 			DAO_Ticket::LAST_MESSAGE_ID => 0,
-			DAO_Ticket::LAST_OPENED_AT => 0,
-			DAO_Ticket::LAST_OPENED_DELTA => time(),
+			DAO_Ticket::LAST_OPENED_AT => $ticket->last_opened_at,
+			DAO_Ticket::LAST_OPENED_DELTA => $ticket->last_opened_delta,
 			DAO_Ticket::LAST_WROTE_ID => 0,
 			DAO_Ticket::FIRST_OUTGOING_MESSAGE_ID => 0,
 			DAO_Ticket::ELAPSED_RESPONSE_FIRST => 0,
@@ -768,9 +780,14 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		// Reindex last opened delta
 		if(Model_Ticket::STATUS_OPEN == $ticket->status_id) {
 			$sql = sprintf("SELECT MAX(created) FROM context_activity_log WHERE activity_point IN ('ticket.status.open','ticket.moved') AND target_context = 'cerberusweb.contexts.ticket' AND target_context_id = %d", $id);
-			$opened_delta = intval($db->GetOneMaster($sql));
-			$fields[DAO_Ticket::LAST_OPENED_AT] = $opened_delta;
-			$fields[DAO_Ticket::LAST_OPENED_DELTA] = $opened_delta;
+			
+			if($opened_delta = $db->GetOneMaster($sql)) {
+				$fields[DAO_Ticket::LAST_OPENED_AT] = $opened_delta;
+				$fields[DAO_Ticket::LAST_OPENED_DELTA] = $opened_delta;
+			}
+		} else {
+			$fields[DAO_Ticket::LAST_OPENED_AT] = 0;
+			$fields[DAO_Ticket::LAST_OPENED_DELTA] = 0;
 		}
 
 		// Reindex the earliest close date from activity log
@@ -2289,7 +2306,6 @@ class DAO_Ticket extends Cerb_ORMHelper {
 		$logger = DevblocksPlatform::services()->log();
 		
 		$deleted_count = 0;
-		$batch_size = 100;
 		
 		do {
 			$sql = sprintf("SELECT id FROM ticket ".
@@ -2298,7 +2314,7 @@ class DAO_Ticket extends Cerb_ORMHelper {
 				"LIMIT %d",
 				Model_Ticket::STATUS_DELETED,
 				$purge_wait_before,
-				$batch_size
+				$limit
 			);
 			
 			if(!($delete_ids = $db->GetArrayMaster($sql)))
@@ -5485,6 +5501,7 @@ class Context_Ticket extends Extension_DevblocksContext implements IDevblocksCon
 			'group_id' => DAO_Ticket::GROUP_ID,
 			'id' => DAO_Ticket::ID,
 			'importance' => DAO_Ticket::IMPORTANCE,
+			'last_opened_at' => DAO_Ticket::LAST_OPENED_AT,
 			'mask' => DAO_Ticket::MASK,
 			'org_id' => DAO_Ticket::ORG_ID,
 			'owner_id' => DAO_Ticket::OWNER_ID,

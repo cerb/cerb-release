@@ -1,4 +1,4 @@
-{$peek_context = Context_JiraIssue::ID}
+{$peek_context = "cerberusweb.contexts.jira.issue"}
 <form action="{devblocks_url}{/devblocks_url}" method="post" id="frmJiraIssuePeek">
 <input type="hidden" name="c" value="profiles">
 <input type="hidden" name="a" value="invoke">

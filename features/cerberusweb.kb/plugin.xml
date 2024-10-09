@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.devblocks.com/schema/plugin.xsd">
 	<id>cerberusweb.kb</id>
-	<name>Knowledgebase</name>
-	<description>Create and categorize articles to share knowledge between workers or your community.</description>
+	<name>Legacy Knowledgebase (DEPRECATED)</name>
+	<description>Create and categorize articles to share knowledge between workers or your community. In modern versions of Cerb, use custom records instead.</description>
 	<author>Webgroup Media, LLC.</author>
 	<version>10.4.0</version>
 	<link>http://wiki.cerbweb.com/Features:Knowledgebase</link>

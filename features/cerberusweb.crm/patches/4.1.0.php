@@ -97,11 +97,12 @@ if(isset($tables['crm_opp_comment'])) {
 	$sql = "SELECT id, opportunity_id, created_date, worker_id, content FROM crm_opp_comment";
 	$rs = $db->ExecuteMaster($sql);
 	while($row = mysqli_fetch_assoc($rs)) {
-		$sql = sprintf("INSERT INTO note (source_extension_id, source_id, created, worker_id, content) ".
-			"VALUES ('%s',%d,%d,%d,%s)",
-			'crm.notes.source.opportunity',
+		$sql = sprintf("INSERT INTO comment (context, context_id, created, author_context, author_id, comment) ".
+			"VALUES (%s,%d,%d,%s,%d,%s)",
+			$db->qstr('cerberusweb.contexts.opportunity'),
 			$row['opportunity_id'],
 			$row['created_date'],
+			$db->qstr('cerberusweb.contexts.worker'),
 			$row['worker_id'],
 			$db->qstr($row['content'])
 		);
@@ -163,15 +164,5 @@ if(!isset($columns['amount'])) {
 if(!isset($indexes['amount'])) {
 	$db->ExecuteMaster('ALTER TABLE crm_opportunity ADD INDEX amount (amount)');
 }
-
-// ===========================================================================
-// Ophaned opportunity notes
-$db->ExecuteMaster("DELETE note FROM note LEFT JOIN crm_opportunity ON (crm_opportunity.id=note.source_id) WHERE note.source_extension_id = 'crm.notes.source.opportunity' AND crm_opportunity.id IS NULL");
-
-// ===========================================================================
-// Ophaned opportunity custom fields
-$db->ExecuteMaster("DELETE custom_field_stringvalue FROM custom_field_stringvalue LEFT JOIN crm_opportunity ON (crm_opportunity.id=custom_field_stringvalue.source_id) WHERE custom_field_stringvalue.source_extension = 'crm.fields.source.opportunity' AND crm_opportunity.id IS NULL");
-$db->ExecuteMaster("DELETE custom_field_numbervalue FROM custom_field_numbervalue LEFT JOIN crm_opportunity ON (crm_opportunity.id=custom_field_numbervalue.source_id) WHERE custom_field_numbervalue.source_extension = 'crm.fields.source.opportunity' AND crm_opportunity.id IS NULL");
-$db->ExecuteMaster("DELETE custom_field_clobvalue FROM custom_field_clobvalue LEFT JOIN crm_opportunity ON (crm_opportunity.id=custom_field_clobvalue.source_id) WHERE custom_field_clobvalue.source_extension = 'crm.fields.source.opportunity' AND crm_opportunity.id IS NULL");
 
 return TRUE;

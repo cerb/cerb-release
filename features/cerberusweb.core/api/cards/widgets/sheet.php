@@ -132,7 +132,7 @@ class CardWidget_Sheet extends Extension_CardWidget {
 		$tpl = DevblocksPlatform::services()->template();
 		
 		if(!array_key_exists('data_query', $model->extension_params)) {
-			$model->extension_params['data_query'] = "type:worklist.records\nof:ticket\nexpand: [custom_,]\nquery:(\n  status:o\n  limit:10\n  sort:[id]\n)\nformat:dictionaries";
+			$model->extension_params['data_query'] = "type:worklist.records\nof:ticket\nexpand: [customfields,]\nquery:(\n  status:o\n  limit:10\n  sort:[id]\n)\nformat:dictionaries";
 		}
 		
 		if(!array_key_exists('sheet_kata', $model->extension_params)) {

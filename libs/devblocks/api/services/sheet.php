@@ -1093,7 +1093,13 @@ class _DevblocksSheetServiceTypes {
 				return intval($value);
 				
 			} else {
-				$progress = is_numeric($value) ? ($value / $value_max) * 100 : 0;
+				$range = $value_max - $value_min;
+				
+				// Handle negative scales
+				if($value_min < 0)
+					$value += abs($value_min);
+				
+				$progress = is_numeric($value) ? ($value / $range) * 100 : 0;
 				
 				return sprintf(
 					'<div title="%d" style="width:60px;height:8px;background-color:var(--cerb-color-background-contrast-220);border-radius:8px;text-align:center;">'.

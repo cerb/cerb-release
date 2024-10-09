@@ -1,4 +1,4 @@
-<h2>Bot Scripting Tester</h2>
+<h2>Automation Scripting Tester</h2>
 
 <form action="{devblocks_url}{/devblocks_url}" method="post" id="frmSetupBotScriptingTester">
 <input type="hidden" name="c" value="config">

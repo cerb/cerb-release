@@ -124,7 +124,7 @@
 				<a href="javascript:;" class="menu">{'common.developers'|devblocks_translate|capitalize} <span class="glyphicons glyphicons-chevron-down" style="color:white;"></span></a>
 				<ul class="cerb-popupmenu cerb-float">
 					<li><a href="{devblocks_url}c=config&a=automation_logs{/devblocks_url}">Automation Logs</a></li>
-					<li><a href="{devblocks_url}c=config&a=bot_scripting_tester{/devblocks_url}">Bot Scripting Tester</a></li>
+					<li><a href="{devblocks_url}c=config&a=bot_scripting_tester{/devblocks_url}">Automation Scripting Tester</a></li>
 					<li><a href="{devblocks_url}c=config&a=data_query_tester{/devblocks_url}">Data Query Tester</a></li>
 					<li><a href="{devblocks_url}c=config&a=export_bots{/devblocks_url}">Export Bots</a></li>
 					<li><a href="{devblocks_url}c=config&a=reference_icons{/devblocks_url}">Icon Reference</a></li>

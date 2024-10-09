@@ -233,20 +233,36 @@ class DAO_Message extends Cerb_ORMHelper {
 		}
 		
 		if(array_key_exists(self::_CONTENT_HTML, $fields)) {
-			// Create an attachment record
-			$file_id = DAO_Attachment::create([
-				DAO_Attachment::NAME => 'original_message.html',
-				DAO_Attachment::MIME_TYPE => 'text/html',
-				DAO_Attachment::UPDATED => time(),
-			]);
+			$default_file_id = 0;
+			$messages = DAO_Message::getIds($ids);
 			
-			Storage_Attachments::put($file_id, $fields[self::_CONTENT_HTML]);
-			
-			$fields[self::HTML_ATTACHMENT_ID] = $file_id;
-			
-			// Link the new file to these messages
 			foreach($ids as $id) {
-				DAO_Attachment::addLinks(CerberusContexts::CONTEXT_MESSAGE, $id, $file_id);
+				if(!($messages[$id] ?? null)) continue;
+				
+				$file_id = $messages[$id]->html_attachment_id ?? 0;
+				
+				if(!$file_id) {
+					if(!$default_file_id) {
+						// Create an attachment record
+						$default_file_id = DAO_Attachment::create([
+							DAO_Attachment::NAME => 'original_message.html',
+							DAO_Attachment::MIME_TYPE => 'text/html',
+							DAO_Attachment::UPDATED => time(),
+						]);
+					}
+					
+					$file_id = $default_file_id;
+				
+					// Update the attachment ID if it wasn't set
+					DAO_Message::update($id, [
+						self::HTML_ATTACHMENT_ID => $file_id,
+					]);
+					
+					// Link the new file to these messages
+					DAO_Attachment::addLinks(CerberusContexts::CONTEXT_MESSAGE, $id, $file_id);
+				}
+				
+				Storage_Attachments::put($file_id, $fields[self::_CONTENT_HTML]);
 			}
 			
 			unset($fields[self::_CONTENT_HTML]);

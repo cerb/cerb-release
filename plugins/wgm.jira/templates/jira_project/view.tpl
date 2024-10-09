@@ -1,10 +1,10 @@
-{$view_context = Context_JiraProject::ID}
+{$view_context = "cerberusweb.contexts.jira.project"}
 {$view_fields = $view->getColumnsAvailable()}
 {$results = $view->getData()}
 {$total = $results[1]}
 {$data = $results[0]}
 
-{include file="devblocks:cerberusweb.core::internal/views/view_marquee.tpl" view=$view}{$view_context = Context_JiraProject::ID}
+{include file="devblocks:cerberusweb.core::internal/views/view_marquee.tpl" view=$view}
 
 <table cellpadding="0" cellspacing="0" border="0" class="worklist" width="100%" {if array_key_exists('header_color', $view->options) && $view->options.header_color}style="background-color:{$view->options.header_color};"{/if}>
 	<tr>
