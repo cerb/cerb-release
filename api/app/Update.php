@@ -46,8 +46,6 @@ class ChUpdateController extends DevblocksControllerExtension {
 	function handleRequest(DevblocksHttpRequest $request) {
 		@set_time_limit(3600); // 1h
 
-		$translate = DevblocksPlatform::getTranslationService();
-		
 		$stack = $request->path;
 		array_shift($stack); // update
 
@@ -134,7 +132,7 @@ class ChUpdateController extends DevblocksControllerExtension {
 				
 				// Is this IP authorized?
 				if(!DevblocksPlatform::isIpAuthorized(DevblocksPlatform::getClientIp(), $authorized_ips)) {
-					echo sprintf($translate->_('update.ip_unauthorized'), DevblocksPlatform::getClientIp());
+					echo sprintf("Your IP address (%s) is not authorized to update this application. Your administrator needs to authorize your IP in the Security menu of Setup or in the framework.config.php file under AUTHORIZED_IPS_DEFAULTS.", DevblocksPlatform::getClientIp());
 					return;
 				}
 				
@@ -174,7 +172,7 @@ class ChUpdateController extends DevblocksControllerExtension {
 					
 					echo sprintf("<h1>Cerb %s</h1>", APP_VERSION);
 					
-					echo $translate->_('update.correct_errors');
+					echo "Please correct the following errors before upgrading:";
 					echo "<ul>";
 					foreach($errors as $error) {
 						echo "<li>".$error."</li>";
@@ -275,7 +273,7 @@ class ChUpdateController extends DevblocksControllerExtension {
 						</html>
 						EOD,
 						$url->write('c=update&a=logo'),
-						$translate->_('update.locked_another'),
+						"Another administrator is currently running an update.  Please wait...",
 						$url->write('c=update')
 						);
 					}
