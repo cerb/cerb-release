@@ -223,6 +223,7 @@ class FileWriteAction extends AbstractAction {
 					
 					$results = [
 						'uri' => 'cerb:automation_resource:' . $resource_token,
+						'token' => $resource_token,
 						'mime_type' => $mime_type,
 						'expires_at' => $expires_at,
 						'size' => strlen($content[$content_key]),

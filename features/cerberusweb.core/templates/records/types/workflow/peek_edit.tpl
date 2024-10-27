@@ -42,6 +42,9 @@
 
         {if $model->id}
         <div class="cerb-code-editor-toolbar" style="margin:0.5em 0;">
+            {if $model->config_kata}
+            <button type="button" data-cerb-button-config-update data-cerb-template-section="config"><span class="glyphicons glyphicons-adjust-alt"></span> Edit Configuration</button>
+            {/if}
             <button type="button" data-cerb-button-template-update><span class="glyphicons glyphicons-file-import"></span> Update Template</button>
         </div>
         {else}
@@ -69,7 +72,7 @@
                 {if $active_worker->hasPriv("contexts.{$peek_context}.delete")}<button type="button" class="delete-prompt"><span class="glyphicons glyphicons-circle-remove"></span> {'common.delete'|devblocks_translate|capitalize}</button>{/if}
             {else}
                 <button type="button" class="create-library" style="display:none;"><span class="glyphicons glyphicons-circle-plus"></span> {'common.create'|devblocks_translate|capitalize}</button>
-                <button type="button" class="create-continue"><span class="glyphicons glyphicons-circle-arrow-right"></span> {'common.create_and_continue'|devblocks_translate|capitalize}</button>
+                <button type="button" class="create"><span class="glyphicons glyphicons-circle-arrow-right"></span> {'common.create_and_continue'|devblocks_translate|capitalize}</button>
             {/if}
         </div>
     </div>
@@ -89,14 +92,35 @@
 
             let $tab_builder = $popup.find('#workflow-builder');
 
+            let funcAfter = function(e) {
+                let popup_url = 'c=internal&a=invoke&module=records&action=showPeekPopup' +
+                    '&context=' + encodeURIComponent(e.context) +
+                    '&context_id=' + encodeURIComponent(e.id) +
+                    '&view_id=' + encodeURIComponent(e.view_id) +
+                    '&edit=true'
+                ;
+
+                let $new_popup = genericAjaxPopup('editor' + Devblocks.uniqueId(), popup_url, null, null, '50%');
+
+                $new_popup.one('popup_open', function(evt) {
+                    evt.stopPropagation();
+                    setTimeout(function() {
+                        $new_popup.find('button[data-cerb-button-template-update]').click();
+                    }, 50);
+                });
+            };
+
             // Buttons
             $tab_builder.find('button.save').click(Devblocks.callbackPeekEditSave);
             $tab_builder.find('button.save-continue').click({ mode: 'continue' }, Devblocks.callbackPeekEditSave);
-            $tab_builder.find('button.create-continue').click({ mode: 'create_continue' }, Devblocks.callbackPeekEditSave);
+            $tab_builder.find('button.create').click({ mode: 'create', after: funcAfter }, Devblocks.callbackPeekEditSave);
 
             let onButtonTemplateUpdate = function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+
+                let $button = $(this);
+                let section = $button.attr('data-cerb-template-section');
 
                 let model_id = $frm.find('input[name=id]').val();
                 if(!model_id) return;
@@ -107,6 +131,9 @@
                 formData.set('module', 'workflow');
                 formData.set('action', 'showTemplateUpdatePopup');
                 formData.set('id', model_id);
+
+                if(section)
+                    formData.set('section', section);
 
                 let $update_popup = genericAjaxPopup('workflowTemplate', formData, '', '', '80%');
 
@@ -127,6 +154,7 @@
                 });
             };
 
+            $tab_builder.find('button[data-cerb-button-config-update').on('click', onButtonTemplateUpdate);
             $tab_builder.find('button[data-cerb-button-template-update').on('click', onButtonTemplateUpdate);
 
             {if $model->id}

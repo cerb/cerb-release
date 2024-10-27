@@ -1207,7 +1207,7 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					[
 						'caption' => 'length:',
 						'snippet' => "length: 4096",
-						'description' => "Read this many bytes from the content (omit to read the full content)",
+						'description' => "Read this many bytes from the content (omit to read the first 4MB)",
 					],
 					[
 						'caption' => 'length_split:',

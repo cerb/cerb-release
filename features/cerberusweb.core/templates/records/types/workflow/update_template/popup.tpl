@@ -21,6 +21,20 @@
                 <textarea name="template[kata]" data-editor-mode="ace/mode/cerb_kata" data-editor-lines="35">{$model->workflow_kata}</textarea>
             </div>
 
+            <div style="margin-top:1em;">
+                <fieldset data-cerb-fieldset-resources-import class="peek">
+                    <legend>
+                        <label><input type="checkbox"> Import Resources</label>
+                    </legend>
+                    <div style="display:none;padding:0.3em;">
+                        <div>
+                            You can optionally link new record keys in the template to existing record IDs. This imports a record to the workflow as-is rather than creating a new one.
+                        </div>
+                        <textarea name="template[import_resources]" data-editor-mode="ace/mode/cerb_kata" data-editor-lines="15"></textarea>
+                    </div>
+                </fieldset>
+            </div>
+
             <div style="margin-top:0.5em;">
                 <button type="button" data-cerb-button-continue><span class="glyphicons glyphicons-circle-arrow-right"></span> {{'common.continue'|devblocks_translate|capitalize}}</button>
             </div>
@@ -67,10 +81,25 @@ $(function() {
         let $tab_template = $('#{$popup_id}TabsTemplate');
 
         // Editors
-        let $editor = $popup.find('[data-editor-mode]')
+        let $editor = $popup.find('textarea[name="template[kata]"]')
             .cerbCodeEditor()
             .cerbCodeEditorAutocompleteKata({
                 'autocomplete_suggestions': {$autocomplete_suggestions|json_encode nofilter}
+            })
+            .next('pre.ace_editor')
+        ;
+
+        $popup.find('textarea[name="template[import_resources]"]')
+            .cerbCodeEditor()
+            .cerbCodeEditorAutocompleteKata({
+                'autocomplete_suggestions': {
+                    '': [
+                        'records:'
+                    ],
+                    'records:': [
+                        'record_type/record_key@int: 1234'
+                    ]
+                }
             })
             .next('pre.ace_editor')
         ;
@@ -113,6 +142,19 @@ $(function() {
             });
         });
         {/if}
+
+        $tab_template.find('[data-cerb-fieldset-resources-import] input[type=checkbox]').on('change', function(e) {
+            e.stopPropagation();
+
+            let $this = $(this);
+            let $container = $this.closest('fieldset').find('> div');
+
+            if($this.is(':checked')) {
+                $container.fadeIn();
+            } else {
+                $container.hide();
+            }
+        });
 
         $tab_template.find('[data-cerb-button-continue]').on('click', function(e) {
             e.stopPropagation();
@@ -209,6 +251,12 @@ $(function() {
                 }
             });
         });
+
+        {if 'config' == $section}
+        setTimeout(function() {
+            $tab_template.find('[data-cerb-button-continue]').click();
+        }, 0);
+        {/if}
     });
 });
 </script>

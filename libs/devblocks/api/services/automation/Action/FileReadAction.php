@@ -92,7 +92,7 @@ class FileReadAction extends AbstractAction {
 			}
 			
 			$fp_offset = intval($inputs['offset'] ?? 0);
-			$fp_max_size = intval($inputs['length'] ?? 1024000);
+			$fp_max_size = intval($inputs['length'] ?? 4096000);
 			$length_split = strval($inputs['length_split'] ?? '');
 			
 			if($uri_parts['context'] == \CerberusContexts::CONTEXT_AUTOMATION_RESOURCE) {

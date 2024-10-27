@@ -145,6 +145,11 @@ class ServiceProvider_Aws extends Extension_ConnectedServiceProvider {
 			$region = 'us-east-1';
 		}
 		
+		$service = match($service) {
+			'bedrock-runtime' => 'bedrock',
+			default => $service,
+		};
+		
 		if(empty($region) || empty($service))
 			return false;
 		
@@ -152,10 +157,14 @@ class ServiceProvider_Aws extends Extension_ConnectedServiceProvider {
 	}
 	
 	function authenticateHttpRequest(Model_ConnectedAccount $account, Psr\Http\Message\RequestInterface &$request, array &$options = []) : bool {
-		if(false == ($result = $this->_generateRequestSignature($account, $request)))
+		if(!($result = $this->_generateRequestSignature($account, $request)))
 			return false;
 		
 		$request = $request->withHeader('Authorization', $result['authorization']);
+		
+		if(!$request->hasHeader('x-amz-date'))
+			$request = $request->withHeader('X-Amz-Date', $result['date']);
+		
 		return true;
 	}
 	

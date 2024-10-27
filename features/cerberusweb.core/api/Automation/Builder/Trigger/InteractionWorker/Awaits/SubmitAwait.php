@@ -73,6 +73,10 @@ class SubmitAwait extends AbstractAwait {
 			if(!$button_name)
 				$button_name = $button_type;
 			
+			// Allow buttons to be conditionally hidden
+			if(($button_data['hidden'] ?? false))
+				continue;
+			
 			// [TODO] Sanitize style + icons
 			
 			$buttons[$button_name] = [
