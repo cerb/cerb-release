@@ -1,6 +1,6 @@
 workflow:
   name: cerb.tutorial
-  version: 2024-10-24T23:56:06Z
+  version: 2024-10-29T00:44:26Z
   description: A workspace with detailed descriptions and examples of Cerb functionality
   requirements:
     cerb_version: >=11.0 <11.1
@@ -5925,6 +5925,7 @@ records:
                     name: example.newTask
                     version@date: 2025-12-31T00:00:00Z
                     description: This example workflow manages a task record
+                    website: https://cerb.ai/resources/workflows/
                     requirements:
                       cerb_version: >=11.0 <11.1
                       cerb_plugins: cerberusweb.core,
@@ -5937,7 +5938,8 @@ records:
                         multiple@bool: no
                         record_type: worker
                         record_query: isDisabled:n
-
+                    instructions@text:
+                      Your **Markdown** setup instructions go here.
                   records:
                     task/newTask:
                       deletionPolicy: retain

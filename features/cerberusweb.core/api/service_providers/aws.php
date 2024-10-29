@@ -202,7 +202,7 @@ class ServiceProvider_Aws extends Extension_ConnectedServiceProvider {
 		$uri = $uri->withQuery($query);
 		$request = $request->withUri($uri);
 		
-		if(false == ($result = $this->_generateRequestSignature($account, $request)))
+		if(!($result = $this->_generateRequestSignature($account, $request)))
 			return false;
 		
 		return sprintf("%s://%s%s?%s&X-Amz-Signature=%s",

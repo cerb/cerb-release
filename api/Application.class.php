@@ -39,7 +39,7 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-const APP_BUILD = 2024102601;
+const APP_BUILD = 2024102801;
 const APP_VERSION = '11.0.0';
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
@@ -647,6 +647,8 @@ class CerberusApplication extends DevblocksApplication {
 			'cerb.email.dmarc_reports',
 			'cerb.email.org_by_hostname',
 			'cerb.email.pgp_inline',
+			'cerb.integrations.aws_bedrock.profile_images',
+			'cerb.integrations.ipstack',
 			'cerb.login.terms_of_use',
 			'cerb.notifications.mention_emailer',
 			'cerb.quickstart',
@@ -7546,6 +7548,10 @@ class _CerbApplication_KataSchemas {
                                   types:
                                     bit:
                                     bool:
+                instructions:
+                  multiple@bool: no
+                  types:
+                    string:
                 name:
                   multiple@bool: no
                   types:

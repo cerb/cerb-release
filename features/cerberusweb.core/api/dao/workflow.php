@@ -9,7 +9,6 @@ class DAO_Workflow extends Cerb_ORMHelper {
 	const RESOURCES_KATA = 'resources_kata';
 	const UPDATED_AT = 'updated_at';
 	const VERSION = 'version';
-	const WEBSITE = 'website';
 	const WORKFLOW_KATA = 'workflow_kata';
 	
 	const _CACHE_ALL = 'workflows_all';
@@ -62,10 +61,6 @@ class DAO_Workflow extends Cerb_ORMHelper {
 		$validation
 			->addField(self::VERSION)
 			->uint(8)
-		;
-		$validation
-			->addField(self::WEBSITE)
-			->url()
 		;
 		$validation
 			->addField(self::WORKFLOW_KATA)
@@ -176,7 +171,7 @@ class DAO_Workflow extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
 		// SQL
-		$sql = "SELECT id, name, description, created_at, updated_at, version, website, workflow_kata, config_kata, resources_kata, has_extensions ".
+		$sql = "SELECT id, name, description, created_at, updated_at, version, workflow_kata, config_kata, resources_kata, has_extensions ".
 			"FROM workflow ".
 			$where_sql.
 			$sort_sql.
@@ -281,7 +276,6 @@ class DAO_Workflow extends Cerb_ORMHelper {
 			$object->resources_kata = $row['resources_kata'] ?? '';
 			$object->updated_at = intval($row['updated_at'] ?? 0);
 			$object->version = intval($row['version'] ?? 0);
-			$object->website = $row['website'] ?? '';
 			$object->workflow_kata = $row['workflow_kata'] ?? '';
 			$objects[$object->id] = $object;
 		}
@@ -333,7 +327,6 @@ class DAO_Workflow extends Cerb_ORMHelper {
 			"workflow.created_at as %s, ".
 			"workflow.updated_at as %s, ".
 			"workflow.version as %s, ".
-			"workflow.website as %s, ".
 			"workflow.workflow_kata as %s, ".
 			"workflow.config_kata as %s, ".
 			"workflow.resources_kata as %s ",
@@ -343,7 +336,6 @@ class DAO_Workflow extends Cerb_ORMHelper {
 			SearchFields_Workflow::CREATED_AT,
 			SearchFields_Workflow::UPDATED_AT,
 			SearchFields_Workflow::VERSION,
-			SearchFields_Workflow::WEBSITE,
 			SearchFields_Workflow::WORKFLOW_KATA,
 			SearchFields_Workflow::CONFIG_KATA,
 			SearchFields_Workflow::RESOURCES_KATA
@@ -417,7 +409,6 @@ class SearchFields_Workflow extends DevblocksSearchFields {
 	const RESOURCES_KATA = 'a_resources_kata';
 	const UPDATED_AT = 'a_updated_at';
 	const VERSION = 'a_version';
-	const WEBSITE = 'a_website';
 	const WORKFLOW_KATA = 'a_workflow_kata';
 	
 	const VIRTUAL_ATTACHMENTS_SEARCH = '*_attachments_search';
@@ -502,7 +493,6 @@ class SearchFields_Workflow extends DevblocksSearchFields {
 			self::RESOURCES_KATA => new DevblocksSearchField(self::RESOURCES_KATA, 'workflow', 'resources_config', $translate->_('common.resources'), null, true),
 			self::UPDATED_AT => new DevblocksSearchField(self::UPDATED_AT, 'workflow', 'updated_at', $translate->_('common.updated'), null, true),
 			self::VERSION => new DevblocksSearchField(self::VERSION, 'workflow', 'version', $translate->_('common.version'), null, true),
-			self::WEBSITE => new DevblocksSearchField(self::WEBSITE, 'workflow', 'website', $translate->_('common.website'), null, true),
 			self::WORKFLOW_KATA => new DevblocksSearchField(self::WORKFLOW_KATA, 'workflow', 'workflow_kata', $translate->_('common.template'), null, true),
 			
 			self::VIRTUAL_ATTACHMENTS_SEARCH => new DevblocksSearchField(self::VIRTUAL_ATTACHMENTS_SEARCH, '*', 'attachments_search', null, null, false),
@@ -534,7 +524,6 @@ class Model_Workflow extends DevblocksRecordModel {
 	public string $resources_kata = '';
 	public int $updated_at = 0;
 	public int $version = 0;
-	public string $website = '';
 	public string $workflow_kata = '';
 	
 	const HAS_ACTIVITIES = 1;
@@ -1433,11 +1422,6 @@ class View_Workflow extends C4_AbstractView implements IAbstractView_Subtotals, 
 						['type' => 'search', 'context' => CerberusContexts::CONTEXT_WORKER, 'q' => ''],
 					],
 				],
-			'website' =>
-				[
-					'type' => DevblocksSearchCriteria::TYPE_TEXT,
-					'options' => ['param_key' => SearchFields_Workflow::WEBSITE, 'match' => DevblocksSearchCriteria::OPTION_TEXT_PARTIAL],
-				],
 		];
 		
 		// Add quick search links
@@ -1541,7 +1525,6 @@ class View_Workflow extends C4_AbstractView implements IAbstractView_Subtotals, 
 			case SearchFields_Workflow::DESCRIPTION:
 			case SearchFields_Workflow::NAME:
 			case SearchFields_Workflow::RESOURCES_KATA:
-			case SearchFields_Workflow::WEBSITE:
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
 			
@@ -1729,7 +1712,6 @@ function getContextIdFromAlias($alias) {
 			'resources_kata' => $prefix.$translate->_('dao.workflow.resources_kata'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'version' => $prefix.$translate->_('common.version'),
-			'website' => $prefix.$translate->_('common.website'),
 			'workflow_kata' => $prefix.$translate->_('dao.workflow.workflow_kata'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
 		];
@@ -1746,7 +1728,6 @@ function getContextIdFromAlias($alias) {
 			'resources_kata' => Model_CustomField::TYPE_MULTI_LINE,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 			'version' => Model_CustomField::TYPE_DATE,
-			'website' => Model_CustomField::TYPE_URL,
 			'workflow_kata' => Model_CustomField::TYPE_MULTI_LINE,
 			'record_url' => Model_CustomField::TYPE_URL,
 		];
@@ -1778,7 +1759,6 @@ function getContextIdFromAlias($alias) {
 			$token_values['resources_kata'] = $workflow->resources_kata;
 			$token_values['updated_at'] = $workflow->updated_at;
 			$token_values['version'] = $workflow->version;
-			$token_values['website'] = $workflow->website;
 			$token_values['workflow_kata'] = $workflow->workflow_kata;
 			
 			// Custom fields
@@ -1803,7 +1783,6 @@ function getContextIdFromAlias($alias) {
 			'resources_kata' => DAO_Workflow::RESOURCES_KATA,
 			'updated_at' => DAO_Workflow::UPDATED_AT,
 			'version' => DAO_Workflow::VERSION,
-			'website' => DAO_Workflow::WEBSITE,
 			'workflow_kata' => DAO_Workflow::WORKFLOW_KATA,
 		];
 	}
@@ -1948,8 +1927,10 @@ function getContextIdFromAlias($alias) {
 						'params' => [
 							'width' => 300,
 						],
-						'paging' => 'false',
-						'titleColumn' => 'name',
+						'paging' => true,
+						'headings' => false,
+						'filtering' => true,
+						'title_column' => 'name',
 					],
 					'columns' => [
 						'selection/id' => [
@@ -1960,7 +1941,7 @@ function getContextIdFromAlias($alias) {
 						'text/name' => [
 							'params' => [
 								'bold' =>  true,
-								'text_size' => '150%',
+								'text_size' => '130%',
 							],
 						],
 						'text/description' => [],
@@ -1979,10 +1960,10 @@ function getContextIdFromAlias($alias) {
 						'name' => '(Empty)',
 						'description' => 'Build a new workflow',
 					],
-					'cerb.tutorial' => [
-						'id' => 'cerb.tutorial',
-						'name' => 'Tutorial',
-						'description' => 'A workspace with detailed descriptions and examples of Cerb functionality',
+					'cerb.notifications.mention_emailer' => [
+						'id' => 'cerb.notifications.mention_emailer',
+						'name' => '@Mention Email Notifications',
+						'description' => "Email workers when they are @mentioned in a comment",
 					],
 					'cerb.auto_responder' => [
 						'id' => 'cerb.auto_responder',
@@ -1994,40 +1975,45 @@ function getContextIdFromAlias($alias) {
 						'name' => 'Auto Dispatcher',
 						'description' => 'Automatically assign tickets to workers based on priority',
 					],
-					'cerb.email.dmarc_reports' => [
-						'id' => 'cerb.email.dmarc_reports',
-						'name' => 'DMARC Reports',
-						'description' => 'Parse DMARC report attachments in email',
-					],
-					'cerb.email.org_by_hostname' => [
-						'id' => 'cerb.email.org_by_hostname',
-						'name' => 'Sender Org By Hostname',
-						'description' => 'Assign organizations to new senders based on their email @hostname',
-					],
-					'cerb.email.pgp_inline' => [
-						'id' => 'cerb.email.pgp_inline',
-						'name' => 'PGP Inline Encryption',
-						'description' => 'Encrypt messages with PGP and paste them inline in outgoing email',
-					],
-					'cerb.login.terms_of_use' => [
-						'id' => 'cerb.login.terms_of_use',
-						'name' => 'Worker Login Terms of Use',
-						'description' => "Require acceptance of 'Terms of Use' before a worker can login in",
-					],
-					'cerb.notifications.mention_emailer' => [
-						'id' => 'cerb.notifications.mention_emailer',
-						'name' => '@Mention Email Notifications',
-						'description' => "Email workers when they are @mentioned in a comment",
+					'cerb.capture_feedback' => [
+						'id' => 'cerb.capture_feedback',
+						'name' => 'Capture Feedback',
+						'description' => 'Capture user feedback while reading email messages',
 					],
 					'cerb.satisfaction.surveys' => [
 						'id' => 'cerb.satisfaction.surveys',
 						'name' => 'Customer Satisfaction Surveys',
 						'description' => 'Gather and monitor customer satisfaction metrics like NPS, CSAT, and CES.',
 					],
-					'cerb.capture_feedback' => [
-						'id' => 'cerb.capture_feedback',
-						'name' => 'Capture Feedback',
-						'description' => 'Capture user feedback while reading email messages',
+					'cerb.email.dmarc_reports' => [
+						'id' => 'cerb.email.dmarc_reports',
+						'name' => 'DMARC Reports',
+						'description' => 'Parse DMARC report attachments in email',
+					],
+					'cerb.integrations.aws_bedrock.profile_images' => [
+						'id' => 'cerb.integrations.aws_bedrock.profile_images',
+						'name' => 'Generate Profile Images (Amazon Bedrock)',
+						'description' => 'Generate profile images from a text prompt using Amazon Bedrock foundational models',
+					],
+					'cerb.integrations.ipstack' => [
+						'id' => 'cerb.integrations.ipstack',
+						'name' => 'Geolocate IPs (IPstack)',
+						'description' => 'Geolocate IPs and render locations on maps',
+					],
+					'cerb.email.pgp_inline' => [
+						'id' => 'cerb.email.pgp_inline',
+						'name' => 'PGP Inline Encryption',
+						'description' => 'Encrypt messages with PGP and paste them inline in outgoing email',
+					],
+					'cerb.quickstart' => [
+						'id' => 'cerb.quickstart',
+						'name' => 'Quickstart Checklist',
+						'description' => 'A workspace with a quickstart checklist for initial configuration of Cerb',
+					],
+					'cerb.email.org_by_hostname' => [
+						'id' => 'cerb.email.org_by_hostname',
+						'name' => 'Sender Org By Hostname',
+						'description' => 'Assign organizations to new senders based on their email @hostname',
 					],
 					'cerb.search.simple' => [
 						'id' => 'cerb.search.simple',
@@ -2039,10 +2025,15 @@ function getContextIdFromAlias($alias) {
 						'name' => 'Service Level Agreemenets',
 						'description' => 'Enforce Service Level Agreements (SLA) for tickets from organizations',
 					],
-					'cerb.quickstart' => [
-						'id' => 'cerb.quickstart',
-						'name' => 'Quickstart Checklist',
-						'description' => 'A workspace with a quickstart checklist for initial configuration of Cerb',
+					'cerb.tutorial' => [
+						'id' => 'cerb.tutorial',
+						'name' => 'Tutorial',
+						'description' => 'A workspace with detailed descriptions and examples of Cerb functionality',
+					],
+					'cerb.login.terms_of_use' => [
+						'id' => 'cerb.login.terms_of_use',
+						'name' => 'Worker Login Terms of Use',
+						'description' => "Require acceptance of 'Terms of Use' before a worker can login in",
 					],
 				];
 				

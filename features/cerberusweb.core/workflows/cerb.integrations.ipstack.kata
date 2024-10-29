@@ -1,0 +1,219 @@
+workflow:
+  name: cerb.integrations.ipstack
+  version: 2024-10-29T01:03:31Z
+  description: Geolocate IPs and render locations on maps.
+  website: https://cerb.ai/workflows/cerb.integrations.ipstack/
+  requirements:
+    cerb_version: >=11.0 <11.1
+    cerb_plugins: cerberusweb.core,
+  config:
+    chooser/ipstack_account_id:
+      label: IPstack Account
+      record_type: connected_account
+      record_query: service:(ipstack)
+      multiple@bool: no
+
+records:
+  automation/automation_interaction:
+    fields:
+      name: cerb.integrations.ipstack.lookupIP.interaction
+      extension_id: cerb.trigger.interaction.worker
+      description@text:
+      script@raw:
+        inputs:
+          text/ip:
+
+        start:
+          decision/hasInput:
+            outcome/input:
+              if@bool: {{inputs.ip is empty}}
+              then:
+                await:
+                  form:
+                    elements:
+                      text/prompt_ip:
+                        label: What IP would you like to locate?
+                        required@bool: yes
+                        type: ipv4
+            outcome:
+              then:
+                set:
+                  prompt_ip@key: inputs:ip
+
+          function:
+            uri: cerb:automation:cerb.integrations.ipstack.lookupIP.function
+            output: results
+            inputs:
+              ip: {{prompt_ip}}
+            on_success:
+              set:
+                prompts:
+                  say/respond:
+                    content: ## Location of {{prompt_ip}}
+                  sheet/respond_sheet@ref: sheetFormat
+              decision:
+                outcome/usa:
+                  if@bool:
+                      {{results.data.country_name == 'United States' ? 'yes'}}
+                  then:
+                    var.push:
+                      inputs:
+                        key: prompts
+                        value@ref: usaMapSchema
+                outcome/world:
+                  then:
+                    var.push:
+                      inputs:
+                        key: prompts
+                        value@ref: worldMapSchema
+              await:
+                form:
+                  elements@key: prompts
+            on_error:
+              error:
+                message@key: results:error
+
+        &worldMapSchema:
+          map/respond_map:
+            resource:
+              uri: cerb:resource:map.world.countries
+            projection:
+              type: mercator
+              scale: 90
+              center:
+                latitude: {{results.data.latitude}}
+                longitude: {{results.data.longitude}}
+              zoom:
+                latitude: {{results.data.latitude}}
+                longitude: {{results.data.longitude}}
+                scale: 3.5
+            points@ref: mapPointSchema
+
+        &usaMapSchema:
+          map/respond_map:
+            resource:
+              uri: cerb:resource:map.country.usa.states
+            projection:
+              type: albersUsa
+              scale: 600
+              zoom:
+                latitude: {{results.data.latitude}}
+                longitude: {{results.data.longitude}}
+                scale: 1.5
+            points@ref: mapPointSchema
+
+        &mapPointSchema:
+          data:
+            point:
+              latitude: {{results.data.latitude}}
+              longitude: {{results.data.longitude}}
+              properties:
+                name@text:
+                  {{results.data.city}}, {{results.data.country_name}}
+                city: {{results.data.city}}
+                country: {{results.data.country_name}}
+          size:
+            default: 5
+          fill:
+            default: #FF0000
+
+        &sheetFormat:
+          data@json:
+            [{{results.data|json_encode}}]
+          schema:
+            layout:
+              style: fieldsets
+              paging@bool: no
+            columns:
+              text/hostname:
+                label: Hostname
+                params:
+                  value_template@raw: {{dns_host_by_ip(ip)}}
+              text/city:
+                label: City
+              text/region_name:
+                label: State/Region
+              text/country_name:
+                label: Country
+              text/coordinates:
+                label: Coordinates
+                params:
+                  value_template@raw:
+                    {{latitude}}, {{longitude}}
+
+      policy_kata@raw:
+        commands:
+          function:
+            allow/name@bool: {{uri == 'cerb:automation:cerb.integrations.ipstack.lookupIP.function'}}
+  automation/automation_func:
+    fields:
+      name: cerb.integrations.ipstack.lookupIP.function
+      extension_id: cerb.trigger.automation.function
+      description: Return geospatial data about an IP address
+      script@raw:
+        inputs:
+          text/ip:
+            type: ip
+            required@bool: yes
+
+        start:
+          set:
+            config@json: {{cerb_workflow_config('cerb.integrations.ipstack')|json_encode}}
+          storage.get:
+            inputs:
+              key: api:ipstack:{{inputs.ip}}
+            output: ip_data
+            on_error:
+              http.request@ref: httpRequest
+          return:
+            data@key: ip_data
+
+        &httpRequest:
+          output: http_response
+          inputs:
+            url: http://api.ipstack.com/{{inputs.ip|url_encode}}
+            authentication: cerb:connected_account:{{config.ipstack_account_id}}
+          on_success:
+            set:
+              response_json@json: {{http_response.body}}
+            decision:
+              outcome/error:
+                if@bool: {{not response_json.ip ? 'yes'}}
+                then:
+                  error: Failed to retrieve the IP.
+
+              outcome/success:
+                then:
+                  set:
+                    ip_data@key: response_json
+                  storage.set:
+                    inputs:
+                      key: api:ipstack:{{inputs.ip}}
+                      value@key: ip_data
+                      expires: 1 week
+          on_error:
+            error:
+              message@key: http_response:error
+
+      policy_kata@raw:
+        commands:
+          http.request:
+            deny/url@bool: {{inputs.url is not prefixed ('http://api.ipstack.com/')}}
+            allow@bool: yes
+          storage.get:
+            allow@bool: yes
+          storage.set:
+            allow@bool: yes
+
+ toolbar_section/toolbar_global_menu:
+    fields:
+      name: Lookup IP
+      toolbar_name: global.menu
+      priority: 200
+      is_disabled: 0
+      workflow_id@int: {{workflow_id}}
+      toolbar_kata@raw:
+        interaction/lookupIp:
+          label: Location by IP
+          uri: cerb:automation:cerb.integrations.ipstack.lookupIP.interaction
+          icon: map

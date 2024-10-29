@@ -135,6 +135,8 @@ class PageSection_ProfilesWorkflow extends Extension_PageSection {
 							'cerb.email.dmarc_reports',
 							'cerb.email.org_by_hostname',
 							'cerb.email.pgp_inline',
+							'cerb.integrations.aws_bedrock.profile_images',
+							'cerb.integrations.ipstack',
 							'cerb.login.terms_of_use',
 							'cerb.notifications.mention_emailer',
 							'cerb.quickstart',
@@ -288,6 +290,7 @@ class PageSection_ProfilesWorkflow extends Extension_PageSection {
 					'config:',
 					'description: A description of the workflow',
 					'name: example.workflow.id',
+					'instructions@text:',
 					'requirements:',
 					'version: ' . gmdate('Y-m-d\T00:00:00\Z'),
 					'website: https://cerb.ai/resources/workflows/',
@@ -375,6 +378,8 @@ class PageSection_ProfilesWorkflow extends Extension_PageSection {
 					'cerb.email.dmarc_reports' => file_get_contents(APP_PATH . '/features/cerberusweb.core/workflows/cerb.email.dmarc_reports.kata'),
 					'cerb.email.org_by_hostname' => file_get_contents(APP_PATH . '/features/cerberusweb.core/workflows/cerb.email.org_by_hostname.kata'),
 					'cerb.email.pgp_inline' => file_get_contents(APP_PATH . '/features/cerberusweb.core/workflows/cerb.email.pgp_inline.kata'),
+					'cerb.integrations.aws_bedrock.profile_images' => file_get_contents(APP_PATH . '/features/cerberusweb.core/workflows/cerb.integrations.aws_bedrock.profile_images.kata'),
+					'cerb.integrations.ipstack' => file_get_contents(APP_PATH . '/features/cerberusweb.core/workflows/cerb.integrations.ipstack.kata'),
 					'cerb.login.terms_of_use' => file_get_contents(APP_PATH . '/features/cerberusweb.core/workflows/cerb.login.terms_of_use.kata'),
 					'cerb.notifications.mention_emailer' => file_get_contents(APP_PATH . '/features/cerberusweb.core/workflows/cerb.notifications.mention_emailer.kata'),
 					'cerb.quickstart' => file_get_contents(APP_PATH . '/features/cerberusweb.core/workflows/cerb.quickstart.kata'),
@@ -544,17 +549,19 @@ class PageSection_ProfilesWorkflow extends Extension_PageSection {
 				$update_fields[DAO_Workflow::DESCRIPTION] = $workflow->description;
 			}
 			
-			if(($new_template['workflow']['website'] ?? null) && $new_template['workflow']['website'] != $workflow->website) {
-				$workflow->website = $new_template['workflow']['website'] ?? '';
-				$update_fields[DAO_Workflow::WEBSITE] = $workflow->website;
-			}
-			
 			if($workflow->id && $update_fields) {
 				if(!DAO_Workflow::validate($update_fields, $error, $workflow->id)) {
 					throw new Exception_DevblocksValidationError($error);
 				}
 				
 				DAO_Workflow::update($workflow->id, $update_fields);
+			}
+			
+			// Instructions
+			if(($workflow_instructions = ($new_template['workflow']['instructions'] ?? $new_template['workflow']['website'] ?? null))) {
+				$workflow_instructions = DevblocksPlatform::parseMarkdown($workflow_instructions, true);
+				$workflow_instructions = DevblocksPlatform::purifyHTML($workflow_instructions, true, true);
+				$tpl->assign('workflow_instructions', $workflow_instructions);
 			}
 
 			// Load config options

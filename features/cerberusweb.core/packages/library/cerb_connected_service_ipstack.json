@@ -1,0 +1,68 @@
+{
+  "package": {
+    "name": "Connected Service: IPstack",
+    "revision": 1,
+    "requires": {
+      "cerb_version": "10.4.0",
+      "plugins": [
+
+      ]
+    },
+    "library": {
+      "name": "IPstack",
+      "uri": "cerb_connected_service_ipstack",
+      "description": "Integration with IPstack",
+      "instructions": "# Instructions\r\n\r\n* Enter your API key from <https://ipstack.com/dashboard>",
+      "point": "connected_service",
+      "image": "data:image/png;base64,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"
+    },
+    "configure": {
+      "placeholders": [],
+      "prompts": [
+        {
+          "type": "text",
+          "label": "API Key",
+          "key": "prompt_api_key",
+          "params": {
+            "default": "",
+            "placeholder": "(paste your API Key)"
+          }
+        },
+        {
+          "type": "text",
+          "label": "Alias",
+          "key": "prompt_name",
+          "params": {
+            "default": "ipstack",
+            "placeholder": "(enter a URI, a-z,0-9,_)"
+          }
+        }
+      ]
+    }
+  },
+  "records": [
+    {
+      "uid": "service_ipstack",
+      "_context": "connected_service",
+      "name": "IPstack",
+      "extension_id": "cerb.service.provider.api_key",
+      "params": {
+        "api_base_url": "https://api.ipstack.com/",
+        "api_key_name": "access_key",
+        "api_key_location": "url"
+      }
+    },
+    {
+      "uid": "account_ipstack",
+      "_context": "connected_account",
+      "name": "IPstack",
+      "service_id": "{{{uid.service_ipstack}}}",
+      "owner__context": "cerberusweb.contexts.app",
+      "owner_id": "0",
+      "uri": "{{{prompt_name}}}",
+      "params": {
+        "api_key": "{{{prompt_api_key}}}"
+      }
+    }
+  ]
+}

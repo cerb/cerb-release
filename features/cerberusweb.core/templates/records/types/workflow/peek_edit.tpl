@@ -48,7 +48,16 @@
             <button type="button" data-cerb-button-template-update><span class="glyphicons glyphicons-file-import"></span> Update Template</button>
         </div>
         {else}
-            {if templates_layout && $templates_rows}
+            {if $templates_layout.filtering}
+                <div style="position:relative;box-sizing:border-box;width:100%;border:1px solid var(--cerb-color-background-contrast-220);border-radius:10px;padding:0 5px;margin-bottom:5px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style="width:16px;height:16px;top:3px;position:absolute;fill:var(--cerb-color-background-contrast-180);">
+                        <path d="M27.207,24.37866,20.6106,17.78235a9.03069,9.03069,0,1,0-2.82825,2.82825L24.37878,27.207a1,1,0,0,0,1.41425,0l1.414-1.41418A1,1,0,0,0,27.207,24.37866ZM13,19a6,6,0,1,1,6-6A6.00657,6.00657,0,0,1,13,19Z"/>
+                    </svg>
+                    <input data-cerb-sheet-query type="text" value="{$filter}" placeholder="Search" style="border:0;background-color:inherit;outline:none;margin-left:16px;width:calc(100% - 16px);" autofocus="autofocus" spellcheck="false">
+                </div>
+            {/if}
+
+            {if $templates_layout && $templates_rows}
                 <div>
                     {if 'fieldsets' == $templates_layout.style}
                         {include file="devblocks:cerberusweb.core::ui/sheets/render_fieldsets.tpl" layout=$templates_layout columns=$templates_columns rows=$templates_rows}
@@ -156,6 +165,30 @@
 
             $tab_builder.find('button[data-cerb-button-config-update').on('click', onButtonTemplateUpdate);
             $tab_builder.find('button[data-cerb-button-template-update').on('click', onButtonTemplateUpdate);
+
+            let $template_cells = $tab_builder.find('.cerb-sheet--row-item');
+
+            {if !$model->id && $templates_layout.filtering}
+            $tab_builder.find('[data-cerb-sheet-query]').on('keyup', $.debounce(250, function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+
+                if(13 === e.which)
+                    return;
+
+                let term = $tab_builder.find('[data-cerb-sheet-query]').val();
+
+                $template_cells.each(function() {
+                    let $this = $(this);
+
+                    if($this.text().toLowerCase().indexOf(term) > -1) {
+                        $this.parent().show();
+                    } else {
+                        $this.parent().hide();
+                    }
+                });
+            }));
+            {/if}
 
             {if $model->id}
             $tab_builder.find('button.delete-prompt').on('click', function(e) {

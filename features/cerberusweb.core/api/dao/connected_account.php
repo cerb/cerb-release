@@ -1518,7 +1518,7 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 			$model = null;
 			
 			if(!is_numeric($context_id))
-				if(false != ($model = DAO_ConnectedAccount::getByUri($context_id)))
+				if(($model = DAO_ConnectedAccount::getByUri($context_id)))
 					$context_id = $model->id;
 			
 			if(!$model)
@@ -1565,7 +1565,7 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 				$services = array_filter(
 					DAO_ConnectedService::getAll(),
 					function($service) use ($service_manifests) {
-						if(false == (@$service_manifest = $service_manifests[$service->extension_id]))
+						if(!($service_manifest = $service_manifests[$service->extension_id] ?? null))
 							return false;
 						
 						return $service_manifest->hasOption('accounts');
@@ -1575,7 +1575,40 @@ class Context_ConnectedAccount extends Extension_DevblocksContext implements IDe
 				// Sort services by name
 				DevblocksPlatform::sortObjects($services, 'name');
 				
-				$tpl->assign('services', $services);
+				// Display sheet
+				
+				$sheets = DevblocksPlatform::services()->sheet()->withDefaultTypes();
+				
+				$accounts_sheet_kata = <<< EOD
+                layout:
+                  headings@bool: no
+                  paging@bool: no
+                  filtering@bool: yes
+                  style: grid
+                limit: 1000
+                columns:
+                  selection/id:
+                    params:
+                      mode: single
+                  text/name:
+                    params:
+                      bold@bool: yes
+                      text_size: 120%
+                EOD;
+				
+				if(!($accounts_sheet = $sheets->parse($accounts_sheet_kata, $error)))
+					DevblocksPlatform::dieWithHttpError($error);
+				
+				$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($services, CerberusContexts::CONTEXT_CONNECTED_SERVICE);
+				
+				$account_layout = $sheets->getLayout($accounts_sheet);
+				$account_columns = $sheets->getColumns($accounts_sheet);
+				$account_rows = $sheets->getRows($accounts_sheet, $dicts);
+				
+				$tpl->assign('layout', $account_layout);
+				$tpl->assign('columns', $account_columns);
+				$tpl->assign('rows', $account_rows);
+				
 				$tpl->display('devblocks:cerberusweb.core::internal/connected_account/new.tpl');
 				return;
 			}

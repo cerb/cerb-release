@@ -11975,14 +11975,6 @@ tables:
         key@text:
         default: 0
         extra@text:
-      website:
-        field: website
-        type: varchar(255)
-        collation: utf8mb4_unicode_ci
-        nullable: NOT NULL
-        key@text:
-        default@text:
-        extra@text:
       workflow_kata:
         field: workflow_kata
         type: mediumtext
