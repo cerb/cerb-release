@@ -103,10 +103,9 @@ $(function() {
             if(done_params.has('refresh_toolbar')) {
                 let refresh = done_params.get('refresh_toolbar');
 
-                if(!refresh || '0' === refresh)
-                    return;
-                
-                $toolbar.trigger($.Event('cerb-toolbar--refresh'));
+                if(refresh && '0' !== refresh) {
+                    $toolbar.trigger($.Event('cerb-toolbar--refresh'));
+                }
             }
 
             let done_actions = Devblocks.toolbarAfterActions(done_params, {

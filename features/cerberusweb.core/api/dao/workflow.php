@@ -1,5 +1,6 @@
 <?php
 class DAO_Workflow extends Cerb_ORMHelper {
+	const BUILDER_KATA = 'builder_kata';
 	const CONFIG_KATA = 'config_kata';
 	const CREATED_AT = 'created_at';
 	const DESCRIPTION = 'description';
@@ -18,6 +19,11 @@ class DAO_Workflow extends Cerb_ORMHelper {
 	static function getFields() {
 		$validation = DevblocksPlatform::services()->validation();
 		
+		$validation
+			->addField(self::BUILDER_KATA)
+			->string()
+			->setMaxLength('24 bits')
+		;
 		$validation
 			->addField(self::CONFIG_KATA)
 			->string()
@@ -171,7 +177,7 @@ class DAO_Workflow extends Cerb_ORMHelper {
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 		
 		// SQL
-		$sql = "SELECT id, name, description, created_at, updated_at, version, workflow_kata, config_kata, resources_kata, has_extensions ".
+		$sql = "SELECT id, name, description, created_at, updated_at, version, workflow_kata, builder_kata, config_kata, resources_kata, has_extensions ".
 			"FROM workflow ".
 			$where_sql.
 			$sort_sql.
@@ -267,6 +273,7 @@ class DAO_Workflow extends Cerb_ORMHelper {
 		
 		while($row = mysqli_fetch_assoc($rs)) {
 			$object = new Model_Workflow();
+			$object->builder_kata = $row['builder_kata'] ?? '';
 			$object->config_kata = $row['config_kata'] ?? '';
 			$object->created_at = intval($row['created_at'] ?? 0);
 			$object->description = $row['description'] ?? '';
@@ -515,6 +522,7 @@ class SearchFields_Workflow extends DevblocksSearchFields {
 };
 
 class Model_Workflow extends DevblocksRecordModel {
+	public string $builder_kata = '';
 	public string $config_kata = '';
 	public int $created_at = 0;
 	public string $description = '';
@@ -1520,11 +1528,11 @@ class View_Workflow extends C4_AbstractView implements IAbstractView_Subtotals, 
 		$criteria = null;
 		
 		switch($field) {
-			case SearchFields_Workflow::WORKFLOW_KATA:
 			case SearchFields_Workflow::CONFIG_KATA:
 			case SearchFields_Workflow::DESCRIPTION:
 			case SearchFields_Workflow::NAME:
 			case SearchFields_Workflow::RESOURCES_KATA:
+			case SearchFields_Workflow::WORKFLOW_KATA:
 				$criteria = $this->_doSetCriteriaString($field, $oper, $value);
 				break;
 			

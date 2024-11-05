@@ -35,8 +35,12 @@ class PageSection_ProfilesWorkflow extends Extension_PageSection {
 	function handleActionForPage(string $action, string $scope=null) {
 		if('profileAction' == $scope) {
 			switch($action) {
+				case 'runBuilderPopup':
+					return $this->_profileAction_runBuilderPopup();
 				case 'savePeekJson':
 					return $this->_profileAction_savePeekJson();
+				case 'showBuilderPopup':
+					return $this->_profileAction_showBuilderPopup();
 				case 'showTemplateUpdatePopup':
 					return $this->_profileAction_showTemplateUpdatePopup();
 				case 'showWorkflowDeletePopup':
@@ -235,6 +239,98 @@ class PageSection_ProfilesWorkflow extends Extension_PageSection {
 			]);
 			return;
 			
+		}
+	}
+	
+	private function _profileAction_showBuilderPopup() {
+		$id = DevblocksPlatform::importGPC($_POST['id'] ?? null, 'integer', 0);
+		
+		$tpl = DevblocksPlatform::services()->template();
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
+		
+		if(!$active_worker->is_superuser)
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
+		try {
+			if(!($workflow = DAO_Workflow::get($id)))
+				DevblocksPlatform::dieWithHttpError(null, 404);
+			
+			// If the builder KATA is empty, default it
+			if(!$workflow->builder_kata) {
+				$builder_kata = [
+					'export' => [
+						'workflow' => [
+							'name' => $workflow->name,
+							'description' => $workflow->description,
+						],
+						'records' => [],
+						'label_map' => [],
+					],
+				];
+				
+				$record_type_ids = [];
+				
+				foreach(($workflow->getResources()['records'] ?? []) as $resource_key => $resource_id) {
+					list($resource_type, $resource_name) = explode('/', $resource_key, 2);
+					$record_type_ids[$resource_type][] = $resource_id;
+					$builder_kata['export']['label_map'][$resource_type . '_' . $resource_id] = $resource_name;
+				}
+				
+				// [TODO] Condense as sets in the order defined (break up non-contiguous same record type)
+				foreach($record_type_ids as $record_type => $record_ids) {
+					$builder_kata['export']['records'][$record_type] = [
+						'query' => 'id:[' . implode(',', $record_ids) . ']',
+					];
+				}
+				
+				ksort($builder_kata['export']['label_map']);
+				
+				$workflow->builder_kata = DevblocksPlatform::services()->kata()->emit($builder_kata);
+			}
+			
+			$tpl->assign('model', $workflow);
+			$tpl->display('devblocks:cerberusweb.core::records/types/workflow/builder/popup.tpl');
+			
+		} catch (Throwable) {
+			DevblocksPlatform::dieWithHttpError(null, 500);
+		}
+	}
+	
+	private function _profileAction_runBuilderPopup() {
+		$active_worker = CerberusApplication::getActiveWorker();
+		
+		if(!$active_worker || !$active_worker->is_superuser)
+			DevblocksPlatform::dieWithHttpError(null, 403);
+		
+		if('POST' != DevblocksPlatform::getHttpMethod())
+			DevblocksPlatform::dieWithHttpError(null, 405);
+		
+		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'application/json; charset=utf-8');
+		
+		try {
+			$workflow_id = DevblocksPlatform::importGPC($_POST['id'] ?? null, 'integer', 0);
+			$workflow_builder_kata = DevblocksPlatform::importGPC($_POST['workflow_builder_kata'] ?? null, 'string', '');
+			
+			$export_model = new DevblocksWorkflowExportModel($workflow_builder_kata);
+			
+			// Save to the model every run
+			DAO_Workflow::update($workflow_id, [
+				DAO_Workflow::BUILDER_KATA => $workflow_builder_kata,
+			]);
+			
+			echo json_encode([
+				'status' => true,
+				'workflow_kata' => $export_model->createWorkflowKata(true),
+			]);
+			
+		} catch(Throwable) {
+			echo json_encode([
+				'status' => false,
+				'error' => 'An unexpected error occurred.',
+			]);
 		}
 	}
 	

@@ -935,7 +935,7 @@ class View_Metric extends C4_AbstractView implements IAbstractView_Subtotals, IA
 	}
 };
 
-class Context_Metric extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextAutocomplete {
+class Context_Metric extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextAutocomplete, IDevblocksContextWorkflow {
 	const ID = CerberusContexts::CONTEXT_METRIC;
 	const URI = 'metric';
 	
@@ -1316,5 +1316,31 @@ class Context_Metric extends Extension_DevblocksContext implements IDevblocksCon
 		} else {
 			Page_Profiles::renderCard($context, $context_id, $model);
 		}
+	}
+
+	function workflowExport(array $ids, DevblocksWorkflowExportModel $export_model, bool $include_children = false): array {
+		$workflow_kata = [
+			'records' => [],
+		];
+		
+		$record_uri = CerberusContexts::getContextName($this->id, 'uri');
+		
+		$models = DAO_Metric::getIds($ids);
+		
+		foreach($models as $model) {
+			$model_key = $export_model->getLabelMapFor(sprintf('%s_%d', $record_uri, $model->id));
+			$record_key = sprintf('%s/%s', $record_uri, $model_key);
+			
+			$workflow_kata['records'][$record_key] = [
+				'fields' => [
+					'name' => $model->name,
+					'description' => $model->description,
+					'type' => $model->type,
+					'dimensions_kata' => new DevblocksKataRawString($model->dimensions_kata ?? ''),
+				],
+			];
+		}
+		
+		return $workflow_kata;
 	}
 };

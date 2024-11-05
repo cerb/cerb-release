@@ -353,6 +353,7 @@ if(!isset($tables['workflow'])) {
 		`created_at` int(10) unsigned NOT NULL DEFAULT 0,
 		`updated_at` int(10) unsigned NOT NULL DEFAULT 0,
 		`version` bigint unsigned NOT NULL DEFAULT 0,
+		`builder_kata` mediumtext,
 		`workflow_kata` mediumtext,
 		`config_kata` mediumtext,
 		`resources_kata` mediumtext,
@@ -371,6 +372,10 @@ list($columns, ) = $db->metaTable('workflow');
 
 if(!array_key_exists('version', $columns)) {
 	$db->ExecuteMaster("ALTER TABLE workflow ADD COLUMN version bigint unsigned NOT NULL DEFAULT 0");
+}
+
+if(!array_key_exists('builder_kata', $columns)) {
+	$db->ExecuteMaster("ALTER TABLE workflow ADD COLUMN builder_kata MEDIUMTEXT");
 }
 
 if(array_key_exists('website', $columns)) {

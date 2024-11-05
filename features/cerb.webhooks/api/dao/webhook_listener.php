@@ -747,7 +747,7 @@ class View_WebhookListener extends C4_AbstractView implements IAbstractView_Subt
 	}
 };
 
-class Context_WebhookListener extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek { // IDevblocksContextImport
+class Context_WebhookListener extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextWorkflow { // IDevblocksContextImport
 	const ID = CerberusContexts::CONTEXT_WEBHOOK_LISTENER;
 	const URI = 'webhook_listener';
 	
@@ -1081,4 +1081,29 @@ class Context_WebhookListener extends Extension_DevblocksContext implements IDev
 		}
 	}
 	
+	function workflowExport(array $ids, DevblocksWorkflowExportModel $export_model, bool $include_children = false): array {
+		$workflow_kata = [
+			'records' => [],
+		];
+		
+		$record_uri = CerberusContexts::getContextName($this->id, 'uri');
+		
+		$models = DAO_WebhookListener::getIds($ids);
+		
+		foreach($models as $model) {
+			$model_key = $export_model->getLabelMapFor(sprintf('%s_%d', $record_uri, $model->id));
+			$record_key = sprintf('%s/%s', $record_uri, $model_key);
+			
+			$workflow_kata['records'][$record_key] = [
+				'fields' => [
+					'name' => $model->name,
+					'guid' => $model->guid,
+					'updated_at' => $model->updated_at,
+					'automations_kata' => new DevblocksKataRawString($model->automations_kata),
+				],
+			];
+		}
+		
+		return $workflow_kata;
+	}
 };

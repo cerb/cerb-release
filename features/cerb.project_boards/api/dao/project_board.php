@@ -862,7 +862,7 @@ class View_ProjectBoard extends C4_AbstractView implements IAbstractView_Subtota
 	}
 };
 
-class Context_ProjectBoard extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextAutocomplete { // IDevblocksContextImport
+class Context_ProjectBoard extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextAutocomplete, IDevblocksContextWorkflow { // IDevblocksContextImport
 	const ID = 'cerberusweb.contexts.project.board';
 	const URI = 'project_board';
 	
@@ -997,7 +997,6 @@ class Context_ProjectBoard extends Extension_DevblocksContext implements IDevblo
 			'id' => $prefix.$translate->_('common.id'),
 			'cards_kata' => $prefix.$translate->_('common.cards_kata'),
 			'name' => $prefix.$translate->_('common.name'),
-			'params' => $prefix.$translate->_('common.params'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
 		);
@@ -1008,7 +1007,6 @@ class Context_ProjectBoard extends Extension_DevblocksContext implements IDevblo
 			'id' => Model_CustomField::TYPE_NUMBER,
 			'cards_kata' => Model_CustomField::TYPE_MULTI_LINE,
 			'name' => Model_CustomField::TYPE_SINGLE_LINE,
-			'params' => null,
 			'updated_at' => Model_CustomField::TYPE_DATE,
 			'record_url' => Model_CustomField::TYPE_URL,
 		);
@@ -1060,17 +1058,7 @@ class Context_ProjectBoard extends Extension_DevblocksContext implements IDevblo
 	}
 	
 	function getKeyMeta($with_dao_fields=true) {
-		$keys = parent::getKeyMeta($with_dao_fields);
-		
-		$keys['params'] = [
-			'key' => 'params',
-			'is_immutable' => false,
-			'is_required' => false,
-			'notes' => 'JSON-encoded key/value object',
-			'type' => 'object',
-		];
-		
-		return $keys;
+		return parent::getKeyMeta($with_dao_fields);
 	}
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, $data, &$error) {
@@ -1208,5 +1196,40 @@ class Context_ProjectBoard extends Extension_DevblocksContext implements IDevblo
 		} else {
 			Page_Profiles::renderCard($context, $context_id, $model);
 		}
+	}
+	
+	function workflowExport(array $ids, DevblocksWorkflowExportModel $export_model, bool $include_children = false): array {
+		$workflow_kata = [
+			'records' => [],
+		];
+		
+		$record_uri = CerberusContexts::getContextName($this->id, 'uri');
+		
+		$context_project_board_column = Extension_DevblocksContext::getByAlias('project_board_column', true);
+		
+		$models = DAO_ProjectBoard::getIds($ids);
+		
+		foreach($models as $model) {
+			$model_key = $export_model->getLabelMapFor(sprintf('%s_%d', $record_uri, $model->id));
+			$record_key = sprintf('%s/%s', $record_uri, $model_key);
+			
+			$workflow_kata['records'][$record_key] = [
+				'fields' => [
+					'name' => $model->name,
+					'owner__context' => 'app',
+					'owner_id' => 0,
+					'cards_kata' => new DevblocksKataRawString($model->cards_kata ?? ''),
+				],
+			];
+			
+			if($include_children) {
+				$columns = $model->getColumns();
+				$custom_field_kata = $context_project_board_column->workflowExport(array_keys($columns), $export_model, $include_children);
+				
+				$workflow_kata['records'] = array_merge($workflow_kata['records'], $custom_field_kata['records']);
+			}
+		}
+		
+		return $workflow_kata;
 	}
 };

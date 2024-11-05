@@ -1365,7 +1365,7 @@ class View_Snippet extends C4_AbstractView implements IAbstractView_Subtotals, I
 	}
 };
 
-class Context_Snippet extends Extension_DevblocksContext implements IDevblocksContextAutocomplete, IDevblocksContextProfile, IDevblocksContextPeek {
+class Context_Snippet extends Extension_DevblocksContext implements IDevblocksContextAutocomplete, IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextWorkflow {
 	const ID = 'cerberusweb.contexts.snippet';
 	const URI = 'snippet';
 	
@@ -1789,5 +1789,33 @@ class Context_Snippet extends Extension_DevblocksContext implements IDevblocksCo
 		} else {
 			Page_Profiles::renderCard($context, $context_id, $model);
 		}
+	}
+	
+	function workflowExport(array $ids, DevblocksWorkflowExportModel $export_model, bool $include_children = false): array {
+		$workflow_kata = [
+			'records' => [],
+		];
+		
+		$record_uri = CerberusContexts::getContextName($this->id, 'uri');
+		
+		$models = DAO_Snippet::getIds($ids);
+		
+		foreach($models as $model) {
+			$model_key = $export_model->getLabelMapFor(sprintf('%s_%d', $record_uri, $model->id));
+			$record_key = sprintf('%s/%s', $record_uri, $model_key);
+			
+			$workflow_kata['records'][$record_key] = [
+				'fields' => [
+					'title' => $model->title,
+					'context' => CerberusContexts::getContextName($model->context, 'uri'),
+					'owner__context' => CerberusContexts::getContextName($model->owner_context, 'uri'),
+					'owner_id' => $model->owner_context_id,
+					'prompts_kata' => new DevblocksKataRawString($model->prompts_kata),
+					'content' => new DevblocksKataRawString($model->content),
+				],
+			];
+		}
+		
+		return $workflow_kata;
 	}
 };

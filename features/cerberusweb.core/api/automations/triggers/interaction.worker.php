@@ -1134,6 +1134,7 @@ class AutomationTrigger_InteractionWorker extends Extension_AutomationTrigger {
 					'href: https://example.com/',
 					'href_key: record_url',
 					'href_template@raw:',
+					'href_new_tab@bool: yes',
 					'text: Link title',
 					'text_key: _label',
 					'text_template@raw:',

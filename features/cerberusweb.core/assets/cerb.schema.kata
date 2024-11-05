@@ -11903,6 +11903,14 @@ tables:
             unique: 1
   workflow:
     columns:
+      builder_kata:
+        field: builder_kata
+        type: mediumtext
+        collation: utf8mb4_unicode_ci
+        nullable: NULL
+        key@text:
+        default@text:
+        extra@text:
       config_kata:
         field: config_kata
         type: mediumtext

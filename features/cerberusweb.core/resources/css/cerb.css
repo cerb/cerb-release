@@ -837,6 +837,13 @@ UL.navmenu > LI.selected A {
 }
 .cerb-data-sheet .cerb-data-sheet--fieldset .cerb-data-sheet--field-label {
   font-weight: bold;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  vertical-align: top;
+  padding-right: 0.2em;
+  width: 1%;
+  text-wrap: nowrap;
+  color: var(--cerb-color-background-contrast-100);
 }
 .cerb-data-sheet .cerb-data-sheet--fieldset .cerb-data-sheet--field-title {
   font-weight: bold;
@@ -2926,9 +2933,11 @@ div.cerb-board .cerb-board-column div.cerb-board-card > div {
 
 TABLE.cerb-widget-data-table th {
   font-weight: bold;
-  font-size: 1.25em;
+  font-size: 0.75em;
+  text-transform: uppercase;
   text-align: left;
   padding: 0 5px 5px 5px;
+  color: var(--cerb-color-background-contrast-100);
 }
 TABLE.cerb-widget-data-table td {
   padding: 5px;

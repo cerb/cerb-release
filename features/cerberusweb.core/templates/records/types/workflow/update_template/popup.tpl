@@ -17,6 +17,7 @@
                 <div class="cerb-code-editor-toolbar" style="margin:0.5em 0;">
                     <button type="button" class="cerb-code-editor-toolbar-button" data-cerb-editor-button-changesets-template title="{'common.change_history'|devblocks_translate|capitalize}"><span class="glyphicons glyphicons-history"></span></button>
                     <button type="button" class="cerb-code-editor-commands-button" data-cerb-editor-button-commands title="Editor Commands"><span class="glyphicons glyphicons-adjust-alt"></span></button>
+                    <button type="button" class="cerb-code-editor-toolbar-button" data-cerb-editor-button-builder title="Workflow Builder"><span class="glyphicons glyphicons-claw-hammer"></span></button>
                 </div>
                 <textarea name="template[kata]" data-editor-mode="ace/mode/cerb_kata" data-editor-lines="35">{$model->workflow_kata}</textarea>
             </div>
@@ -110,6 +111,20 @@ $(function() {
         $popup.find('[data-cerb-editor-button-commands]').on('click', function(e) {
             e.stopPropagation();
             editor_template.execCommand('openCommandPalette');
+        });
+
+        $popup.find('[data-cerb-editor-button-builder]').on('click', function(e) {
+            e.stopPropagation();
+
+            // Open the Workflow Builder popup w/ data persisted in the workflow
+            var formData = new FormData();
+            formData.set('c', 'profiles');
+            formData.set('a', 'invoke');
+            formData.set('module', 'workflow');
+            formData.set('action', 'showBuilderPopup');
+            formData.set('id', '{$model->id}');
+
+            genericAjaxPopup('editorBuilder{$popup_id}', formData, null, null, '75%');
         });
 
         $popup.find('[data-cerb-editor-button-changesets-template]').on('click', function(e) {

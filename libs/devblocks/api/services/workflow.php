@@ -85,8 +85,12 @@ class DevblocksWorkflowExportModel {
 		$workflow_kata['workflow']['version'] = gmdate('Y-m-d\TH:i:s\Z');
 		
 		foreach($this->getRecordsToExport() as $record) {
-			$new_kata = $record['extension']->workflowExport($record['ids'] ?? [], $this, $record['include_children'] ?? false);
-			$workflow_kata['records'] = array_merge($workflow_kata['records'], $new_kata['records']);
+			try {
+				$new_kata = $record['extension']->workflowExport($record['ids'] ?? [], $this, $record['include_children'] ?? false);
+				$workflow_kata['records'] = array_merge($workflow_kata['records'], $new_kata['records']);
+			} catch (Throwable $e) {
+				DevblocksPlatform::logException($e);
+			}
 		}
 		
 		return $as_string

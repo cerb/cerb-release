@@ -1075,7 +1075,7 @@ class View_WorkerRole extends C4_AbstractView implements IAbstractView_Subtotals
 	}
 };
 
-class Context_WorkerRole extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek {
+class Context_WorkerRole extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextWorkflow {
 	const ID = 'cerberusweb.contexts.role';
 	const URI = 'role';
 	
@@ -1263,17 +1263,7 @@ class Context_WorkerRole extends Extension_DevblocksContext implements IDevblock
 	}
 	
 	function getKeyMeta($with_dao_fields=true) {
-		$keys = parent::getKeyMeta($with_dao_fields);
-		
-		$keys['params'] = [
-			'key' => 'params',
-			'is_immutable' => false,
-			'is_required' => false,
-			'notes' => 'JSON-encoded key/value object',
-			'type' => 'object',
-		];
-		
-		return $keys;
+		return parent::getKeyMeta($with_dao_fields);
 	}
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, $data, &$error) {
@@ -1535,4 +1525,30 @@ class Context_WorkerRole extends Extension_DevblocksContext implements IDevblock
 		}
 	}
 	
+	function workflowExport(array $ids, DevblocksWorkflowExportModel $export_model, bool $include_children = false): array {
+		$workflow_kata = [
+			'records' => [],
+		];
+		
+		$record_uri = CerberusContexts::getContextName($this->id, 'uri');
+		
+		$models = DAO_WorkerRole::getIds($ids);
+		
+		foreach($models as $model) {
+			$model_key = $export_model->getLabelMapFor(sprintf('%s_%d', $record_uri, $model->id));
+			$record_key = sprintf('%s/%s', $record_uri, $model_key);
+			
+			$workflow_kata['records'][$record_key] = [
+				'fields' => [
+					'name' => $model->name,
+					'privs_mode' => $model->privs_mode,
+					'editor_query_worker' => new DevblocksKataRawString($model->editor_query_worker ?? ''),
+					'member_query_worker' => new DevblocksKataRawString($model->member_query_worker ?? ''),
+					'reader_query_worker' => new DevblocksKataRawString($model->reader_query_worker ?? ''),
+				],
+			];
+		}
+		
+		return $workflow_kata;
+	}
 }

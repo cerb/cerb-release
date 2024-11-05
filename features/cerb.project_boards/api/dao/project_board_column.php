@@ -518,7 +518,6 @@ class Model_ProjectBoardColumn extends DevblocksRecordModel {
 	public $functions_kata;
 	public $id;
 	public $name;
-	public $params;
 	public $pos;
 	public $toolbar_kata;
 	public $updated_at;
@@ -1035,7 +1034,7 @@ class View_ProjectBoardColumn extends C4_AbstractView implements IAbstractView_S
 	}
 };
 
-class Context_ProjectBoardColumn extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek { // IDevblocksContextImport
+class Context_ProjectBoardColumn extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextWorkflow { // IDevblocksContextImport
 	const ID = 'cerberusweb.contexts.project.board.column';
 	const URI = 'project_board_column';
 	
@@ -1245,14 +1244,6 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 			'type' => 'links',
 		];
 		
-		$keys['params'] = [
-			'key' => 'params',
-			'is_immutable' => false,
-			'is_required' => false,
-			'notes' => 'JSON-encoded key/value object',
-			'type' => 'object',
-		];
-		
 		$keys['board_id']['notes'] = "The [project board](/docs/records/types/project_board/) containing this column";
 		
 		return $keys;
@@ -1429,11 +1420,6 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 			
 			$tpl->assign('model', $model);
 			
-			if(isset($model->params['behaviors'])) {
-				$behaviors = DAO_TriggerEvent::getIds(array_keys($model->params['behaviors']));
-				$tpl->assign('behaviors', $behaviors);
-			}
-			
 			$tpl->assign('trigger_card_action_ext', Extension_AutomationTrigger::get(AutomationTrigger_ProjectBoardCardAction::ID, true));
 			$tpl->assign('trigger_render_card_ext', Extension_AutomationTrigger::get(AutomationTrigger_ProjectBoardRenderCard::ID, true));
 			
@@ -1447,59 +1433,34 @@ class Context_ProjectBoardColumn extends Extension_DevblocksContext implements I
 		}
 	}
 	
-	/*
-	function importGetKeys() {
-		// [TODO] Translate
-	
-		$keys = array(
-			'name' => array(
-				'label' => 'Name',
-				'type' => Model_CustomField::TYPE_SINGLE_LINE,
-				'param' => SearchFields_ProjectBoardColumn::NAME,
-				'required' => true,
-			),
-			'updated_at' => array(
-				'label' => 'Updated Date',
-				'type' => Model_CustomField::TYPE_DATE,
-				'param' => SearchFields_ProjectBoardColumn::UPDATED_AT,
-			),
-		);
-	
-		$fields = SearchFields_ProjectBoardColumn::getFields();
-		self::_getImportCustomFields($fields, $keys);
-	
-		DevblocksPlatform::sortObjects($keys, '[label]', true);
-	
-		return $keys;
-	}
-	
-	function importKeyValue($key, $value) {
-		switch($key) {
+	function workflowExport(array $ids, DevblocksWorkflowExportModel $export_model, bool $include_children = false): array {
+		$workflow_kata = [
+			'records' => [],
+		];
+		
+		$record_uri = CerberusContexts::getContextName($this->id, 'uri');
+		
+		$models = DAO_ProjectBoardColumn::getIds($ids);
+		
+		foreach($models as $model) {
+			$model_key = $export_model->getLabelMapFor(sprintf('%s_%d', $record_uri, $model->id));
+			$record_key = sprintf('%s/%s', $record_uri, $model_key);
+			
+			$workflow_kata['records'][$record_key] = [
+				'fields' => [
+					'name' => $model->name,
+					'board_id' => sprintf("{{records.%s.id}}",
+						$export_model->getLabelMapFor('project_board_' . $model->board_id)
+					),
+					'pos' => $model->pos,
+					'cards' => $model->cards,
+					'cards_kata' => new DevblocksKataRawString($model->cards_kata ?? ''),
+					'functions_kata' => new DevblocksKataRawString($model->functions_kata ?? ''),
+					'toolbar_kata' => new DevblocksKataRawString($model->toolbar_kata ?? ''),
+				],
+			];
 		}
-	
-		return $value;
+		
+		return $workflow_kata;
 	}
-	
-	function importSaveObject(array $fields, array $custom_fields, array $meta) {
-		// If new...
-		if(!isset($meta['object_id']) || empty($meta['object_id'])) {
-			// Make sure we have a name
-			if(!isset($fields[DAO_ProjectBoardColumn::NAME])) {
-				$fields[DAO_ProjectBoardColumn::NAME] = 'New ' . $this->manifest->name;
-			}
-	
-			// Create
-			$meta['object_id'] = DAO_ProjectBoardColumn::create($fields);
-	
-		} else {
-			// Update
-			DAO_ProjectBoardColumn::update($meta['object_id'], $fields);
-		}
-	
-		// Custom fields
-		if(!empty($custom_fields) && !empty($meta['object_id'])) {
-			DAO_CustomFieldValue::formatAndSetFieldValues($this->manifest->id, $meta['object_id'], $custom_fields, false, true, true); //$is_blank_unset (4th)
-		}
-	}
-	*/
 };

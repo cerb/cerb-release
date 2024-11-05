@@ -920,7 +920,7 @@ class View_CardWidget extends C4_AbstractView implements IAbstractView_Subtotals
 	}
 };
 
-class Context_CardWidget extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek {
+class Context_CardWidget extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextWorkflow {
 	const ID = CerberusContexts::CONTEXT_CARD_WIDGET;
 	const URI = 'card_widget';
 	
@@ -1349,5 +1349,39 @@ class Context_CardWidget extends Extension_DevblocksContext implements IDevblock
 		} else {
 			Page_Profiles::renderCard($context, $context_id, $model);
 		}
+	}
+	
+	function workflowExport(array $ids, DevblocksWorkflowExportModel $export_model, bool $include_children = false): array {
+		$workflow_kata = [
+			'records' => [],
+		];
+		
+		$record_uri = CerberusContexts::getContextName($this->id, 'uri');
+		
+		$models = DAO_CardWidget::getIds($ids);
+		
+		foreach($models as $model) {
+			$model_key = $export_model->getLabelMapFor(sprintf('%s_%d', $record_uri, $model->id));
+			$record_key = sprintf('%s/%s', $record_uri, $model_key);
+			
+			$workflow_kata['records'][$record_key] = [
+				'fields' => [
+					'name' => $model->name,
+					'record_type' => $model->record_type,
+					'extension_id' => $model->extension_id,
+					'pos' => $model->pos,
+					'width_units' => $model->width_units,
+					'zone' => $model->zone,
+				],
+			];
+			
+			if($model->extension_params)
+				$workflow_kata['records'][$record_key]['fields']['extension_params'] = DevblocksPlatform::services()->kata()->wrapArrayPlaceholdersInRaw($model->extension_params);
+			
+			if($model->options_kata)
+				$workflow_kata['records'][$record_key]['fields']['options_kata'] = new DevblocksKataRawString($model->options_kata);
+		}
+		
+		return $workflow_kata;
 	}
 };

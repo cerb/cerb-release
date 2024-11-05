@@ -583,7 +583,7 @@ class PageSection_ProfilesAutomation extends Extension_PageSection {
 		
 		DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/plain; charset=utf-8');
 		
-		if(false == ($output_yaml = DevblocksPlatform::services()->string()->yamlParse($output_yaml, 0)))
+		if(!($output_yaml = DevblocksPlatform::services()->string()->yamlParse($output_yaml, 0)))
 			return;
 		
 		$output_dict = DevblocksDictionaryDelegate::instance($output_yaml);

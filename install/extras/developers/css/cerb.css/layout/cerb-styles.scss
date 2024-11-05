@@ -517,6 +517,13 @@ UL {
 		
 		.cerb-data-sheet--field-label {
 			font-weight: bold;
+			font-size: 0.75em;
+			text-transform: uppercase;
+			vertical-align: top;
+			padding-right: 0.2em;
+			width: 1%;
+			text-wrap: nowrap;
+			color: var(--cerb-color-background-contrast-100);
 		}
 		
 		.cerb-data-sheet--field-title {

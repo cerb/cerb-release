@@ -2014,8 +2014,8 @@ class Context_Automation extends Extension_DevblocksContext implements IDevblock
 					'name' => $model->name,
 					'extension_id' => $model->extension_id,
 					'description' => $model->description,
-					'script' => new DevblocksKataRawString($model->script),
-					'policy_kata' => new DevblocksKataRawString($model->policy_kata),
+					'script' => new DevblocksKataRawString($model->script ?? ''),
+					'policy_kata' => new DevblocksKataRawString($model->policy_kata ?? ''),
 				],
 			];
 		}

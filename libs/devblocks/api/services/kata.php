@@ -5,8 +5,8 @@ use Twig\Error\SyntaxError;
 class DevblocksKataRawString {
 	private string $_string = '';
 	
-	public function __construct(string $string='') {
-		$this->_string = $string;
+	public function __construct(?string $string='') {
+		$this->_string = $string ?? '';
 	}
 	
 	public function __toString(): string {
@@ -676,7 +676,7 @@ class _DevblocksKataService {
 					$new_k = $k . ($k_annotations ? ('@' . $k_annotations) : '');
 					
 					if($wrap_raw) {
-						return [$new_k => new DevblocksKataRawString($v)];
+						return [$new_k => new DevblocksKataRawString($v ?? '')];
 					} else {
 						return [$new_k => $v];
 					}

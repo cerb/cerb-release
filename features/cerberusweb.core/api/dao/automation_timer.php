@@ -1050,7 +1050,7 @@ class View_AutomationTimer extends C4_AbstractView implements IAbstractView_Subt
 	}
 };
 
-class Context_AutomationTimer extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek {
+class Context_AutomationTimer extends Extension_DevblocksContext implements IDevblocksContextProfile, IDevblocksContextPeek, IDevblocksContextWorkflow {
 	const ID = CerberusContexts::CONTEXT_AUTOMATION_TIMER;
 	const URI = 'automation_timer';
 	
@@ -1428,6 +1428,36 @@ class Context_AutomationTimer extends Extension_DevblocksContext implements IDev
 		} else {
 			Page_Profiles::renderCard($context, $context_id, $model);
 		}
+	}
+
+	function workflowExport(array $ids, DevblocksWorkflowExportModel $export_model, bool $include_children = false): array {
+		$workflow_kata = [
+			'records' => [],
+		];
+		
+		$record_uri = CerberusContexts::getContextName($this->id, 'uri');
+		
+		$models = DAO_AutomationTimer::getIds($ids);
+		
+		foreach($models as $model) {
+			$model_key = $export_model->getLabelMapFor(sprintf('%s_%d', $record_uri, $model->id));
+			$record_key = sprintf('%s/%s', $record_uri, $model_key);
+			
+			$workflow_kata['records'][$record_key] = [
+				'fields' => [
+					'name' => $model->name,
+					'is_disabled' => intval($model->is_disabled),
+					'is_recurring' => intval($model->is_recurring),
+					'last_ran_at' => intval($model->last_ran_at),
+					'next_run_at' => intval($model->next_run_at),
+					'recurring_patterns' => $model->recurring_patterns,
+					'recurring_timezone' => $model->recurring_timezone,
+					'automations_kata' => new DevblocksKataRawString($model->automations_kata ?? ''),
+				],
+			];
+		}
+		
+		return $workflow_kata;
 	}
 };
 
