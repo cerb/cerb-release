@@ -1,0 +1,311 @@
+workflow:
+  name: cerb.integrations.deepl.translate
+  description: Translate inbound and outbound email messages using the DeepL API
+  website: https://cerb.ai/workflows/cerb.integrations.deepl.translate/
+  requirements:
+    cerb_version: >=11.0 <11.1
+    cerb_plugins: cerberusweb.core
+  config:
+    picklist/base_url:
+      label: API Endpoint:
+      multiple@bool: no
+      default: https://api-free.deepl.com
+      options@list:
+        https://api-free.deepl.com
+        https://api.deepl.com
+    chooser/account_id:
+      label: DeepL Account:
+      record_type: connected_account
+      record_query: service:(deepl)
+      multiple@bool: no
+  version: 2024-11-11T22:29:06Z
+records:
+  automation/translateFunc:
+    fields:
+      name: cerb.integrations.deepl.translate.function
+      extension_id: cerb.trigger.automation.function
+      description@text:
+      script@raw:
+        inputs:
+          text/text:
+            type: freeform
+            required@bool: yes
+          text/target_lang:
+            type: freeform
+            required@bool: no
+
+        start:
+          set/init:
+            config@json: {{cerb_workflow_config('cerb.integrations.deepl.translate')|json_encode}}
+
+          http.request/translate:
+            output: http_response
+            inputs:
+              method: POST
+              url: {{config.base_url}}/v2/translate
+              authentication: cerb:connected_account:{{config.account_id}}
+              headers:
+                Content-Type: application/json
+              body:
+                target_lang: {{inputs.target_lang|default('EN')}}
+                text:
+                  0: {{inputs.text}}
+            on_success:
+              outcome/ok:
+                if@bool: {{200 == http_response.status_code}}
+                then:
+                  set:
+                    response_body@json: {{http_response.body}}
+                  return:
+                    source_lang: {{response_body.translations|first.detected_source_language}}
+                    target_lang: {{inputs.target_lang|default('EN')}}
+                    text: {{response_body.translations|first.text}}
+      policy_kata@raw:
+        commands:
+          http.request:
+            deny/url@bool:
+              {{
+                inputs.url is not prefixed (cerb_workflow_config('cerb.integrations.deepl.translate','base_url'))
+              }}
+            allow@bool: yes
+  automation/translateInteraction:
+    fields:
+      name: cerb.integrations.deepl.translate.interaction
+      extension_id: cerb.trigger.interaction.worker
+      description@text:
+      script@raw:
+        inputs:
+          text/text:
+            type: freeform
+            default: {{caller_params.selected_text}}
+
+        start:
+          set:
+            languages:
+              BG:
+                language: BG
+                name: Bulgarian
+                supports_formality@bool: no
+              ZH:
+                language: ZH
+                name: Chinese (simplified)
+                supports_formality@bool: no
+              ZH-HANS:
+                language: ZH-HANS
+                name: Chinese (simplified)
+                supports_formality@bool: no
+              CS:
+                language: CS
+                name: Czech
+                supports_formality@bool: no
+              DA:
+                language: DA
+                name: Danish
+                supports_formality@bool: no
+              NL:
+                language: NL
+                name: Dutch
+                supports_formality@bool: yes
+              EN-US:
+                language: EN-US
+                name: English (American)
+                supports_formality@bool: no
+              EN-GB:
+                language: EN-GB
+                name: English (British)
+                supports_formality@bool: no
+              ET:
+                language: ET
+                name: Estonian
+                supports_formality@bool: no
+              FI:
+                language: FI
+                name: Finnish
+                supports_formality@bool: no
+              FR:
+                language: FR
+                name: French
+                supports_formality@bool: yes
+              DE:
+                language: DE
+                name: German
+                supports_formality@bool: yes
+              EL:
+                language: EL
+                name: Greek
+                supports_formality@bool: no
+              HU:
+                language: HU
+                name: Hungarian
+                supports_formality@bool: no
+              ID:
+                language: ID
+                name: Indonesian
+                supports_formality@bool: no
+              IT:
+                language: IT
+                name: Italian
+                supports_formality@bool: yes
+              JA:
+                language: JA
+                name: Japanese
+                supports_formality@bool: yes
+              KO:
+                language: KO
+                name: Korean
+                supports_formality@bool: no
+              LV:
+                language: LV
+                name: Latvian
+                supports_formality@bool: no
+              LT:
+                language: LT
+                name: Lithuanian
+                supports_formality@bool: no
+              NB:
+                language: NB
+                name: Norwegian (Bokmål)
+                supports_formality@bool: no
+              PL:
+                language: PL
+                name: Polish
+                supports_formality@bool: yes
+              PT-BR:
+                language: PT-BR
+                name: Portuguese (Brazilian)
+                supports_formality@bool: yes
+              PT-PT:
+                language: PT-PT
+                name: Portuguese (European)
+                supports_formality@bool: yes
+              RO:
+                language: RO
+                name: Romanian
+                supports_formality@bool: no
+              RU:
+                language: RU
+                name: Russian
+                supports_formality@bool: yes
+              SK:
+                language: SK
+                name: Slovak
+                supports_formality@bool: no
+              SL:
+                language: SL
+                name: Slovenian
+                supports_formality@bool: no
+              ES:
+                language: ES
+                name: Spanish
+                supports_formality@bool: yes
+              SV:
+                language: SV
+                name: Swedish
+                supports_formality@bool: no
+              TR:
+                language: TR
+                name: Turkish
+                supports_formality@bool: no
+              UK:
+                language: UK
+                name: Ukrainian
+                supports_formality@bool: no
+
+          outcome/noSelection:
+            if@bool: {{inputs.text is empty}}
+            then:
+              set:
+                message__context: message
+                message_id: {{caller_params.message_id}}
+              var.set:
+                inputs:
+                  key: inputs:text
+                  value: {{message_content}}
+
+          await/input:
+            form:
+              title: Translate Text
+              elements:
+                textarea/prompt_text:
+                  label: Text to translate:
+                  required@bool: yes
+                  default: {{inputs.text}}
+                sheet/prompt_target_lang:
+                  label: Target language:
+                  data@key: languages
+                  required@bool: yes
+                  limit: 40
+                  default: EN-US
+                  schema:
+                    layout:
+                      style: grid
+                      filtering@bool: no
+                      paging@bool: no
+                      headings@bool: no
+                    columns:
+                      selection/language:
+                        params:
+                          mode: single
+                      text/name:
+                        params:
+                          bold@bool: yes
+                submit:
+                  buttons:
+                    continue/translate:
+                      label: Translate
+                      icon: circle-ok
+                      icon_at: start
+                    reset/startOver:
+                      label: Start over
+                      icon_at: start
+                      icon: restart
+                      style: secondary
+
+          function/translate:
+            uri: cerb:automation:cerb.integrations.deepl.translate.function
+            output: results
+            inputs:
+              text: {{prompt_text}}
+              target_lang: {{prompt_target_lang}}
+
+          await/output:
+            form:
+              elements:
+                say:
+                  content@text:
+                    {{results.source_lang}} -> {{results.target_lang}}
+                editor:
+                  line_numbers@bool: no
+                  readonly@bool: yes
+                  syntax: text
+                  default: {{results.text}}
+
+          return:
+            snippet: {{results.text}}
+      policy_kata@raw:
+        commands:
+          function:
+            deny/uri@bool: {{uri != 'cerb:automation:cerb.integrations.deepl.translate.function'}}
+            allow@bool: yes
+  toolbar_section/mailReadToolbar:
+    fields:
+      name: DeepL Translate
+      toolbar_name: mail.read
+      priority@int: 100
+      is_disabled: 0
+      toolbar_kata@raw:
+        interaction/translate:
+          label: Translate
+          uri: cerb:automation:cerb.integrations.deepl.translate.interaction
+          icon: translate
+  toolbar_section/mailReplyToolbar:
+    fields:
+      name: DeepL Translate
+      toolbar_name: mail.reply
+      priority@int: 100
+      is_disabled: 0
+      toolbar_kata@raw:
+        interaction/translate:
+          label: Translate
+          uri: cerb:automation:cerb.integrations.deepl.translate.interaction
+          icon: translate

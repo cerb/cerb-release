@@ -117,15 +117,19 @@ class Cerb_Packages {
 		if(is_array($config_prompts) && $config_prompts) {
 			foreach($config_prompts as $config_prompt) {
 				$key = $config_prompt['key'] ?? null;
+				$is_optional = $config_prompt['optional'] ?? false;
 				
 				if(!$key)
 					throw new Exception_DevblocksValidationError(sprintf("Prompt key is missing."));
 				
 				$value = $prompts[$key] ?? null;
 				
+				if($is_optional && empty($value))
+					continue;
+				
 				switch($config_prompt['type']) {
 					case 'chooser':
-						@$is_single = $config_prompt['params']['single'] ?: false;
+						$is_single = $config_prompt['params']['single'] ?? false;
 						
 						if($is_single && 0 == strlen($value)) {
 							throw new Exception_DevblocksValidationError(sprintf("'%s' (%s) is required.", $config_prompt['label'], $key));

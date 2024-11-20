@@ -299,6 +299,7 @@ class _DevblocksTemplateBuilder {
 				'xml_tag',
 				'xml_xpath',
 				'xml_xpath_ns',
+				'xml_xpath_remove',
 				
 				'attribute',
 				//'block',
@@ -1227,6 +1228,7 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			new \Twig\TwigFunction('xml_encode', [$this, 'function_xml_encode']),
 			new \Twig\TwigFunction('xml_tag', [$this, 'function_xml_tag']),
 			new \Twig\TwigFunction('xml_xpath_ns', [$this, 'function_xml_xpath_ns']),
+			new \Twig\TwigFunction('xml_xpath_remove', [$this, 'function_xml_xpath_remove']),
 			new \Twig\TwigFunction('xml_xpath', [$this, 'function_xml_xpath']),
 		);
 	}
@@ -1739,8 +1741,10 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 	function function_xml_decode($str, $namespaces=[], $mode=null) {
 		switch(DevblocksPlatform::strLower($mode)) {
 			case 'html':
+				$str = DevblocksPlatform::services()->string()->strip4ByteChars($str);
+				$str = '<?xml encoding="UTF-8">' . $str;
 				$doc = new DOMDocument();
-				$doc->loadHTML($str);
+				$doc->loadHTML($str, LIBXML_NOERROR);
 				$xml = simplexml_import_dom($doc);
 				break;
 				
@@ -1808,6 +1812,26 @@ class _DevblocksTwigExtensions extends \Twig\Extension\AbstractExtension {
 			return $result[$element];
 		
 		return $result;
+	}
+	
+	function function_xml_xpath_remove($xml, $path) {
+		if(!($xml instanceof SimpleXMLElement))
+			return false;
+
+		$nodes_to_remove = $xml->xpath($path);
+		
+		foreach($nodes_to_remove as $node_to_remove) {
+			$parent = $node_to_remove->xpath('..')[0];
+			
+			foreach($parent->children() as $child) {
+				if($child->asXML() == $node_to_remove->asXML()) {
+					unset($child[0]);
+					break;
+				}
+			}
+		}
+		
+		return $xml;
 	}
 	
 	function function_shuffle($array) {

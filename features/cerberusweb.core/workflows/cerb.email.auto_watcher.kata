@@ -1,0 +1,43 @@
+workflow:
+  name: cerb.email.auto_watcher
+  version: 2024-11-11T23:17:32Z
+  description: Automatically add workers as a watcher when they reply to a ticket.
+  website: https://cerb.ai/workflows/cerb.email.auto_watcher/
+  requirements:
+    cerb_version: >=11.0 <11.1
+    cerb_plugins: cerberusweb.core,
+records:
+  automation_event_listener/listenerMailDraft:
+    fields:
+      name: Auto Watcher
+      event_name: mail.draft
+      priority@int: 100
+      is_disabled: 0
+      event_kata@raw:
+        automation/addWatcher:
+          uri: cerb:automation:cerb.email.auto_watcher.mailDraft
+          disabled@bool: {{is_resumed or not draft_ticket_id or not draft_worker_id}}
+  automation/automationMailDraft:
+    fields:
+      name: cerb.email.auto_watcher.mailDraft
+      extension_id: cerb.trigger.mail.draft
+      description@text:
+      script@raw:
+        start:
+          outcome/hasTicket:
+            if@bool: {{not draft_ticket_id or not draft_worker_id}}
+            then:
+              return:
+
+          record.update:
+            inputs:
+              record_type: ticket
+              record_id: {{draft_ticket_id}}
+              fields:
+                links@list:
+                  worker:{{draft_worker_id}}
+      policy_kata@raw:
+        commands:
+          record.update:
+            deny/type@bool: {{inputs.record_type is not record type ('ticket')}}
+            allow@bool: yes

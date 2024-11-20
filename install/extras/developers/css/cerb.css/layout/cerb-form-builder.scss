@@ -105,7 +105,17 @@
 		width: 99%;
 		box-sizing: border-box;
 	}
-	
+
+	// Textarea auto-sizing
+	// Source: https://css-tricks.com/the-cleanest-trick-for-autogrowing-textareas/
+	.cerb-form-builder-prompt-text .cerb-form-textarea-grow {
+		> textarea {
+			resize: none;
+			--max-lines: 20;
+			max-height: calc(2ex * var(--max-lines));
+		}
+	}
+
 	.cerb-form-builder-prompt-query .ace_editor {
 		border: 1px solid var(--cerb-color-background-contrast-220);
 		width: 99%;

@@ -202,7 +202,9 @@ class _DevblocksStringService {
 		
 		/* @var $node DOMElement */
 		
-		switch(DevblocksPlatform::strLower($node->tagName)) {
+		$tag_name = DevblocksPlatform::strLower($node->tagName);
+		
+		switch($tag_name) {
 			case 'a':
 				if(!($label = trim($node->textContent)))
 					break;
@@ -228,16 +230,34 @@ class _DevblocksStringService {
 			case 'br':
 				$text .= "\n";
 				break;
-				
-			case 'p':
-			case 'div':
+			
 			case 'h1':
 			case 'h2':
 			case 'h3':
 			case 'h4':
 			case 'h5':
 			case 'h6':
-				if($text && substr($text,-1) != "\n")
+				if($text && !str_ends_with($text, "\n"))
+					$text .= "\n";
+				
+				$text .= match($tag_name) {
+					'h1' => '# ',
+					'h2' => '## ',
+					'h3' => '### ',
+					'h4' => '#### ',
+					'h5' => '##### ',
+					'h6' => '###### ',
+				};
+				
+				foreach($node->childNodes as $child)
+					$this->_recurseNodeToText($child, $text, $max_length);
+				
+				$text .= "\n";
+				break;
+			
+			case 'p':
+			case 'div':
+				if($text && !str_ends_with($text, "\n"))
 					$text .= "\n";
 				
 				foreach($node->childNodes as $child)

@@ -1473,6 +1473,7 @@ let twigAutocompleteSuggestions = {
 		{ value: "xml_encode(xml)", meta: "function" },
 		{ value: "xml_xpath(xml,path,element)", meta: "function" },
 		{ value: "xml_xpath_ns(xml,prefix,ns)", meta: "function" },
+		{ value: "xml_xpath_remove(xml,path)", meta: "function" },
 		{ value: "xml_tag(xml)", meta: "function" },
 	]
 };

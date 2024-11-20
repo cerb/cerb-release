@@ -3,7 +3,9 @@
 	<h6>{$label}</h6>
 
 	<div style="margin-left:10px;">
-		<textarea name="prompts[{$var}]" style="width:100%;min-height:4.5em;box-sizing:border-box;" placeholder="{$placeholder}">{$value|default:$default}</textarea>
+		<div class="cerb-form-textarea-grow">
+			<textarea name="prompts[{$var}]" placeholder="{$placeholder}">{$value|default:$default}</textarea>
+		</div>
 		{if $max_length && is_numeric($max_length)}
 			<div data-cerb-character-count style="text-align:right;"></div>
 		{/if}
@@ -20,11 +22,13 @@ $(function() {
 	var $counter = $prompt.find('[data-cerb-character-count]');
 	var counter_max = {$max_length|json_encode};
 	
-	// [TODO] Links are always 23 characters on Twitter
-	if($counter) {
-		$input.on('input', function(e) {
-			e.stopPropagation();
-			
+	$input.on('input', function(e) {
+		e.stopPropagation();
+
+		this.style.height = 'auto';
+		this.style.height = this.scrollHeight + 'px';
+
+		if($counter) {
 			var counter_cur = input.value.length;
 			$counter.text(counter_cur + ' / ' + counter_max);
 
@@ -33,9 +37,9 @@ $(function() {
 			} else {
 				$counter.css('color', '');
 			}
-		});
-	}
-	
-	$input.triggerHandler('keyup');
+		}
+	});
+
+	$input.triggerHandler('input');
 });
 </script>

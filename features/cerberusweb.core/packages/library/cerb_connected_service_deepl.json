@@ -1,0 +1,66 @@
+{
+  "package": {
+    "name": "Connected Service: DeepL",
+    "revision": 1,
+    "requires": {
+      "cerb_version": "10.0.0",
+      "plugins": [
+
+      ]
+    },
+    "library": {
+      "name": "DeepL",
+      "uri": "cerb_connected_service_deepl",
+      "description": "Integration with DeepL",
+      "instructions": "# Instructions\r\n\r\n* Enter your API key from <https://www.deepl.com/en/your-account/keys>",
+      "point": "connected_service",
+      "image": "data:image/png;base64,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"
+    },
+    "configure": {
+      "placeholders": [],
+      "prompts": [
+        {
+          "type": "text",
+          "label": "API Key",
+          "key": "prompt_api_key",
+          "params": {
+            "default": "",
+            "placeholder": "(paste your API Key)"
+          }
+        },
+        {
+          "type": "text",
+          "label": "Alias",
+          "key": "prompt_name",
+          "params": {
+            "default": "deepl",
+            "placeholder": "(enter a URI, a-z,0-9,_)"
+          }
+        }
+      ]
+    }
+  },
+  "records": [
+    {
+      "uid": "service_deepl",
+      "_context": "connected_service",
+      "name": "DeepL",
+      "extension_id": "cerb.service.provider.token.bearer",
+      "params": {
+        "token_name": "DeepL-Auth-Key"
+      }
+    },
+    {
+      "uid": "account_deepl",
+      "_context": "connected_account",
+      "name": "DeepL",
+      "service_id": "{{{uid.service_deepl}}}",
+      "owner__context": "cerberusweb.contexts.app",
+      "owner_id": "0",
+      "uri": "{{{prompt_name}}}",
+      "params": {
+        "token": "{{{prompt_api_key}}}"
+      }
+    }
+  ]
+}

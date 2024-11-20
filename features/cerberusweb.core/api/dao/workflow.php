@@ -1973,15 +1973,20 @@ function getContextIdFromAlias($alias) {
 						'name' => '@Mention Email Notifications',
 						'description' => "Email workers when they are @mentioned in a comment",
 					],
+					'cerb.auto_dispatcher' => [
+						'id' => 'cerb.auto_dispatcher',
+						'name' => 'Auto Dispatcher',
+						'description' => 'Automatically assign tickets to workers based on priority',
+					],
 					'cerb.auto_responder' => [
 						'id' => 'cerb.auto_responder',
 						'name' => 'Auto Responder',
 						'description' => 'Send an automatic response when new tickets are opened',
 					],
-					'cerb.auto_dispatcher' => [
-						'id' => 'cerb.auto_dispatcher',
-						'name' => 'Auto Dispatcher',
-						'description' => 'Automatically assign tickets to workers based on priority',
+					'cerb.email.auto_watcher' => [
+						'id' => 'cerb.email.auto_watcher',
+						'name' => 'Auto Watcher',
+						'description' => 'Automatically add workers as a watcher when they reply to a ticket',
 					],
 					'cerb.capture_feedback' => [
 						'id' => 'cerb.capture_feedback',
@@ -1991,7 +1996,7 @@ function getContextIdFromAlias($alias) {
 					'cerb.satisfaction.surveys' => [
 						'id' => 'cerb.satisfaction.surveys',
 						'name' => 'Customer Satisfaction Surveys',
-						'description' => 'Gather and monitor customer satisfaction metrics like NPS, CSAT, and CES.',
+						'description' => 'Gather and monitor customer satisfaction metrics like NPS, CSAT, and CES',
 					],
 					'cerb.email.dmarc_reports' => [
 						'id' => 'cerb.email.dmarc_reports',
@@ -2007,6 +2012,11 @@ function getContextIdFromAlias($alias) {
 						'id' => 'cerb.integrations.ipstack',
 						'name' => 'Geolocate IPs (IPstack)',
 						'description' => 'Geolocate IPs and render locations on maps',
+					],
+					'cerb.integrations.gitlab.issues' => [
+						'id' => 'cerb.integrations.gitlab.issues',
+						'name' => 'Issue Tracking (GitLab)',
+						'description' => 'Search and link GitLab issues to tickets',
 					],
 					'cerb.email.pgp_inline' => [
 						'id' => 'cerb.email.pgp_inline',
@@ -2030,8 +2040,18 @@ function getContextIdFromAlias($alias) {
 					],
 					'cerb.sla' => [
 						'id' => 'cerb.sla',
-						'name' => 'Service Level Agreemenets',
+						'name' => 'Service Level Agreements',
 						'description' => 'Enforce Service Level Agreements (SLA) for tickets from organizations',
+					],
+					'cerb.integrations.slack.notifications' => [
+						'id' => 'cerb.integrations.slack.notifications',
+						'name' => 'Slack Notifications',
+						'description' => 'Notify a Slack channel about new ticket messages',
+					],
+					'cerb.integrations.deepl.translate' => [
+						'id' => 'cerb.integrations.deepl.translate',
+						'name' => 'Translate (DeepL)',
+						'description' => 'Translate inbound and outbound email messages using the DeepL API',
 					],
 					'cerb.tutorial' => [
 						'id' => 'cerb.tutorial',
