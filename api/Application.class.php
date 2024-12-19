@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-const APP_BUILD = 2024112001;
-const APP_VERSION = '11.0.1';
+const APP_BUILD = 2024120501;
+const APP_VERSION = '11.0.2';
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -74,6 +74,7 @@ class CerbPriorityQueueDesc extends SplPriorityQueue {
 
 enum CerbErrorReason {
 	case AccessDenied;
+	case AccessDeniedToken;
 	case DatabaseConnectionError;
 	case NoContent;
 	case NotFound;
@@ -85,6 +86,10 @@ enum CerbErrorReason {
 			self::AccessDenied => [
 				'code' => 403,
 				'template' => '403_access_denied',
+			],
+			self::AccessDeniedToken => [
+				'code' => 401,
+				'template' => '401_access_denied_token',
 			],
 			self::DatabaseConnectionError => [
 				'code' => 503,

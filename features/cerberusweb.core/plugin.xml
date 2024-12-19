@@ -7071,6 +7071,19 @@
 			</extension>
 
 			<extension point="cerberusweb.ui.page.section">
+				<id>core.page.setup.developers.requirements</id>
+				<name>Requirements</name>
+				<class>
+					<file>api/uri/config/requirements.php</file>
+					<name>PageSection_SetupDevelopersRequirements</name>
+				</class>
+				<params>
+					<param key="page_id" value="core.page.configuration" />
+					<param key="uri" value="requirements" />
+				</params>
+			</extension>
+
+			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.setup.developers.workflow_builder</id>
 				<name>Workflow Builder</name>
 				<class>

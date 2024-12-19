@@ -491,7 +491,7 @@ abstract class C4_AbstractView {
 					$params['req_'.$key] = $param;
 				}
 			} else {
-				self::marqueeFlush($this->id);
+				self::marqueeFlush();
 				self::marqueeAppend($this->id, '[Warning] Required query: ' . $error);
 			}
 		}
@@ -1057,12 +1057,15 @@ abstract class C4_AbstractView {
 	// Marquee
 	
 	static function setMarqueeContextCreated($view_id, $context, $context_id) {
+		$strings = DevblocksPlatform::services()->string();
 		$string = null;
 		
 		if(null != ($ctx = Extension_DevblocksContext::get($context))) {
 			if(null != ($meta = $ctx->getMeta($context_id))) {
 				if(!isset($meta['name']) || !isset($meta['permalink']))
 					return;
+				
+				$meta_name = $strings->strip4ByteChars($meta['name']);
 				
 				// Use abstract popups if we can
 				if($ctx instanceof IDevblocksContextPeek) {
@@ -1071,7 +1074,7 @@ abstract class C4_AbstractView {
 						DevblocksPlatform::strEscapeHtml($context),
 						DevblocksPlatform::strEscapeHtml($context_id),
 						DevblocksPlatform::strEscapeHtml($meta['permalink']),
-						DevblocksPlatform::strEscapeHtml($meta['name'])
+						DevblocksPlatform::strEscapeHtml($meta_name)
 					);
 					
 				// Otherwise, try linking to profile pages
@@ -1079,14 +1082,14 @@ abstract class C4_AbstractView {
 					$string = sprintf("New %s created: <a href='%s'><b>%s</b></a>",
 						DevblocksPlatform::strEscapeHtml(DevblocksPlatform::strLower($ctx->manifest->name)),
 						DevblocksPlatform::strEscapeHtml($meta['permalink']),
-						DevblocksPlatform::strEscapeHtml($meta['name'])
+						DevblocksPlatform::strEscapeHtml($meta_name)
 					);
 					
 				// Lastly, just output some text
 				} else {
 					$string = sprintf("New %s created: <b>%s</b>",
 						DevblocksPlatform::strEscapeHtml(DevblocksPlatform::strLower($ctx->manifest->name)),
-						DevblocksPlatform::strEscapeHtml($meta['name'])
+						DevblocksPlatform::strEscapeHtml($meta_name)
 					);
 				}
 			}
@@ -1121,15 +1124,16 @@ abstract class C4_AbstractView {
 			return false;
 		
 		$visit->append($view_id . '_marquee', $string);
+		return true;
 	}
 	
-	public function marqueeFlush() : void {
-		self::_marqueeFlush($this->id);
+	public function marqueeFlush() : ?array {
+		return self::_marqueeFlush($this->id);
 	}
 	
 	static function _marqueeFlush($view_id) {
 		if(null == ($visit = CerberusApplication::getVisit()))
-			return false;
+			return null;
 		
 		$mar_key = $view_id . '_marquee';
 		

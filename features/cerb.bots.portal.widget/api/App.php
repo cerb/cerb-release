@@ -473,10 +473,12 @@ class Portal_ConvoBotWidget extends Extension_CommunityPortal {
 			case 'assets':
 				$file = array_shift($path);
 				
-				// [TODO] Cache headers, and &v= cache killers
 				switch($file) {
 					case 'embed.js':
-						DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/javascript');
+						DevblocksPlatform::services()->http()
+							->setHeader('Cache-Control', sprintf('max-age=%d', 7200))
+							->setHeader('Content-Type', 'text/javascript')
+						;
 						$tpl = DevblocksPlatform::services()->template();
 						$tpl->display('devblocks:cerb.bots.portal.widget::widget/embed.js');
 						break;

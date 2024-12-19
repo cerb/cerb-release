@@ -127,12 +127,13 @@
 					<li><a href="{devblocks_url}c=config&a=automation_logs{/devblocks_url}">Automation Logs</a></li>
 					<li><a href="{devblocks_url}c=config&a=bot_scripting_tester{/devblocks_url}">Automation Scripting Tester</a></li>
 					<li><a href="{devblocks_url}c=config&a=data_query_tester{/devblocks_url}">Data Query Tester</a></li>
-					<li><a href="{devblocks_url}c=config&a=workflow_builder{/devblocks_url}">Workflow Builder</a></li>
 					<li><a href="{devblocks_url}c=config&a=database_schema{/devblocks_url}">Database Schema</a></li>
 					<li><a href="{devblocks_url}c=config&a=export_bots{/devblocks_url}">Export Bots</a></li>
 					<li><a href="{devblocks_url}c=config&a=reference_icons{/devblocks_url}">Icon Reference</a></li>
 					<li><a href="{devblocks_url}c=config&a=oauth2_token_generator{/devblocks_url}">OAuth2 Token Generator</a></li>
 					<li><a href="{devblocks_url}c=config&a=platform{/devblocks_url}">Platform</a></li>
+					<li><a href="{devblocks_url}c=config&a=requirements{/devblocks_url}">Requirements Checker</a></li>
+					<li><a href="{devblocks_url}c=config&a=workflow_builder{/devblocks_url}">Workflow Builder</a></li>
 
 					{$exts = Extension_PageMenuItem::getExtensions(true, 'core.page.configuration','core.setup.menu.developers')}
 					{if !empty($exts)}<li><hr></li>{/if}

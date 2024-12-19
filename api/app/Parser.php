@@ -480,7 +480,7 @@ class CerberusParserModel {
 		
 		// Try matching references
 		foreach(array_keys($target_message_ids) as $ref) {
-			if($ref && @preg_match('#\<(.*?)\@cerb\d{0,1}\>#', $ref)) {
+			if($ref && @preg_match('#\<(.*?)\.([a-f0-9]{8})\@cerb\>#', $ref)) {
 				return $ref;
 			}
 		}

@@ -3984,7 +3984,7 @@ class DevblocksPlatform extends DevblocksEngine {
 	}
 	
 	static function exit(int $status_code=200) : never {
-		if($status_code && php_sapi_name() != 'cli')
+		if(!headers_sent() && $status_code && php_sapi_name() != 'cli')
 			http_response_code($status_code);
 		
 		exit;
@@ -4000,7 +4000,7 @@ class DevblocksPlatform extends DevblocksEngine {
 	}
 	
 	static function dieWithHttpErrorRaw($message, $status_code=500) : never {
-		if(php_sapi_name() != 'cli') {
+		if(!headers_sent() && php_sapi_name() != 'cli') {
 			switch ($status_code) {
 				case 403: // Forbidden
 				case 404: // Not found
