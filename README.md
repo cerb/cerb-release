@@ -12,7 +12,7 @@ The most common use case is converting standard POP3/IMAP mailboxes (e.g. `suppo
 
 An emerging use case is integrating with large language models (LLMs) to automatically suggest answers to customer requests based on existing team knowledge (documentation, FAQs, articles).
 
-![image](https://cerb.ai/assets/images/home/dashboards.png)
+![image](https://cerb.ai/assets/images/home/features/workspaces.png)
 
 # Installation
 
