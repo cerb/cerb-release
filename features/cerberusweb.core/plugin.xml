@@ -4127,6 +4127,16 @@
 		</extension>
 
 		<extension point = "cerb.automation.api_command">
+			<id>cerb.commands.worklist.query.debug</id>
+			<name>cerb.commands.worklist.query.debug</name>
+			<class>
+				<file>api/automations/api_commands/cerb.worklist.query.debug.php</file>
+				<name>ApiCommand_CerbWorklistQueryDebug</name>
+			</class>
+			<params />
+		</extension>
+
+		<extension point = "cerb.automation.api_command">
 			<id>cerb.commands.worklist.explorer.create</id>
 			<name>cerb.commands.worklist.explorer.create</name>
 			<class>
@@ -7004,23 +7014,10 @@
 					<param key="uri" value="data_query_tester" />
 				</params>
 			</extension>
-			
-			<extension point="cerberusweb.ui.page.section">
-				<id>core.page.setup.developers.data_query_builder</id>
-				<name>Data Query Builder</name>
-				<class>
-					<file>api/uri/config/data_query_builder.php</file>
-					<name>PageSection_SetupDevelopersDataQueryBuilder</name>
-				</class>
-				<params>
-					<param key="page_id" value="core.page.configuration" />
-					<param key="uri" value="data_query_builder" />
-				</params>
-			</extension>
 
 			<extension point="cerberusweb.ui.page.section">
 				<id>core.page.setup.developers.database_schema</id>
-				<name>Data Query Tester</name>
+				<name>Database Schema</name>
 				<class>
 					<file>api/uri/config/database_schema.php</file>
 					<name>PageSection_SetupDevelopersDatabaseSchema</name>
