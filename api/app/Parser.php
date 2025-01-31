@@ -376,6 +376,17 @@ class CerberusParserModel {
 					$this->_ticket_model = DAO_Ticket::get($this->_ticket_id);
 					$this->_message_id = $ids['message_id'];
 					$this->_is_new = empty($this->_ticket_model->first_message_id);
+					$this->logEventResults('mail.thread', [
+						DevblocksDictionaryDelegate::instance([
+							'__handler' => 'references/' . uniqid(),
+							'__handler_uri' => 'cerb:app:0',
+							'__return' => [
+								'reference' => $ref,
+								'message_id' => $this->_message_id ?? null,
+								'ticket_id' => $this->_ticket_id ?? null,
+							],
+						])
+					]);
 					return;
 				}
 			}
@@ -396,6 +407,17 @@ class CerberusParserModel {
 						$this->_ticket_model = $ticket;
 						$this->_message_id = $ticket->last_message_id;
 						$this->_is_new = empty($this->_ticket_model->first_message_id);
+						$this->logEventResults('mail.thread', [
+							DevblocksDictionaryDelegate::instance([
+								'__handler' => 'subject/' . uniqid(),
+								'__handler_uri' => 'cerb:app:0',
+								'__return' => [
+									'mask' => $mask,
+									'message_id' => $this->_message_id ?? null,
+									'ticket_id' => $this->_ticket_id ?? null,
+								],
+							])
+						]);
 						return;
 					}
 				}
@@ -2073,9 +2095,20 @@ class CerberusParser {
 			$model->getParserMessage()
 		))) {
 			// Update our model with the results of the routing rules
-			if(is_array($routing_rules))
-			foreach($routing_rules as $rule) {
-				$rule->run($model);
+			if(is_array($routing_rules) && $routing_rules) {
+				$routing_results = [];
+				
+				foreach ($routing_rules as $rule) { /* @var $rule Model_MailToGroupRule */
+					$rule->run($model);
+					$routing_results[] = DevblocksDictionaryDelegate::instance([
+						'__handler' => 'rule/' . ($rule->id ?? ''),
+						'__handler_uri' => sprintf('cerb:mail_to_group_rule:%d-%s', $rule->id, DevblocksPlatform::strToPermalink($rule->name)),
+						'__return' => [
+							'actions' => $rule->actions
+						]
+					]);
+				}
+				$model->logEventResults('mail.routing.rule.legacy', $routing_results);
 			}
 		}
 	}
