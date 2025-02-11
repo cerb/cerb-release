@@ -227,9 +227,12 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 				
 				DevblocksPlatform::services()->http()->setHeader('Content-Type', 'text/html');
 				
+				$interaction_params = DevblocksPlatform::services()->url()->arrayToQueryString($_GET ?? []);
+				
 				if(null != ($interaction = $stack)) {
-					$interaction_params = DevblocksPlatform::services()->url()->arrayToQueryString($_GET ?? []);
-					
+					$tpl->assign('page_interaction', $interaction);
+					$tpl->assign('page_interaction_params', $interaction_params);
+				} elseif (null != ($interaction = $portal_schema->getPageInteraction())) {
 					$tpl->assign('page_interaction', $interaction);
 					$tpl->assign('page_interaction_params', $interaction_params);
 				}
@@ -365,6 +368,15 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 			]);
 		}
 		
+		// If the first return is an await:interaction:
+		if(
+			'await' == $automation_results->getKeyPath('__exit')
+			&& $automation_results->getKeyPath('__return.interaction')
+		) {
+			$continuation = DAO_AutomationContinuation::getByToken($continuation_token);
+			$this->_prepareAwaitInteraction($automation_results, $continuation);
+		}
+		
 		return [
 			'token' => $continuation_token,
 			'state_data' => $state_data,
@@ -440,7 +452,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 		$validation = DevblocksPlatform::services()->validation();
 		$tpl_builder = DevblocksPlatform::services()->templateBuilder();
 		
-		$prompts_without_output = ['say','submit'];
+		$prompts_without_output = ['say'];
 		
 		$form_components = AutomationTrigger_InteractionWebsite::getFormComponentMeta();
 		
@@ -752,7 +764,7 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 		]);		
 	}
 	
-	private function _respondAwaitInteraction(DevblocksDictionaryDelegate $automation_results, Model_AutomationContinuation $continuation) {
+	private function _prepareAwaitInteraction(DevblocksDictionaryDelegate $automation_results, Model_AutomationContinuation $continuation) {
 		$event_handler = DevblocksPlatform::services()->ui()->eventHandler();
 		
 		// Must have a URI
@@ -827,7 +839,13 @@ class Portal_WebsiteInteractions extends Extension_CommunityPortal {
 			DAO_AutomationContinuation::STATE_DATA => json_encode($continuation->state_data),
 		]);
 		
-		if($delegate_results->getKeyPath('__return.interaction')) {
+		return [$delegate_results, $delegate_continuation];
+	}
+	
+	private function _respondAwaitInteraction(DevblocksDictionaryDelegate $automation_results, Model_AutomationContinuation $continuation) : void {
+		[$delegate_results, $delegate_continuation] = $this->_prepareAwaitInteraction($automation_results, $continuation);
+		
+		if ($delegate_results->getKeyPath('__return.interaction')) {
 			$this->_respondAwaitInteraction($delegate_results, $delegate_continuation);
 		} else {
 			$this->_respondAwaitForm($delegate_results, $delegate_continuation);
@@ -917,6 +935,10 @@ class CerbPortalWebsiteInteractions_Model {
 		}
 		
 		return $navbar;
+	}
+	
+	function getPageInteraction() {
+		return $this->_schema['layout']['page']['interaction'] ?? null;
 	}
 	
 	function getContentSecurityPolicy() {

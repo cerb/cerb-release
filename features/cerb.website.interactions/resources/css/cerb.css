@@ -2,7 +2,10 @@
     --cerb-interaction-badge-bg-color: rgb(207, 221, 235);
     --cerb-interaction-badge-border: 3px solid rgb(65, 172, 255);
     --cerb-interaction-badge-shadow: 0 0 12px 2px rgb(50, 50, 50);
-    --cerb-interaction-button-alt-bg-color: rgb(230, 230, 230);
+    --cerb-interaction-button-alt-bg-color: rgb(225, 225, 225);
+    --cerb-interaction-button-alt-text-color: rgb(0, 0, 0);
+    --cerb-interaction-button-outline-border-color: rgb(100, 100, 100);
+    --cerb-interaction-button-outline-text-color: rgb(100, 100, 100);
     --cerb-interaction-button-bg-color: rgb(70, 150, 250);
     --cerb-interaction-button-text-color: white;
     --cerb-interaction-form-element-border: 1px solid rgb(220,220,220);
@@ -38,6 +41,9 @@
     position: relative;
     max-width: 95vw;
     margin: 1em auto;
+}
+
+.cerb-interaction-popup--style-embed .cerb-interaction-popup--title {
 }
 
 .cerb-interaction-popup--style-float {
@@ -89,14 +95,9 @@
 
 .cerb-interaction-popup--title {
     text-align: center;
-    background-color: var(--cerb-interaction-window-title-bg-color);
-    background: var(--cerb-interaction-window-title-bg-gradient);    
-    color: var(--cerb-interaction-window-title-text-color);
     font-weight: bold;
-    width: 100%;
-    height: 40px;
-    line-height: 40px;
-    border-radius: 10px 10px 0 0;
+    font-size: 32px;
+    padding: 10px;
 }
 
 .cerb-interaction-popup--style-float .cerb-interaction-popup--container {
@@ -228,45 +229,47 @@
 }
 
 .cerb-interaction-popup--form-elements-button {
+    flex:1 1;
     background-color: var(--cerb-interaction-button-bg-color);
     color: var(--cerb-interaction-button-text-color);
     height: unset;
     font-size: 1.1em;
     border: 0;
-    border-radius: 50px;
+    border-radius: 5px;
     padding: 10px;
     cursor: pointer;
+    min-width: 200px;
+}
+
+.cerb-button-style-secondary {
+    background-color: var(--cerb-interaction-button-alt-bg-color);
+    color: var(--cerb-interaction-button-alt-text-color);
+}
+
+.cerb-button-style-outline {
+    background: none;
+    color: var(--cerb-interaction-button-outline-text-color);
+    border: 1px solid var(--cerb-interaction-button-outline-border-color);
 }
 
 .cerb-interaction-popup--form-elements-button:hover {
-    filter: brightness(1.2);
+    filter: brightness(0.8);
 }
 
 .cerb-interaction-popup--form-elements-submit {
-    display:flex;
-    margin-top:50px;
+    display: flex;
+    flex-wrap: wrap;
+    margin-top:1.5em;
 }
 
 .cerb-interaction-popup--form-elements-continue {
-    flex:1 1;
-    max-width:5em;
-    height: 2em;
-    background-image: url(continue.svg);
-    background-repeat: no-repeat;
-    background-position: center center;
+    font-weight: bold;
+    margin: 0.25em;
 }
 
 .cerb-interaction-popup--form-elements-reset {
-    background-color: var(--cerb-interaction-button-alt-bg-color);
-    flex:1 1;
-    max-width:5em;
-    background-image: url(reset.svg);
-    background-repeat: no-repeat;
-    background-position: center center;
-}
-
-.cerb-interaction-popup--form-elements-spacer {
-    flex: 2 2;
+    font-weight: bold;
+    margin: 0.25em;
 }
 
 .cerb-interaction-popup--form-elements-text input[type=text],
@@ -331,6 +334,10 @@
     padding: 0 0 0 5px;
 }
 
+.cerb-interaction-popup--form-elements-sheet .cerb-sheet--row-title a {
+    font-weight: bold;
+}
+
 .cerb-interaction-popup--form-elements-sheet .cerb-sheet tbody.cerb-sheet--row .cerb-sheet--row-selection {
     width: 20px;
     text-align: center;
@@ -364,6 +371,44 @@
     /*background-color: #ffffc8;*/
 }
 
+/* Sheet fieldsets */
+
+.cerb-interaction-popup--form-elements-sheet .cerb-sheet-fieldsets .cerb-sheet--row-title {
+    font-size: 1.1em;
+    font-weight: bold;
+    padding: 0.3em 0;
+}
+
+.cerb-interaction-popup--form-elements-sheet .cerb-sheet-fieldsets .cerb-sheet--row-title a {
+    font-weight: bold;
+}
+
+.cerb-interaction-popup--form-elements-sheet .cerb-sheet-fieldsets .cerb-sheet--row-selection {
+    width: 0;
+    text-align: center;
+    vertical-align: top;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+}
+
+.cerb-interaction-popup--form-elements-sheet .cerb-sheet-fieldsets .cerb-sheet--row td {
+    padding-bottom: 0.3em;
+}
+
+.cerb-interaction-popup--form-elements-sheet .cerb-sheet-fieldsets .cerb-sheet--row tr:last-child td {
+    padding-bottom: 1em;
+}
+
+.cerb-interaction-popup--form-elements-sheet .cerb-sheet-fieldsets td[data-column-key] {
+    text-transform: uppercase;
+    font-size: 0.7em;
+    padding: 0.2em 1em 0 0;
+    text-align: right;
+    vertical-align: top;
+}
+
+/* Sheet buttons */
+
 .cerb-interaction-popup--form-elements-sheet .cerb-sheet-buttons {
     margin-top: 5px;
 }
@@ -371,11 +416,12 @@
 .cerb-interaction-popup--form-elements-sheet .cerb-sheet-buttons--button {
     background: var(--cerb-interaction-button-bg-color) none;
     color: var(--cerb-interaction-button-text-color);
-    padding: 10px 10px;
+    padding: 10px;
     border-radius: 5px;
     margin: 5px 0 0 0;
     cursor: pointer;
     text-align: center;
+    font-weight: bold;
 }
 
 .cerb-interaction-popup--form-elements-sheet .cerb-sheet-buttons--button:hover {

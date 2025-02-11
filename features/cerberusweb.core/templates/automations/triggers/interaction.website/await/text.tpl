@@ -9,19 +9,19 @@
 	let $prompt = document.querySelector('#{$element_id}');
 	let $input = $prompt.querySelector('input[type=text]');
 
-	// Move the cursor to the end of the text
-	$input.focus();
-	$input.setSelectionRange($input.value.length, $input.value.length);
-
 	$input.addEventListener('keydown', function(e) {
 		if (e.keyIdentifier==='U+000A' || e.keyIdentifier==='Enter' || e.keyCode===13) {
 			e.preventDefault();
 
 			let $popup = $prompt.closest('.cerb-interaction-popup');
 
-			// If we have a continue button
-			if(1 === $popup.querySelectorAll('.cerb-interaction-popup--form-elements-continue').length) {
-				$popup.dispatchEvent($$.createEvent('cerb-interaction-event--submit'));
+			let $submits = $popup.querySelectorAll('.cerb-interaction-popup--form-elements-continue');
+
+			// If we have multiple submits, click the first one when pressing enter
+			if($submits.length) {
+				$submits[0].dispatchEvent(
+					new MouseEvent("click", { "view": window, "bubbles": true, "cancelable": false })
+				);
 			}
 		}
 	});
