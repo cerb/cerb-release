@@ -681,10 +681,10 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 		} else if(DevblocksPlatform::strStartsWith($key, 'cf_')) {
 			$custom_field_id = intval(substr($key, 3));
 			
-			if(false != ($custom_field = DAO_CustomField::get($custom_field_id)))
+			if(($custom_field = DAO_CustomField::get($custom_field_id)))
 				switch($custom_field->type) {
 					case Model_CustomField::TYPE_LINK:
-						if(false == ($dao_context = Extension_DevblocksContext::get($custom_field->params['context'], true)))
+						if(!($dao_context = Extension_DevblocksContext::get($custom_field->params['context'], true)))
 							break;
 							
 						$models = $dao_context->getModelObjects($values);
@@ -696,7 +696,6 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 							$map[$id] = $dict->_label;
 						
 						return $map;
-						break;
 						
 					default:
 						if(null != ($field_ext = $custom_field->getTypeExtension())) {
@@ -742,10 +741,10 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 		}
 		
 		foreach($context_map as $context => $ids) {
-			if(false == ($context_ext = Extension_DevblocksContext::get($context)))
+			if(!($context_ext = Extension_DevblocksContext::get($context)))
 				continue;
 			
-			if(false == ($models = $context_ext->getModelObjects($ids)))
+			if(!($models = $context_ext->getModelObjects($ids)))
 				continue;
 			
 			$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, $context);
@@ -893,10 +892,10 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				$query = mb_substr($query, 1);
 			}
 			
-			if(false == ($ext_attachments = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_ATTACHMENT)))
+			if(!($ext_attachments = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_ATTACHMENT)))
 				return;
 			
-			if(false == (Extension_DevblocksContext::get($context)))
+			if(!(Extension_DevblocksContext::get($context)))
 				return;
 			
 			$view = $ext_attachments->getTempView();
@@ -905,7 +904,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			
 			$params = $view->getParams();
 			
-			$query_parts = DAO_Attachment::getSearchQueryComponents(array(), $params);
+			$query_parts = DAO_Attachment::getSearchQueryComponents([], $params);
 			
 			$query_parts['select'] = sprintf("SELECT %s ", SearchFields_Attachment::getPrimaryKey());
 			
@@ -936,7 +935,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				$query = mb_substr($query, 1);
 			}
 			
-			if(false == ($ext = Extension_DevblocksContext::get($context)))
+			if (!($ext = Extension_DevblocksContext::get($context)))
 				return;
 			
 			$view = $ext->getTempView();
@@ -945,24 +944,46 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			
 			$params = $view->getParams();
 			
-			if(false == ($dao_class = $ext->getDaoClass()))
+			if (!($dao_class = $ext->getDaoClass()))
 				return;
 			
-			if(false == ($search_class = $ext->getSearchClass()))
+			if (!($search_class = $ext->getSearchClass()))
 				return;
 			
 			$query_parts = $dao_class::getSearchQueryComponents([], $params);
 			
 			$query_parts['select'] = sprintf("SELECT %s ", $search_class::getPrimaryKey());
 			
-			$sql = 
+			$sql =
 				$query_parts['select']
 				. $query_parts['join']
 				. $query_parts['where']
 				. $query_parts['sort']
-				;
+			;
 			
-			if(!empty($where_key)) {
+			// If we can resolve the linked records to IDs, replace the subquery
+			if(APP_OPT_SQL_SUBQUERY_TO_IDS) {
+				try {
+					$db = DevblocksPlatform::services()->database();
+					
+					$preview_rows = $db->GetArrayReader($sql . ' LIMIT ' . APP_OPT_SQL_SUBQUERY_TO_IDS_LIMIT, 1500);
+					
+					if(is_array($preview_rows)) {
+						if(count($preview_rows) < APP_OPT_SQL_SUBQUERY_TO_IDS_LIMIT) {
+							$preview_ids = array_unique(array_map(function ($row) use (&$db) {
+								$preview_id = $row[array_key_first($row)];
+								return is_numeric($preview_id) ? intval($preview_id) : $db->qstr($preview_id);
+							}, $preview_rows));
+							
+							$sql = $preview_ids ? implode(',', $preview_ids) : '0';
+						}
+					}
+				} catch (Exception_DevblocksDatabaseQueryTimeout) {
+					// If we time out on our estimate, do the full query as planned
+				}
+			}
+			
+			if (!empty($where_key)) {
 				$subquery_sql = sprintf("%s %s (%s)",
 					$where_key,
 					$not ? 'NOT IN' : 'IN',
@@ -970,7 +991,10 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				);
 			}
 			
-			return sprintf($subquery_sql, $sql);
+			if (str_contains($subquery_sql, '%s'))
+				$subquery_sql = sprintf($subquery_sql, $sql);
+			
+			return $subquery_sql;
 		}
 	}
 	
@@ -985,7 +1009,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				$query = mb_substr($query, 1);
 			}
 			
-			if(false == ($ext = Extension_DevblocksContext::get($context)))
+			if(!($ext = Extension_DevblocksContext::get($context)))
 				return;
 			
 			$view = $ext->getTempView();
@@ -994,13 +1018,13 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			
 			$params = $view->getParams();
 			
-			if(false == ($dao_class = $ext->getDaoClass()) || !class_exists($dao_class))
+			if(!($dao_class = $ext->getDaoClass()) || !class_exists($dao_class))
 				return;
 			
-			if(false == ($search_class = $ext->getSearchClass()) || !class_exists($search_class))
+			if(!($search_class = $ext->getSearchClass()) || !class_exists($search_class))
 				return;
 			
-			if(false == ($primary_key = $search_class::getPrimaryKey()))
+			if(!($primary_key = $search_class::getPrimaryKey()))
 				return;
 			
 			$query_parts = $dao_class::getSearchQueryComponents(array(), $params);
@@ -1013,6 +1037,28 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				. $query_parts['where']
 				. $query_parts['sort']
 				;
+			
+			if(APP_OPT_SQL_SUBQUERY_TO_IDS) {
+				// Run a speculative query to see if we can convert subqueries to ids[]
+				try {
+					$db = DevblocksPlatform::services()->database();
+					
+					$preview_rows = $db->GetArrayReader($sql . ' LIMIT ' . APP_OPT_SQL_SUBQUERY_TO_IDS_LIMIT, 1500);
+					
+					if(is_array($preview_rows)) {
+						if(count($preview_rows) < APP_OPT_SQL_SUBQUERY_TO_IDS_LIMIT) {
+							$preview_ids = array_unique(array_map(function ($row) use (&$db) {
+								$preview_id = $row[array_key_first($row)];
+								return is_numeric($preview_id) ? intval($preview_id) : $db->qstr($preview_id);
+							}, $preview_rows));
+							
+							$sql = $preview_ids ? implode(',', $preview_ids) : '0';
+						}
+					}
+				} catch (Exception_DevblocksDatabaseQueryTimeout) {
+					// If we time out on our estimate, do the full query as planned
+				}
+			}
 			
 			return sprintf("%s %sIN (%s) ",
 				Cerb_OrmHelper::escape($join_key),
@@ -1027,7 +1073,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 		if($param->operator == DevblocksSearchCriteria::OPER_CUSTOM) {
 			list($alias, $query) = array_pad(explode(':', $param->value, 2), 2, null);
 			
-			if(empty($alias) || (false == ($ext = Extension_DevblocksContext::getByAlias(str_replace('.', ' ', $alias), true))))
+			if(empty($alias) || !($ext = Extension_DevblocksContext::getByAlias(str_replace('.', ' ', $alias), true)))
 				return;
 			
 			if(!method_exists($ext, 'getSearchView') || false == ($view = $ext->getTempView())) {
@@ -1049,13 +1095,13 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			
 			$params = $view->getParams();
 			
-			if(false == ($dao_class = $ext->getDaoClass()) || !class_exists($dao_class))
+			if(!($dao_class = $ext->getDaoClass()) || !class_exists($dao_class))
 				return;
 			
-			if(false == ($search_class = $ext->getSearchClass()) || !class_exists($search_class))
+			if(!($search_class = $ext->getSearchClass()) || !class_exists($search_class))
 				return;
 			
-			if(false == ($primary_key = $search_class::getPrimaryKey()))
+			if(!($primary_key = $search_class::getPrimaryKey()))
 				return;
 			
 			$query_parts = $dao_class::getSearchQueryComponents([], $params);
@@ -1068,6 +1114,26 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				. $query_parts['where']
 				. $query_parts['sort']
 				;
+			
+			if(APP_OPT_SQL_SUBQUERY_TO_IDS) {
+				try {
+					$db = DevblocksPlatform::services()->database();
+					
+					$prefetch_rows = $db->GetArrayReader($sql . ' LIMIT ' . APP_OPT_SQL_SUBQUERY_TO_IDS_LIMIT, 1500);
+					
+					if(is_array($prefetch_rows)) {
+						if(count($prefetch_rows) < APP_OPT_SQL_SUBQUERY_TO_IDS_LIMIT) {
+							$prefetch_ids = array_unique(array_map(function ($row) use (&$db) {
+								$prefetch_id = $row[array_key_first($row)];
+								return is_numeric($prefetch_id) ? intval($prefetch_id) : $db->qstr($prefetch_id);
+							}, $prefetch_rows));
+							
+							$sql = $prefetch_ids ? implode(',', $prefetch_ids) : '0';
+						}
+					}
+					
+				} catch(Exception_DevblocksDatabaseQueryTimeout) {}
+			}
 			
 			return sprintf("(%s = %s AND %s IN (%s)) ",
 				Cerb_OrmHelper::escape($context_field),
@@ -1121,7 +1187,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			list($alias, $query) = array_pad(explode(':', $param->value, 2), 2, null);
 			list($alias, $field) = array_pad(explode('.', $alias, 2),2, null);
 			
-			if(empty($alias) || (false == ($ext = Extension_DevblocksContext::getByAlias($alias, true))))
+			if(empty($alias) || !($ext = Extension_DevblocksContext::getByAlias($alias, true)))
 				return;
 			
 			$not = false;
@@ -1141,13 +1207,13 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			
 			$params = $view->getParams();
 			
-			if(false == ($dao_class = $ext->getDaoClass()) || !class_exists($dao_class))
+			if(!($dao_class = $ext->getDaoClass()) || !class_exists($dao_class))
 				return;
 			
-			if(false == ($search_class = $ext->getSearchClass()) || !class_exists($search_class))
+			if(!($search_class = $ext->getSearchClass()) || !class_exists($search_class))
 				return;
 			
-			if(false == ($primary_key = $search_class::getPrimaryKey()))
+			if(!($primary_key = $search_class::getPrimaryKey()))
 				return;
 			
 			$query_parts = $dao_class::getSearchQueryComponents([], $params);
@@ -1163,7 +1229,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 			
 			// If there's a $field URI, it's a custom field URI
 			if($field) {
-				if(false == ($custom_field = DAO_CustomField::getByUri($ext->id, $field)))
+				if(!($custom_field = DAO_CustomField::getByUri($ext->id, $field)))
 					return;
 				
 				if(null == ($table_name = DAO_CustomFieldValue::getValueTableName($custom_field->id)))
@@ -1313,10 +1379,10 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 	static function _getWhereSQLFromWatchersField(DevblocksSearchCriteria $param, $from_context, $pkey) {
 		switch($param->operator) {
 			case DevblocksSearchCriteria::OPER_CUSTOM:
-				if(false == ($context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_WORKER, true)))
+				if(!($context_ext = Extension_DevblocksContext::get(CerberusContexts::CONTEXT_WORKER, true)))
 					return null;
 				
-				if(false == ($view = $context_ext->getTempView()))
+				if(!($view = $context_ext->getTempView()))
 					return null;
 				
 				$not = DevblocksPlatform::strStartsWith($param->value, '!');
@@ -1440,7 +1506,6 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 
 		$field_table = sprintf("cf_%d", $field_id);
 		$value_table = DAO_CustomFieldValue::getValueTableName($field_id);
-		$cfield_key = null;
 		
 		$cfield_key = static::getCustomFieldContextWhereKey($field->context);
 		
@@ -1528,6 +1593,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 						$param->operator = DevblocksSearchCriteria::OPER_IN;
 						break;
 						
+					case DevblocksSearchCriteria::OPER_NIN:
 					case DevblocksSearchCriteria::OPER_NIN_OR_NULL:
 						$not = true;
 						$param->operator = DevblocksSearchCriteria::OPER_IN;
@@ -1536,11 +1602,6 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 					case DevblocksSearchCriteria::OPER_NEQ:
 						$not = true;
 						$param->operator = DevblocksSearchCriteria::OPER_EQ;
-						break;
-						
-					case DevblocksSearchCriteria::OPER_NIN:
-						$not = true;
-						$param->operator = DevblocksSearchCriteria::OPER_IN;
 						break;
 						
 					case DevblocksSearchCriteria::OPER_NOT_LIKE:
@@ -1573,9 +1634,7 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 				);
 
 			default:
-				return sprintf("%s %sIN (SELECT context_id FROM %s AS %s WHERE %s.context = %s AND %s.context_id = %s AND %s.field_id=%d AND %s)",
-					$cfield_key,
-					($not) ? 'NOT ' : '',
+				$subquery_sql = sprintf('SELECT context_id FROM %s AS %s WHERE %s.context = %s AND %s.context_id = %s AND %s.field_id=%d AND %s',
 					$value_table,
 					$field_table,
 					$field_table,
@@ -1586,10 +1645,44 @@ abstract class DevblocksSearchFields implements IDevblocksSearchFields {
 					$field_id,
 					$param->getWhereSQL(static::getFields(), static::getPrimaryKey())
 				);
-				break;
+				
+				if(APP_OPT_SQL_SUBQUERY_TO_IDS) {
+					try {
+						$db = DevblocksPlatform::services()->database();
+						
+						// Check values without depending on the outer query
+						$prefetch_sql = sprintf('SELECT context_id FROM %s AS %s WHERE %s.context = %s AND %s.field_id=%d AND %s',
+							$value_table,
+							$field_table,
+							$field_table,
+							Cerb_ORMHelper::qstr($field->context),
+							$field_table,
+							$field_id,
+							$param->getWhereSQL(static::getFields(), static::getPrimaryKey())
+						);
+						
+						$prefetch_rows = $db->GetArrayReader($prefetch_sql . ' LIMIT ' . APP_OPT_SQL_SUBQUERY_TO_IDS_LIMIT, 1500);
+						
+						if(count($prefetch_rows) < APP_OPT_SQL_SUBQUERY_TO_IDS_LIMIT) {
+							$prefetch_ids = array_unique(array_map(
+								fn($row) => intval($row['context_id']),
+								$prefetch_rows
+							));
+							
+							$subquery_sql = $prefetch_ids ? implode(',', $prefetch_ids) : '0';
+						}
+						
+					} catch (Exception_DevblocksDatabaseQueryTimeout) {
+						// If we time out on our estimate, do the full query as planned
+					}
+				}
+				
+				return sprintf("%s %sIN (%s)",
+					$cfield_key,
+					($not) ? 'NOT ' : '',
+					$subquery_sql
+				);
 		}
-		
-		return 0;
 	}
 }
 
@@ -3013,6 +3106,9 @@ class DevblocksSearchCriteria {
 				break;
 			
 			case DevblocksSearchCriteria::OPER_CUSTOM:
+				if(!is_array($this->value))
+					$this->value = [];
+				
 				if(array_key_exists('sql', $this->value)) {
 					$where = sprintf($this->value['sql'], $db_field_name);
 					

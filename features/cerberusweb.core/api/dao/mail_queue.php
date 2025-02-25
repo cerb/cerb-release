@@ -586,6 +586,19 @@ class DAO_MailQueue extends Cerb_ORMHelper {
 		if(array_key_exists('message_custom_fields', $properties))
 			$params['message_custom_fields'] = $properties['message_custom_fields'];
 		
+		if($draft_type == Model_MailQueue::TYPE_TICKET_REPLY) {
+			if(
+				array_key_exists('ticket_id', $params)
+				&& !array_key_exists('group_id', $params)
+				&& !array_key_exists('bucket_id', $params)
+			) {
+				if(($ticket = DAO_Ticket::get($params['ticket_id']))) {
+					$params['group_id'] = $ticket->group_id;
+					$params['bucket_id'] = $ticket->bucket_id;
+				}
+			}
+		}
+		
 		$change_fields[DAO_MailQueue::PARAMS_JSON] = json_encode($params);
 		$change_fields[DAO_MailQueue::UPDATED] = time();
 		
@@ -1855,6 +1868,18 @@ class Context_Draft extends Extension_DevblocksContext implements IDevblocksCont
 		$keys['worker_id']['notes'] = "The ID of the [worker](/docs/records/types/worker/) who owns the draft";
 		
 		return $keys;
+	}
+	
+	function getKeyAutocompleteSuggestions() : array {
+		return [
+			'type' => [
+				Model_MailQueue::TYPE_TRANSACTIONAL,
+				Model_MailQueue::TYPE_COMPOSE,
+				Model_MailQueue::TYPE_TICKET_REPLY,
+				Model_MailQueue::TYPE_TICKET_FORWARD,
+			],
+			'target__context' => self::getAutocompleteRecordTypes(),
+		];
 	}
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, $data, &$error) {

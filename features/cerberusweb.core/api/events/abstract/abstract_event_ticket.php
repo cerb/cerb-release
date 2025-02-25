@@ -1077,7 +1077,7 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 				$format = $params['format'] ?? null;
 				$html_template_id = $params['html_template_id'] ?? null;
 				
-				$properties = array(
+				$properties = [
 					'ticket_id' => $ticket_id,
 					'message_id' => $message_id,
 					'content' => $content,
@@ -1086,7 +1086,7 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 					'worker_id' => 0, //$worker_id,
 					'forward_files' => array(),
 					'link_forward_files' => true,
-				);
+				];
 				
 				// Headers
 
@@ -1106,7 +1106,7 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 		
 				if(isset($params['attachment_vars']) && is_array($params['attachment_vars'])) {
 					foreach($params['attachment_vars'] as $attachment_var) {
-						if(false != ($attachments = $dict->$attachment_var) && is_array($attachments)) {
+						if(($attachments = $dict->$attachment_var) && is_array($attachments)) {
 							foreach($attachments as $attachment) {
 								$properties['forward_files'][] = $attachment->id;
 							}
@@ -1133,8 +1133,14 @@ abstract class AbstractEvent_Ticket extends Extension_DevblocksEvent {
 					$properties['is_autoreply'] = true;
 				
 				// Send
-				
-				CerberusMail::sendTicketReply($properties);
+				$draft_type = Model_MailQueue::TYPE_TICKET_REPLY;
+				$draft_fields = DAO_MailQueue::getFieldsFromMessageProperties($properties, $draft_type);
+				$draft_fields[DAO_MailQueue::NAME] = 'Bot auto-reply';
+				$draft_fields[DAO_MailQueue::HINT_TO] = '(participants)';
+				$draft_fields[DAO_MailQueue::TYPE] = $draft_type;
+				$draft_fields[DAO_MailQueue::IS_QUEUED] = 1;
+				$draft_fields[DAO_MailQueue::QUEUE_DELIVERY_DATE] = time();
+				DAO_MailQueue::create($draft_fields);
 				break;
 				
 			case 'set_org':

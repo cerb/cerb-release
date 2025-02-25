@@ -753,45 +753,15 @@ class DAO_Address extends Cerb_ORMHelper {
 	public static function getSearchQueryComponents($columns, $params, $sortBy=null, $sortAsc=null) {
 		$fields = SearchFields_Address::getFields();
 		
-		if(is_string($sortBy))
-		switch($sortBy) {
-			case SearchFields_Address::ORG_NAME:
-				$sortBy = SearchFields_Address::CONTACT_ORG_ID;
-				break;
+		if (is_string($sortBy) && $sortBy == SearchFields_Address::ORG_NAME) {
+			$sortBy = SearchFields_Address::CONTACT_ORG_ID;
 		}
 		
 		list(, $wheres) = parent::_parseSearchParams($params, $columns, 'SearchFields_Address', $sortBy);
 		
-		$select_sql = sprintf("SELECT ".
-			"a.id as %s, ".
-			"a.email as %s, ".
-			"a.host as %s, ".
-			"a.contact_id as %s, ".
-			"a.contact_org_id as %s, ".
-			"a.created_at as %s, ".
-			"a.mail_transport_id as %s, ".
-			"a.worker_id as %s, ".
-			"a.num_spam as %s, ".
-			"a.num_nonspam as %s, ".
-			"a.is_banned as %s, ".
-			"a.is_defunct as %s, ".
-			"a.is_trusted as %s, ".
-			"a.updated as %s ",
-				SearchFields_Address::ID,
-				SearchFields_Address::EMAIL,
-				SearchFields_Address::HOST,
-				SearchFields_Address::CONTACT_ID,
-				SearchFields_Address::CONTACT_ORG_ID,
-				SearchFields_Address::CREATED_AT,
-				SearchFields_Address::MAIL_TRANSPORT_ID,
-				SearchFields_Address::WORKER_ID,
-				SearchFields_Address::NUM_SPAM,
-				SearchFields_Address::NUM_NONSPAM,
-				SearchFields_Address::IS_BANNED,
-				SearchFields_Address::IS_DEFUNCT,
-				SearchFields_Address::IS_TRUSTED,
-				SearchFields_Address::UPDATED
-			);
+		$select_sql = sprintf('SELECT a.id AS %s ',
+			SearchFields_Address::ID
+		);
 		
 		$join_sql = "FROM address a ";
 
@@ -900,7 +870,7 @@ class DAO_Address extends Cerb_ORMHelper {
 		$where_sql = $query_parts['where'];
 		$sort_sql = $query_parts['sort'];
 		
-		return self::_searchWithTimeout(
+		$results = self::_searchWithTimeout(
 			SearchFields_Address::ID,
 			$select_sql,
 			$join_sql,
@@ -910,6 +880,37 @@ class DAO_Address extends Cerb_ORMHelper {
 			$limit,
 			$withCounts
 		);
+		
+		$models = CerberusContexts::getModels(
+			CerberusContexts::CONTEXT_ADDRESS,
+			array_column(
+				$results[0],
+				SearchFields_Address::ID
+			)
+		);
+		
+		foreach($results[0] as $id => $result) {
+			if(null != ($model = $models[$id] ?? null)) { /* @var Model_Address $model */
+				$result[SearchFields_Address::ID] = $model->id;
+				$result[SearchFields_Address::EMAIL] = $model->email;
+				$result[SearchFields_Address::HOST] = $model->host;
+				$result[SearchFields_Address::CONTACT_ID] = $model->contact_id;
+				$result[SearchFields_Address::CONTACT_ORG_ID] = $model->contact_org_id;
+				$result[SearchFields_Address::CREATED_AT] = $model->created_at;
+				$result[SearchFields_Address::MAIL_TRANSPORT_ID] = $model->mail_transport_id;
+				$result[SearchFields_Address::WORKER_ID] = $model->worker_id;
+				$result[SearchFields_Address::NUM_SPAM] = $model->num_spam;
+				$result[SearchFields_Address::NUM_NONSPAM] = $model->num_nonspam;
+				$result[SearchFields_Address::IS_BANNED] = $model->is_banned;
+				$result[SearchFields_Address::IS_DEFUNCT] = $model->is_defunct;
+				$result[SearchFields_Address::IS_TRUSTED] = $model->is_trusted;
+				$result[SearchFields_Address::UPDATED] = $model->updated;
+				
+				$results[0][$id] = array_merge($result, $results[0][$id]);
+			}
+		}
+		
+		return $results;
 	}
 };
 
@@ -2506,6 +2507,14 @@ class Context_Address extends Extension_DevblocksContext implements IDevblocksCo
 		$keys['worker_id']['notes'] = "Is this address owned by a [worker](/docs/records/types/worker/)?";
 		
 		return $keys;
+	}
+	
+	function getKeyAutocompleteSuggestions() : array {
+		return [
+			'email' => ['customer@cerb.example'],
+			'host' => ['cerb.example'],
+			'org' => $this::getKeyAutocompleteRecordFieldSearch('org', 'name'),
+		];
 	}
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, $data, &$error) {

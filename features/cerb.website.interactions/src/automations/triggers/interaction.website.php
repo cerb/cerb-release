@@ -207,10 +207,18 @@ class AutomationTrigger_InteractionWebsite extends Extension_AutomationTrigger {
 						'score' => 1999,
 						'description' => "Display plaintext without formatting",
 					],
-					"references:",
+					[
+						'caption' => 'references:',
+						'snippet' => "references:\n\tresource/\${1:example}:\n\t\turi:",
+						'description' => "Add image resources as references",
+					],
 				],
 				'(.*):await:form:elements:say:references:' => [
-					'resource:',
+					[
+						'caption' => 'resource:',
+						'snippet' => "resource:\n\tresource/\${1:example}:\n\t\turi:",
+						'description' => "Load an image resources",
+					],
 				],
 				'(.*):await:form:elements:say:references:resource:uri:' => [
 					'type' => 'cerb-uri',
@@ -243,6 +251,7 @@ class AutomationTrigger_InteractionWebsite extends Extension_AutomationTrigger {
 					'limit:',
 					'page:',
 					'required@bool: yes',
+					'validation@raw:',
 				],
 				'(.*):await:form:elements:sheet:data:' => [
 					[
@@ -464,6 +473,7 @@ class AutomationTrigger_InteractionWebsite extends Extension_AutomationTrigger {
 					'required@bool:',
 					'truncate@bool: yes',
 					'type:',
+					'validation@raw:',
 				],
 				
 				'(.*):await:form:elements:text:type:' => [
@@ -489,6 +499,7 @@ class AutomationTrigger_InteractionWebsite extends Extension_AutomationTrigger {
 					'placeholder:',
 					'required@bool:',
 					'truncate@bool: yes',
+					'validation@raw:',
 				],
 				
 				'(.*):await:interaction:' => [

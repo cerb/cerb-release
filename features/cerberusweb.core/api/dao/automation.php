@@ -269,6 +269,11 @@ class DAO_Automation extends Cerb_ORMHelper {
 		return null;
 	}
 	
+	/**
+	 * @param string $interaction_uri
+	 * @param string|array $extension_ids
+	 * @return Model_Automation|null
+	 */
 	public static function getByUri(string $interaction_uri, $extension_ids=null) {
 		$objects = self::getByUris([$interaction_uri], $extension_ids);
 		
@@ -1803,6 +1808,14 @@ class Context_Automation extends Extension_DevblocksContext implements IDevblock
 	// [TODO] Params
 	function getKeyMeta($with_dao_fields=true) {
 		return parent::getKeyMeta($with_dao_fields);
+	}
+	
+	function getKeyAutocompleteSuggestions() : array {
+		$triggers = Extension_AutomationTrigger::getAll(false);
+		
+		return [
+			'extension_id' => array_column($triggers, 'id'),
+		];
 	}
 	
 	// [TODO] Params

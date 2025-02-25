@@ -2064,8 +2064,7 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 			return '';
 	
 		$url_writer = DevblocksPlatform::services()->url();
-		$url = $url_writer->writeNoProxy('c=profiles&type=trigger_event&id='.$context_id, true);
-		return $url;
+		return $url_writer->writeNoProxy('c=profiles&type=behavior&id='.$context_id, true);
 	}
 	
 	function profileGetFields($model=null) {
@@ -2315,6 +2314,15 @@ class Context_TriggerEvent extends Extension_DevblocksContext implements IDevblo
 		$keys['priority']['notes'] = "Any positive number; `0` is highest priority";
 		
 		return $keys;
+	}
+	
+	function getKeyAutocompleteSuggestions() : array {
+		$event_points = Extension_DevblocksEvent::getAll();
+		
+		return [
+			'event_point' => array_column($event_points, 'id'),
+			'owner__context' => self::getAutocompleteRecordOwnerTypes(),
+		];
 	}
 	
 	function getDaoFieldsFromKeyAndValue($key, $value, &$out_fields, $data, &$error) {

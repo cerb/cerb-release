@@ -365,6 +365,9 @@ class DevblocksEventHelper {
 				
 			case Model_CustomField::TYPE_MULTI_CHECKBOX:
 				$opts = $params['values'] ?? null;
+				
+				if(!is_array($opts))
+					$opts = [];
 
 				$out .= sprintf("%s\n",
 					implode(', ', $opts)
@@ -604,6 +607,9 @@ class DevblocksEventHelper {
 			case Model_CustomField::TYPE_MULTI_CHECKBOX:
 				$opts = $params['values'] ?? null;
 				
+				if(!is_array($opts))
+					$opts = [];
+				
 				$out .= sprintf(">>> Setting %s to:\n",
 					$custom_field->name
 				);
@@ -721,6 +727,10 @@ class DevblocksEventHelper {
 				
 			case Model_CustomField::TYPE_MULTI_CHECKBOX:
 				$opts = $params['values'] ?? null;
+				
+				if(!is_array($opts))
+					$opts = [];
+				
 				return $opts;
 			
 			case Model_CustomField::TYPE_WORKER:
@@ -4777,7 +4787,7 @@ class DevblocksEventHelper {
 			$out = rtrim($out,"\n") . "\n\n>>> Attaching files from variables:\n";
 			
 			foreach($params['attachment_vars'] as $attachment_var) {
-				if(false != ($attachments = $dict->$attachment_var) && is_array($attachments)) {
+				if(($attachments = $dict->$attachment_var) && is_array($attachments)) {
 					foreach($attachments as $attachment) {
 						$out .= " * " . $attachment->name . ' (' . DevblocksPlatform::strPrettyBytes($attachment->size) . ')' . "\n";
 					}

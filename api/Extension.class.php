@@ -1153,7 +1153,7 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 				'(.*):decrypt.pgp:inputs:' => [
 					[
 						'caption' => 'message:',
-						'snippet' => "message:\n\t\${1:}",
+						'snippet' => "message@text:\n\t\${1:}",
 					],
 				],
 				
@@ -1161,7 +1161,7 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 				'(.*):email.parse:inputs:' => [
 					[
 						'caption' => 'message:',
-						'snippet' => "message:\n\t\${1:}",
+						'snippet' => "message@text:\n\t\${1:}",
 					],
 				],
 				
@@ -1169,7 +1169,7 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 				'(.*):encrypt.pgp:inputs:' => [
 					[
 						'caption' => 'message:',
-						'snippet' => "message:\n\t\${1:}",
+						'snippet' => "message@text:\n\t\${1:}",
 					],
 					'public_keys:',
 				],
@@ -1345,6 +1345,11 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 						'connected_account' => null,
 					]
 				],
+				'(.*):http.request:inputs:headers:' => [
+					'Authorization: Bearer {token}',
+					'Content-Type: application/json',
+					'Content-Type: application/x-www-form-urlencoded',
+				],
 				'(.*):http.request:inputs:method:' => [
 					'GET',
 					'POST',
@@ -1488,11 +1493,11 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					],
 					'expand:',
 				],
+				'(.*):record.create:inputs:fields:(.*?):' => [
+					'type' => 'record-fields-value',
+				],
 				'(.*):record.create:inputs:fields:' => [
 					'type' => 'record-fields',
-					'params' => [
-						'parent_key' => 'record_type',
-					],
 				],
 				'(.*):record.create:inputs:record_type:' => [
 					'type' => 'record-type',
@@ -1580,9 +1585,9 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 				],
 				'(.*):record.update:inputs:fields:' => [
 					'type' => 'record-fields',
-					'params' => [
-						'parent_key' => 'record_type',
-					],
+				],
+				'(.*):record.update:inputs:fields:(.*?):' => [
+					'type' => 'record-fields-value',
 				],
 				'(.*):record.update:inputs:record_type:' => [
 					'type' => 'record-type',
@@ -1622,9 +1627,9 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 				],
 				'(.*):record.upsert:inputs:fields:' => [
 					'type' => 'record-fields',
-					'params' => [
-						'parent_key' => 'record_type',
-					],
+				],
+				'(.*):record.upsert:inputs:fields:(.*?):' => [
+					'type' => 'record-fields-value',
 				],
 				'(.*):record.upsert:inputs:record_type:' => [
 					'type' => 'record-type',
