@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-const APP_BUILD = 2025025101;
-const APP_VERSION = '11.0.5';
+const APP_BUILD = 2025030701;
+const APP_VERSION = '11.0.6';
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -3862,7 +3862,7 @@ class Cerb_ORMHelper extends DevblocksORMHelper {
 	/**
 	 *
 	 * @param array $ids
-	 * @return Model_Snippet[]
+	 * @return DevblocksRecordModel[]
 	 */
 	static function getIds(array $ids) : array {
 		if(empty($ids))
@@ -4814,6 +4814,9 @@ class _CerbApplication_KataAutocompletions {
 			'layout:badge:' => [
 				'interaction:'
 			],
+			'layout:badge:interaction:' => [
+				'interaction_name',
+			],
 			'layout:header:' => [
 				'logo:',
 				'navbar:',
@@ -4892,6 +4895,9 @@ class _CerbApplication_KataAutocompletions {
 			
 			'layout:page:' => [
 				'interaction:'
+			],
+			'layout:page:interaction:' => [
+				'interaction_name',
 			],
 			
 			'security:' => [

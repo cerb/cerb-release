@@ -3521,6 +3521,13 @@ var ajax = new cAjaxCalls();
 						
 					} else {
 						editor.completer.insertMatch(data);
+						
+						let markers = editor.session.getMarkers();
+						
+						Object.keys(markers).forEach(function(markerId){
+							if('ace_snippet-marker' === markers[markerId].clazz)
+								editor.session.removeMarker(markerId);
+						});
 					}
 				},
 				formatData: function(scope_key) {
@@ -3551,9 +3558,10 @@ var ajax = new cAjaxCalls();
 								
 								if(
 									autocomplete_options.hasOwnProperty('autocomplete_type_defaults')
-									&& autocomplete_options.autocomplete_type_defaults.hasOwnProperty('cerb-uri')
+									&& autocomplete_options['autocomplete_type_defaults'].hasOwnProperty('cerb-uri')
+									&& 'object' == typeof autocomplete_options['autocomplete_type_defaults']['cerb-uri']
 								) {
-									params = Object.assign(autocomplete_options.autocomplete_type_defaults['cerb-uri'], params);
+									params = Object.assign(params, autocomplete_options['autocomplete_type_defaults']['cerb-uri']);
 								}
 								
 								formData = new FormData();
@@ -3804,6 +3812,7 @@ var ajax = new cAjaxCalls();
 						'kata',
 						'key',
 						'list',
+						'nowrap',
 						'optional',
 						'ref',
 						'text',

@@ -200,11 +200,21 @@ $db->ExecuteMaster("DELETE FROM package_library WHERE uri = 'cerb_workspace_widg
 
 $packages = [
 	'card_widget/cerb_card_widget_gpg_public_key_subkeys.json',
+	'cerb_connected_service_airtable.json',
 	'cerb_connected_service_anthropic.json',
 	'cerb_connected_service_deepl.json',
+	'cerb_connected_service_elevenlabs.json',
+	'cerb_connected_service_exa.json',
 	'cerb_connected_service_groq.json',
 	'cerb_connected_service_ipstack.json',
+	'cerb_connected_service_linkup.json',
+	'cerb_connected_service_notion.json',
+	'cerb_connected_service_openweather.json',
+	'cerb_connected_service_pinecone.json',
+	'cerb_connected_service_sambanova.json',
 	'cerb_connected_service_slack.json',
+	'cerb_connected_service_tavily.json',
+	'cerb_connected_service_togetherai.json',
 	'cerb_profile_tab_ticket_overview.json',
 	'cerb_profile_widget_ticket_status.json',
 	'cerb_profile_widget_ticket_participants.json',
@@ -846,6 +856,23 @@ if(array_key_exists('webapi_key', $tables)) {
 
 if(array_key_exists('wgm_google_cse', $tables)) {
 	$db->ExecuteMaster('DROP TABLE wgm_google_cse');
+}
+
+// ===========================================================================
+// Convert `automation.script` to utf8mb4
+
+if(!isset($tables['automation']))
+	return FALSE;
+
+list($columns,) = $db->metaTable('automation');
+
+if(!array_key_exists('script', $columns))
+	return FALSE;
+
+if('utf8mb4_unicode_ci' != $columns['script']['collation']) {
+	$db->ExecuteMaster("ALTER TABLE automation MODIFY COLUMN script MEDIUMTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+	$db->ExecuteMaster("REPAIR TABLE automation");
+	$db->ExecuteMaster("OPTIMIZE TABLE automation");
 }
 
 // ===========================================================================
