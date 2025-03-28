@@ -82,7 +82,7 @@
 		<patch version="10.3.0" revision="1434" file="patches/10.x/10.3.0.php" />
 		<patch version="10.4.0" revision="1452" file="patches/10.x/10.4.0.php" />
 
-		<patch version="11.0.0" revision="1474" file="patches/11.x/11.0.0.php" />
+		<patch version="11.0.0" revision="1475" file="patches/11.x/11.0.0.php" />
 	</patches>
 
 	<!-- Exported Classes -->
@@ -5971,7 +5971,23 @@
 				</param>
 			</params>
 		</extension>
-		
+
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.atproto</id>
+			<name>AT Protocol</name>
+			<class>
+				<file>api/service_providers/at_protocol.php</file>
+				<name>ServiceProvider_AtProtocol</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="accounts" />
+					</value>
+				</param>
+			</params>
+		</extension>
+
 		<extension point="cerb.connected_service.provider">
 			<id>cerb.service.provider.cerb.api.legacy</id>
 			<name>Cerb API (Legacy Signatures)</name>
@@ -6099,7 +6115,23 @@
 				</param>
 			</params>
 		</extension>
-		
+
+		<extension point="cerb.connected_service.provider">
+			<id>cerb.service.provider.telegram.bot</id>
+			<name>Telegram Bot</name>
+			<class>
+				<file>api/service_providers/telegram_bot.php</file>
+				<name>ServiceProvider_TelegramBot</name>
+			</class>
+			<params>
+				<param key="options">
+					<value>
+						<data key="accounts" />
+					</value>
+				</param>
+			</params>
+		</extension>
+
 		<extension point="cerb.connected_service.provider">
 			<id>cerb.service.provider.token.bearer</id>
 			<name>Token Bearer</name>
