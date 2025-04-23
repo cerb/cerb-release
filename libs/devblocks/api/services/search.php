@@ -790,7 +790,7 @@ class DevblocksSearchEngineMysqlFulltext extends Extension_DevblocksSearchEngine
 		
 		$terms = '+'.str_replace(' ', ' +', $terms);
 		
-		return array('terms' => $terms, 'phrases' => $phrases);
+		return ['terms' => $terms, 'phrases' => $phrases];
 	}
 	
 	public function removeStopWords($words) {
@@ -802,11 +802,14 @@ class DevblocksSearchEngineMysqlFulltext extends Extension_DevblocksSearchEngine
 		$innodb_stop_words = [
 			'a',
 			'about',
+			'almost',
 			'an',
+			'and',
 			'are',
 			'as',
 			'at',
 			'be',
+			'but',
 			'by',
 			'can',
 			'com',
@@ -818,15 +821,28 @@ class DevblocksSearchEngineMysqlFulltext extends Extension_DevblocksSearchEngine
 			'http',
 			'https',
 			'i',
+			'if',
 			'in',
+			'into',
 			'is',
 			'it',
 			'la',
+			'like',
+			'no',
+			'not',
 			'of',
 			'on',
 			'or',
+			'please',
+			'such',
+			'thank',
 			'that',
 			'the',
+			'their',
+			'then',
+			'there',
+			'these',
+			'they',
 			'this',
 			'to',
 			'und',
@@ -839,6 +855,7 @@ class DevblocksSearchEngineMysqlFulltext extends Extension_DevblocksSearchEngine
 			'with',
 			'www',
 			'you',
+			'your',
 		];
 		
 		// Custom stop words

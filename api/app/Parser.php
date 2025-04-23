@@ -1657,8 +1657,11 @@ class CerberusParser {
 			if(!$handled) {
 				$sha1_hash = sha1_file($file->getTempFile(), false);
 				
+				// Only compare filename in dupes if the flag is enabled
+				$compare_filename = APP_OPT_PARSER_ATTACHMENT_DUPE_WITH_FILENAME ? $filename : null;
+				
 				// Dupe detection
-				if(null == ($file_id = DAO_Attachment::getBySha1Hash($sha1_hash, $file->file_size, $file->mime_type))) {
+				if(null == ($file_id = DAO_Attachment::getBySha1Hash($sha1_hash, $file->file_size, $file->mime_type, $compare_filename))) {
 					$fields = array(
 						DAO_Attachment::NAME => $filename,
 						DAO_Attachment::MIME_TYPE => $file->mime_type,
@@ -1695,11 +1698,11 @@ class CerberusParser {
 			$sha1_hash = sha1($model->getParserMessage()->htmlbody, false);
 			
 			if(null == ($file_id = DAO_Attachment::getBySha1Hash($sha1_hash, strlen($model->getParserMessage()->htmlbody), 'text/html'))) {
-				$fields = array(
+				$fields = [
 					DAO_Attachment::NAME => 'original_message.html',
 					DAO_Attachment::MIME_TYPE => 'text/html',
 					DAO_Attachment::STORAGE_SHA1HASH => $sha1_hash,
-				);
+				];
 				
 				if(($file_id = DAO_Attachment::create($fields))) {
 					Storage_Attachments::put($file_id, $model->getParserMessage()->htmlbody);
@@ -1711,9 +1714,9 @@ class CerberusParser {
 				DAO_Attachment::addLinks(CerberusContexts::CONTEXT_MESSAGE, $model->getMessageId(), $file_id);
 				
 				// This built-in field is faster than searching for the HTML part again in the attachments
-				DAO_Message::update($message_id, array(
+				DAO_Message::update($message_id, [
 					DAO_Message::HTML_ATTACHMENT_ID => $file_id,
-				));
+				]);
 			}
 		}
 		
