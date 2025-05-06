@@ -197,8 +197,8 @@ class ComposerStaticInite9adf3da455d8ca7e5cdd0f2ee244ebe
         ),
         'Psr\\Http\\Message\\' => 
         array (
-            0 => __DIR__ . '/..' . '/psr/http-message/src',
-            1 => __DIR__ . '/..' . '/psr/http-factory/src',
+            0 => __DIR__ . '/..' . '/psr/http-factory/src',
+            1 => __DIR__ . '/..' . '/psr/http-message/src',
         ),
         'Psr\\Http\\Client\\' => 
         array (
@@ -226,8 +226,8 @@ class ComposerStaticInite9adf3da455d8ca7e5cdd0f2ee244ebe
         ),
         'League\\Uri\\' => 
         array (
-            0 => __DIR__ . '/..' . '/league/uri-interfaces',
-            1 => __DIR__ . '/..' . '/league/uri',
+            0 => __DIR__ . '/..' . '/league/uri',
+            1 => __DIR__ . '/..' . '/league/uri-interfaces',
         ),
         'League\\OAuth2\\Server\\' => 
         array (
@@ -569,6 +569,7 @@ class ComposerStaticInite9adf3da455d8ca7e5cdd0f2ee244ebe
         'Nette\\Schema\\Processor' => __DIR__ . '/..' . '/nette/schema/src/Schema/Processor.php',
         'Nette\\Schema\\Schema' => __DIR__ . '/..' . '/nette/schema/src/Schema/Schema.php',
         'Nette\\Schema\\ValidationException' => __DIR__ . '/..' . '/nette/schema/src/Schema/ValidationException.php',
+        'Nette\\ShouldNotHappenException' => __DIR__ . '/..' . '/nette/utils/src/exceptions.php',
         'Nette\\SmartObject' => __DIR__ . '/..' . '/nette/utils/src/SmartObject.php',
         'Nette\\StaticClass' => __DIR__ . '/..' . '/nette/utils/src/StaticClass.php',
         'Nette\\UnexpectedValueException' => __DIR__ . '/..' . '/nette/utils/src/exceptions.php',
