@@ -953,17 +953,17 @@
         },
         {
             "name": "horde/imap-client",
-            "version": "dev-2.30.6-cerb",
-            "version_normalized": "dev-2.30.6-cerb",
+            "version": "dev-2.30.7-cerb",
+            "version_normalized": "dev-2.30.7-cerb",
             "source": {
                 "type": "git",
                 "url": "https://github.com/jstanden/horde-imap.git",
-                "reference": "c2e3f3ce2a6b1de0522404f4abccbe7569a1116a"
+                "reference": "4d60da89251793c870ea11c70234fa2914bdf259"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/jstanden/horde-imap/zipball/c2e3f3ce2a6b1de0522404f4abccbe7569a1116a",
-                "reference": "c2e3f3ce2a6b1de0522404f4abccbe7569a1116a",
+                "url": "https://api.github.com/repos/jstanden/horde-imap/zipball/4d60da89251793c870ea11c70234fa2914bdf259",
+                "reference": "4d60da89251793c870ea11c70234fa2914bdf259",
                 "shasum": ""
             },
             "require": {
@@ -1003,7 +1003,7 @@
             "description": "IMAP client library",
             "homepage": "https://www.horde.org/libraries/Horde_Imap_Client",
             "support": {
-                "source": "https://github.com/jstanden/horde-imap/tree/2.30.6-cerb",
+                "source": "https://github.com/jstanden/horde-imap/tree/2.30.7-cerb",
                 "issues": "https://github.com/jstanden/horde-imap/issues"
             },
             "install-path": "../horde/imap-client"

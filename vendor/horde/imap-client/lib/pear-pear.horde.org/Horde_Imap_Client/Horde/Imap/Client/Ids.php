@@ -377,6 +377,7 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 
     /**
      */
+    #[ReturnTypeWillChange]
     public function count()
     {
         return is_array($this->_ids)
@@ -388,6 +389,7 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 
     /**
      */
+    #[ReturnTypeWillChange]
     public function current()
     {
         return is_array($this->_ids)
@@ -397,6 +399,7 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 
     /**
      */
+    #[ReturnTypeWillChange]
     public function key()
     {
         return is_array($this->_ids)
@@ -406,6 +409,7 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 
     /**
      */
+    #[ReturnTypeWillChange]
     public function next()
     {
         if (is_array($this->_ids)) {
@@ -415,6 +419,7 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 
     /**
      */
+    #[ReturnTypeWillChange]
     public function rewind()
     {
         if (is_array($this->_ids)) {
@@ -424,6 +429,7 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 
     /**
      */
+    #[ReturnTypeWillChange]
     public function valid()
     {
         return !is_null($this->key());
@@ -489,6 +495,27 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
         } elseif (isset($save['i'])) {
             $this->add($save['i']);
         }
+    }
+
+    /**
+     * @return array
+     */
+    public function __serialize()
+    {
+        return array(
+            'd' => $this->duplicates,
+            's' => $this->_sequence,
+            'is' => $this->_sorted,
+            'ids' => $this->_ids,
+        );
+    }
+
+    public function __unserialize(array $data)
+    {
+        $this->duplicates = $data['d'];
+        $this->_sequence = $data['s'];
+        $this->_sorted = $data['is'];
+        $this->_ids = $data['ids'];
     }
 
 }

@@ -232,7 +232,7 @@ implements Serializable, SplObserver
      *            DEFAULT: 30 seconds
      * - username: (string) [REQUIRED] The username.
      * - authusername (string) The username used for SASL authentication.
-     * 	 If specified this is the user name whose password is used 
+     * 	 If specified this is the user name whose password is used
      * 	 (e.g. administrator).
      * 	 Only valid for RFC 2595/4616 - PLAIN SASL mechanism.
      * 	 DEFAULT: the same value provided in the username parameter.
@@ -346,6 +346,7 @@ implements Serializable, SplObserver
 
     /**
      */
+    #[ReturnTypeWillChange]
     public function update(SplSubject $subject)
     {
         if (($subject instanceof Horde_Imap_Client_Data_Capability) ||
@@ -378,6 +379,30 @@ implements Serializable, SplObserver
         if (!is_array($data) ||
             !isset($data['v']) ||
             ($data['v'] != self::VERSION)) {
+            throw new Exception('Cache version change');
+        }
+
+        $this->_init = $data['i'];
+        $this->_params = $data['p'];
+
+        $this->_initOb();
+    }
+
+    /**
+     * @return array
+     */
+    public function __serialize()
+    {
+        return array(
+            'i' => $this->_init,
+            'p' => $this->_params,
+            'v' => self::VERSION
+        );
+    }
+
+    public function __unserialize(array $data)
+    {
+        if (empty($data['v']) || $data['v'] != self::VERSION) {
             throw new Exception('Cache version change');
         }
 

@@ -3,7 +3,7 @@
         'name' => 'wgm/cerb',
         'pretty_version' => '11.1.x-dev',
         'version' => '11.1.9999999.9999999-dev',
-        'reference' => '6620afc7f0fb421ef0b4f9fce837b150b8970530',
+        'reference' => '2e10b9c0f1987d1979a33f52853c718513210251',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -119,9 +119,9 @@
             'dev_requirement' => false,
         ),
         'horde/imap-client' => array(
-            'pretty_version' => 'dev-2.30.6-cerb',
-            'version' => 'dev-2.30.6-cerb',
-            'reference' => 'c2e3f3ce2a6b1de0522404f4abccbe7569a1116a',
+            'pretty_version' => 'dev-2.30.7-cerb',
+            'version' => 'dev-2.30.7-cerb',
+            'reference' => '4d60da89251793c870ea11c70234fa2914bdf259',
             'type' => 'library',
             'install_path' => __DIR__ . '/../horde/imap-client',
             'aliases' => array(
@@ -575,7 +575,7 @@
         'wgm/cerb' => array(
             'pretty_version' => '11.1.x-dev',
             'version' => '11.1.9999999.9999999-dev',
-            'reference' => '6620afc7f0fb421ef0b4f9fce837b150b8970530',
+            'reference' => '2e10b9c0f1987d1979a33f52853c718513210251',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

@@ -270,6 +270,12 @@ class Horde_Imap_Client_Socket_Pop3 extends Horde_Imap_Client_Base
             $auth_mech = array($this->_init['authmethod']);
         }
 
+        // Always try XOAUTH2 first when defined
+        if (in_array('XOAUTH2', $auth_mech) && $this->getParam('xoauth2_token')) {
+            $auth_mech = array_diff($auth_mech, ['XOAUTH2']);
+            array_unshift($auth_mech, 'XOAUTH2');
+        }
+
         foreach ($auth_mech as $method) {
             try {
                 $this->_tryLogin($method);
@@ -402,6 +408,17 @@ class Horde_Imap_Client_Socket_Pop3 extends Horde_Imap_Client_Base
                 $password
             ))), array(
                 'debug' => sprintf('AUTH PLAIN [Auth Response (username: %s)]', $username)
+            ));
+            break;
+
+        case 'XOAUTH2':
+            if (!($xoauth2_token = $this->getParam('xoauth2_token')))
+                throw new Horde_Imap_Client_Exception("Expected an XOAUTH2 token");
+
+            /* @var Horde_Imap_Client_Password_Xoauth2 $xoauth2_token */
+
+            $this->_sendLine('AUTH XOAUTH2 ' . $xoauth2_token->getPassword(), array(
+                'debug' => sprintf('AUTH XOAUTH2 [Auth Response (username: %s)]', $xoauth2_token->username)
             ));
             break;
 

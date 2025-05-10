@@ -223,4 +223,24 @@ class Horde_Imap_Client_Data_Envelope implements Serializable
         $this->_data = $data['d'];
     }
 
+    /**
+     * @return array
+     */
+    public function __serialize()
+    {
+        return array(
+            'd' => $this->_data,
+            'v' => self::VERSION,
+        );
+    }
+
+    public function __unserialize(array $data)
+    {
+        if (empty($data['v']) || $data['v'] != self::VERSION) {
+            throw new Exception('Cache version change');
+        }
+
+        $this->_data = $data['d'];
+    }
+
 }

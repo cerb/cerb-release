@@ -618,14 +618,19 @@ class Horde_Imap_Client_Data_Fetch
 
                 case Horde_Imap_Client::FETCH_HEADERTEXT:
                 case Horde_Imap_Client::FETCH_MIMEHEADER:
-                    return Horde_Mime_Headers::parseHeaders($this->_data[$key][$id]);
+                    $hdrs = $this->_data[$key][$id];
+                    break;
                 }
             } else {
                 $hdrs = $this->_getHeaders($id, self::HEADER_STREAM, $key);
-                $parsed = Horde_Mime_Headers::parseHeaders($hdrs);
-                fclose($hdrs);
-                return $parsed;
             }
+
+            $parsed = Horde_Mime_Headers::parseHeaders($hdrs);
+			if (is_resource($hdrs)) {
+				// Close the temporary stream
+				fclose($hdrs);
+			}
+			return $parsed;
         }
 
         if (!isset($this->_data[$key][$id])) {

@@ -133,6 +133,7 @@ implements Serializable, SplSubject
 
     /**
      */
+    #[ReturnTypeWillChange]
     public function attach(SplObserver $observer)
     {
         $this->detach($observer);
@@ -141,6 +142,7 @@ implements Serializable, SplSubject
 
     /**
      */
+    #[ReturnTypeWillChange]
     public function detach(SplObserver $observer)
     {
         if (($key = array_search($observer, $this->_observers, true)) !== false) {
@@ -152,6 +154,7 @@ implements Serializable, SplSubject
      * Notification is triggered internally whenever the object's internal
      * data storage is altered.
      */
+    #[ReturnTypeWillChange]
     public function notify()
     {
         foreach ($this->_observers as $val) {
@@ -173,6 +176,19 @@ implements Serializable, SplSubject
     public function unserialize($data)
     {
         $this->_charsets = json_decode($data, true);
+    }
+
+    /**
+     * @return array
+     */
+    public function __serialize()
+    {
+        return $this->_charsets;
+    }
+
+    public function __unserialize(array $data)
+    {
+        $this->_charsets = $data;
     }
 
 }
