@@ -1,13 +1,16 @@
 <?php
-class _DevblocksDataProviderRecordFields extends _DevblocksDataProvider {
+class _DevblocksDataProviderRecordFilters extends _DevblocksDataProvider {
 	function getSuggestions($type, array $params=[]) {
 		$suggestions  = [
 			'' => [
-				'of:',
+				'exclude_custom:yes',
+				'exclude_links:yes',
 				'filter:',
-				'limit:',
-				'page:',
 				'format:',
+				'limit:',
+				'of:',
+				'page:',
+				'with:',
 			],
 			'format:' => [
 				'dictionaries',
@@ -20,12 +23,14 @@ class _DevblocksDataProviderRecordFields extends _DevblocksDataProvider {
 	
 	function getData($query, $chart_fields, &$error=null, array $options=[]) {
 		$chart_model = [
-			'type' => 'record.fields',
-			'of' => null,
+			'exclude_custom' => false,
+			'exclude_links' => false,
 			'filter' => null,
-			'limit' => null,
-			'page' => 0,
 			'format' => 'dictionaries',
+			'limit' => null,
+			'of' => null,
+			'page' => 0,
+			'type' => 'record.filters',
 		];
 		
 		foreach($chart_fields as $field) {
@@ -40,6 +45,14 @@ class _DevblocksDataProviderRecordFields extends _DevblocksDataProvider {
 			} else if($field->key == 'of') {
 				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
 				$chart_model['of'] = $value;
+				
+			} else if($field->key == 'exclude_custom') {
+				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
+				$chart_model['exclude_custom'] = DevblocksPlatform::services()->string()->toBool($value);
+				
+			} else if($field->key == 'exclude_links') {
+				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
+				$chart_model['exclude_links'] = DevblocksPlatform::services()->string()->toBool($value);
 				
 			} else if($field->key == 'filter') {
 				CerbQuickSearchLexer::getOperStringFromTokens($field->tokens, $oper, $value);
@@ -77,40 +90,32 @@ class _DevblocksDataProviderRecordFields extends _DevblocksDataProvider {
 		
 		$paging = [];
 		
-		$fields = $record_type_ext->getKeyMeta(false);
-
-		$custom_fields = DAO_CustomField::getMetaByContext($record_type_ext->id);
+		$view = $record_type_ext->getTempView();
 		
-		$fields = array_merge($fields, $custom_fields);
-		
-		// Filter out fields with no key
-		$fields = array_filter(
-			$fields,
-			function($field) {
-				return array_key_exists('key', $field);
-			}
-		);
-		
-		// Fix field capitalization (until ::getMetaByContext doesn't force lowercase)
-		$fields = array_combine(
-			array_map(
-				function($key) use ($fields) {
-					if(array_key_exists('key', $fields[$key]))
-						return $fields[$key]['key'];
-					
-					return $key;
-				},
-				array_keys($fields)
-			),
-			$fields
-		);
+		if(method_exists($view, 'getQuickSearchFields')) {
+			$fields = $view->getQuickSearchFields();
+		} else {
+			$fields = [];
+		}
 		
 		ksort($fields);
 		
 		if ($chart_model['filter']) {
 			$fields = array_filter($fields, function($field, $field_key) use ($chart_model) {
-					@$match = sprintf('%s %s', $field_key, $field['notes']);
-					return stristr($match, $chart_model['filter']);
+				@$match = sprintf('%s %s', $field_key, $field['type']);
+				return stristr($match, $chart_model['filter']);
+			}, ARRAY_FILTER_USE_BOTH);
+		}
+		
+		if($chart_model['exclude_custom']) {
+			$fields = array_filter($fields, function($field) {
+				return !($field['options']['cf_id'] ?? false);
+			});
+		}
+		
+		if($chart_model['exclude_links']) {
+			$fields = array_filter($fields, function($field, $field_key) {
+				return !($field_key == 'links' || str_starts_with($field_key, 'links.'));
 			}, ARRAY_FILTER_USE_BOTH);
 		}
 		
@@ -155,7 +160,7 @@ class _DevblocksDataProviderRecordFields extends _DevblocksDataProvider {
 		$meta = [
 			'data' => $chart_model['data'],
 			'_' => [
-				'type' => 'record.fields',
+				'type' => 'record.filters',
 				'format' => 'dictionaries',
 			]
 		];

@@ -833,15 +833,20 @@ class PageSection_InternalRecords extends Extension_PageSection {
 				throw new Exception_DevblocksValidationError("Invalid record type.");
 			
 			if(!$active_worker->hasPriv(sprintf('contexts.%s.merge', $context_ext->id)))
-				throw new Exception_DevblocksValidationError("You do not have permission to merge these records.");
+				throw new Exception_DevblocksValidationError("You do not have permission to merge records.");
 			
 			if(
 				empty($ids)
 				|| count($ids) < 2
-				|| false == ($models = $context_ext->getModelObjects($ids))
+				|| !($models = $context_ext->getModelObjects($ids))
 				|| count($models) < 2
 			)
 				throw new Exception_DevblocksValidationError("You haven't provided at least two records to merge.");
+			
+			// Check record permissions
+			if(in_array(false, CerberusContexts::isWriteableByActor($context_ext->id, $models, $active_worker))) {
+				throw new Exception_DevblocksValidationError("You do not have permission to merge these records.");
+			}
 			
 			$field_labels = $field_values = [];
 			CerberusContexts::getContext($context_ext->id, null, $field_labels, $field_values, '', false, false);
@@ -1097,7 +1102,8 @@ class PageSection_InternalRecords extends Extension_PageSection {
 				$desired_models,
 				array_flip(
 					array_keys(
-						CerberusContexts::isWriteableByActor($context_ext->id, $desired_models, $active_worker), true
+						CerberusContexts::isWriteableByActor($context_ext->id, $desired_models, $active_worker),
+						true
 					)
 				)
 			);

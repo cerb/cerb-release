@@ -1221,7 +1221,7 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					],
 					[
 						'caption' => 'length_split:',
-						'snippet' => "length_split@json: \"\n\"",
+						'snippet' => "length_split@json: \"\\n\"",
 						'description' => "When using `length:` truncate at the last occurrence of this delimiter within the read bytes",
 					],
 					[
@@ -1409,7 +1409,7 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					],
 					[
 						'caption' => 'messages:',
-						'snippet' => "messages:",
+						'snippet' => "messages:\n\tmessage:\n\t\trole: user\n\t\tcontent@text:\n\t\t\t\${1:Hello!}\n",
 						'score' => 1998,
 					],
 					[
@@ -1444,13 +1444,11 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 				],
 				'(.*):llm.agent:inputs:llm:anthropic:model:' => [
 					'claude-3-5-haiku-20241022',
-					'claude-3-5-haiku-latest',
 					'claude-3-5-sonnet-20241022',
-					'claude-3-5-sonnet-latest',
 					'claude-3-7-sonnet-20250219',
-					'claude-3-7-sonnet-latest',
 					'claude-3-opus-20240229',
-					'claude-3-opus-latest',
+					'claude-sonnet-4-20250514',
+					'claude-opus-4-20250514',
 				],
 				'(.*):llm.agent:inputs:llm:aws_bedrock:' => [
 					'anthropic_version: bedrock-2023-05-31',
@@ -1477,6 +1475,8 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					'anthropic.claude-3-5-sonnet-20240620-v1:0',
 					'anthropic.claude-3-5-sonnet-20241022-v2:0',
 					'anthropic.claude-3-7-sonnet-20250219-v1:0',
+					'anthropic.claude-opus-4-20250514-v1:0',
+					'anthropic.claude-sonnet-4-20250514-v1:0',
 				],
 				'(.*):llm.agent:inputs:llm:groq:' => [
 					[
@@ -1486,6 +1486,9 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					],
 					'api_endpoint_url:',
 					'authentication:',
+				],
+				'(.*):llm.agent:inputs:llm:groq:api_endpoint_url:' => [
+					'https://api.groq.com/openai'
 				],
 				'(.*):llm.agent:inputs:llm:groq:authentication:' => [
 					'type' => 'cerb-uri',
@@ -1510,6 +1513,9 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					],
 					'api_endpoint_url:',
 					'authentication:',
+				],
+				'(.*):llm.agent:inputs:llm:huggingface:api_endpoint_url:' => [
+					'https://api-inference.huggingface.co',
 				],
 				'(.*):llm.agent:inputs:llm:huggingface:authentication:' => [
 					'type' => 'cerb-uri',
@@ -1563,14 +1569,19 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					]
 				],
 				'(.*):llm.agent:inputs:llm:openai:model:' => [
+					'gpt-4.1-2025-04-14',
+					'gpt-4.1-nano-2025-04-14',
 					'gpt-4o',
 					'gpt-4o-2024-08-06',
 					'gpt-4o-mini',
-					'o1',
-					'o1-mini',
-					'o3-mini',
 					'gpt-4o-mini-realtime-preview',
 					'gpt-4o-realtime-preview',
+					'o1',
+					'o1-mini',
+					'o1-pro',
+					'o3',
+					'o3-mini',
+					'o4-mini',
 				],
 				'(.*):llm.agent:inputs:llm:together:' => [
 					[
@@ -1606,7 +1617,11 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 				],
 				
 				'(.*):llm.agent:inputs:messages:' => [
-					'message:',
+					[
+						'caption' => 'message:',
+						'snippet' => "message:\n\trole: user\n\tcontent@text:\n\t\tThis is a test message.\n",
+						'score' => 2000,
+					]
 				],
 				'(.*):llm.agent:inputs:messages:message:' => [
 					'role: user',
@@ -1631,7 +1646,12 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					],
 				],
 				'(.*):llm.agent:inputs:tools:automation:' => [
+					'disabled@bool:',
 					'uri:',
+				],
+				'(.*):llm.agent:inputs:tools:automation:disabled:' => [
+					'yes',
+					'no',
 				],
 				'(.*):llm.agent:inputs:tools:automation:uri:' => [
 					'type' => 'cerb-uri',
@@ -1648,11 +1668,16 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 						'caption' => 'description:',
 						'snippet' => "description: \${1:This is a detailed description of the tool.}",
 					],
+					'disabled@bool:',
 					[
 						'caption' => 'parameters:',
 						'snippet' => "parameters:",
 						'docHTML' => '<b>parameters:</b> Optional parameters passed to the tool.',
 					]
+				],
+				'(.*):llm.agent:inputs:tools:tool:disabled:' => [
+					'yes',
+					'no',
 				],
 				'(.*):llm.agent:inputs:tools:tool:parameters:' => [
 					[
@@ -2852,7 +2877,7 @@ abstract class Extension_CommunityPortal extends DevblocksExtension implements D
 	}
 	
 	/**
-	 * @param DevblocksHttpRequest
+	 * @param DevblocksHttpRequest $request
 	 * @return DevblocksHttpResponse
 	 */
 	public function handleRequest(DevblocksHttpRequest $request) {
