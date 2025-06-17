@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-const APP_BUILD = 2025053001;
-const APP_VERSION = '11.1.2';
+const APP_BUILD = 2025060601;
+const APP_VERSION = '11.1.3';
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -5408,6 +5408,12 @@ class _CerbApplication_KataSchemas {
                                       aws_bedrock:
                                         types:
                                           list:
+                                      docker:
+                                        types:
+                                          list:
+                                      gemini:
+                                        types:
+                                          list:
                                       groq:
                                         types:
                                           list:
@@ -5500,6 +5506,74 @@ class _CerbApplication_KataSchemas {
                         types:
                           string:
 
+              llm.chat:
+                multiple@bool: yes
+                types:
+                  object:
+                    attributes:
+                      inputs:
+                        types:
+                          object:
+                            attributes:
+                              llm:
+                                types:
+                                  object:
+                                    attributes:
+                                      anthropic:
+                                        types:
+                                          list:
+                                      aws_bedrock:
+                                        types:
+                                          list:
+                                      docker:
+                                        types:
+                                          list:
+                                      gemini:
+                                        types:
+                                          list:
+                                      groq:
+                                        types:
+                                          list:
+                                      huggingface:
+                                        types:
+                                          list:
+                                      ollama:
+                                        types:
+                                          list:
+                                      openai:
+                                        types:
+                                          list:
+                                      together:
+                                        types:
+                                          list:
+                              messages:
+                                types:
+                                  object:
+                                    attributes:
+                                      message:
+                                        multiple@bool: yes
+                                        types:
+                                          object:
+                                            attributes:
+                                              content:
+                                                types:
+                                                  string:
+                                              role:
+                                                types:
+                                                  string:
+                              system_prompt:
+                                types:
+                                  string:
+                      on_error:
+                        ref: commands
+                      on_simulate:
+                        ref: commands
+                      on_success:
+                        ref: commands
+                      output:
+                        types:
+                          string:
+              
               llm.embed:
                 multiple@bool: yes
                 types:
@@ -5514,6 +5588,12 @@ class _CerbApplication_KataSchemas {
                                   object:
                                     attributes:
                                       aws_bedrock:
+                                        types:
+                                          list:
+                                      docker:
+                                        types:
+                                          list:
+                                      gemini:
                                         types:
                                           list:
                                       huggingface:
@@ -6188,6 +6268,7 @@ class _CerbApplication_KataSchemas {
                 function@ref: policyRule
                 http.request@ref: policyRule
                 llm.agent@ref: policyRule
+                llm.chat@ref: policyRule
                 llm.embed@ref: policyRule
                 metric.increment@ref: policyRule
                 queue.pop@ref: policyRule
