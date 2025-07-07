@@ -928,7 +928,8 @@ class PageSection_InternalRecords extends Extension_PageSection {
 							break;
 						
 						case Model_CustomField::TYPE_DECIMAL:
-							// [TODO]
+							$decimal_at = $dict->get($k . '_decimal_at');
+							$v = DevblocksPlatform::strFormatDecimal(intval($v), $decimal_at);
 							break;
 						
 						case Model_CustomField::TYPE_DROPDOWN:
@@ -1143,12 +1144,14 @@ class PageSection_InternalRecords extends Extension_PageSection {
 							break;
 						
 						case Model_CustomField::TYPE_CURRENCY:
-							@$dict_id = $values[$value_key];
-							$value = $dicts[$dict_id]->get(sprintf('%s_decimal', $value_key));
+							$dict_id = $values[$value_key] ?? null;
+							$value = $dicts[$dict_id]->get($value_key.'_decimal');
+							$value = strtr($value, [','=>'']); // remove commas
 							break;
 						
 						case Model_CustomField::TYPE_DECIMAL:
-							// [TODO] Format as user input
+							$dict_id = $values[$value_key] ?? null;
+							$value = $dicts[$dict_id]->get($value_key . '_label');
 							break;
 						
 						case Model_CustomField::TYPE_FILES:
