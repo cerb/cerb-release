@@ -480,9 +480,12 @@ class Model_DevblocksOutboundEmail {
 		);
 		
 		// Prefix 'Re:' to the subject if not exists and the conversation has messages (i.e. this isn't the first)
-		$has_re_already = str_contains($subject, 'Re:') || str_contains($subject, 're:');
-		$has_messages = $this->getTicket()->num_messages > 0;
-		$do_prefix_re = $this->getType() == Model_MailQueue::TYPE_TICKET_REPLY && !$has_re_already && $has_messages;
+		$do_prefix_re = false;
+		if($this->getType() == Model_MailQueue::TYPE_TICKET_REPLY) {
+			$has_re_already = str_contains($subject, 'Re:') || str_contains($subject, 're:');
+			$has_messages = intval($this->getTicket()?->num_messages) > 0;
+			$do_prefix_re = !$has_re_already && $has_messages;
+		}
 		
 		return (sprintf('%s%s%s',
 			$do_prefix_re ? 'Re: ' : '',
@@ -1367,6 +1370,43 @@ class _DevblocksEmailManager {
 		}
 		
 		return $blocklist_hash;
+	}
+	public function getImageProxyAllowlist() {
+		$cache = DevblocksPlatform::services()->cache();
+		
+		if(null === ($allowlist_hash = $cache->load('mail_html_image_allowlist'))) {
+			$image_allowlist = DevblocksPlatform::getPluginSetting('cerberusweb.core', CerberusSettings::MAIL_HTML_IMAGE_PROXY_ALLOWLIST, '');
+			
+			$allowlist_items = DevblocksPlatform::parseCrlfString($image_allowlist);
+			$allowlist_hash = [];
+			
+			foreach($allowlist_items as $idx => $allowlist_item) {
+				if(DevblocksPlatform::strStartsWith($allowlist_item, '#'))
+					continue;
+				
+				if(!DevblocksPlatform::strStartsWith($allowlist_item, ['http://', 'https://']))
+					$allowlist_item = 'http://' . $allowlist_item;
+				
+				if(!($url_parts = parse_url($allowlist_item)))
+					continue;
+				
+				if(!array_key_exists('host', $url_parts))
+					continue;
+				
+				if(!array_key_exists($url_parts['host'], $allowlist_hash))
+					$allowlist_hash[$url_parts['host']] = [];
+				
+				$allowlist_hash[$url_parts['host']][] = DevblocksPlatform::strToRegExp(sprintf('*://%s%s%s',
+					DevblocksPlatform::strStartsWith($url_parts['host'],'.') ? '*' : '',
+					$url_parts['host'],
+					array_key_exists('path', $url_parts) ? ($url_parts['path'].'*') : '/*'
+				));
+			}
+			
+			$cache->save($allowlist_hash, 'mail_html_image_allowlist', [], 0);
+		}
+		
+		return $allowlist_hash;
 	}
 	
 	public function getLinksWhitelist() {
