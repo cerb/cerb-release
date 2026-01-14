@@ -1450,12 +1450,15 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					]
 				],
 				'(.*):llm.agent:inputs:llm:anthropic:model:' => [
-					'claude-3-5-haiku-20241022',
-					'claude-3-5-sonnet-20241022',
-					'claude-3-7-sonnet-20250219',
-					'claude-3-opus-20240229',
-					'claude-sonnet-4-20250514',
+					'claude-opus-4-5-20251101',
+					'claude-haiku-4-5-20251001',
+					'claude-sonnet-4-5-20250929',
+					'claude-opus-4-1-20250805',
 					'claude-opus-4-20250514',
+					'claude-sonnet-4-20250514',
+					'claude-3-7-sonnet-20250219',
+					'claude-3-5-haiku-20241022',
+					'claude-3-haiku-20240307',
 				],
 				'(.*):llm.agent:inputs:llm:aws_bedrock:' => [
 					'anthropic_version: bedrock-2023-05-31',
@@ -1478,12 +1481,13 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					]
 				],
 				'(.*):llm.agent:inputs:llm:aws_bedrock:model:' => [
-					'anthropic.claude-3-5-haiku-20241022-v1:0',
-					'anthropic.claude-3-5-sonnet-20240620-v1:0',
-					'anthropic.claude-3-5-sonnet-20241022-v2:0',
-					'anthropic.claude-3-7-sonnet-20250219-v1:0',
-					'anthropic.claude-opus-4-20250514-v1:0',
+					'anthropic.claude-sonnet-4-5-20250929-v1:0',
+					'anthropic.claude-opus-4-5-20251101-v1:0',
+					'anthropic.claude-haiku-4-5-20251001-v1:0',
+					'anthropic.claude-opus-4-1-20250805-v1:0',
 					'anthropic.claude-sonnet-4-20250514-v1:0',
+					'anthropic.claude-opus-4-20250514-v1:0',
+					'anthropic.claude-3-haiku-20240307-v1:0',
 				],
 				'(.*):llm.agent:inputs:llm:docker:' => [
 					[
@@ -1514,6 +1518,16 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					],
 					'api_endpoint_url:',
 					'authentication:',
+					[
+						'caption' => 'thinking_include:',
+						'snippet' => "thinking_include@bool: yes",
+						'docHTML' => '<b>thinking_include:</b>Include thoughts in the chat completion output.',
+					],
+					[
+						'caption' => 'thinking_level:',
+						'snippet' => "thinking_level: low",
+						'docHTML' => '<b>thinking_level:</b>Adjust the reasoning effort based on the complexity of a request.<br><code>low</code> or <code>high</code> for Gemini 3 Pro, any setting for Gemini 3 Flash. Not supported for Gemini 2.5.',
+					],
 				],
 				'(.*):llm.agent:inputs:llm:gemini:api_endpoint_url:' => [
 					'https://generativelanguage.googleapis.com/v1beta/openai'
@@ -1526,10 +1540,19 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 				],
 				// https://ai.google.dev/gemini-api/docs/models
 				'(.*):llm.agent:inputs:llm:gemini:model:' => [
+					'gemini-3-pro-preview',
+					'gemini-3-flash-preview',
+					'gemini-2.5-pro',
+					'gemini-2.5-flash',
+					'gemini-2.5-flash-lite',
 					'gemini-2.0-flash',
 					'gemini-2.0-flash-lite',
-					'gemini-2.5-flash-preview-05-20',
-					'gemini-2.5-pro-preview-06-05',
+				],
+				'(.*):llm.agent:inputs:llm:gemini:thinking_level:' => [
+					'minimal',
+					'low',
+					'medium',
+					'high',
 				],
 				'(.*):llm.agent:inputs:llm:groq:' => [
 					[
@@ -1610,6 +1633,10 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					],
 					'api_endpoint_url:',
 					'authentication:',
+					[
+						'caption' => 'reasoning_effort:',
+						'snippet' => "reasoning_effort: medium",
+					],
 				],
 				'(.*):llm.agent:inputs:llm:openai:api_endpoint_url:' => [
 					'https://api.openai.com',
@@ -1621,19 +1648,31 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					]
 				],
 				'(.*):llm.agent:inputs:llm:openai:model:' => [
-					'gpt-4.1-2025-04-14',
-					'gpt-4.1-nano-2025-04-14',
-					'gpt-4o',
-					'gpt-4o-2024-08-06',
-					'gpt-4o-mini',
-					'gpt-4o-mini-realtime-preview',
-					'gpt-4o-realtime-preview',
-					'o1',
-					'o1-mini',
-					'o1-pro',
+					'gpt-5.2',
+					'gpt-5.2-chat-latest',
+					'gpt-5.1',
+					'gpt-5-codex',
+					'gpt-5',
+					'gpt-5-mini',
+					'gpt-5-nano',
+					'gpt-4.1',
+					'gpt-4.1-mini',
+					'gpt-4.1-nano',
 					'o3',
+					'o3-pro',
 					'o3-mini',
+					'o3-deep-research',
 					'o4-mini',
+					'o4-mini-deep-research',
+					'o1',
+					'o1-pro',
+				],
+				'(.*):llm.agent:inputs:llm:openai:reasoning_effort:' => [
+					'none',
+					'low',
+					'medium',
+					'high',
+					'xhigh',
 				],
 				'(.*):llm.agent:inputs:llm:together:' => [
 					[
@@ -1793,12 +1832,15 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					]
 				],
 				'(.*):llm.chat:inputs:llm:anthropic:model:' => [
-					'claude-3-5-haiku-20241022',
-					'claude-3-5-sonnet-20241022',
-					'claude-3-7-sonnet-20250219',
-					'claude-3-opus-20240229',
-					'claude-sonnet-4-20250514',
+					'claude-opus-4-5-20251101',
+					'claude-haiku-4-5-20251001',
+					'claude-sonnet-4-5-20250929',
+					'claude-opus-4-1-20250805',
 					'claude-opus-4-20250514',
+					'claude-sonnet-4-20250514',
+					'claude-3-7-sonnet-20250219',
+					'claude-3-5-haiku-20241022',
+					'claude-3-haiku-20240307',
 				],
 				'(.*):llm.chat:inputs:llm:aws_bedrock:' => [
 					'anthropic_version: bedrock-2023-05-31',
@@ -1821,12 +1863,13 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					]
 				],
 				'(.*):llm.chat:inputs:llm:aws_bedrock:model:' => [
-					'anthropic.claude-3-5-haiku-20241022-v1:0',
-					'anthropic.claude-3-5-sonnet-20240620-v1:0',
-					'anthropic.claude-3-5-sonnet-20241022-v2:0',
-					'anthropic.claude-3-7-sonnet-20250219-v1:0',
-					'anthropic.claude-opus-4-20250514-v1:0',
+					'anthropic.claude-sonnet-4-5-20250929-v1:0',
+					'anthropic.claude-opus-4-5-20251101-v1:0',
+					'anthropic.claude-haiku-4-5-20251001-v1:0',
+					'anthropic.claude-opus-4-1-20250805-v1:0',
 					'anthropic.claude-sonnet-4-20250514-v1:0',
+					'anthropic.claude-opus-4-20250514-v1:0',
+					'anthropic.claude-3-haiku-20240307-v1:0',
 				],
 				'(.*):llm.chat:inputs:llm:docker:' => [
 					[
@@ -1964,19 +2007,24 @@ abstract class Extension_AutomationTrigger extends DevblocksExtension {
 					]
 				],
 				'(.*):llm.chat:inputs:llm:openai:model:' => [
-					'gpt-4.1-2025-04-14',
-					'gpt-4.1-nano-2025-04-14',
-					'gpt-4o',
-					'gpt-4o-2024-08-06',
-					'gpt-4o-mini',
-					'gpt-4o-mini-realtime-preview',
-					'gpt-4o-realtime-preview',
-					'o1',
-					'o1-mini',
-					'o1-pro',
+					'gpt-5.2',
+					'gpt-5.2-chat-latest',
+					'gpt-5.1',
+					'gpt-5-codex',
+					'gpt-5',
+					'gpt-5-mini',
+					'gpt-5-nano',
+					'gpt-4.1',
+					'gpt-4.1-mini',
+					'gpt-4.1-nano',
 					'o3',
+					'o3-pro',
 					'o3-mini',
+					'o3-deep-research',
 					'o4-mini',
+					'o4-mini-deep-research',
+					'o1',
+					'o1-pro',
 				],
 				'(.*):llm.chat:inputs:llm:together:' => [
 					[
