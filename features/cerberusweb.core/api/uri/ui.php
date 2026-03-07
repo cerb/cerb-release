@@ -38,11 +38,11 @@ class Controller_UI extends DevblocksControllerExtension {
 		if(!$action)
 			return;
 
-		// Default action, call arg as a method suffixed with Action
+		// Invoke action from the path
 		if(false === ($this->_invoke($action))) {
 			if(!DEVELOPMENT_MODE_SECURITY_SCAN) {
 				trigger_error(
-					sprintf('Call to undefined profile tab action `%s::%s`',
+					sprintf('Call to undefined ui action `%s::%s`',
 						get_class($this),
 						$action
 					),
@@ -366,7 +366,7 @@ class Controller_UI extends DevblocksControllerExtension {
 				
 			// cerb:record_type:123
 			case 3:
-				if(false == ($context_ext = Extension_DevblocksContext::getByAlias($uri_parts[1], true)))
+				if(!($context_ext = Extension_DevblocksContext::getByAlias($uri_parts[1], true)))
 					return;
 				
 				if(!($context_ext instanceof IDevblocksContextUri))
@@ -374,7 +374,7 @@ class Controller_UI extends DevblocksControllerExtension {
 				
 				$uri_params = $params[$uri_parts[1]] ?? [];
 				
-				if(false == ($results = $context_ext->autocompleteUri($uri_parts[2], $uri_params)))
+				if(!($results = $context_ext->autocompleteUri($uri_parts[2], $uri_params)))
 					return;
 				
 				if(!is_iterable($results))

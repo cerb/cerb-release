@@ -1055,7 +1055,7 @@ class SearchFields_Message extends DevblocksSearchFields {
 			SearchFields_Message::VIRTUAL_SENDER_SEARCH => new DevblocksSearchField(SearchFields_Message::VIRTUAL_SENDER_SEARCH, '*', 'sender_search', null, null, false),
 			SearchFields_Message::VIRTUAL_TICKET_SEARCH => new DevblocksSearchField(SearchFields_Message::VIRTUAL_TICKET_SEARCH, '*', 'ticket_search', null, null, false),
 			SearchFields_Message::VIRTUAL_WORKER_SEARCH => new DevblocksSearchField(SearchFields_Message::VIRTUAL_WORKER_SEARCH, '*', 'worker_search', null, null, false),
-				
+
 			SearchFields_Message::MESSAGE_CONTENT => new DevblocksSearchField(SearchFields_Message::MESSAGE_CONTENT, 'ftmc', 'content', $translate->_('common.content'), 'FT', false),
 			SearchFields_Message::FULLTEXT_NOTE_CONTENT => new DevblocksSearchField(self::FULLTEXT_NOTE_CONTENT, 'ftnc', 'content', $translate->_('message.note.content'), 'FT', false),
 		);
@@ -1139,7 +1139,7 @@ class Model_Message extends DevblocksRecordModel {
 				return false;
 			
 			// If the attachment is inaccessible, fallback to plaintext 
-			if(false == ($dirty_html = $attachment->getFileContents()))
+			if(!($dirty_html = $attachment->getFileContents()))
 				return false;
 		}
 		
@@ -1353,6 +1353,7 @@ class Search_MessageContent extends Extension_DevblocksSearchSchema {
 		// If the index has a delta, start from the current record
 		} elseif($meta['is_indexed_externally']) {
 			// Do nothing (let the remote tool update the DB)
+			DevblocksPlatform::noop();
 			
 		// Otherwise, start over
 		} else {
@@ -1849,7 +1850,6 @@ class View_Message extends C4_AbstractView implements IAbstractView_Subtotals, I
 		$this->addColumnsHidden(array(
 			SearchFields_Message::FULLTEXT_NOTE_CONTENT,
 			SearchFields_Message::HTML_ATTACHMENT_ID,
-			SearchFields_Message::ID,
 			SearchFields_Message::MESSAGE_CONTENT,
 			SearchFields_Message::STORAGE_EXTENSION,
 			SearchFields_Message::STORAGE_KEY,

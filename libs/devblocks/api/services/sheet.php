@@ -823,6 +823,8 @@ class _DevblocksSheetServiceTypes {
 				$icon = $this->icon()($icon_column, $sheet_dict);
 			}
 			
+			$not_underlined = !array_key_exists('underline', $column_params) || !($column_params['underline'] ?? null);
+			
 			if('text' == ($environment['format'] ?? null)) {
 				return '';
 				
@@ -830,10 +832,11 @@ class _DevblocksSheetServiceTypes {
 				if(!$uri)
 					return $text;
 				
-				return sprintf('%s<a class="cerb-interaction-trigger" data-interaction-uri="%s" data-interaction-params="%s" data-interaction-done="&refresh_widgets=no">%s</a>',
+				return sprintf('%s<a class="cerb-interaction-trigger" data-interaction-uri="%s" data-interaction-params="%s" data-interaction-done="&refresh_widgets=no" style="text-decoration:%s;">%s</a>',
 					$icon,
 					DevblocksPlatform::strEscapeHtml($uri),
 					DevblocksPlatform::services()->url()->arrayToQueryString($inputs),
+					DevblocksPlatform::strEscapeHtml($not_underlined ? 'none' : 'underline'),
 					DevblocksPlatform::strEscapeHtml($text)
 				);
 			}
@@ -1200,14 +1203,19 @@ class _DevblocksSheetServiceTypes {
 				
 			} else {
 				$range = $value_max - $value_min;
-				$value_pos = $value;
 				
-				if($value < $value_min) $value = $value_min;
-				if($value > $value_max) $value = $value_max;
-				if($value_min < 0) $value_pos += abs($value_min);
-				if($value_min > 0) $value_pos -= $value_min;
-				
-				$progress = is_numeric($value) ? ($value_pos / $range) * 5 : 0;
+				if($range != 0) {
+					$value_pos = $value;
+					
+					if($value < $value_min) $value = $value_min;
+					if($value > $value_max) $value = $value_max;
+					if($value_min < 0) $value_pos += abs($value_min);
+					if($value_min > 0) $value_pos -= $value_min;
+					
+					$progress = is_numeric($value) ? ($value_pos / $range) * 5 : 0;
+				} else { // div-by-zero
+					$progress = 0;
+				}
 				
 				$label_min = sprintf('<div style="margin-right:0.7em;width:3em;text-align:right;display:inline-block;">%s</div>', DevblocksPlatform::strEscapeHtml($value_min));
 				$label_max = sprintf('<div style="margin-left:0.7em;width:3em;text-align:left;display:inline-block;">%s</div>', DevblocksPlatform::strEscapeHtml($value_max));
