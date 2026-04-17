@@ -39,7 +39,7 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-const APP_BUILD = 2026041401;
+const APP_BUILD = 2026041701;
 const APP_VERSION = '11.1.8';
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
@@ -1362,7 +1362,7 @@ class CerberusContexts {
 	public static function isActorAnAdmin($actor) {
 		// Polymorph
 		if(!($actor instanceof DevblocksDictionaryDelegate))
-			if(false == ($actor = self::polymorphActorToDictionary($actor)))
+			if(!($actor = self::polymorphActorToDictionary($actor)))
 				return false;
 		
 		if(

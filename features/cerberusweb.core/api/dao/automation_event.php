@@ -132,6 +132,11 @@ class DAO_AutomationEvent extends Cerb_ORMHelper {
 	}
 	
 	static public function onBeforeUpdateByActor($actor, &$fields, $id=null, &$error=null) {
+		if(!CerberusContexts::isActorAnAdmin($actor)) {
+			$error = DevblocksPlatform::translate('error.core.no_acl.admin');
+			return false;
+		}
+		
 		$context = CerberusContexts::CONTEXT_AUTOMATION_EVENT;
 		
 		// These records can't be created outside the patcher
@@ -142,11 +147,6 @@ class DAO_AutomationEvent extends Cerb_ORMHelper {
 		
 		if(!self::_onBeforeUpdateByActorCheckContextPrivs($actor, $context, $id, $error))
 			return false;
-		
-		if(!CerberusContexts::isActorAnAdmin($actor)) {
-			$error = DevblocksPlatform::translate('error.core.no_acl.admin');
-			return false;
-		}
 		
 		return true;
 	}
@@ -247,11 +247,11 @@ class DAO_AutomationEvent extends Cerb_ORMHelper {
 	 * @param DevblocksDictionaryDelegate|null $event_dict
 	 * @return array|false
 	 */
-	public static function getKataByName(string $name, ?DevblocksDictionaryDelegate $event_dict=null) : array|string|false{
+	public static function getKataByName(string $name, ?DevblocksDictionaryDelegate $event_dict=null, array $priority_range=[]) : array|string|false{
 		if(!($event = DAO_AutomationEvent::getByName($name)))
 			return false;
 		
-		return $event->getKata($event_dict);
+		return $event->getKata($event_dict, priority_range: $priority_range);
 	}
 		
 	/**
@@ -492,12 +492,19 @@ class Model_AutomationEvent extends DevblocksRecordModel {
 	 * @param string|null $error
 	 * @return array|string|false
 	 */
-	function getKata(?DevblocksDictionaryDelegate $dict=null, string &$error=null): array|string|bool {
+	function getKata(?DevblocksDictionaryDelegate $dict=null, string &$error=null, array $priority_range=[]): array|string|bool {
 		$event_listeners = DAO_AutomationEventListener::getByEvent($this->name);
 		$event_handler = DevblocksPlatform::services()->ui()->eventHandler();
 		
 		// Sort by priority
 		uasort($event_listeners, fn($a,$b) => $a->priority <=> $b->priority);
+		
+		// Optionally filter by priority range
+		if($priority_range && 2 == count($priority_range)) {
+			$event_listeners = array_filter($event_listeners, function($listener) use ($priority_range) {
+				return $listener->priority >= intval($priority_range[0]) && $listener->priority <= intval($priority_range[1]);
+			});
+		}
 		
 		$event_kata = '';
 		

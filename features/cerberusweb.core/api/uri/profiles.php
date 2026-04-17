@@ -169,7 +169,6 @@ class Page_Profiles extends CerberusPageExtension {
 	static function renderProfile($context, $context_id, $path=[]) {
 		$tpl = DevblocksPlatform::services()->template();
 		$active_worker = CerberusApplication::getActiveWorker();
-		$event_handler = DevblocksPlatform::services()->ui()->eventHandler();
 
 		// Context
 		
@@ -197,16 +196,24 @@ class Page_Profiles extends CerberusPageExtension {
 		
 		// Permissions
 		
-		if(!CerberusContexts::isReadableByActor($context, $dict, $active_worker))
-			DevblocksPlatform::dieWithHttpError(DevblocksPlatform::translateCapitalized('common.access_denied'), 403);
-
-		// Events
-		AutomationTrigger_RecordViewed::trigger($dict);
+		if(!CerberusContexts::isReadableByActor($context, $dict, $active_worker)) {
+			$tpl->assign('page', '');
+			$tpl->assign('error_title', DevblocksPlatform::translate('common.access_denied'));
+			$tpl->assign('error_message', 'You do not have permission to view this page.');
+			$tpl->display('devblocks:cerberusweb.core::pages/error.tpl');
+			return;
+		}
+		
+		// Trigger priorities 0-127 before legacy behaviors
+		AutomationTrigger_RecordViewed::trigger($dict, priority_range:[0, 127]);
 		
 		if($context == CerberusContexts::CONTEXT_TICKET) {
 			// Trigger ticket view event (before we load it, in case we change it)
 			Event_TicketViewedByWorker::trigger($record->id, $active_worker->id);
 		}
+		
+		// Trigger priorities 128-255 after legacy behaviors
+		AutomationTrigger_RecordViewed::trigger($dict, priority_range:[128, 255]);
 		
 		// Toolbar
 		$toolbar_placeholders = $dict->getDictionary(null, false, 'record_');
