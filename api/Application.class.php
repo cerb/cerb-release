@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-const APP_BUILD = 2026041701;
-const APP_VERSION = '11.1.8';
+const APP_BUILD = 2026051301;
+const APP_VERSION = '11.1.9';
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -732,8 +732,7 @@ class CerberusApplication extends DevblocksApplication {
 		$password = '';
 
 		for($x=0;$x<$length;$x++) {
-			$chars = str_shuffle($chars);
-			$password .= substr($chars,mt_rand(0,$len),1);
+			$password .= $chars[random_int(0, $len)];
 		}
 
 		return $password;
