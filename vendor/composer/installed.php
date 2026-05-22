@@ -3,7 +3,7 @@
         'name' => 'wgm/cerb',
         'pretty_version' => '11.1.x-dev',
         'version' => '11.1.9999999.9999999-dev',
-        'reference' => '656e537ccaa2c69ec54ede7e74cdfd0b7de3a8b3',
+        'reference' => 'cad3c9f436378191880fcd844537458d3b6021a1',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -562,9 +562,9 @@
             'dev_requirement' => false,
         ),
         'twig/twig' => array(
-            'pretty_version' => 'dev-3.8.0-cerb',
-            'version' => 'dev-3.8.0-cerb',
-            'reference' => 'ed6b809d938dd0b69ed2a3fdc0d1c637c76debee',
+            'pretty_version' => 'dev-3.26.0-cerb',
+            'version' => 'dev-3.26.0-cerb',
+            'reference' => '518dc201af33251a0b533a8124625b287aabac20',
             'type' => 'library',
             'install_path' => __DIR__ . '/../twig/twig',
             'aliases' => array(
@@ -575,7 +575,7 @@
         'wgm/cerb' => array(
             'pretty_version' => '11.1.x-dev',
             'version' => '11.1.9999999.9999999-dev',
-            'reference' => '656e537ccaa2c69ec54ede7e74cdfd0b7de3a8b3',
+            'reference' => 'cad3c9f436378191880fcd844537458d3b6021a1',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
