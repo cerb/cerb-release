@@ -69,9 +69,12 @@ class NameExpression extends AbstractExpression implements SupportDefinedTestInt
             $compiler->raw($this->specialVars[$name]);
         } elseif ($this->getAttribute('always_defined')) {
             $compiler
-                ->raw('$context[')
+                ->raw('($context[')
                 ->string($name)
-                ->raw(']')
+                ->raw('] ?? ')
+                ->raw('$this->env->getUndefinedVariable(')
+                ->string($name)
+                ->raw('))')
             ;
         } else {
             if ($this->getAttribute('ignore_strict_check') || !$compiler->getEnvironment()->isStrictVariables()) {

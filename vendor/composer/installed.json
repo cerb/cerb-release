@@ -4155,12 +4155,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/jstanden/Twig.git",
-                "reference": "518dc201af33251a0b533a8124625b287aabac20"
+                "reference": "e9fb8d61cea81fbc6c334e1ecdc57299e025eb8a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/jstanden/Twig/zipball/518dc201af33251a0b533a8124625b287aabac20",
-                "reference": "518dc201af33251a0b533a8124625b287aabac20",
+                "url": "https://api.github.com/repos/jstanden/Twig/zipball/e9fb8d61cea81fbc6c334e1ecdc57299e025eb8a",
+                "reference": "e9fb8d61cea81fbc6c334e1ecdc57299e025eb8a",
                 "shasum": ""
             },
             "require": {
@@ -4175,7 +4175,7 @@
                 "psr/container": "^1.0|^2.0",
                 "symfony/phpunit-bridge": "^5.4.9|^6.4|^7.0"
             },
-            "time": "2026-05-22T01:12:28+00:00",
+            "time": "2026-05-31T19:46:53+00:00",
             "default-branch": true,
             "type": "library",
             "installation-source": "dist",
