@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.12.1 - 2026-06-18
+
+### Security
+
+- Reject CR/LF in HTTP method, protocol version, and reason phrase (GHSA-vm85-hxw5-5432)
+
+## 2.12.0 - 2026-06-16
+
+### Deprecated
+
+- Deprecated non-finite float values in `Query::build()` that guzzlehttp/psr7 3.0 rejects
+- Deprecated non-finite float multipart contents that guzzlehttp/psr7 3.0 rejects
+- Deprecated non-string scalar bodies in `Utils::streamFor()`; cast them to a string for 3.0
+- Deprecated non-string `Uri::withQueryValues()` values; cast them to a string for 3.0
+
+## 2.11.1 - 2026-06-12
+
+### Fixed
+
+- Fixed non-finite float values emitting coercion warnings on PHP 8.5
+
+## 2.11.0 - 2026-06-02
+
+### Changed
+
+- Changed `Utils::modifyRequest()` to reject conflicting URI and `Host` header changes in the same call
+- Changed `Header::parse()` to split semicolon-separated parameters without repeated regular expression lookaheads
+- Changed `UriComparator::isCrossOrigin()` so only HTTP and HTTPS missing ports receive implicit default ports
+
+### Deprecated
+
+- Deprecated invalid PSR-7 arguments that guzzlehttp/psr7 3.0 will require native types for
+- Deprecated non-string header values that guzzlehttp/psr7 3.0 will reject
+- Deprecated empty header value arrays that guzzlehttp/psr7 3.0 will reject
+- Deprecated URI schemes that do not match guzzlehttp/psr7 3.0 syntax requirements
+- Deprecated multipart boundary and custom part header metadata that guzzlehttp/psr7 3.0 will reject
+- Deprecated reliance on automatic uppercasing of request methods; guzzlehttp/psr7 3.0 preserves method casing
+- Deprecated invalid `Utils::modifyRequest()` change values that guzzlehttp/psr7 3.0 will reject
+
+### Fixed
+
+- Fixed `Utils::copyToStream()` to retry short destination writes instead of dropping the unwritten remainder
+- Fixed `Header::parse()` splitting of semicolon-separated parameters with escaped quotes
+
 ## 2.10.4 - 2026-05-29
 
 ### Fixed
