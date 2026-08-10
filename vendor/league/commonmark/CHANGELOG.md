@@ -6,6 +6,61 @@ Updates should follow the [Keep a CHANGELOG](https://keepachangelog.com/) princi
 
 ## [Unreleased][unreleased]
 
+## [2.9.1] - 2026-08-09
+
+This is a **security release** to address multiple denial of service vulnerabilities and one cross-site scripting (XSS) vulnerability.
+
+### Changed
+- Shortcut and collapsed reference links (`[label]` and `[label][]`) now apply the spec's 999-character link label limit when resolving the label, matching the limit already enforced when parsing reference definitions and when resolving the `[text][label]` form. A label longer than 999 characters which collapsed to a shorter, defined label once whitespace was normalized will no longer resolve; this matches cmark's behavior.
+
+### Fixed
+- Fixed attribute names prefixed with a form feed (such as `{<FF>onclick="..."}`) bypassing both the `on*` event handler filter and the `allow_unsafe_links` protection, as browsers treat that byte as whitespace and parse the name as a genuine `onclick` or `href` (GHSA-f8fg-pg57-v4j8)
+- Fixed catastrophic backtracking in the fenced code block start pattern, causing a single line of backticks to be scanned in quadratic time, which could be abused to cause a denial of service (GHSA-j8pm-gj4c-rq4x)
+- Fixed shortcut reference link lookups normalizing arbitrarily long labels once a single reference definition is present, causing nested brackets to be resolved in quadratic time, which could be abused to cause a denial of service (GHSA-j8pm-gj4c-rq4x)
+- Fixed delimiter processors keying the opener-search cache on the raw closer run length, leaving the cache key space unbounded and causing emphasis, strikethrough, and highlight runs to be processed in super-linear time, which could be abused to cause a denial of service (GHSA-j8pm-gj4c-rq4x)
+- Fixed the `SmartPunctExtension` recopying the whole preceding text node when replacing each unpaired quote, causing documents with many apostrophes to be processed in quadratic time, which could be abused to cause a denial of service (GHSA-jjv6-8j6v-6j52)
+- Fixed the `AttributesExtension` scanning the remaining siblings of every block-level attribute node, causing long runs of adjacent attribute blocks to be resolved in quadratic time, which could be abused to cause a denial of service - this completes the fix for GHSA-g2gp-3wwq-f4ph, which covered only inline attributes (GHSA-jjv6-8j6v-6j52)
+- Fixed the `AttributesExtension` rebuilding the accumulated class list on every merge, causing long runs of `.class` attributes to be resolved in quadratic time, which could be abused to cause a denial of service (GHSA-jjv6-8j6v-6j52)
+
+## [2.9.0] - 2026-08-03
+
+This is a **security release** to address five denial of service vulnerabilities and one cross-site scripting (XSS) vulnerability.
+
+### Added
+
+- Added a new `NormalizeHeadingsExtension` to constrain headings to a configured level range (#989)
+    - Rewrites headings that skip levels so the resulting HTML is valid (#1115)
+    - `normalize_headings/rebase_to_min_level` - rebases each document so its headings begin at `min_level`
+- Added a new `footnote/enable_inline_footnotes` config option to disable the inline `^[Footnote text]` syntax (#1112)
+- Added `Cursor::getBytePosition()` for obtaining the cursor's current byte offset within the line
+- Added a new `xml/max_indentation_level` config option to control how far `XmlRenderer` indents nested elements (default: `16`; set to `0` for unindented output)
+
+### Changed
+
+- The `FootnoteExtension` now uses only the first definition of a footnote label, removing any duplicate definitions instead of rendering them in place
+- `NumberFootnotesListener` now stores footnote backrefs under a single `footnote/backrefs` key in the document data instead of one key per footnote destination
+- Optimized `Cursor` to translate character positions to byte offsets in constant time instead of re-decoding the line with `mb_substr()`
+- Optimized `Cursor::match()` to match against the line at the cursor's byte offset instead of copying the remaining line on every call
+- Optimized `InlineParserEngine` and `UrlAutolinkParser` to work with byte offsets directly
+
+### Fixed
+
+- Fixed quadratic parsing performance on lines containing multibyte characters, which could be abused to cause a denial of service (GHSA-2q4p-g7hv-5rgv)
+- Fixed the unsafe link filter failing to detect dangerous schemes obfuscated with embedded tabs, newlines, or leading control characters (such as `java<TAB>script:`), which allowed the `allow_unsafe_links` protection to be bypassed via `href` and `src` attributes (GHSA-29pj-957v-52mc)
+- Fixed duplicate footnote definitions each claiming the full list of backrefs for their label, causing a quadratic number of backrefs to be generated, which could be abused to cause a denial of service (GHSA-jfm3-95jq-q3rf)
+- Fixed footnote labels being treated as `.`/`/`-delimited key paths when storing backrefs, which allowed distinct labels such as `[^a.b]` and `[^a/b]` to share a single backref list (GHSA-jfm3-95jq-q3rf)
+- Fixed a fatal error when one footnote label was a prefix of another, such as `[^a]` and `[^a.b]`
+- Fixed the unique slug normalizer restarting its suffix search from `1` on every collision, causing headings or inline footnotes which normalize to the same slug to be de-duplicated in quadratic time, which could be abused to cause a denial of service (GHSA-mh25-x5hq-wrqp)
+- Fixed the `AttributesExtension` scanning the remaining siblings of an inline attribute which can only apply to its parent block, causing long runs of adjacent inline attributes to be resolved in quadratic time, which could be abused to cause a denial of service (GHSA-g2gp-3wwq-f4ph)
+- Fixed `XmlRenderer` indenting every element by its full nesting depth without any upper bound, causing deeply-nested documents to render as quadratically-sized XML, which could be abused to cause a denial of service (GHSA-mj63-m3rc-8ppr)
+- Fixed `MarkDelimiterProcessor` not being declared as a `CacheableDelimiterProcessorInterface`, preventing the delimiter stack from caching the opener search for `==` runs (#1133)
+
+## [2.8.3] - 2026-07-12
+
+### Fixed
+- Fixed tab-indented fenced code blocks inside list items losing the first character of each line and having their info string mangled (#981, #1130)
+- Fixed the unsafe link filter incorrectly blocking safe URLs containing `vbscript:`, `file:`, or `data:` anywhere after the start (#1131)
+
 ## [2.8.2] - 2026-03-19
 
 This is a **security release** to address an issue where the `allowed_domains` setting for the `Embed` extension can be bypassed, resulting in a possible SSRF and XSS vulnerabilities.
@@ -732,7 +787,10 @@ No changes were introduced since the previous release.
     - Alternative 1: Use `CommonMarkConverter` or `GithubFlavoredMarkdownConverter` if you don't need to customize the environment
     - Alternative 2: Instantiate a new `Environment` and add the necessary extensions yourself
 
-[unreleased]: https://github.com/thephpleague/commonmark/compare/2.8.2...HEAD
+[unreleased]: https://github.com/thephpleague/commonmark/compare/2.9.1...HEAD
+[2.9.1]: https://github.com/thephpleague/commonmark/compare/2.9.0...2.9.1
+[2.9.0]: https://github.com/thephpleague/commonmark/compare/2.8.3...2.9.0
+[2.8.3]: https://github.com/thephpleague/commonmark/compare/2.8.2...2.8.3
 [2.8.2]: https://github.com/thephpleague/commonmark/compare/2.8.1...2.8.2
 [2.8.1]: https://github.com/thephpleague/commonmark/compare/2.8.0...2.8.1
 [2.8.0]: https://github.com/thephpleague/commonmark/compare/2.7.1...2.8.0
