@@ -1,0 +1,30 @@
+{
+    "name": "bytestream/horde-translation",
+    "description": "Horde Translation library",
+    "type": "library",
+    "homepage": "https://www.horde.org/libraries/Horde_Translation",
+    "license": "LGPL-2.1",
+    "authors": [
+        {
+            "name": "Jan Schneider",
+            "email": "jan@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-0": {
+            "Horde_Translation": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Horde_Translation": "test"
+        }
+    }
+}

@@ -1,0 +1,26 @@
+{
+    "name": "bytestream/horde-socket-client",
+    "description": "Horde network socket client library",
+    "type": "library",
+    "homepage": "https://www.horde.org",
+    "license": "LGPL-2.1",
+    "authors": [
+        {
+            "name": "Michael Slusarz",
+            "email": "slusarz@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0",
+        "bytestream/horde-exception": "^2"
+    },
+    "suggest": {
+        "ext-openssl": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Horde\\Socket\\": "lib/Horde/Socket"
+        }
+    }
+}

@@ -1,0 +1,43 @@
+{
+    "name": "bytestream/horde-imap-client",
+    "description": "Horde IMAP client library",
+    "type": "library",
+    "homepage": "https://www.horde.org/libraries/Horde_Imap_Client",
+    "license": "LGPL-2.1",
+    "authors": [
+        {
+            "name": "Michael Slusarz",
+            "email": "slusarz@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0",
+        "bytestream/horde-exception": "^2",
+        "bytestream/horde-mail": "^2",
+        "bytestream/horde-mime": "^2.5.2",
+        "bytestream/horde-socket-client": "^2",
+        "bytestream/horde-stream": "^1.4",
+        "bytestream/horde-secret": "^2",
+        "bytestream/horde-stream-filter": "^2",
+        "bytestream/horde-translation": "^2.2",
+        "bytestream/horde-util": "^2",
+        "ext-hash": "*",
+        "ext-json": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "bytestream/horde-stringprep": "^1.1",
+        "bytestream/horde-crypt-blowfish": "^1.2"
+    },
+    "autoload": {
+        "psr-0": {
+            "Horde_Imap_Client": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Horde_Imap_Client": "test/"
+        }
+    }
+}

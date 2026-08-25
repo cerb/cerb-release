@@ -1,0 +1,52 @@
+{
+    "name": "bytestream/horde-mime",
+    "description": "MIME library",
+    "type": "library",
+    "homepage": "https://www.horde.org/libraries/Horde_Mime",
+    "license": "LGPL-2.1",
+    "authors": [
+        {
+            "name": "Chuck Hagenbuch",
+            "email": "chuck@horde.org",
+            "role": "lead"
+        },
+        {
+            "name": "Michael Slusarz",
+            "email": "slusarz@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^8.0",
+        "bytestream/horde-exception": "^2",
+        "bytestream/horde-listheaders": "^1.3",
+        "bytestream/horde-mail": "^2.7",
+        "bytestream/horde-stream": "^1.3",
+        "bytestream/horde-stream-filter": "^2",
+        "bytestream/horde-support": "^2.1",
+        "bytestream/horde-text-flowed": "^2",
+        "bytestream/horde-translation": "^2.2",
+        "bytestream/horde-util": "^2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "bytestream/horde-text-filter": "^2.4"
+    },
+    "autoload": {
+        "psr-0": {
+            "Horde_Mime": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Horde_Mime": "test/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "extra": {
+        "branch-alias": {
+            "dev-master": "2.x-dev"
+        }
+    }
+}

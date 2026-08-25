@@ -1,0 +1,40 @@
+{
+    "name": "bytestream/horde-listheaders",
+    "description": "Horde list headers parsing library",
+    "type": "library",
+    "homepage": "https://www.horde.org/libraries/Horde_ListHeaders",
+    "license": "LGPL-2.1",
+    "authors": [
+        {
+            "name": "Michael Slusarz",
+            "email": "slusarz@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0",
+        "bytestream/horde-mail": "^2.7",
+        "bytestream/horde-translation": "^2.2",
+        "bytestream/horde-util": "^2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-0": {
+            "Horde_ListHeaders": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Horde_ListHeaders": "test/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.x-dev"
+        }
+    }
+}

@@ -1,0 +1,32 @@
+{
+    "name": "bytestream/horde-stream",
+    "description": "Horde PHP streams library",
+    "type": "library",
+    "homepage": "https://www.horde.org/libraries/Horde_Stream",
+    "license": "LGPL-2.1",
+    "authors": [
+        {
+            "name": "Michael Slusarz",
+            "email": "slusarz@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0",
+        "bytestream/horde-exception": "^2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "bytestream/horde-stream-wrapper": "^2.2"
+    },
+    "autoload": {
+        "psr-0": {
+            "Horde_Stream": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Horde_Stream": "test/"
+        }
+    }
+}

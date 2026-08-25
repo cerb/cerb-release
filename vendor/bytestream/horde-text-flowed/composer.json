@@ -1,0 +1,31 @@
+{
+    "name": "bytestream/horde-text-flowed",
+    "description": "Flowed text library",
+    "type": "library",
+    "homepage": "https://www.horde.org/libraries/Horde_Text_Flowed",
+    "license": "LGPL-2.1",
+    "authors": [
+        {
+            "name": "Michael Slusarz",
+            "email": "slusarz@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0",
+        "bytestream/horde-util": "^2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-0": {
+            "Horde_Text_Flowed": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Horde_Text_Flowed": "test/"
+        }
+    }
+}

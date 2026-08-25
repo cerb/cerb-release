@@ -1,0 +1,32 @@
+{
+    "name": "bytestream/horde-crypt-blowfish",
+    "description": "Horde Blowfish encryption library",
+    "type": "library",
+    "homepage": "https://www.horde.org/libraries/Horde_Crypt_Blowfish",
+    "license": "LGPL-2.1",
+    "authors": [
+        {
+            "name": "Michael Slusarz",
+            "email": "slusarz@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0",
+        "bytestream/horde-exception": "^2",
+        "bytestream/horde-support": "^2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-0": {
+            "Horde_Crypt_Blowfish": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Horde_Crypt_Blowfish": "test/"
+        }
+    }
+}

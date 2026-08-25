@@ -1,0 +1,43 @@
+{
+    "name": "bytestream/horde-mail",
+    "description": "Horde mail library",
+    "type": "library",
+    "homepage": "https://www.horde.org/libraries/Horde_Mail",
+    "license": "BSD-2-Clause",
+    "authors": [
+        {
+            "name": "Michael Slusarz",
+            "email": "slusarz@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0",
+        "bytestream/horde-exception": "^2",
+        "bytestream/horde-idna": "^1",
+        "bytestream/horde-mime": "^2.12",
+        "bytestream/horde-stream-filter": "^2",
+        "bytestream/horde-translation": "^2.2",
+        "bytestream/horde-util": "^2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-0": {
+            "Horde_Mail": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Horde_Mail": "test/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "extra": {
+        "branch-alias": {
+            "dev-master": "2.x-dev"
+        }
+    }
+}

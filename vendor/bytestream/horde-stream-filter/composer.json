@@ -1,0 +1,36 @@
+{
+    "name": "bytestream/horde-stream-filter",
+    "description": "Horde PHP stream filters library",
+    "type": "library",
+    "homepage": "https://www.horde.org/libraries/Horde_Stream_Filter",
+    "license": "LGPL-2.1",
+    "authors": [
+        {
+            "name": "Chuck Hagenbuch",
+            "email": "chuck@horde.org",
+            "role": "lead"
+        },
+        {
+            "name": "Michael Slusarz",
+            "email": "slusarz@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-0": {
+            "Horde_Stream_Filter": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Horde_Stream_Filter": "test/"
+        }
+    }
+}
+

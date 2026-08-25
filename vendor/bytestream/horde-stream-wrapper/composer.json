@@ -1,0 +1,35 @@
+{
+    "name": "bytestream/horde-stream-wrapper",
+    "description": "Horde PHP stream wrappers library",
+    "type": "library",
+    "homepage": "https://www.horde.org/libraries/Horde_Stream_Wrapper",
+    "license": "BSD-2-Clause",
+    "authors": [
+        {
+            "name": "Chuck Hagenbuch",
+            "email": "chuck@horde.org",
+            "role": "lead"
+        },
+        {
+            "name": "Michael Slusarz",
+            "email": "slusarz@horde.org",
+            "role": "lead"
+        }
+    ],
+    "require": {
+        "php": "^7.4 || ^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-0": {
+            "Horde_Stream_Wrapper": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Horde_Stream_Wrapper": "test/"
+        }
+    }
+}
