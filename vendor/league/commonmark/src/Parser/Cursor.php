@@ -170,6 +170,10 @@ class Cursor
      * Return the single multibyte character at $index, caching the sliced string so
      * repeated reads of the same position (common during delimiter scanning) don't
      * re-slice. Callers must ensure 0 <= $index < $length.
+     *
+     * Only call this when $isMultibyte is true. On a single-byte line the character is
+     * already reachable as $this->line[$index], which costs less than the byte-offset
+     * translation below; every caller guards on that flag for exactly that reason.
      */
     private function charAt(int $index): string
     {
@@ -179,7 +183,13 @@ class Cursor
 
         $startByte = $this->byteOffset($index);
 
-        return $this->charCache[$index] = \substr($this->line, $startByte, $this->byteOffset($index + 1) - $startByte);
+        // The line is known to be valid UTF-8 (the constructor rejects anything else), so the
+        // lead byte alone gives the character's width. Deriving it here avoids a second
+        // byteOffset() walk just to locate where the next character begins.
+        $lead  = \ord($this->line[$startByte]);
+        $width = $lead < 0x80 ? 1 : ($lead < 0xE0 ? 2 : ($lead < 0xF0 ? 3 : 4));
+
+        return $this->charCache[$index] = \substr($this->line, $startByte, $width);
     }
 
     /**
@@ -205,6 +215,15 @@ class Cursor
         // leading whitespace.  Because every character in the run occupies exactly one
         // byte, the character index and byte offset advance together.
         $byteOffset = $this->isMultibyte ? $this->byteOffset($this->currentPosition) : $this->currentPosition;
+
+        // Past the last tab (or on a line with none) every whitespace character is a space worth
+        // exactly one column, so the run length is both the character count and the indent, and
+        // strspn() can measure it in one call instead of a per-character loop.
+        if ($this->lastTabPosition === false || $this->currentPosition > $this->lastTabPosition) {
+            $this->indent = \strspn($this->line, ' ', $byteOffset);
+
+            return $this->nextNonSpaceCache = $this->currentPosition + $this->indent;
+        }
 
         for ($i = $this->currentPosition; $i < $this->length; $i++, $byteOffset++) {
             $c = $this->line[$byteOffset];
@@ -450,13 +469,22 @@ class Cursor
             return 0;
         }
 
-        $matches = [];
-        \preg_match('/^ *(?:\n *)?/', $this->getRemainder(), $matches, \PREG_OFFSET_CAPTURE);
+        // A partially-consumed tab leaves the cursor sitting on the tab itself, which the check
+        // above has already returned on, so only real spaces and newlines reach this point and no
+        // tab expansion is needed.
+        //
+        // Spaces and newlines are single-byte ASCII characters which can never appear inside a
+        // multibyte UTF-8 sequence, so the run is measured at the byte level and each byte
+        // consumed is exactly one character. Scanning the line in place keeps the cost of each
+        // call proportional to the run it consumes, rather than to the length of everything left
+        // in the block, which is what building the remainder first charged for.
+        $byteOffset = $this->isMultibyte ? $this->byteOffset($this->currentPosition) : $this->currentPosition;
 
-        // [0][0] contains the matched text
-        // [0][1] contains the index of that match
-        \assert(isset($matches[0]));
-        $increment = $matches[0][1] + \strlen($matches[0][0]);
+        $increment = \strspn($this->line, ' ', $byteOffset);
+        if (($this->line[$byteOffset + $increment] ?? '') === "\n") {
+            $increment++;
+            $increment += \strspn($this->line, ' ', $byteOffset + $increment);
+        }
 
         $this->advanceBy($increment);
 
@@ -510,7 +538,12 @@ class Cursor
     }
 
     /**
-     * Try to match a regular expression
+     * Try to match a regular expression against the remainder of the line
+     *
+     * The subject begins at the cursor: text before the cursor is invisible to the pattern,
+     * so "^" and "\A" anchor at the cursor, and constructs which examine what precedes the
+     * match position (lookbehinds, "\b", "\B") see the start of a subject there rather than
+     * the characters actually preceding the cursor.
      *
      * Returns the matching text and advances to the end of that match
      *
@@ -518,23 +551,70 @@ class Cursor
      */
     public function match(string $regex): ?string
     {
-        // When a tab has been partially consumed the remainder is reconstructed with the
-        // leftover tab expanded into spaces, so matching must run against that reconstructed
-        // string rather than the raw line. This is rare; use the copy-based path to preserve
-        // the exact column arithmetic.
-        if ($this->partiallyConsumedTab) {
-            return $this->matchViaRemainder($regex);
+        $subject = $this->getRemainder();
+
+        if (! \preg_match($regex, $subject, $matches, \PREG_OFFSET_CAPTURE)) {
+            return null;
         }
 
-        // Match against the persistent line at the current byte offset instead of allocating a
-        // fresh copy of the remainder on every call. A leading "^" is rewritten to "\G" so the
-        // pattern still anchors to the cursor - a bare "^" only matches at the true start of the
-        // subject when a non-zero offset is supplied. Patterns that intentionally scan ahead
-        // (e.g. the backtick closer search) carry no leading "^" and are left untouched. This
-        // keeps repeated match() calls - such as that backtick scan - linear rather than O(n^2),
-        // since each call no longer copies the entire remaining line.
-        if ($regex[1] === '^') {
-            $regex = $regex[0] . '\\G' . \substr($regex, 2);
+        // $matches[0][0] contains the matched text; $matches[0][1] is its byte offset in the subject.
+        if ($this->isMultibyte) {
+            $offset      = \mb_strlen(\substr($subject, 0, $matches[0][1]), 'UTF-8');
+            $matchLength = \mb_strlen($matches[0][0], 'UTF-8');
+        } else {
+            $offset      = $matches[0][1];
+            $matchLength = \strlen($matches[0][0]);
+        }
+
+        $advance = $offset + $matchLength;
+
+        // The remainder we matched against had any partially-consumed tab expanded into spaces,
+        // so those columns must be advanced by column instead of by character.
+        if ($this->partiallyConsumedTab) {
+            $charsToTab = 4 - ($this->column % 4);
+            if ($advance < $charsToTab) {
+                $this->advanceBy($advance, true);
+
+                return $matches[0][0];
+            }
+
+            $this->advanceBy($charsToTab, true);
+            $advance -= $charsToTab;
+        }
+
+        $this->advanceBy($advance);
+
+        return $matches[0][0];
+    }
+
+    /**
+     * Try to match a regular expression at the cursor's position within the line, without
+     * copying the remainder
+     *
+     * Matches with PCRE's native offset semantics: the whole line is the subject, and matching
+     * starts at the cursor. "\G" anchors at the cursor; "^" anchors at the true start of the
+     * line (or after newlines under the "m" modifier); lookbehinds, "\b", and "\B" see the
+     * characters actually preceding the cursor. This differs from match(), whose subject begins
+     * at the cursor - a pattern written for match() migrates by replacing its leading "^" (or
+     * "\A") with "\G".
+     *
+     * Because no copy of the remainder is made, repeated calls stay linear: match() copies
+     * everything left in the line on every call, so scanning loops (such as the backtick closer
+     * search) would otherwise cost O(n^2).
+     *
+     * When a tab has been partially consumed, no position within the line can represent the
+     * cursor, so this falls back to matching the remainder with the leftover tab expanded into
+     * spaces; "\G" still anchors at the cursor there, but the line content before it is not
+     * visible in that case.
+     *
+     * @psalm-param non-empty-string $regex
+     */
+    public function matchInPlace(string $regex): ?string
+    {
+        // A partially-consumed tab means the remainder differs from the underlying line (the
+        // leftover tab expands into spaces), so no byte offset can represent the cursor.
+        if ($this->partiallyConsumedTab) {
+            return $this->match($regex);
         }
 
         $bytePosition = $this->isMultibyte ? $this->byteOffset($this->currentPosition) : $this->currentPosition;
@@ -556,48 +636,6 @@ class Cursor
         }
 
         $this->advanceBy($offset + $matchLength);
-
-        return $matches[0][0];
-    }
-
-    /**
-     * Slow path for match() used only when a tab has been partially consumed: match against a
-     * freshly-built remainder whose leftover tab is expanded into spaces, advancing by columns
-     * across that expansion. Kept separate so the common case avoids the remainder allocation.
-     *
-     * @psalm-param non-empty-string $regex
-     */
-    private function matchViaRemainder(string $regex): ?string
-    {
-        $subject = $this->getRemainder();
-
-        if (! \preg_match($regex, $subject, $matches, \PREG_OFFSET_CAPTURE)) {
-            return null;
-        }
-
-        if ($this->isMultibyte) {
-            $offset      = \mb_strlen(\substr($subject, 0, $matches[0][1]), 'UTF-8');
-            $matchLength = \mb_strlen($matches[0][0], 'UTF-8');
-        } else {
-            $offset      = $matches[0][1];
-            $matchLength = \strlen($matches[0][0]);
-        }
-
-        $advance = $offset + $matchLength;
-
-        // The remainder we matched against had the partially-consumed tab expanded into spaces,
-        // so those columns must be advanced by column instead of by character.
-        $charsToTab = 4 - ($this->column % 4);
-        if ($advance < $charsToTab) {
-            $this->advanceBy($advance, true);
-
-            return $matches[0][0];
-        }
-
-        $this->advanceBy($charsToTab, true);
-        $advance -= $charsToTab;
-
-        $this->advanceBy($advance);
 
         return $matches[0][0];
     }
