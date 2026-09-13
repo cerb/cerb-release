@@ -110,33 +110,41 @@ class Controller_OAuth extends DevblocksControllerExtension {
 					$http_response = new \GuzzleHttp\Psr7\Response();
 					$auth_request = $server->validateAuthorizationRequest($http_request);
 					
-					if(!(DAO_OAuthApp::getByClientId($auth_request->getClient()->getIdentifier())))
+					$oauth_client_id = $auth_request->getClient()->getIdentifier();
+					
+					if(!(DAO_OAuthApp::getByClientId($oauth_client_id)))
 						throw OAuthServerException::invalidClient($http_request);
+					
+					$oauth_scopes = $auth_request->getScopes();
+					
+					$oauth_scope_ids = array_map(function($scope) {
+						return $scope->getIdentifier();
+					}, $oauth_scopes);
 					
 					$login_state = CerbLoginWorkerAuthState::getInstance()
 						->setIsConsentRequired([
-								'client_id' => $auth_request->getClient()->getIdentifier(),
-								'scopes' => $auth_request->getScopes(),
+								'client_id' => $oauth_client_id,
+								'scopes' => $oauth_scopes,
 							])
 							;
 					
 					if(
 						!($auth_worker = $login_state->getWorker())
 						|| !$login_state->isAuthenticated()
-						|| !$login_state->wasConsentAsked()
+						|| !$login_state->wasConsentAskedFor($oauth_client_id, $oauth_scope_ids)
 					) {
-						$uri = $http_request->getUri();
+						// Deriving this from the request Host sends the browser off-origin when APP_HOSTNAME differs
+						$return_url = $url_writer->write('c=oauth&a=authorize', true);
 						
-						// Fix HTTPS for proxies
-						if($url_writer->isSSL())
-							$uri = $uri->withScheme('https');
+						if(($query = $http_request->getUri()->getQuery()))
+							$return_url .= '?' . $query;
 						
 						// [TODO] When this happens we need to stow the current login state until the flow is done
 						
 						// If we don't have consent yet
 						$login_state
 							->clearAuthState()
-							->pushRedirectUri($uri->__toString())
+							->pushRedirectUri($return_url)
 							;
 						
 						// If we have an active session, reuse the details
