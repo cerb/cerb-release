@@ -3950,6 +3950,7 @@ class CerbPatch_Core_v12_0_0 {
 				`connected_account_id` int unsigned NOT NULL DEFAULT 0,
 				`has_vision` tinyint(1) unsigned NOT NULL DEFAULT 0,
 				`has_thinking` tinyint(1) unsigned NOT NULL DEFAULT 0,
+				`has_tools` tinyint(1) unsigned NOT NULL DEFAULT 1,
 				`context_window` int unsigned NOT NULL DEFAULT 0,
 				`rating_intelligence` tinyint unsigned NOT NULL DEFAULT 0,
 				`rating_speed` tinyint unsigned NOT NULL DEFAULT 0,
@@ -3985,6 +3986,11 @@ class CerbPatch_Core_v12_0_0 {
 
 			if(!array_key_exists('has_thinking', $columns))
 				$changes[] = "ADD COLUMN has_thinking tinyint(1) unsigned NOT NULL DEFAULT 0 AFTER has_vision";
+
+			// DEFAULT 1, unlike its siblings: every model that already exists takes tools, and the ALTER's
+			// default is what carries them over.
+			if(!array_key_exists('has_tools', $columns))
+				$changes[] = "ADD COLUMN has_tools tinyint(1) unsigned NOT NULL DEFAULT 1 AFTER has_thinking";
 
 			// Ordinal 10/20/30/40 tiers, 0 = unrated. Sparse so a tier can be inserted without a migration.
 			foreach(['intelligence', 'speed', 'privacy', 'cost'] as $rating) {
@@ -4243,6 +4249,39 @@ class CerbPatch_Core_v12_0_0 {
 			
 			$this->_tables['agent_tool'] = 'agent_tool';
 		}
+	}
+	private function patchConfirmationCodeTable() : void {
+		// ===========================================================================
+		// Add `failed_attempts` to `confirmation_code`
+		
+		list($columns,) = $this->_db->metaTable('confirmation_code');
+		
+		if(!array_key_exists('failed_attempts', $columns)) {
+			$this->_db->ExecuteMaster("ALTER TABLE confirmation_code ADD COLUMN failed_attempts int unsigned NOT NULL DEFAULT 0");
+		}
+	}
+	
+	private function patchContactAuthHashing() : void {
+		// ===========================================================================
+		// Widen `contact.auth_password` for password_hash() and add `auth_method`
+		
+		if(!array_key_exists('contact', $this->_tables))
+			throw new Exception();
+		
+		list($columns,) = $this->_db->metaTable('contact');
+		
+		$changes = [];
+		
+		// password_hash() emits 60 chars for bcrypt, but PASSWORD_DEFAULT can change between PHP
+		// releases and argon2id needs ~96. A short column truncates the hash and locks everyone out.
+		if('varchar(255)' != ($columns['auth_password']['type'] ?? null))
+			$changes[] = "MODIFY COLUMN auth_password varchar(255) NOT NULL DEFAULT ''";
+		
+		if(!array_key_exists('auth_method', $columns))
+			$changes[] = "ADD COLUMN auth_method tinyint unsigned NOT NULL DEFAULT 0";
+		
+		if($changes)
+			$this->_db->ExecuteMaster("ALTER TABLE contact " . implode(', ', $changes));
 	}
 }
 

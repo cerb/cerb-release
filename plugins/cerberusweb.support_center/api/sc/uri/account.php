@@ -509,7 +509,7 @@ class UmScAccountController extends Extension_UmScController {
 			if(!$current_password)
 				throw new Exception_DevblocksValidationError("You must enter your current password.");
 			
-			if(0 != strcmp(md5($active_contact->auth_salt.md5($current_password)), $active_contact->auth_password))
+			if(!DAO_Contact::verifyPassword($active_contact, $current_password))
 				throw new Exception_DevblocksValidationError("Incorrect password.");
 			
 			if(!$change_password || !$verify_password)
@@ -522,15 +522,13 @@ class UmScAccountController extends Extension_UmScController {
 				throw new Exception_DevblocksValidationError("Your password must be at least 8 characters.");
 			
 			// Change password?
-			$salt = CerberusApplication::generatePassword(8);
-			$fields = [
-				DAO_Contact::AUTH_SALT => $salt,
-				DAO_Contact::AUTH_PASSWORD => md5($salt.md5($change_password)),
-			];
+			$fields = DAO_Contact::getPasswordFields($change_password);
 			DAO_Contact::update($active_contact->id, $fields);
 			
 			// Update the new password
-			$active_contact->auth_password = md5($active_contact->auth_salt.md5($change_password));
+			$active_contact->auth_password = $fields[DAO_Contact::AUTH_PASSWORD];
+			$active_contact->auth_salt = '';
+			$active_contact->auth_method = DAO_Contact::AUTH_METHOD_PASSWORD_HASH;
 			$umsession->login($active_contact);
 			
 			$tpl->assign('success', true);
@@ -578,12 +576,21 @@ class UmScAccountController extends Extension_UmScController {
 					throw new Exception("The email address you provided is not available.");
 			}
 			
+			// Retire any prior code for this address so it can't shadow the one we're about to send
+			$past_confirmation = DAO_ConfirmationCode::getByMeta('support_center.email.confirm', [
+				'contact_id' => intval($active_contact->id),
+				'email' => $add_email,
+			]);
+			
+			if($past_confirmation)
+				DAO_ConfirmationCode::delete($past_confirmation->id);
+			
 			// If available, send confirmation email w/ link
 			$fields = array(
 				DAO_ConfirmationCode::CONFIRMATION_CODE => CerberusApplication::generatePassword(8),
 				DAO_ConfirmationCode::NAMESPACE_KEY => 'support_center.email.confirm',
 				DAO_ConfirmationCode::META_JSON => json_encode(array(
-					'contact_id' => $active_contact->id,
+					'contact_id' => intval($active_contact->id),
 					'email' => $add_email,
 				)),
 				DAO_ConfirmationCode::CREATED => time(),
@@ -620,20 +627,31 @@ class UmScAccountController extends Extension_UmScController {
 			if(null == $active_contact)
 				throw new Exception("Your session has expired.");
 			
-			// Lookup code
-			if(null == ($code = DAO_ConfirmationCode::getByCode('support_center.email.confirm', $confirm)))
+			// Lookup the code by contact and address, not by what was typed, so a wrong guess counts against it
+			$code = DAO_ConfirmationCode::getByMeta('support_center.email.confirm', [
+				'contact_id' => intval($active_contact->id),
+				'email' => DevblocksPlatform::strLower($email),
+			]);
+			
+			if(!$code)
 				throw new Exception("Your confirmation code is invalid.");
-				
-			// Compare session
-			if(!isset($code->meta['contact_id']) || $active_contact->id != $code->meta['contact_id'])
+			
+			if($code->isExpired())
+				throw new Exception("Your confirmation code has expired. Please request a new one.");
+			
+			// The code stands until it expires, so the lock has to gate redemption; deleting it here
+			// would clear the pending-request throttle and hand out a fresh code on demand
+			if($code->failed_attempts >= DAO_ConfirmationCode::MAX_FAILED_ATTEMPTS)
+				throw new Exception("Too many incorrect attempts. Please wait a few minutes and request a new confirmation code.");
+			
+			// Compare code
+			if(!hash_equals($code->confirmation_code, DevblocksPlatform::strUpper(trim($confirm)))) {
+				DAO_ConfirmationCode::recordFailedAttempt($code->id);
 				throw new Exception("Your confirmation code is invalid.");
-				
-			// Compare email addy
-			if(!isset($code->meta['email'])
-				|| null == ($address = DAO_Address::lookupAddress($code->meta['email'], true))
-				|| 0 != strcasecmp($code->meta['email'],$email)
-				|| 0 != strcasecmp($address->email,$email)
-				)
+			}
+			
+			// Resolve the address only once the code is confirmed, so a wrong guess can't create one
+			if(null == ($address = DAO_Address::lookupAddress($code->meta['email'], true)))
 				throw new Exception("Your email address could not be registered.");
 				
 			// Pass + associate

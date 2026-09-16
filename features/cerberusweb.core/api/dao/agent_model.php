@@ -5,6 +5,7 @@ class DAO_AgentModel extends Cerb_ORMHelper {
 	const CONTEXT_WINDOW = 'context_window';
 	const CREATED_AT = 'created_at';
 	const HAS_THINKING = 'has_thinking';
+	const HAS_TOOLS = 'has_tools';
 	const HAS_VISION = 'has_vision';
 	const ICON = 'icon';
 	const ICON_COLOR = 'icon_color';
@@ -85,6 +86,10 @@ class DAO_AgentModel extends Cerb_ORMHelper {
 			;
 		$validation
 			->addField(self::HAS_THINKING)
+			->bit()
+			;
+		$validation
+			->addField(self::HAS_TOOLS)
 			->bit()
 			;
 		$validation
@@ -312,6 +317,10 @@ class DAO_AgentModel extends Cerb_ORMHelper {
 					$change_fields[self::HAS_THINKING] = intval($v) ? 1 : 0;
 					break;
 
+				case 'has_tools':
+					$change_fields[self::HAS_TOOLS] = intval($v) ? 1 : 0;
+					break;
+
 				case 'has_vision':
 					$change_fields[self::HAS_VISION] = intval($v) ? 1 : 0;
 					break;
@@ -390,7 +399,7 @@ class DAO_AgentModel extends Cerb_ORMHelper {
 
 		list($where_sql, $sort_sql, $limit_sql) = self::_getWhereSQL($where, $sortBy, $sortAsc, $limit);
 
-		$sql = "SELECT api_endpoint_url, connected_account_id, context_window, created_at, has_thinking, has_vision, icon, icon_color, id, label, model, name, params_kata, priority, provider, rating_cost, rating_intelligence, rating_privacy, rating_speed, status, updated_at " .
+		$sql = "SELECT api_endpoint_url, connected_account_id, context_window, created_at, has_thinking, has_tools, has_vision, icon, icon_color, id, label, model, name, params_kata, priority, provider, rating_cost, rating_intelligence, rating_privacy, rating_speed, status, updated_at " .
 			"FROM agent_model " .
 			$where_sql .
 			$sort_sql .
@@ -668,6 +677,7 @@ class DAO_AgentModel extends Cerb_ORMHelper {
 			$object->context_window = intval($row['context_window']);
 			$object->created_at = intval($row['created_at']);
 			$object->has_thinking = intval($row['has_thinking']);
+			$object->has_tools = intval($row['has_tools'] ?? 1);
 			$object->has_vision = intval($row['has_vision']);
 			$object->icon = $row['icon'];
 			$object->icon_color = $row['icon_color'];
@@ -729,6 +739,7 @@ class DAO_AgentModel extends Cerb_ORMHelper {
 			"agent_model.context_window as %s, " .
 			"agent_model.created_at as %s, " .
 			"agent_model.has_thinking as %s, " .
+			"agent_model.has_tools as %s, " .
 			"agent_model.has_vision as %s, " .
 			"agent_model.icon as %s, " .
 			"agent_model.icon_color as %s, " .
@@ -749,6 +760,7 @@ class DAO_AgentModel extends Cerb_ORMHelper {
 			SearchFields_AgentModel::CONTEXT_WINDOW,
 			SearchFields_AgentModel::CREATED_AT,
 			SearchFields_AgentModel::HAS_THINKING,
+			SearchFields_AgentModel::HAS_TOOLS,
 			SearchFields_AgentModel::HAS_VISION,
 			SearchFields_AgentModel::ICON,
 			SearchFields_AgentModel::ICON_COLOR,
@@ -805,6 +817,7 @@ class SearchFields_AgentModel extends DevblocksSearchFields {
 	const CONTEXT_WINDOW = 'a_context_window';
 	const CREATED_AT = 'a_created_at';
 	const HAS_THINKING = 'a_has_thinking';
+	const HAS_TOOLS = 'a_has_tools';
 	const HAS_VISION = 'a_has_vision';
 	const ICON = 'a_icon';
 	const ICON_COLOR = 'a_icon_color';
@@ -979,11 +992,12 @@ class SearchFields_AgentModel extends DevblocksSearchFields {
 		$translate = DevblocksPlatform::getTranslationService();
 
 		$columns = [
-			self::API_ENDPOINT_URL => new DevblocksSearchField(self::API_ENDPOINT_URL, 'agent_model', 'api_endpoint_url', $translate->_('dao.agent_model.api_endpoint_url'), Model_CustomField::TYPE_SINGLE_LINE, true),
+			self::API_ENDPOINT_URL => new DevblocksSearchField(self::API_ENDPOINT_URL, 'agent_model', 'api_endpoint_url', $translate->_('common.api_endpoint_url'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::CONNECTED_ACCOUNT_ID => new DevblocksSearchField(self::CONNECTED_ACCOUNT_ID, 'agent_model', 'connected_account_id', $translate->_('dao.agent_model.connected_account_id'), Model_CustomField::TYPE_NUMBER, true),
 			self::CONTEXT_WINDOW => new DevblocksSearchField(self::CONTEXT_WINDOW, 'agent_model', 'context_window', $translate->_('dao.agent_model.context_window'), Model_CustomField::TYPE_NUMBER, true),
 			self::CREATED_AT => new DevblocksSearchField(self::CREATED_AT, 'agent_model', 'created_at', $translate->_('common.created'), Model_CustomField::TYPE_DATE, true),
 			self::HAS_THINKING => new DevblocksSearchField(self::HAS_THINKING, 'agent_model', 'has_thinking', $translate->_('dao.agent_model.has_thinking'), Model_CustomField::TYPE_CHECKBOX, true),
+			self::HAS_TOOLS => new DevblocksSearchField(self::HAS_TOOLS, 'agent_model', 'has_tools', $translate->_('dao.agent_model.has_tools'), Model_CustomField::TYPE_CHECKBOX, true),
 			self::HAS_VISION => new DevblocksSearchField(self::HAS_VISION, 'agent_model', 'has_vision', $translate->_('dao.agent_model.has_vision'), Model_CustomField::TYPE_CHECKBOX, true),
 			self::ICON => new DevblocksSearchField(self::ICON, 'agent_model', 'icon', $translate->_('dao.agent_model.icon'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::ICON_COLOR => new DevblocksSearchField(self::ICON_COLOR, 'agent_model', 'icon_color', $translate->_('dao.agent_model.icon_color'), Model_CustomField::TYPE_SINGLE_LINE, true),
@@ -992,7 +1006,7 @@ class SearchFields_AgentModel extends DevblocksSearchFields {
 			self::MODEL => new DevblocksSearchField(self::MODEL, 'agent_model', 'model', $translate->_('dao.agent_model.model'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::NAME => new DevblocksSearchField(self::NAME, 'agent_model', 'name', $translate->_('common.name'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::PRIORITY => new DevblocksSearchField(self::PRIORITY, 'agent_model', 'priority', $translate->_('common.priority'), Model_CustomField::TYPE_NUMBER, true),
-			self::PROVIDER => new DevblocksSearchField(self::PROVIDER, 'agent_model', 'provider', $translate->_('dao.agent_model.provider'), Model_CustomField::TYPE_SINGLE_LINE, true),
+			self::PROVIDER => new DevblocksSearchField(self::PROVIDER, 'agent_model', 'provider', $translate->_('common.provider'), Model_CustomField::TYPE_SINGLE_LINE, true),
 			self::RATING_COST => new DevblocksSearchField(self::RATING_COST, 'agent_model', 'rating_cost', $translate->_('dao.agent_model.rating_cost'), Model_CustomField::TYPE_NUMBER, true),
 			self::RATING_INTELLIGENCE => new DevblocksSearchField(self::RATING_INTELLIGENCE, 'agent_model', 'rating_intelligence', $translate->_('dao.agent_model.rating_intelligence'), Model_CustomField::TYPE_NUMBER, true),
 			self::RATING_PRIVACY => new DevblocksSearchField(self::RATING_PRIVACY, 'agent_model', 'rating_privacy', $translate->_('dao.agent_model.rating_privacy'), Model_CustomField::TYPE_NUMBER, true),
@@ -1031,6 +1045,9 @@ class Model_AgentModel extends DevblocksRecordModel {
 	public $context_window;
 	public $created_at;
 	public $has_thinking;
+	// Defaults ON, unlike its siblings: absent has to mean "this model takes tools", or every record that
+	// predates the column loses them. The new-record peek needs its OWN default -- it never gets a model.
+	public $has_tools = 1;
 	public $has_vision;
 	public $icon;
 	public $icon_color;
@@ -1185,6 +1202,11 @@ class Model_AgentModel extends DevblocksRecordModel {
 		if($this->has_vision)
 			$params['vision'] = true;
 
+		// Emitted only when OFF, the inverse of the flags above: an absent key has to read as "takes tools",
+		// or every session stored before this column existed would lose its tools on the next turn.
+		if(!$this->has_tools)
+			$params['has_tools'] = false;
+
 		// `has_thinking`, not `thinking` -- that key is the provider's grouped reasoning block AND one of the
 		// four fields _capabilitySignature() hashes, so reusing it would plant a summary boundary mid-session.
 		// Inert on the wire (providers read $_params by key, never enumerate it), same contract as `display:`.
@@ -1285,6 +1307,7 @@ class View_AgentModel extends C4_AbstractView implements IAbstractView_Subtotals
 			SearchFields_AgentModel::CONTEXT_WINDOW,
 			SearchFields_AgentModel::HAS_VISION,
 			SearchFields_AgentModel::HAS_THINKING,
+			SearchFields_AgentModel::HAS_TOOLS,
 			SearchFields_AgentModel::RATING_INTELLIGENCE,
 			SearchFields_AgentModel::RATING_PRIVACY,
 			SearchFields_AgentModel::RATING_SPEED,
@@ -1361,6 +1384,7 @@ class View_AgentModel extends C4_AbstractView implements IAbstractView_Subtotals
 				case SearchFields_AgentModel::CONNECTED_ACCOUNT_ID:
 				case SearchFields_AgentModel::CONTEXT_WINDOW:
 				case SearchFields_AgentModel::HAS_THINKING:
+				case SearchFields_AgentModel::HAS_TOOLS:
 				case SearchFields_AgentModel::HAS_VISION:
 				case SearchFields_AgentModel::PRIORITY:
 				case SearchFields_AgentModel::PROVIDER:
@@ -1398,6 +1422,7 @@ class View_AgentModel extends C4_AbstractView implements IAbstractView_Subtotals
 
 		switch($column) {
 			case SearchFields_AgentModel::HAS_THINKING:
+			case SearchFields_AgentModel::HAS_TOOLS:
 			case SearchFields_AgentModel::HAS_VISION:
 				$counts = $this->_getSubtotalCountForBooleanColumn($context, $column);
 				break;
@@ -1662,6 +1687,10 @@ class View_AgentModel extends C4_AbstractView implements IAbstractView_Subtotals
 				'type' => DevblocksSearchCriteria::TYPE_BOOL,
 				'options' => ['param_key' => SearchFields_AgentModel::HAS_THINKING],
 			],
+			'hasTools' => [
+				'type' => DevblocksSearchCriteria::TYPE_BOOL,
+				'options' => ['param_key' => SearchFields_AgentModel::HAS_TOOLS],
+			],
 			'hasVision' => [
 				'type' => DevblocksSearchCriteria::TYPE_BOOL,
 				'options' => ['param_key' => SearchFields_AgentModel::HAS_VISION],
@@ -1836,6 +1865,7 @@ class View_AgentModel extends C4_AbstractView implements IAbstractView_Subtotals
 				break;
 
 			case SearchFields_AgentModel::HAS_THINKING:
+			case SearchFields_AgentModel::HAS_TOOLS:
 			case SearchFields_AgentModel::HAS_VISION:
 				parent::_renderCriteriaParamBoolean($param);
 				break;
@@ -1916,6 +1946,7 @@ class View_AgentModel extends C4_AbstractView implements IAbstractView_Subtotals
 			// A bit column posts its value as `bool`, not `value` -- that's the payload
 			// _getSubtotalCountForBooleanColumn() builds when a subtotal row is clicked.
 			case SearchFields_AgentModel::HAS_THINKING:
+			case SearchFields_AgentModel::HAS_TOOLS:
 			case SearchFields_AgentModel::HAS_VISION:
 				$bool = DevblocksPlatform::importGPC($_POST['bool'] ?? null, 'integer', 1);
 				$criteria = new DevblocksSearchCriteria($field, $oper, $bool);
@@ -2027,6 +2058,12 @@ class Context_AgentModel extends Extension_DevblocksContext implements IDevblock
 			'value' => $model->has_vision,
 		];
 
+		$properties['has_tools'] = [
+			'label' => mb_ucfirst($translate->_('dao.agent_model.has_tools')),
+			'type' => Model_CustomField::TYPE_CHECKBOX,
+			'value' => $model->has_tools,
+		];
+
 		$properties['icon'] = [
 			'label' => mb_ucfirst($translate->_('dao.agent_model.icon')),
 			'type' => Model_CustomField::TYPE_SINGLE_LINE,
@@ -2087,7 +2124,7 @@ class Context_AgentModel extends Extension_DevblocksContext implements IDevblock
 		];
 
 		$properties['provider'] = [
-			'label' => mb_ucfirst($translate->_('dao.agent_model.provider')),
+			'label' => mb_ucfirst($translate->_('common.provider')),
 			'type' => Model_CustomField::TYPE_SINGLE_LINE,
 			'value' => $model->provider,
 		];
@@ -2131,6 +2168,7 @@ class Context_AgentModel extends Extension_DevblocksContext implements IDevblock
 			'context_window',
 			'has_vision',
 			'has_thinking',
+			'has_tools',
 			'rating_intelligence',
 			'rating_privacy',
 			'status',
@@ -2162,7 +2200,7 @@ class Context_AgentModel extends Extension_DevblocksContext implements IDevblock
 			'created_at' => $prefix.$translate->_('common.created'),
 			'updated_at' => $prefix.$translate->_('common.updated'),
 			'record_url' => $prefix.$translate->_('common.url.record'),
-			'api_endpoint_url' => $prefix.$translate->_('dao.agent_model.api_endpoint_url'),
+			'api_endpoint_url' => $prefix.$translate->_('common.api_endpoint_url'),
 			'connected_account_id' => $prefix.$translate->_('dao.agent_model.connected_account_id'),
 			'context_window' => $prefix.$translate->_('dao.agent_model.context_window'),
 			'priority' => $prefix.$translate->_('common.priority'),
@@ -2170,6 +2208,7 @@ class Context_AgentModel extends Extension_DevblocksContext implements IDevblock
 			'icon' => $prefix.$translate->_('dao.agent_model.icon'),
 			'icon_color' => $prefix.$translate->_('dao.agent_model.icon_color'),
 			'has_thinking' => $prefix.$translate->_('dao.agent_model.has_thinking'),
+			'has_tools' => $prefix.$translate->_('dao.agent_model.has_tools'),
 			'rating_cost' => $prefix.$translate->_('dao.agent_model.rating_cost'),
 			'rating_intelligence' => $prefix.$translate->_('dao.agent_model.rating_intelligence'),
 			'rating_privacy' => $prefix.$translate->_('dao.agent_model.rating_privacy'),
@@ -2178,7 +2217,7 @@ class Context_AgentModel extends Extension_DevblocksContext implements IDevblock
 			'label' => $prefix.$translate->_('dao.agent_model.label'),
 			'model' => $prefix.$translate->_('dao.agent_model.model'),
 			'params_kata' => $prefix.$translate->_('common.parameters'),
-			'provider' => $prefix.$translate->_('dao.agent_model.provider'),
+			'provider' => $prefix.$translate->_('common.provider'),
 		];
 
 		$token_types = [
@@ -2196,6 +2235,7 @@ class Context_AgentModel extends Extension_DevblocksContext implements IDevblock
 			'icon' => Model_CustomField::TYPE_SINGLE_LINE,
 			'icon_color' => Model_CustomField::TYPE_SINGLE_LINE,
 			'has_thinking' => Model_CustomField::TYPE_SINGLE_LINE,
+			'has_tools' => Model_CustomField::TYPE_SINGLE_LINE,
 			'rating_cost' => Model_CustomField::TYPE_NUMBER,
 			'rating_intelligence' => Model_CustomField::TYPE_NUMBER,
 			'rating_privacy' => Model_CustomField::TYPE_NUMBER,
@@ -2238,6 +2278,7 @@ class Context_AgentModel extends Extension_DevblocksContext implements IDevblock
 			$token_values['icon'] = $agent_model->icon;
 			$token_values['icon_color'] = $agent_model->icon_color;
 			$token_values['has_thinking'] = $agent_model->has_thinking;
+			$token_values['has_tools'] = $agent_model->has_tools;
 			$token_values['rating_cost'] = $agent_model->rating_cost;
 			$token_values['rating_intelligence'] = $agent_model->rating_intelligence;
 			$token_values['rating_privacy'] = $agent_model->rating_privacy;
@@ -2271,6 +2312,7 @@ class Context_AgentModel extends Extension_DevblocksContext implements IDevblock
 			'icon_color' => DAO_AgentModel::ICON_COLOR,
 			'id' => DAO_AgentModel::ID,
 			'has_thinking' => DAO_AgentModel::HAS_THINKING,
+			'has_tools' => DAO_AgentModel::HAS_TOOLS,
 			'rating_cost' => DAO_AgentModel::RATING_COST,
 			'rating_intelligence' => DAO_AgentModel::RATING_INTELLIGENCE,
 			'rating_privacy' => DAO_AgentModel::RATING_PRIVACY,

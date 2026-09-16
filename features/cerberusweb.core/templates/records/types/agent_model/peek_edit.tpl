@@ -18,7 +18,7 @@
 		   Name is defaulted from the model you pick. *}
 		<div class="cerb-ui-form--row">
 			<div class="cerb-ui-form--field">
-				<label class="cerb-ui-form--label">{'dao.agent_model.provider'|devblocks_translate|capitalize} <span class="cerb-ui-form--required">*</span></label>
+				<label class="cerb-ui-form--label">{'common.provider'|devblocks_translate|capitalize} <span class="cerb-ui-form--required">*</span></label>
 				<select name="provider" id="provider_{$form_id}" autofocus="autofocus">
 					<option value="">({'common.choose'|devblocks_translate|lower}…)</option>
 					{foreach from=$providers item=provider}
@@ -31,7 +31,7 @@
 			   Blank means "(auto)" -- the provider's own default endpoint (the placeholder tracks the picked
 			   provider). It's a first-class column that wins over any `api_endpoint_url:` in the params below. *}
 			<div class="cerb-ui-form--field">
-				<label class="cerb-ui-form--label">{'dao.agent_model.api_endpoint_url'|devblocks_translate|capitalize}</label>
+				<label class="cerb-ui-form--label">{'common.api_endpoint_url'|devblocks_translate|capitalize}</label>
 				<input type="text" name="api_endpoint_url" value="{$model->api_endpoint_url}" id="endpointInput_{$form_id}" placeholder="(auto)" autocomplete="off" spellcheck="false">
 				<div class="cerb-ui-form--hint">Blank uses the provider's default endpoint. Suggests the provider's own endpoints as you type; free text for a self-hosted or proxied one.</div>
 			</div>
@@ -162,6 +162,22 @@
 							</div>
 						</div>
 						<div class="cerb-ui-form--hint">Supports extended reasoning.</div>
+					</div>
+
+					{* A NEW record has no `$model` at all -- renderPeekPopup() only assigns one when it exists --
+					   so this default lives here rather than on the model. Can't be a coalesce: an existing
+					   record with tools off has to keep showing No. *}
+					{if isset($model)}{$has_tools = $model->has_tools}{else}{$has_tools = 1}{/if}
+					<div class="cerb-ui-form--field">
+						<label class="cerb-ui-form--label">{'dao.agent_model.has_tools'|devblocks_translate|capitalize}</label>
+						<div>
+							<input type="hidden" name="has_tools" id="hasTools_{$form_id}" value="{$has_tools|intval}">
+							<div class="cerb-ui-switcher" data-cerb-input="hasTools_{$form_id}">
+								<button type="button" data-value="1"{if $has_tools} class="cerb-ui-switcher--active"{/if}><span class="cerb-icons cerb-icon-hammer"></span> {'common.yes'|devblocks_translate|capitalize}</button>
+								<button type="button" data-value="0"{if !$has_tools} class="cerb-ui-switcher--active"{/if}>{'common.no'|devblocks_translate|capitalize}</button>
+							</div>
+						</div>
+						<div class="cerb-ui-form--hint">Can call tools. Turn off to chat with no tools or filesystems.</div>
 					</div>
 				</div>
 			</div>
@@ -297,6 +313,7 @@ $(function() {
 		const iconEl = document.getElementById('iconInput_{$form_id}');
 		const iconColorEl = document.getElementById('iconColorInput_{$form_id}');
 		let iconPicker = null;
+		let colorPicker = null;
 
 		if(iconEl && window.CerbUI && CerbUI.IconPicker) {
 			iconPicker = new CerbUI.IconPicker(iconEl, {
@@ -309,18 +326,33 @@ $(function() {
 		// own field in this mode), not sitting in the form next to the icon well. The <input> stays in the DOM
 		// and still posts `icon_color`.
 		if(iconColorEl && window.CerbUI && CerbUI.ColorPicker) {
-			new CerbUI.ColorPicker(iconColorEl, {
-				showInput: false
+			colorPicker = new CerbUI.ColorPicker(iconColorEl, {
+				showInput: false,
+				// Blank means "inherit the provider's hue", the same contract the icon well has. Without an
+				// emptyColor the swatch would paint HSVA 0,0,0 -- solid black -- and read as a deliberate
+				// choice of black. allowClear is what makes the fallback reachable again after a pick.
+				emptyColor: '',
+				allowClear: true
 			});
 		}
 
 		// Repaint the well, NOT setValue() -- that fires input/change unconditionally, which would dirty the
 		// form just because someone switched providers.
 		function syncIconFallback() {
-			if(!iconPicker) return;
 			const provider = currentProvider();
-			iconPicker.opts.emptyIcon = (provider && provider.icon) ? provider.icon : 'bot';
-			if(typeof iconPicker._render === 'function') iconPicker._render();
+
+			if(iconPicker) {
+				iconPicker.opts.emptyIcon = (provider && provider.icon) ? provider.icon : 'bot';
+				if(typeof iconPicker._render === 'function') iconPicker._render();
+			}
+
+			// The same treatment for the hue, which is what `icon_color` falls back to at render time. An
+			// empty preview (no provider picked) leaves the picker's own default, rather than asserting a
+			// color this record would not actually use.
+			if(colorPicker) {
+				colorPicker.opts.emptyColor = (provider && provider.icon_color) ? provider.icon_color : '';
+				if(typeof colorPicker._render === 'function') colorPicker._render();
+			}
 		}
 
 		// SelectMenu writes back to the native <select> and fires `change` on it, so the endpoint placeholder
@@ -433,8 +465,11 @@ $(function() {
 				count.textContent = liveModels.length + (liveModels.length === 1 ? ' model' : ' models');
 				modelResult.replaceChildren(count);
 
+				// Both, in this order. `open()` does nothing when the menu is ALREADY showing, so a user who
+				// clicked the field before this response landed would keep seeing the shipped hints for the
+				// life of the dialog -- real model ids, wrong list, and nothing on screen saying so.
 				const tc = CerbUI.TextChooser.from(modelInputEl);
-				if(tc) tc.open();
+				if(tc) { tc.open(); tc.refresh(); }
 
 			}, { error: function() {
 				if(modelRefreshIcon) modelRefreshIcon.classList.remove('cerb-u-anim-spin');
@@ -489,6 +524,13 @@ $(function() {
 							const visionValue = meta.has_vision ? '1' : '0';
 							if(visionEl) visionEl.value = visionValue;
 							if(visionSwitcher) visionSwitcher.setValue(visionValue);
+						}
+						if('has_tools' in meta) {
+							const toolsEl = document.getElementById('hasTools_{$form_id}');
+							const toolsSwitcher = toolsEl ? CerbUI.Switcher.from(toolsEl.parentNode.querySelector('.cerb-ui-switcher')) : null;
+							const toolsValue = meta.has_tools ? '1' : '0';
+							if(toolsEl) toolsEl.value = toolsValue;
+							if(toolsSwitcher) toolsSwitcher.setValue(toolsValue);
 						}
 					}
 				}
@@ -550,6 +592,7 @@ $(function() {
 					api_endpoint_url: endpointEl ? endpointEl.value : '',
 					connected_account_id: authEl.length ? (authEl.val() || 0) : 0,
 					has_vision: $frm.find('[name=has_vision]').val() || 0,
+					has_tools: $frm.find('[name=has_tools]').val() ?? 1,
 					context_window: $frm.find('[name=context_window]').val() || 0,
 					params_kata: paramsEl ? paramsEl.value : ''
 				};
