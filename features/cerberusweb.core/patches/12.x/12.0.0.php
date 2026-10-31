@@ -270,16 +270,17 @@ class CerbPatch_Core_v12_0_0 {
 		if(array_key_exists('devblocks_storage_queue_delete', $this->_tables)) {
 			$this->_db->ExecuteWriter("SET SESSION group_concat_max_len = 1000000");
 		
-			$this->_db->ExecuteWriter(
+			$this->_db->ExecuteWriter(sprintf(
 				"INSERT INTO queue_message (uuid, queue_id, job_id, status_id, created_at, message, cardinality) ".
-				"SELECT UUID_TO_BIN(UUID()), (SELECT id FROM queue WHERE name='cerb.storage.migrations'), 0, 0, UNIX_TIMESTAMP(), ".
+				"SELECT %s, (SELECT id FROM queue WHERE name='cerb.storage.migrations'), 0, 0, UNIX_TIMESTAMP(), ".
 				"CONCAT('{\"action\":\"delete\",\"ns\":', JSON_QUOTE(storage_namespace), ',\"ext\":', JSON_QUOTE(storage_extension), ".
 				"',\"profile\":', storage_profile_id, ',\"keys\":[', GROUP_CONCAT(JSON_QUOTE(storage_key)), ']}'), COUNT(*) ".
 				"FROM (SELECT storage_namespace, storage_extension, storage_profile_id, storage_key, ".
 				"CEIL(ROW_NUMBER() OVER (PARTITION BY storage_namespace, storage_extension, storage_profile_id ORDER BY storage_key) / 1000) AS batch ".
 				"FROM devblocks_storage_queue_delete) AS batched ".
-				"GROUP BY storage_namespace, storage_extension, storage_profile_id, batch"
-			);
+				"GROUP BY storage_namespace, storage_extension, storage_profile_id, batch",
+				$this->_db->sqlUuidToBin('UUID()')
+			));
 		
 			$this->_db->ExecuteWriter("DROP TABLE devblocks_storage_queue_delete");
 			unset($this->_tables['devblocks_storage_queue_delete']);
@@ -315,12 +316,14 @@ class CerbPatch_Core_v12_0_0 {
 	
 	private function patchCronBackgroundQueue() : void {
 		// ===========================================================================
-		// Enable the new background cronjob
+		// Enable the new background cronjob (first 12.0 run only, so a re-run keeps an admin's choice)
 		
-		$this->_db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.background_queue', 'enabled', '1')");
-		$this->_db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.background_queue', 'lastrun', '0')");
-		$this->_db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.background_queue', 'locked', '0')");
-		$this->_db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.background_queue', 'concurrency', '2')");
+		if($this->_revision < 1506) {
+			$this->_db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.background_queue', 'enabled', '1')");
+			$this->_db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.background_queue', 'lastrun', '0')");
+			$this->_db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.background_queue', 'locked', '0')");
+			$this->_db->ExecuteMaster("REPLACE INTO cerb_property_store (extension_id, property, value) VALUES ('cron.background_queue', 'concurrency', '2')");
+		}
 		
 		// Remove retired cron jobs
 		$this->_db->ExecuteMaster("DELETE FROM cerb_property_store WHERE extension_id = 'cron.metrics'");
@@ -626,7 +629,7 @@ class CerbPatch_Core_v12_0_0 {
 				
 				// One queue_message per 100-record batch, mirroring _reindexCreateJob()
 				$this->_db->ExecuteMaster(sprintf("INSERT INTO queue_message (uuid, queue_id, job_id, status_id, created_at, message, cardinality) " .
-					"SELECT UUID_TO_BIN(UUID()) AS uuid, " .
+					"SELECT %s AS uuid, " .
 					"%d AS queue_id, " .
 					"%d AS job_id, " .
 					"0 /* available */ AS status_id, " .
@@ -635,6 +638,7 @@ class CerbPatch_Core_v12_0_0 {
 					"COUNT(id) AS cardinality " .
 					"FROM (SELECT id, CEIL(ROW_NUMBER() OVER (ORDER BY id) / 100) AS batch FROM message) AS batched " .
 					"GROUP BY batch",
+					$this->_db->sqlUuidToBin('UUID()'),
 					$search_queue_id,
 					$job_id,
 					$search_index_id,
@@ -710,7 +714,7 @@ class CerbPatch_Core_v12_0_0 {
 					$job_id = $this->_db->LastInsertId();
 					
 					$this->_db->ExecuteMaster(sprintf("INSERT INTO queue_message (uuid, queue_id, job_id, status_id, created_at, message, cardinality) " .
-						"SELECT UUID_TO_BIN(UUID()) AS uuid, " .
+						"SELECT %s AS uuid, " .
 						"%d AS queue_id, " .
 						"%d AS job_id, " .
 						"0 /* available */ AS status_id, " .
@@ -719,6 +723,7 @@ class CerbPatch_Core_v12_0_0 {
 						"COUNT(id) AS cardinality " .
 						"FROM (SELECT id, CEIL(ROW_NUMBER() OVER (ORDER BY id) / 100) AS batch FROM message) AS batched " .
 						"GROUP BY batch",
+						$this->_db->sqlUuidToBin('UUID()'),
 						$search_queue_id,
 						$job_id,
 						$search_index_id,
@@ -788,7 +793,7 @@ class CerbPatch_Core_v12_0_0 {
 					$job_id = $this->_db->LastInsertId();
 					
 					$this->_db->ExecuteMaster(sprintf("INSERT INTO queue_message (uuid, queue_id, job_id, status_id, created_at, message, cardinality) " .
-						"SELECT UUID_TO_BIN(UUID()) AS uuid, " .
+						"SELECT %s AS uuid, " .
 						"%d AS queue_id, " .
 						"%d AS job_id, " .
 						"0 /* available */ AS status_id, " .
@@ -797,6 +802,7 @@ class CerbPatch_Core_v12_0_0 {
 						"COUNT(id) AS cardinality " .
 						"FROM (SELECT id, CEIL(ROW_NUMBER() OVER (ORDER BY id) / 100) AS batch FROM comment) AS batched " .
 						"GROUP BY batch",
+						$this->_db->sqlUuidToBin('UUID()'),
 						$search_queue_id,
 						$job_id,
 						$search_index_id,
@@ -871,7 +877,7 @@ class CerbPatch_Core_v12_0_0 {
 					$job_id = $this->_db->LastInsertId();
 					
 					$this->_db->ExecuteMaster(sprintf("INSERT INTO queue_message (uuid, queue_id, job_id, status_id, created_at, message, cardinality) " .
-						"SELECT UUID_TO_BIN(UUID()) AS uuid, " .
+						"SELECT %s AS uuid, " .
 						"%d AS queue_id, " .
 						"%d AS job_id, " .
 						"0 /* available */ AS status_id, " .
@@ -880,6 +886,7 @@ class CerbPatch_Core_v12_0_0 {
 						"COUNT(id) AS cardinality " .
 						"FROM (SELECT id, CEIL(ROW_NUMBER() OVER (ORDER BY id) / 100) AS batch FROM kb_article) AS batched " .
 						"GROUP BY batch",
+						$this->_db->sqlUuidToBin('UUID()'),
 						$search_queue_id,
 						$job_id,
 						$search_index_id,
@@ -4282,6 +4289,33 @@ class CerbPatch_Core_v12_0_0 {
 		
 		if($changes)
 			$this->_db->ExecuteMaster("ALTER TABLE contact " . implode(', ', $changes));
+	}
+	
+	private function patchUpdateTicketInteractionPermissions() : void {
+		// ===========================================================================
+		// Update built-in ticket interactions to check record permissions
+		
+		if($this->_revision >= 1576) // 12.0.2
+			return;
+		
+		$automation_files = [
+			'cerb.ticket.assign.json',
+			'cerb.ticket.move.json',
+			'cerb.ticket.participants.add.json',
+			'cerb.ticket.participants.manage.json',
+			'cerb.ticket.participants.remove.json',
+		];
+		
+		foreach($automation_files as $automation_file) {
+			$path = realpath(APP_PATH . '/features/cerberusweb.core/assets/automations/') . '/' . $automation_file;
+			
+			if(!file_exists($path) || false === ($automation_data = json_decode(file_get_contents($path), true)))
+				continue;
+			
+			DAO_Automation::importFromJson($automation_data);
+			
+			unset($automation_data);
+		}
 	}
 }
 

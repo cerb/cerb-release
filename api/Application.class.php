@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-const APP_BUILD = 2026101301;
-const APP_VERSION = '12.0.1';
+const APP_BUILD = 2026103002;
+const APP_VERSION = '12.0.2';
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -481,6 +481,44 @@ class CerberusApplication extends DevblocksApplication {
 		}
 
 		return $errors;
+	}
+	
+	/**
+	 * Verify the database server supports what the patches need before updating. This mirrors the
+	 * installer's database tests, since an install upgrading from a much older version may be running
+	 * on a server that predates them. Requires a database connection.
+	 */
+	static function checkDatabaseRequirements() : array {
+		$db = DevblocksPlatform::services()->database();
+		$engine = $db->escape(APP_DB_ENGINE);
+		
+		$tests = [
+			["DROP TABLE IF EXISTS _update_test_suite", "The database user lacks the DROP privilege."],
+			["CREATE TABLE _update_test_suite (id int) ENGINE=" . $engine, sprintf("The database user lacks the CREATE privilege, or the '%s' storage engine is not enabled.", APP_DB_ENGINE)],
+			["INSERT INTO _update_test_suite (id) VALUES (1)", "The database user lacks the INSERT privilege."],
+			["SELECT id FROM _update_test_suite", "The database user lacks the SELECT privilege."],
+			["UPDATE _update_test_suite SET id = 2", "The database user lacks the UPDATE privilege."],
+			["DELETE FROM _update_test_suite WHERE id > 0", "The database user lacks the DELETE privilege."],
+			["ALTER TABLE _update_test_suite MODIFY COLUMN id int unsigned", "The database user lacks the ALTER privilege."],
+			["ALTER TABLE _update_test_suite ADD COLUMN content TEXT, ADD FULLTEXT (content)", "The database engine doesn't support FULLTEXT indexes."],
+			// The table must be empty to add the spatial index (must not contain null values)
+			["DELETE FROM _update_test_suite", "Failed to empty the test table in the database."],
+			["ALTER TABLE _update_test_suite ADD COLUMN pos POINT NOT NULL", "The database engine doesn't support POINT columns."],
+			["ALTER TABLE _update_test_suite ADD SPATIAL INDEX (pos)", "The database engine doesn't support SPATIAL indexes."],
+			["DROP TABLE IF EXISTS _update_test_suite", "The database user lacks the DROP privilege."],
+			["CREATE TEMPORARY TABLE IF NOT EXISTS _update_test_suite_tmp (id int) ENGINE=" . $engine, "The database user lacks the CREATE TEMPORARY TABLES privilege."],
+			["DROP TABLE IF EXISTS _update_test_suite_tmp", "The database user lacks the DROP privilege."],
+		];
+		
+		foreach($tests as [$sql, $error]) {
+			if(false === $db->ExecuteMaster($sql)) {
+				// Don't leave the test table behind
+				$db->ExecuteMaster("DROP TABLE IF EXISTS _update_test_suite");
+				return [$error];
+			}
+		}
+		
+		return [];
 	}
 	
 	public static function respondWithErrorReason(CerbErrorReason $reason, $skip_session=false) : never {
