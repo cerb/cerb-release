@@ -78,4 +78,12 @@ class Horde_Mail_IdentificationTest extends \PHPUnit\Framework\TestCase
         );
     }
 
+    public function testNonBracketedIdPreservesFull()
+    {
+        $ob = new Horde_Mail_Rfc822_Identification('foo@example.com');
+
+        $this->assertEquals(1, count($ob->ids));
+        $this->assertEquals('foo@example.com', $ob->ids[0], 'Non-bracketed ID should preserve all characters');
+    }
+
 }

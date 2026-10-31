@@ -604,4 +604,36 @@ class Horde_Mail_ParseTest extends \PHPUnit\Framework\TestCase
         );
     }
 
+    public function testRfc822IsAtextWithEmptyStringAndFalse()
+    {
+        /* Test that empty string and false both result in ord value of 0
+         * without unintended PHP type juggling. */
+        $reflection = new ReflectionClass($this->rfc822);
+        $method = $reflection->getMethod('_rfc822IsAtext');
+        $method->setAccessible(true);
+
+        /* Initialize _params if not already set. */
+        $paramsProperty = $reflection->getProperty('_params');
+        $paramsProperty->setAccessible(true);
+        if (empty($paramsProperty->getValue($this->rfc822))) {
+            $paramsProperty->setValue($this->rfc822, array('validate' => false));
+        }
+
+        /* Empty string should evaluate to ord 0. */
+        $result = $method->invoke($this->rfc822, '', null);
+        $this->assertEquals(0, $result);
+
+        /* False should also evaluate to ord 0. */
+        $result = $method->invoke($this->rfc822, false, null);
+        $this->assertEquals(0, $result);
+
+        /* The string '0' should NOT be treated as empty (loose comparison would). */
+        $result = $method->invoke($this->rfc822, '0', null);
+        $this->assertNotEquals(0, $result);
+
+        /* A normal character should work as expected. */
+        $result = $method->invoke($this->rfc822, 'A', null);
+        $this->assertEquals(ord('A'), $result);
+    }
+
 }

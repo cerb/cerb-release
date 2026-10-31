@@ -1213,13 +1213,7 @@ class Horde_Imap_Client_Socket extends Horde_Imap_Client_Base
                 )));
             }
 
-            /* Let the 'CLOSED' response code handle mailbox switching if
-             * QRESYNC is active. */
-            if ($this->_selected) {
-                $pipeline->data['qresyncmbox'] = array($mailbox, $mode);
-            } else {
-                $this->_changeSelected($mailbox, $mode);
-            }
+            $this->_changeSelected($mailbox, $mode);
         } else {
             if (!$c->isEnabled('CONDSTORE') &&
                 $this->_initCache() &&
@@ -3184,8 +3178,16 @@ class Horde_Imap_Client_Socket extends Horde_Imap_Client_Base
                 break;
 
             case 'UID':
-                $ob->setUid($data->next());
+                $uid_val = $data->next();
+                $ob->setUid($uid_val);
                 $uid = true;
+                /* Re-key the result from sequence number to UID if the
+                 * results object is UID-keyed. _parseFetch() stores by
+                 * sequence number ($id), but callers expecting UID keys
+                 * (e.g. when fetching by UID) need the UID key. */
+                if ($pipeline->fetch->key_type == Horde_Imap_Client_Fetch_Results::UID) {
+                    $pipeline->fetch->rekey($id, $uid_val);
+                }
                 break;
 
             case 'MODSEQ':
@@ -3221,7 +3223,14 @@ class Horde_Imap_Client_Socket extends Horde_Imap_Client_Base
                         $ob->setHeaders($pipeline->data['fetch_lookup'][$sig], $data->next());
                     } else {
                         // Remove trailing bracket and octet start info
-                        $tag = substr($tag, 0, strrpos($tag, ']'));
+                        $bracket_pos = strrpos($tag, ']');
+                        if ($bracket_pos === false) {
+                            throw new Horde_Imap_Client_Exception(
+                                'Invalid FETCH response: missing closing bracket in BODY tag.',
+                                Horde_Imap_Client_Exception::PARSEERROR
+                            );
+                        }
+                        $tag = substr($tag, 0, $bracket_pos);
 
                         if (!strlen($tag)) {
                             // BODY[] request
@@ -3263,7 +3272,14 @@ class Horde_Imap_Client_Socket extends Horde_Imap_Client_Base
                     // Catch BINARY[*]<#> responses
                     // Remove the beginning 'BINARY[' and the trailing bracket
                     // and octet start info
-                    $tag = substr($tag, 7, strrpos($tag, ']') - 7);
+                    $bracket_pos = strrpos($tag, ']');
+                    if ($bracket_pos === false) {
+                        throw new Horde_Imap_Client_Exception(
+                            'Invalid FETCH response: missing closing bracket in BINARY tag.',
+                            Horde_Imap_Client_Exception::PARSEERROR
+                        );
+                    }
+                    $tag = substr($tag, 7, $bracket_pos - 7);
                     $body = $data->nextStream();
 
                     if (is_null($body)) {
@@ -3295,7 +3311,14 @@ class Horde_Imap_Client_Socket extends Horde_Imap_Client_Base
                     // Catch BINARY.SIZE[*] responses
                     // Remove the beginning 'BINARY.SIZE[' and the trailing
                     // bracket and octet start info
-                    $tag = substr($tag, 12, strrpos($tag, ']') - 12);
+                    $bracket_pos = strrpos($tag, ']');
+                    if ($bracket_pos === false) {
+                        throw new Horde_Imap_Client_Exception(
+                            'Invalid FETCH response: missing closing bracket in BINARY.SIZE tag.',
+                            Horde_Imap_Client_Exception::PARSEERROR
+                        );
+                    }
+                    $tag = substr($tag, 12, $bracket_pos - 12);
                     $ob->setBodyPartSize($tag, $data->next());
                 }
                 break;
@@ -4969,22 +4992,6 @@ class Horde_Imap_Client_Socket extends Horde_Imap_Client_Base
         case 'MODIFIED':
             // Defined by RFC 7162 [3.1.3]
             $pipeline->data['modified']->add($rc->data[0]);
-            break;
-
-        case 'CLOSED':
-            // Defined by RFC 7162 [3.2.11]
-            if (isset($pipeline->data['qresyncmbox'])) {
-                /* If there is any pending FETCH cache entries, flush them
-                 * now before changing mailboxes. */
-                $this->_updateCache($pipeline->fetch);
-                $pipeline->fetch->clear();
-
-                $this->_changeSelected(
-                    $pipeline->data['qresyncmbox'][0],
-                    $pipeline->data['qresyncmbox'][1]
-                );
-                unset($pipeline->data['qresyncmbox']);
-            }
             break;
 
         case 'NOTSAVED':

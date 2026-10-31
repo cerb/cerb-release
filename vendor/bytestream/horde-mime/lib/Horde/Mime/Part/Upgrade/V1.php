@@ -100,10 +100,10 @@ class Horde_Mime_Part_Upgrade_V1
 
         $d[8] = 0;
         if (array_shift($data)) {
-            $d[8] |= STATUS_REINDEX;
+            $d[8] |= Horde_Mime_Part::STATUS_REINDEX;
         }
         if (array_shift($data)) {
-            $d[8] |= STATUS_BASEPART;
+            $d[8] |= Horde_Mime_Part::STATUS_BASEPART;
         }
 
         $d[3] = array_shift($data);

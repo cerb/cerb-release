@@ -96,4 +96,70 @@ class Horde_Mail_MboxParseTest extends \PHPUnit\Framework\TestCase
         new Horde_Mail_Mbox_Parse(__DIR__ . '/noexist');
     }
 
+    public function testMessageLimitEnforced()
+    {
+        $mboxData = "From alice@example.com  Wed Oct 16 10:00:00 2024\r\n"
+            . "Subject: Message 1\r\n"
+            . "\r\n"
+            . "Body 1\r\n"
+            . "\r\n"
+            . "From bob@example.com  Wed Oct 16 11:00:00 2024\r\n"
+            . "Subject: Message 2\r\n"
+            . "\r\n"
+            . "Body 2\r\n"
+            . "\r\n"
+            . "From charlie@example.com  Wed Oct 16 12:00:00 2024\r\n"
+            . "Subject: Message 3\r\n"
+            . "\r\n"
+            . "Body 3\r\n";
+
+        $resource = fopen('php://memory', 'r+');
+        fwrite($resource, $mboxData);
+        rewind($resource);
+
+        $this->expectException(Horde_Mail_Exception::class);
+        $this->expectExceptionMessage('more than enforced limit');
+        new Horde_Mail_Mbox_Parse($resource, 2);
+    }
+
+    public function testMessageLimitAllowsExactCount()
+    {
+        $mboxData = "From alice@example.com  Wed Oct 16 10:00:00 2024\r\n"
+            . "Subject: Message 1\r\n"
+            . "\r\n"
+            . "Body 1\r\n"
+            . "\r\n"
+            . "From bob@example.com  Wed Oct 16 11:00:00 2024\r\n"
+            . "Subject: Message 2\r\n"
+            . "\r\n"
+            . "Body 2\r\n";
+
+        $resource = fopen('php://memory', 'r+');
+        fwrite($resource, $mboxData);
+        rewind($resource);
+
+        $parse = new Horde_Mail_Mbox_Parse($resource, 2);
+        $this->assertEquals(2, count($parse));
+    }
+
+    public function testLeadingWhitespaceFromLineParsedAsMarker()
+    {
+        $mboxData = " From alice@example.com  Wed Oct 16 10:00:00 2024\r\n"
+            . "Subject: Message 1\r\n"
+            . "\r\n"
+            . "Body 1\r\n"
+            . "\r\n"
+            . "From bob@example.com  Wed Oct 16 11:00:00 2024\r\n"
+            . "Subject: Message 2\r\n"
+            . "\r\n"
+            . "Body 2\r\n";
+
+        $resource = fopen('php://memory', 'r+');
+        fwrite($resource, $mboxData);
+        rewind($resource);
+
+        $parse = new Horde_Mail_Mbox_Parse($resource);
+        $this->assertEquals(2, count($parse), 'Leading whitespace on first From line should not prevent MBOX detection');
+    }
+
 }

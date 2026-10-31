@@ -102,7 +102,7 @@ class Horde_Imap_Client_Interaction_Server
         $status = $token->current();
         $valid = array('BAD', 'BYE', 'NO', 'OK', 'PREAUTH');
 
-        if (in_array($status, $valid)) {
+        if (in_array($status, $valid, true)) {
             $this->status = constant(__CLASS__ . '::' . $status);
             $resp_text = $token->next();
 

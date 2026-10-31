@@ -89,8 +89,8 @@ class Horde_Mail_Rfc822_Identification extends Horde_Mail_Rfc822
      */
     private function _parseMessageId()
     {
-        $bracket = ($this->_curr(true) === '<');
-        $str = '<';
+        $bracket = ($this->_curr() === '<');
+        $str = $bracket ? $this->_curr(true) : '';
 
         while (($chr = $this->_curr(true)) !== false) {
             if ($bracket) {

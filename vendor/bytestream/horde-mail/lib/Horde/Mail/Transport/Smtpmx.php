@@ -285,7 +285,7 @@ class Horde_Mail_Transport_Smtpmx extends Horde_Mail_Transport
     {
         $mx = array();
 
-        if ($this->params['netdns']) {
+        if ($this->_params['netdns']) {
             $this->_loadNetDns();
 
             try {

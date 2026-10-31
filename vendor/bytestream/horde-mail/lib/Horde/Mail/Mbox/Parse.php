@@ -81,7 +81,7 @@ implements ArrayAccess, Countable, Iterator
             $line = fgets($this->_data);
 
             if (is_null($last_line)) {
-                ltrim($line);
+                $line = ltrim($line);
             }
 
             if (substr($line, 0, 5) == 'From ') {
@@ -92,7 +92,7 @@ implements ArrayAccess, Countable, Iterator
                     continue;
                 }
 
-                if ($limit && ($i++ > $limit)) {
+                if ($limit && (++$i > $limit)) {
                     throw new Horde_Mail_Exception(
                         sprintf(
                             Horde_Mail_Translation::t("Imported mailbox contains more than enforced limit of %u messages."),

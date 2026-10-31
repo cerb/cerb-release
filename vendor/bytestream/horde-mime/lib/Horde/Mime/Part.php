@@ -227,10 +227,10 @@ implements ArrayAccess, Countable, RecursiveIterator, Serializable
      * Add a disposition parameter to this part.
      *
      * @param string $label  The disposition parameter label.
-     * @param string $data   The disposition parameter data. If null, removes
+     * @param ?string $data  The disposition parameter data. If null, removes
      *                       the parameter (@since 2.8.0).
      */
-    public function setDispositionParameter($label, $data)
+    public function setDispositionParameter($label, $data): void
     {
         $cd = $this->_headers['content-disposition'];
 
@@ -791,10 +791,10 @@ implements ArrayAccess, Countable, RecursiveIterator, Serializable
      * Add/remove a content type parameter to this part.
      *
      * @param string $label  The content-type parameter label.
-     * @param string $data   The content-type parameter data. If null, removes
+     * @param ?string $data  The content-type parameter data. If null, removes
      *                       the parameter (@since 2.8.0).
      */
-    public function setContentTypeParameter($label, $data)
+    public function setContentTypeParameter($label, $data): void
     {
         $ct = $this->_headers['content-type'];
 
@@ -2112,7 +2112,7 @@ implements ArrayAccess, Countable, RecursiveIterator, Serializable
             substr(
                 $rawtext,
                 $b_find[$base_pos]['start'],
-                $b_find[$base_pos]['length'] - 1
+                $b_find[$base_pos]['length']
             ),
             $type,
             $id
@@ -2221,7 +2221,7 @@ implements ArrayAccess, Countable, RecursiveIterator, Serializable
     protected function _reEncodeMessageAttachment(Horde_Mime_Part $part)
     {
         $new_part = Horde_Mime_Part::parseMessage($part->getContents());
-        $part->setContents($new_part->getContents(array('stream' => true)), array('encoding' => self::ENCODE_BINARY));
+        $part->setContents($new_part->getContents(array('stream' => true)), array('encoding' => 'binary'));
         $part->setTransferEncoding('base64', array('send' => true));
     }
 

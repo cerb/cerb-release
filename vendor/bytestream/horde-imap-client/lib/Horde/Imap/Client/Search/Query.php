@@ -215,7 +215,7 @@ class Horde_Imap_Client_Search_Query implements Serializable
             $this->_addFuzzy(!empty($ptr['newfuzzy']), $temp);
             if ($ptr['new']) {
                 $cmds->add('NEW');
-                unset($ptr['flag']['UNSEEN']);
+                unset($ptr['flag']['SEEN']);
             } else {
                 $cmds->add('OLD');
             }

@@ -178,7 +178,7 @@ class Horde_Mail_Transport_Smtp extends Horde_Mail_Transport
                 break;
             }
             rewind($body);
-        } elseif (substr($body, -2, 0) != "\r\n") {
+        } elseif (substr($body, -2) != "\r\n") {
             $body .= "\r\n";
         }
 

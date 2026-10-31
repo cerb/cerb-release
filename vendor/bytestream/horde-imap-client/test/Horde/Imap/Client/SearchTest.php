@@ -95,6 +95,24 @@ class Horde_Imap_Client_SearchTest extends \PHPUnit\Framework\TestCase
     }
 
     /**
+     * newMsgs() should clear any prior \Seen flag search, per its own
+     * docblock ("this will clear any '\Recent' or '\Unseen' flag
+     * searches"). There is no '\Unseen' system flag (RFC 3501); an
+     * unseen search is stored as flag('\Seen', false), keyed 'SEEN'.
+     */
+    public function testNewMsgsClearsPriorSeenFlagSearch()
+    {
+        $ob = new Horde_Imap_Client_Search_Query();
+        $ob->flag('\\seen', true);
+        $ob->newMsgs(true);
+
+        $this->assertEquals(
+            'NEW',
+            strval($ob)
+        );
+    }
+
+    /**
      * @dataProvider headerTextQueryProvider
      */
     public function testHeaderTextQuery($not, $fuzzy, $expected)

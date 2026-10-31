@@ -163,6 +163,7 @@ class Horde_Mail_Transport_Sendmail extends Horde_Mail_Transport
 
         case 74: // EX_IOERR
             $msg = 'input/output error';
+            break;
 
         case 75: // EX_TEMPFAIL
             $msg = 'temporary failure';

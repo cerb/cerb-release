@@ -145,7 +145,7 @@ class Horde_Mime_Id
             ? substr($this->id, 0, -1)
             : rtrim($this->id, '.') . '.';
 
-        return ((($base == 0) && ($id != 0)) ||
+        return ((empty($base) && ($id != 0)) ||
                 (strpos(strval($id), strval($base)) === 0));
     }
 

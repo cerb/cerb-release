@@ -94,6 +94,30 @@ implements ArrayAccess, Countable, IteratorAggregate
     }
 
     /**
+     * Re-key a fetch object from one key to another.
+     *
+     * Used when the FETCH response is parsed by sequence number but the
+     * results are keyed by UID. After the UID is parsed from the response,
+     * the object is moved from the sequence-number key to the UID key.
+     *
+     * @param string|integer $old_key  The current key (sequence number).
+     * @param string|integer $new_key  The new key (UID).
+     *
+     * @since 2.6.1
+     */
+    public function rekey($old_key, $new_key)
+    {
+        if ($old_key === $new_key) {
+            return;
+        }
+
+        if (isset($this->_data[$old_key])) {
+            $this->_data[$new_key] = $this->_data[$old_key];
+            unset($this->_data[$old_key]);
+        }
+    }
+
+    /**
      * Return the list of IDs.
      *
      * @return array  ID list.
