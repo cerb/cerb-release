@@ -83,6 +83,9 @@ class ChRest_Attachments extends Extension_RestController implements IExtensionR
 	private function getIdDownload($id) {
 		$active_worker = CerberusApplication::getActiveWorker();
 		
+		if(!$active_worker->hasPriv('core.display.actions.attachments.download'))
+			$this->error(self::ERRNO_ACL, "Permission denied.");
+		
 		$container = $this->search(array(
 			array('id', '=', $id),
 		));
@@ -332,7 +335,11 @@ class ChRest_Attachments extends Extension_RestController implements IExtensionR
 
 		if(empty($file_id))
 			return array();
-		
+
+		// A worker who uploaded this file will always have access to it, whether it was a dupe or not
+		if(($worker = CerberusApplication::getActiveWorker()))
+			DAO_Attachment::addLinks(CerberusContexts::CONTEXT_WORKER, $worker->id, $file_id);
+
 		$this->getId($file_id);
 	}
 	

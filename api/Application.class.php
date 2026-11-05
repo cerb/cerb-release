@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-const APP_BUILD = 2026103002;
-const APP_VERSION = '12.0.2';
+const APP_BUILD = 2026110502;
+const APP_VERSION = '12.0.3';
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -1892,6 +1892,38 @@ class CerberusContexts {
 		}
 	}
 
+	/**
+	 * A search criteria limiting group-scoped records (tickets, messages) to groups the worker
+	 * can read. Mirrors Context_Ticket::isReadableByActor(): public groups, or private groups
+	 * the worker belongs to. Returns null when no restriction applies.
+	 */
+	public static function getGroupAclParamForWorker(string $context, ?Model_Worker $worker) : ?DevblocksSearchCriteria {
+		if(!$worker || $worker->is_superuser)
+			return null;
+		
+		$field_key = match($context) {
+			CerberusContexts::CONTEXT_TICKET => SearchFields_Ticket::TICKET_GROUP_ID,
+			CerberusContexts::CONTEXT_MESSAGE => SearchFields_Message::TICKET_GROUP_ID,
+			default => null,
+		};
+		
+		if(!$field_key)
+			return null;
+		
+		$memberships = $worker->getMemberships();
+		
+		$group_ids = array_keys(array_filter(
+			DAO_Group::getAll(),
+			fn($group) => !$group->is_private || array_key_exists($group->id, $memberships)
+		));
+		
+		return new DevblocksSearchCriteria(
+			$field_key,
+			DevblocksSearchCriteria::OPER_IN,
+			$group_ids ?: [0]
+		);
+	}
+	
 	public static function filterModelsByActorReadable($context_class, $models, $actor) {
 		return array_intersect_key($models, array_flip(array_keys($context_class::isReadableByActor($models, $actor), true)));
 	}

@@ -80,8 +80,9 @@ class Controller_Security extends DevblocksControllerExtension {
 				$hash = hash_hmac('sha256', $url, $image_proxy_secret, true);
 				$hash = DevblocksPlatform::services()->string()->base64UrlEncode($hash);
 				
-				// If unauthenticated
-				if(!$url_sig || !DevblocksPlatform::strStartsWith($hash, $url_sig))
+				// If unauthenticated. URLs are signed with the first 10 characters of the hash, and
+				// anything shorter would be guessable.
+				if(!hash_equals(substr($hash, 0, 10), strval($url_sig)))
 					DevblocksPlatform::dieWithHttpError(null, 401);
 			}
 			
@@ -89,6 +90,8 @@ class Controller_Security extends DevblocksControllerExtension {
 				RequestOptions::COOKIES => false,
 				RequestOptions::TIMEOUT => $image_proxy_timeout_ms/1000,
 				RequestOptions::ALLOW_REDIRECTS => $image_proxy_redirects_disabled ? false : true,
+				// Email images come from the public web, and an email's sender picks these URLs
+				DevblocksHttpEgressFilter::OPT_PUBLIC_ONLY => true,
 			];
 			
 			$response = $http_client->get($url, $http_options);
