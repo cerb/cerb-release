@@ -197,14 +197,6 @@ class _DevblocksServices {
 	
 	/**
 	 * 
-	 * @return _DevblocksOpenIDManager
-	 */
-	function openid() {
-		return _DevblocksOpenIDManager::getInstance();
-	}
-	
-	/**
-	 * 
 	 * @return _DevblocksNaturalLanguageManager
 	 */
 	function nlp() {
@@ -721,7 +713,7 @@ class DevblocksPlatform extends DevblocksEngine {
 	/*
 	 * @deprecated
 	 */
-	static function curlExec($ch, $follow=false, $return=true) {
+	static function curlExec($ch, $follow=false, $return=true, $hops=0) {
 		// Proxy
 		if(defined('DEVBLOCKS_HTTP_PROXY') && DEVBLOCKS_HTTP_PROXY) {
 			curl_setopt($ch, CURLOPT_PROXY, DEVBLOCKS_HTTP_PROXY);
@@ -730,6 +722,45 @@ class DevblocksPlatform extends DevblocksEngine {
 		// Return transfer
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, $return);
 		
+		// Refuse cloud credential endpoints. CURLINFO_EFFECTIVE_URL rather than a URL passed in,
+		// because it reflects the URL the handle actually carries -- whether it came from curlInit()
+		// or a later CURLOPT_URL -- and because this function recurses to follow redirects, so the
+		// same check covers every hop.
+		//
+		// Returns false like a failed transfer rather than throwing: curl_exec()'s own contract is
+		// what every caller here already handles, and a new exception type would surface as a fatal
+		// in cron and OAuth paths.
+		$effective_url = strval(curl_getinfo($ch, CURLINFO_EFFECTIVE_URL));
+		
+		if(!($vetted = DevblocksHttpEgressFilter::vetUrl($effective_url, $error))) {
+			DevblocksPlatform::logError(
+				sprintf('Refused to request %s: %s',
+					$effective_url,
+					$error
+				)
+			);
+			
+			return false;
+		}
+		
+		// Pin the addresses we vetted, as the Guzzle path does, so DNS can't be re-pointed at the
+		// metadata service between our lookup and curl's own. Set on every hop, so each redirect
+		// connects where its own check said. Skipped when proxied, since the proxy resolves.
+		if(!(defined('DEVBLOCKS_HTTP_PROXY') && DEVBLOCKS_HTTP_PROXY) && $vetted['ips']) {
+			$addresses = array_map(
+				fn($ip) => str_contains($ip, ':') ? sprintf('[%s]', $ip) : $ip,
+				$vetted['ips']
+			);
+			
+			curl_setopt($ch, CURLOPT_RESOLVE, [
+				sprintf('%s:%d:%s',
+					$vetted['host'],
+					$vetted['port'],
+					implode(',', $addresses)
+				),
+			]);
+		}
+		
 		// Follow redirects
 		if($follow) {
 			curl_setopt_array($ch, self::getCurlProtocolOptions(true));
@@ -737,10 +768,24 @@ class DevblocksPlatform extends DevblocksEngine {
 			$status = curl_getinfo($ch);
 			
 			// It's a 3xx redirect
-			// [TODO] Catch redirect loops
 			if(isset($status['redirect_url']) && $status['redirect_url'] && floor($status['http_code']/100) == 3) {
+				// Bound the chain. This used to recurse without a cap, so a server answering 302 with
+				// its own URL spun until the request died.
+				if($hops >= DevblocksHttpEgressFilter::MAX_REDIRECTS) {
+					DevblocksPlatform::logError(
+						sprintf('Too many redirects (%d) requesting %s',
+							$hops,
+							$effective_url
+						)
+					);
+					
+					return false;
+				}
+				
+				// The recursion is what re-runs the check above against the new target, so a redirect
+				// into the metadata service is refused at the hop.
 				curl_setopt($ch, CURLOPT_URL, $status['redirect_url']);
-				return self::curlExec($ch, $follow, $return);
+				return self::curlExec($ch, $follow, $return, $hops + 1);
 			}
 			
 			return $out;
@@ -1840,7 +1885,6 @@ class DevblocksPlatform extends DevblocksEngine {
 			$ch = DevblocksPlatform::curlInit();
 			curl_setopt($ch, CURLOPT_URL, $url);
 			curl_setopt($ch, CURLOPT_HEADER, false);
-			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 			
 			$user_agent = 'Cerb ' . APP_VERSION . ' (Build ' . APP_BUILD . ')';
 			curl_setopt($ch, CURLOPT_USERAGENT, $user_agent);

@@ -167,6 +167,9 @@ class _DevblocksDataProviderWorklistRecords extends _DevblocksDataProvider {
 		if(false === $view->addParamsWithQuickSearch($query, true, [], $error))
 			return false;
 		
+		// (ACL) Only count and page records in groups the active worker can read
+		$this->_addGroupAclParam($view, $context_ext->id);
+		
 		if(array_key_exists('page', $chart_model))
 			$view->renderPage = intval($chart_model['page']);
 		
@@ -232,6 +235,11 @@ class _DevblocksDataProviderWorklistRecords extends _DevblocksDataProvider {
 		$ids = array_column($results, 'id');
 		
 		$models = $context_ext->getModelObjects($ids);
+		
+		// (ACL) Only return records the active worker can read
+		if(($active_worker = CerberusApplication::getActiveWorker()) && !$active_worker->is_superuser)
+			$models = CerberusContexts::filterModelsByActorReadable(get_class($context_ext), $models, $active_worker);
+		
 		$dicts = DevblocksDictionaryDelegate::getDictionariesFromModels($models, $context_ext->id, $chart_model['expand']);
 		
 		$chart_model['data'] = $dicts;

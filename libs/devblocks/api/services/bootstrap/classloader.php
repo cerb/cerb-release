@@ -215,6 +215,7 @@ class _DevblocksClassLoadManager {
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/http.php', array(
 			'_DevblocksHttpService',
+			'DevblocksHttpEgressFilter',
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/gpg.php', array(
 			'_DevblocksGPGService',
@@ -249,9 +250,6 @@ class _DevblocksClassLoadManager {
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/oauth.php', array(
 			'_DevblocksOAuthService',
 			'_DevblocksOAuth1Client',
-		));
-		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/openid.php', array(
-			'_DevblocksOpenIDManager',
 		));
 		$this->registerClasses(DEVBLOCKS_PATH . 'api/services/queue.php', [
 			'_DevblocksQueueService',
