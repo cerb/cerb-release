@@ -39,7 +39,8 @@ class WorkspaceWidgetDatasource_WorklistMetric extends Extension_WorkspaceWidget
 	}
 	
 	function getData(Model_WorkspaceWidget $widget, array $params=array(), $params_prefix=null) {
-		return $this->_getDataSingle($widget, $params, $params_prefix);
+		// (ACL) Inside a privileged author's widget, stats aren't limited to the viewer's groups
+		return CerberusContexts::runStatsWithAuthorAcl(fn() => $this->_getDataSingle($widget, $params, $params_prefix));
 	}
 	
 	private function _getDataSingle(Model_WorkspaceWidget $widget, array $params=[], $params_prefix=null) {
@@ -214,7 +215,8 @@ class WorkspaceWidgetDatasource_WorklistSeries extends Extension_WorkspaceWidget
 	}
 	
 	function getData(Model_WorkspaceWidget $widget, array $params=[], $params_prefix=null) {
-		return $this->_getDataSeries($widget, $params, $params_prefix);
+		// (ACL) Inside a privileged author's widget, stats aren't limited to the viewer's groups
+		return CerberusContexts::runStatsWithAuthorAcl(fn() => $this->_getDataSeries($widget, $params, $params_prefix));
 	}
 	
 	private function _getDataSeries(Model_WorkspaceWidget $widget, array $params=[], $params_prefix=null) {

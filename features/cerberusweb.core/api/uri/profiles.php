@@ -448,6 +448,9 @@ class Page_Profiles extends CerberusPageExtension {
 		if(!Context_ProfileWidget::isReadableByActor($profile_widget, $active_worker))
 			DevblocksPlatform::dieWithHttpError(null, 403);
 		
+		// (ACL) Stats in widgets authored by admins aren't limited to the viewer's groups
+		$author_acl_scope = CerberusContexts::enterWidgetAuthorScope(true);
+		
 		if($extension instanceof Extension_ProfileWidget) {
 			if(false === ($extension->invoke($action, $profile_widget))) {
 				if(!DEVELOPMENT_MODE_SECURITY_SCAN) {
@@ -704,6 +707,9 @@ class ProfileTab_Dashboard extends Extension_ProfileTab {
 		
 		if(!($extension = $widget->getExtension()))
 			DevblocksPlatform::dieWithHttpError(null, 404);
+		
+		// (ACL) Stats in widgets authored by admins aren't limited to the viewer's groups
+		$author_acl_scope = CerberusContexts::enterWidgetAuthorScope(true);
 		
 		// If full, we also want to replace the container
 		if($full) {
