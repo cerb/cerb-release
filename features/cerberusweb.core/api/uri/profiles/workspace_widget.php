@@ -410,6 +410,9 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 		if(!($extension = $widget->getExtension()))
 			return;
 		
+		// (ACL) Stats in widgets authored by admins aren't limited to the viewer's groups
+		$author_acl_scope = CerberusContexts::enterWidgetAuthorScope($widget->isAuthoredByAdmin());
+		
 		// If full, we also want to replace the container
 		if($full) {
 			$tpl = DevblocksPlatform::services()->template();
@@ -627,6 +630,9 @@ class PageSection_ProfilesWorkspaceWidget extends Extension_PageSection {
 		
 		$tpl->assign('widget', $widget);
 		$tpl->assign('widget_extension', $extension);
+		
+		// (ACL) Stats in widgets authored by admins aren't limited to the viewer's groups
+		$author_acl_scope = CerberusContexts::enterWidgetAuthorScope($widget->isAuthoredByAdmin());
 		
 		$tpl->assign('export_data', array(
 			'csv' => $extension->exportData($widget, 'csv'),

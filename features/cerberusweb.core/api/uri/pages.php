@@ -157,6 +157,9 @@ class Page_Custom extends CerberusPageExtension {
 		if(!Context_WorkspaceWidget::isReadableByActor($workspace_widget, $active_worker))
 			DevblocksPlatform::dieWithHttpError(null, 403);
 		
+		// (ACL) Stats in widgets authored by admins aren't limited to the viewer's groups
+		$author_acl_scope = CerberusContexts::enterWidgetAuthorScope($workspace_widget->isAuthoredByAdmin());
+		
 		if($extension instanceof Extension_WorkspaceWidget) {
 			if(false === ($extension->invoke($action, $workspace_widget))) {
 				if(!DEVELOPMENT_MODE_SECURITY_SCAN) {
