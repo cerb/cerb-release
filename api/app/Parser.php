@@ -62,14 +62,23 @@ class CerberusParserMessage {
 	private function _buildHeaders() {
 		if(empty($this->raw_headers) && !empty($this->headers))
 		foreach($this->headers as $k => $v) {
+			// (Security) Only allow valid header names (printable ASCII, no spaces or colons)
+			if(!is_string($k) || !preg_match('/^[\x21-\x39\x3B-\x7E]+$/', $k))
+				continue;
+
 			$k = DevblocksPlatform::services()->string()->capitalizeDashed($k);
-			
+
 			if(is_array($v)) {
 				foreach($v as $vv) {
-					$this->raw_headers .= sprintf("%s: %s\r\n", $k, $vv);
+					if(!is_scalar($vv))
+						continue;
+
+					// (Security) Don't allow line breaks to add new headers
+					$this->raw_headers .= sprintf("%s: %s\r\n", $k, preg_replace('/[\r\n]+/', ' ', strval($vv)));
 				}
 			} else if(is_string($v)) {
-				$this->raw_headers .= sprintf("%s: %s\r\n", $k, $v);
+				// (Security) Don't allow line breaks to add new headers
+				$this->raw_headers .= sprintf("%s: %s\r\n", $k, preg_replace('/[\r\n]+/', ' ', $v));
 			}
 		}
 	}

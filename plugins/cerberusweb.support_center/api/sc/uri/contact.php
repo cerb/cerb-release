@@ -288,6 +288,10 @@ class UmScContactController extends Extension_UmScController {
 		$sCc = DevblocksPlatform::importGPC($_POST['cc'] ?? null, 'string','');
 		$sSubject = DevblocksPlatform::importGPC($_POST['subject'] ?? null, 'string','');
 		$sContent = DevblocksPlatform::importGPC($_POST['content'] ?? null, 'string','');
+
+		// The subject and Cc: are single-line message headers
+		$sCc = trim(preg_replace('/[\r\n]+/', ' ', $sCc));
+		$sSubject = trim(preg_replace('/[\r\n]+/', ' ', $sSubject));
 		$sCaptcha = DevblocksPlatform::importGPC($_POST['captcha'] ?? null, 'string','');
 		
 		// Ignore a posted subject unless subjects are enabled on this portal
