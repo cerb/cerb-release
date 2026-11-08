@@ -578,15 +578,16 @@ class UmScContactController extends Extension_UmScController {
 		
 		// It's possible for the parser to reject the message using pre-filters
 		if(!empty($ticket_id) && null != ($ticket = DAO_Ticket::get($ticket_id))) {
-			$umsession->setProperty('support.write.last_opened',$ticket->mask);
-		
 			// Did this message start the ticket, or was it threaded into an existing one? (master, not a lagging reader)
 			$db = DevblocksPlatform::services()->database();
 			$is_new_ticket = (bool) $db->GetOneMaster(sprintf("SELECT COUNT(*) FROM ticket INNER JOIN message ON (message.id = ticket.first_message_id) WHERE ticket.id = %d AND message.hash_header_message_id = %s",
 				$ticket->id,
 				$db->qstr(sha1($message_id_header))
 			));
-		
+
+			// (Security) Only show the reference number for a ticket we created
+			$umsession->setProperty('support.write.last_opened', $is_new_ticket ? $ticket->mask : null);
+
 		} else {
 			$umsession->setProperty('support.write.last_opened',null);
 		}
