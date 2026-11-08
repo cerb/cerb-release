@@ -1764,6 +1764,31 @@ class DevblocksPlatformTest extends TestCase {
 		$expected = 'You can use the worker.id:me filter';
 		$actual = DevblocksPlatform::strToHyperlinks('You can use the worker.id:me filter');
 		$this->assertEquals($expected, $actual);
+
+		// Secure web links
+		$expected = '<a href="https://example.com/path?a=1&amp;b=2" target="_blank" rel="noopener noreferrer">https://example.com/path?a=1&amp;b=2</a>';
+		$actual = DevblocksPlatform::strToHyperlinks('https://example.com/path?a=1&b=2');
+		$this->assertEquals($expected, $actual);
+
+		// FTP links
+		$expected = '<a href="ftp://ftp.example.com/file.txt" target="_blank" rel="noopener noreferrer">ftp://ftp.example.com/file.txt</a>';
+		$actual = DevblocksPlatform::strToHyperlinks('ftp://ftp.example.com/file.txt');
+		$this->assertEquals($expected, $actual);
+
+		// Non-web schemes aren't linked
+		$expected = 'javascript://example.com';
+		$actual = DevblocksPlatform::strToHyperlinks('javascript://example.com');
+		$this->assertEquals($expected, $actual);
+
+		// Non-web schemes aren't linked (case-insensitive)
+		$expected = 'see JavaScript://example.com';
+		$actual = DevblocksPlatform::strToHyperlinks('see JavaScript://example.com');
+		$this->assertEquals($expected, $actual);
+
+		// Non-web schemes aren't linked (escaped HTML input)
+		$expected = '&lt;b&gt;data://example.com&lt;/b&gt;';
+		$actual = DevblocksPlatform::strToHyperlinks('&lt;b&gt;data://example.com&lt;/b&gt;');
+		$this->assertEquals($expected, $actual);
 	}
 	
 	public function testStrToPermalink() {
