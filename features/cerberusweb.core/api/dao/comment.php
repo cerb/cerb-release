@@ -1239,12 +1239,23 @@ class View_Comment extends C4_AbstractView implements IAbstractView_Subtotals, I
 		// Data
 		$results = $this->getData();
 		$tpl->assign('results', $results);
+		
+		// (ACL) Censor rows the active worker can't read, but keep them in the counts
+		$readable = array_fill_keys(array_keys($results[0]), false);
+		
+		if($readable && is_array($privs = Context_Comment::isReadableByActor(array_keys($readable), CerberusApplication::getActiveWorker())))
+			$readable = array_replace($readable, array_intersect_key(array_map(fn($priv) => true === $priv, $privs), $readable));
+		
+		$tpl->assign('readable', $readable);
 
 		// If we're displaying VIRTUAL_TARGET, bulk load the contexts
 		if(in_array(SearchFields_Comment::VIRTUAL_TARGET, $this->view_columns)) {
 			$targets = array();
 			
-			foreach($results[0] as $result) {
+			foreach($results[0] as $result_id => $result) {
+				if(!($readable[$result_id] ?? false))
+					continue;
+				
 				if(!isset($targets[$result[SearchFields_Comment::CONTEXT]]))
 					$targets[$result[SearchFields_Comment::CONTEXT]] = [];
 				
