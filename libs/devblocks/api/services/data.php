@@ -310,13 +310,35 @@ class _DevblocksDataService {
 	}
 	
 	function executeQuery($query, array $bindings=[], &$error=null, $cache_secs=0) {
+		// (ACL) Inside a privileged author's widget, stats aren't limited to the viewer's groups
+		return CerberusContexts::runStatsWithAuthorAcl(function() use ($query, $bindings, &$error, $cache_secs) {
+			return $this->_executeQuery($query, $bindings, $error, $cache_secs);
+		});
+	}
+	
+	private function _executeQuery($query, array $bindings=[], &$error=null, $cache_secs=0) {
 		if(!is_string($query)) {
 			$error = "The data query must be a string.";
 			return false;
 		}
 		
 		$cache = DevblocksPlatform::services()->cache();
-		$cache_key = 'data_query_' . sha1($query);
+		
+		// Bindings fill ${placeholders} in the query (e.g. a card's record, or a viewer's dashboard
+		// prompts), so they're part of what makes results unique. Only key on them when used.
+		$bindings_key = '';
+		
+		if($bindings && preg_match('/\$#?\{/', $query)) {
+			// If they can't be hashed, don't risk sharing results between different bindings
+			if(false === ($bindings_json = json_encode($bindings, JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE))) {
+				$cache_secs = 0;
+			} else {
+				$bindings_key = sha1($bindings_json);
+			}
+		}
+		
+		// (ACL) Results can differ by the viewer's readable groups, so never share them across scopes
+		$cache_key = 'data_query_' . sha1($query . '|' . $bindings_key . '|' . CerberusContexts::getGroupAclCacheScope());
 		
 		if($cache_secs) {
 			if(

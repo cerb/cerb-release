@@ -39,8 +39,8 @@
  * - Jeff Standen and Dan Hildebrandt
  *	 Founders at Webgroup Media LLC; Developers of Cerb
  */
-const APP_BUILD = 2026110501;
-const APP_VERSION = '11.1.14';
+const APP_BUILD = 2026110901;
+const APP_VERSION = '11.1.15';
 
 define("APP_MAIL_PATH", APP_STORAGE_PATH . '/mail/');
 
@@ -1736,13 +1736,93 @@ class CerberusContexts {
 		}
 	}
 
+	private static int $_group_acl_trusted_author_depth = 0;
+	private static int $_group_acl_bypass_depth = 0;
+	
+	/**
+	 * Render a widget as its author. When the author is privileged (an admin, or admin-only
+	 * widgets like profile/card widgets), the data queries and stats it runs aren't limited to
+	 * the viewer's groups. Worklist rows are still filtered for the viewer.
+	 *
+	 * Keep the returned guard in a local variable; the scope ends when it's released.
+	 */
+	static public function enterWidgetAuthorScope(bool $is_trusted_author) : object {
+		if($is_trusted_author)
+			self::$_group_acl_trusted_author_depth++;
+		
+		return new class($is_trusted_author) {
+			function __construct(private bool $is_active) {}
+			
+			function __destruct() {
+				if($this->is_active)
+					CerberusContexts::_exitWidgetAuthorScope();
+			}
+		};
+	}
+	
+	/**
+	 * @internal Only for enterWidgetAuthorScope()'s guard
+	 */
+	static public function _exitWidgetAuthorScope() : void {
+		self::$_group_acl_trusted_author_depth = max(0, self::$_group_acl_trusted_author_depth - 1);
+	}
+	
+	/**
+	 * Run a data query or widget stats fetch. Inside a trusted author's widget, the group ACL
+	 * is lifted for the duration; otherwise it applies to the active worker as usual.
+	 */
+	static public function runStatsWithAuthorAcl(callable $fn) {
+		if(!self::$_group_acl_trusted_author_depth)
+			return $fn();
+		
+		self::$_group_acl_bypass_depth++;
+		
+		try {
+			return $fn();
+		} finally {
+			self::$_group_acl_bypass_depth--;
+		}
+	}
+	
+	static public function isGroupAclBypassed() : bool {
+		return self::$_group_acl_bypass_depth > 0;
+	}
+	
+	/**
+	 * A cache key component for results that depend on the group ACL, so cached data query
+	 * results are never shared between workers who can see different groups.
+	 */
+	static public function getGroupAclCacheScope() : string {
+		// Key on the viewer's real groups even inside a trusted author's widget, since rows
+		// (e.g. `worklist.records`) are still filtered per viewer. Mark bypassed results too,
+		// so unfiltered stats are never served to the same query outside a trusted widget.
+		$bypass_depth = self::$_group_acl_bypass_depth;
+		self::$_group_acl_bypass_depth = 0;
+		
+		try {
+			$param = self::getGroupAclParamForWorker(CerberusContexts::CONTEXT_TICKET, CerberusApplication::getActiveWorker());
+		} finally {
+			self::$_group_acl_bypass_depth = $bypass_depth;
+		}
+		
+		$prefix = $bypass_depth ? 'author:' : '';
+		
+		if(!$param)
+			return $prefix . 'all';
+		
+		$group_ids = DevblocksPlatform::sanitizeArray($param->value, 'int');
+		sort($group_ids);
+		
+		return $prefix . 'groups:' . sha1(implode(',', $group_ids));
+	}
+	
 	/**
 	 * A search criteria limiting group-scoped records (tickets, messages) to groups the worker
 	 * can read. Mirrors Context_Ticket::isReadableByActor(): public groups, or private groups
 	 * the worker belongs to. Returns null when no restriction applies.
 	 */
 	static public function getGroupAclParamForWorker(string $context, ?Model_Worker $worker) : ?DevblocksSearchCriteria {
-		if(!$worker || $worker->is_superuser)
+		if(!$worker || $worker->is_superuser || self::isGroupAclBypassed())
 			return null;
 		
 		$field_key = match($context) {

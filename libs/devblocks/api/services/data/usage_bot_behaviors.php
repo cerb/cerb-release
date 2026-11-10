@@ -225,7 +225,7 @@ class _DevblocksDataProviderUsageBotBehaviors extends _DevblocksDataProvider {
 				
 			} else if($field->key == 'ids') {
 				CerbQuickSearchLexer::getOperArrayFromTokens($field->tokens, $oper, $value);
-				$chart_model['ids'] = $value;
+				$chart_model['ids'] = DevblocksPlatform::sanitizeArray($value, 'int', ['unique','nonzero']);
 				
 			} else {
 				$error = sprintf("The parameter '%s' is unknown.", $field->key);
@@ -262,7 +262,7 @@ class _DevblocksDataProviderUsageBotBehaviors extends _DevblocksDataProvider {
 			strtotime('first day of this month -1 year 00:00:00 UTC'),
 			strtotime('tomorrow UTC'),
 			$chart_model['ids'] 
-				? sprintf("AND dim0_value_id IN (%s) ", implode(',', $chart_model['ids']))
+				? sprintf("AND dim0_value_id IN (%s) ", implode(',', DevblocksPlatform::sanitizeArray($chart_model['ids'], 'int')))
 				: ''
 		);
 		

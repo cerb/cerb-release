@@ -613,6 +613,25 @@ class Model_WorkspaceWidget extends DevblocksRecordModel {
 		return $tab->getWorkspacePage();
 	}
 	
+	/**
+	 * Whether only admins can author this widget: its page is owned by the app, or by an active
+	 * admin worker. Role- and group-owned pages are editable by role editors and group managers.
+	 */
+	function isAuthoredByAdmin() : bool {
+		if(!($page = $this->getWorkspacePage()))
+			return false;
+		
+		switch($page->owner_context) {
+			case CerberusContexts::CONTEXT_APPLICATION:
+				return true;
+			
+			case CerberusContexts::CONTEXT_WORKER:
+				return ($owner = DAO_Worker::get($page->owner_context_id)) && $owner->is_superuser && !$owner->is_disabled;
+		}
+		
+		return false;
+	}
+	
 	function isHidden(?DevblocksDictionaryDelegate $dict=null) : bool {
 		if(!$dict || !$this->options_kata)
 			return false;
@@ -650,7 +669,9 @@ class Model_WorkspaceWidget extends DevblocksRecordModel {
 	function render() {
 		if(false == ($extension = $this->getExtension()))
 			return;
-
+		
+		$author_acl_scope = CerberusContexts::enterWidgetAuthorScope($this->isAuthoredByAdmin());
+		
 		$extension->render($this);
 	}
 };

@@ -1336,6 +1336,18 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 		];
 		$tpl->assign('label_map_type', $label_map_type);
 		
+		// Data
+		$results = $this->getData();
+		$tpl->assign('results', $results);
+		
+		// (ACL) Censor rows the active worker can't read, but keep them in the counts
+		$readable = array_fill_keys(array_keys($results[0]), false);
+		
+		if($readable && is_array($privs = Context_Draft::isReadableByActor(array_keys($readable), CerberusApplication::getActiveWorker())))
+			$readable = array_replace($readable, array_intersect_key(array_map(fn($priv) => true === $priv, $privs), $readable));
+		
+		$tpl->assign('readable', $readable);
+		
 		$tpl->assign('view_template', 'devblocks:cerberusweb.core::mail/queue/view.tpl');
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
@@ -1426,8 +1438,53 @@ class Context_Draft extends Extension_DevblocksContext implements IDevblocksCont
 	const URI = 'draft';
 	
 	static function isReadableByActor($models, $actor) {
-		// Everyone can read
-		return CerberusContexts::allowEverything($models);
+		// Ticket drafts are readable by anyone who can read the ticket; other drafts by everyone
+
+		if(!($actor = CerberusContexts::polymorphActorToDictionary($actor)))
+			return CerberusContexts::denyEverything($models);
+
+		if(CerberusContexts::isActorAnAdmin($actor))
+			return CerberusContexts::allowEverything($models);
+
+		if(!($dicts = CerberusContexts::polymorphModelsToDictionaries($models, CerberusContexts::CONTEXT_DRAFT)))
+			return CerberusContexts::denyEverything($models);
+
+		$results = array_fill_keys(array_keys($dicts), false);
+		$ticket_drafts = [];
+
+		foreach($dicts as $id => $dict) {
+			$ticket_id = intval($dict->ticket_id ?? 0);
+
+			// The draft's owner can always read it
+			if($actor->_context == CerberusContexts::CONTEXT_WORKER && $actor->id == $dict->worker_id) {
+				$results[$id] = true;
+
+			// Ticket drafts follow the ticket's group permissions
+			} else if($ticket_id) {
+				$ticket_drafts[$ticket_id][] = $id;
+
+			// Compose/transactional drafts aren't attached to a record
+			} else {
+				$results[$id] = true;
+			}
+		}
+
+		if($ticket_drafts) {
+			$privs = Context_Ticket::isReadableByActor(array_keys($ticket_drafts), $actor);
+
+			foreach($ticket_drafts as $ticket_id => $draft_ids) {
+				$is_readable = is_array($privs) ? !empty($privs[$ticket_id]) : (true === $privs);
+
+				foreach($draft_ids as $draft_id)
+					$results[$draft_id] = $is_readable;
+			}
+		}
+
+		if(is_array($models)) {
+			return $results;
+		} else {
+			return array_shift($results);
+		}
 	}
 	
 	static function isWriteableByActor($models, $actor) {

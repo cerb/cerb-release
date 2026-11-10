@@ -132,7 +132,7 @@ class _DevblocksDataProviderUsageSnippets extends _DevblocksDataProvider {
 				
 			} else if($field->key == 'ids') {
 				CerbQuickSearchLexer::getOperArrayFromTokens($field->tokens, $oper, $value);
-				$chart_model['ids'] = $value;
+				$chart_model['ids'] = DevblocksPlatform::sanitizeArray($value, 'int', ['unique','nonzero']);
 				
 			} else {
 				$error = sprintf("The parameter '%s' is unknown.", $field->key);
@@ -172,7 +172,7 @@ class _DevblocksDataProviderUsageSnippets extends _DevblocksDataProvider {
 			$ts_from,
 			$ts_to,
 			$chart_model['ids'] 
-				? sprintf("AND dim0_value_id IN (%s) ", implode(',', $chart_model['ids']))
+				? sprintf("AND dim0_value_id IN (%s) ", implode(',', DevblocksPlatform::sanitizeArray($chart_model['ids'], 'int')))
 				: ''
 		);
 		
