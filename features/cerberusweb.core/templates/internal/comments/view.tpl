@@ -59,6 +59,7 @@
 	{else}
 		{$tableRowClass = "odd"}
 	{/if}
+	{$is_readable = isset($readable[$result.c_id]) && $readable[$result.c_id]}
 	<tbody style="cursor:pointer;">
 		<tr class="{$tableRowClass}">
 			<td data-column="label" colspan="{$smarty.foreach.headers.total}" style="padding:5px;">
@@ -95,18 +96,28 @@
 						{else}
 						<a class="subject cerb-peek-trigger no-underline" data-context="{$result.c_owner_context}" data-context-id="{$result.c_owner_context_id}" data-profile-url="{$meta.permalink}">{$meta.name}</a>
 						{/if}
+						{if $is_readable}
 						<button type="button" class="peek cerb-peek-trigger" data-context="{$view_context}" data-context-id="{$result.c_id}" data-profile-url="{devblocks_url}c=profiles&what=comment&id={$result.c_id}{/devblocks_url}"><span class="cerb-icons cerb-icon-new-window"></span></button>
+						{else}
+						commented
+						{/if}
 					</div>
 				
 					<div>
+						{if $is_readable}
 						<pre class="emailbody" dir="auto">{$result.c_comment|trim|truncate:1000|escape|devblocks_hyperlinks nofilter}</pre>
+						{else}
+						<i>{'error.core.no_acl.view'|devblocks_translate}</i>
+						{/if}
 					</div>
 				</div>
 			</td>
 		</tr>
 		<tr class="{$tableRowClass}">
 		{foreach from=$view->view_columns item=column name=columns}
-			{if DevblocksPlatform::strStartsWith($column, "cf_")}
+			{if !$is_readable && !in_array($column, ["c_id", "c_created", "c_owner_context", "c_owner_context_id"])}
+				<td data-column="{$column}"></td>
+			{elseif DevblocksPlatform::strStartsWith($column, "cf_")}
 				{include file="devblocks:cerberusweb.core::internal/custom_fields/view/cell_renderer.tpl"}
 			{elseif in_array($column, ["c_created"])}
 				<td data-column="{$column}">

@@ -2128,26 +2128,28 @@ class Context_Contact extends Extension_DevblocksContext implements IDevblocksCo
 					DevblocksPlatform::dieWithHttpError(null, 403);
 			}
 			
-			if(!$context_id && $edit) {
-				$tokens = explode(' ', trim($edit));
-				
+			if(!$context_id) {
 				$model = new Model_Contact();
-				
-				foreach($tokens as $token) {
-					list($k,$v) = array_pad(explode(':', $token, 2), 2, null);
-					
-					if($v)
-					switch($k) {
-						case 'email':
-							$model->primary_email_id = intval($v);
-							break;
-							
-						case 'org':
-							$model->org_id = intval($v);
-							break;
+
+				if($edit) {
+					$tokens = explode(' ', trim($edit));
+
+					foreach($tokens as $token) {
+						list($k,$v) = array_pad(explode(':', $token, 2), 2, null);
+
+						if($v)
+						switch($k) {
+							case 'email':
+								$model->primary_email_id = intval($v);
+								break;
+
+							case 'org':
+								$model->org_id = intval($v);
+								break;
+						}
 					}
 				}
-				
+
 				$tpl->assign('model', $model);
 			}
 			$tpl->display('devblocks:cerberusweb.core::internal/contact/peek_edit.tpl');

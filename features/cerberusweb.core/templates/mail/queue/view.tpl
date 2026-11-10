@@ -1,6 +1,5 @@
 {$view_context = CerberusContexts::CONTEXT_DRAFT}
 {$view_fields = $view->getColumnsAvailable()}
-{$results = $view->getData()}
 {$total = $results[1]}
 {$data = $results[0]}
 <table cellpadding="0" cellspacing="0" border="0" class="worklist" width="100%" {if array_key_exists('header_color', $view->options) && $view->options.header_color}style="background-color:{$view->options.header_color};"{/if}>
@@ -54,16 +53,27 @@
 	{else}
 		{$tableRowClass = "odd"}
 	{/if}
+	{$is_readable = isset($readable[$result.m_id]) && $readable[$result.m_id]}
 	<tbody style="cursor:pointer;">
 		<tr class="{$tableRowClass}">
 			<td data-column="label" colspan="{$smarty.foreach.headers.total}">
 				<input type="checkbox" name="row_id[]" value="{$result.m_id}" style="display:none;">
+				{if $is_readable}
 				<a class="subject peek cerb-peek-trigger" data-context="{CerberusContexts::CONTEXT_DRAFT}" data-context-id="{$result.m_id}" data-view-id="{$view->id}">{if empty($result.m_name)}(no subject){else}{$result.m_name}{/if}</a>
+				{else}
+					{if !isset($workers)}
+						{$workers = DAO_Worker::getAll()}
+					{/if}
+					{$label_key = $result.m_type}
+					<b class="subject">{if array_key_exists($result.m_worker_id, $workers)}{$workers.{$result.m_worker_id}->getName()}{/if} {if isset($label_map_type.$label_key)}{$label_map_type.$label_key|lower}{else}{$label_key}{/if}</b>
+				{/if}
 			</td>
 		</tr>
 		<tr class="{$tableRowClass}">
 		{foreach from=$view->view_columns item=column name=columns}
-			{if DevblocksPlatform::strStartsWith($column, "cf_")}
+			{if !$is_readable && !in_array($column, ["m_id", "m_worker_id", "m_updated", "m_type", "m_ticket_id", "m_is_queued", "m_queue_delivery_date", "m_queue_fails"])}
+			<td data-column="{$column}"></td>
+			{elseif DevblocksPlatform::strStartsWith($column, "cf_")}
 				{include file="devblocks:cerberusweb.core::internal/custom_fields/view/cell_renderer.tpl"}
 			{elseif $column=="m_updated" || $column=="m_queue_delivery_date"}
 			<td data-column="{$column}">

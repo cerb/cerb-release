@@ -2167,7 +2167,15 @@ class DevblocksPlatform extends DevblocksEngine {
 			if(false !== strpos($matches[1], ':') && false === strpos($matches[1], '://')) {
 				return $matches[1];
 			}
-			
+
+			// (Security) Only link web URLs, leaving other schemes as plain text
+			if(
+				preg_match('#^([a-z][\w\-]*)://#i', $matches[1], $scheme_matches)
+				&& !in_array(strtolower($scheme_matches[1]), ['http', 'https', 'ftp', 'ftps', 'sftp'])
+			) {
+				return $matches[0];
+			}
+
 			$token = sprintf('{{{URL_%d}}}', count($replacements));
 			$url = $url_label = $matches[0];
 			

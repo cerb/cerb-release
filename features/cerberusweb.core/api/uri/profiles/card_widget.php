@@ -478,6 +478,9 @@ class PageSection_ProfilesCardWidget extends Extension_PageSection {
 		if(!Context_CardWidget::isReadableByActor($card_widget, $active_worker))
 			DevblocksPlatform::dieWithHttpError(null, 403);
 		
+		// (ACL) Stats in widgets authored by admins aren't limited to the viewer's groups
+		$author_acl_scope = CerberusContexts::enterWidgetAuthorScope(true);
+		
 		if($extension instanceof Extension_CardWidget) {
 			if(false === ($extension->invoke($invoke_action, $card_widget))) {
 				if(!DEVELOPMENT_MODE_SECURITY_SCAN) {
@@ -578,6 +581,9 @@ class PageSection_ProfilesCardWidget extends Extension_PageSection {
 		
 		if(!($extension = $widget->getExtension()))
 			return;
+		
+		// (ACL) Stats in widgets authored by admins aren't limited to the viewer's groups
+		$author_acl_scope = CerberusContexts::enterWidgetAuthorScope(true);
 		
 		// If full, we also want to replace the container
 		if($full) {
