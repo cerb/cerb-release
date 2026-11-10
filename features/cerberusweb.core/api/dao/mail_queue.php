@@ -1348,6 +1348,18 @@ class View_MailQueue extends C4_AbstractView implements IAbstractView_Subtotals,
 		];
 		$tpl->assign('label_map_type', $label_map_type);
 		
+		// Data
+		$results = $this->getData();
+		$tpl->assign('results', $results);
+		
+		// (ACL) Censor rows the active worker can't read, but keep them in the counts
+		$readable = array_fill_keys(array_keys($results[0]), false);
+		
+		if($readable && is_array($privs = Context_Draft::isReadableByActor(array_keys($readable), CerberusApplication::getActiveWorker())))
+			$readable = array_replace($readable, array_intersect_key(array_map(fn($priv) => true === $priv, $privs), $readable));
+		
+		$tpl->assign('readable', $readable);
+		
 		$tpl->assign('view_template', 'devblocks:cerberusweb.core::mail/queue/view.tpl');
 		$tpl->display('devblocks:cerberusweb.core::internal/views/subtotals_and_view.tpl');
 	}
