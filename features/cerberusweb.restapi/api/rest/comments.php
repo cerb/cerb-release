@@ -55,6 +55,9 @@ class ChRest_Comments extends Extension_RestController implements IExtensionRest
 	}
 	
 	private function getId($id) {
+		if(!Context_Comment::isReadableByActor($id, CerberusApplication::getActiveWorker()))
+			$this->error(self::ERRNO_ACL);
+		
 		$container = $this->search(array(
 			array('id', '=', $id),
 		));
@@ -167,6 +170,7 @@ class ChRest_Comments extends Extension_RestController implements IExtensionRest
 			$objects = array();
 			
 			$models = CerberusContexts::getModels(CerberusContexts::CONTEXT_COMMENT, array_keys($results));
+			$models = CerberusContexts::filterModelsByActorReadable('Context_Comment', $models, CerberusApplication::getActiveWorker());
 			unset($results);
 			
 			if(is_array($models))
