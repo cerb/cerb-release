@@ -1384,9 +1384,48 @@ class Context_Comment extends Extension_DevblocksContext implements IDevblocksCo
 	const ID = 'cerberusweb.contexts.comment';
 	const URI = 'comment';
 	
-	// Anyone can read a comment
+	// A comment is readable by anyone who can read its target record
 	public static function isReadableByActor($models, $actor) {
-		return CerberusContexts::allowEverything($models);
+		if(!($actor = CerberusContexts::polymorphActorToDictionary($actor)))
+			return CerberusContexts::denyEverything($models);
+
+		if(CerberusContexts::isActorAnAdmin($actor))
+			return CerberusContexts::allowEverything($models);
+
+		if(!($dicts = CerberusContexts::polymorphModelsToDictionaries($models, CerberusContexts::CONTEXT_COMMENT)))
+			return CerberusContexts::denyEverything($models);
+
+		$results = array_fill_keys(array_keys($dicts), false);
+
+		// Group comments by target record type
+		$targets = [];
+
+		foreach($dicts as $id => $dict) {
+			$target_context = $dict->target__context ?? null;
+			$target_id = intval($dict->target_id ?? 0);
+
+			if(!$target_context || !$target_id)
+				continue;
+
+			$targets[$target_context][$target_id][] = $id;
+		}
+
+		foreach($targets as $target_context => $target_ids) {
+			$privs = CerberusContexts::isReadableByActor($target_context, array_keys($target_ids), $actor);
+
+			foreach($target_ids as $target_id => $comment_ids) {
+				$is_readable = is_array($privs) ? !empty($privs[$target_id]) : (true === $privs);
+
+				foreach($comment_ids as $comment_id)
+					$results[$comment_id] = $is_readable;
+			}
+		}
+
+		if(is_array($models)) {
+			return $results;
+		} else {
+			return array_shift($results);
+		}
 	}
 	
 	// Only a superuser or the author of the comment can edit it
